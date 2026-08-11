@@ -5,3 +5,4 @@ dist/
 *.log
 .vercel
 ai-test.tmp.mjs
+.env*

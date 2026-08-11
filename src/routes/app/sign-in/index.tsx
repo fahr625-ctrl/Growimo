@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SignIn } from "@clerk/clerk-react";
 import { isClerkConfigured } from "~/auth/middleware";
 import { useEffect } from "react";
+import BetaRegisteredNotice from "~/components/BetaRegisteredNotice";
 
 export const Route = createFileRoute("/app/sign-in/")({
   component: SignInPage,
@@ -26,11 +27,14 @@ function SignInPage() {
   }
 
   return (
-    <SignIn
-      routing="path"
-      path="/app/sign-in"
-      signUpUrl="/app/sign-up"
-      fallbackRedirectUrl="/app"
-    />
+    <>
+      <BetaRegisteredNotice />
+      <SignIn
+        routing="path"
+        path="/app/sign-in"
+        signUpUrl="/app/sign-up"
+        fallbackRedirectUrl="/app"
+      />
+    </>
   );
 }

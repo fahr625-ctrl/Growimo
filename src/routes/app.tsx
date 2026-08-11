@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth, useUser, UserButton, SignOutButton } from "@clerk/clerk-react";
 import { isClerkConfigured } from "~/auth/middleware";
 import { useTranslation } from "~/i18n";
@@ -20,7 +20,58 @@ function AppLayout() {
   // Hook count stays stable because isClerkConfigured() is a build-time constant
   // (same pattern as AppSidebar below).
   const clerkUser = isClerkConfigured() ? useUser().user : undefined;
+  const { isSignedIn, isLoaded } = isClerkConfigured() ? useAuth() : { isSignedIn: false, isLoaded: true };
+
+  // Public auth pages (sign-in, sign-up) get a minimal layout without sidebar
+  const isAuthPage =
+    currentPath === "/app/sign-in" || currentPath === "/app/sign-up";
+
+  // Beta welcome page gets full-width minimal layout (no sidebar, no max-w constraint)
+  const isBetaWelcome = currentPath === "/app/beta-welcome";
+
+  // ── Beta access gate ────────────────────────────────────────────────────────
+  // Every beta signup is auto-approved; this gate checks the signed-in user's
+  // email against the approved list before showing the app.
+  const [beta, setBeta] = useState<'checking' | 'approved' | 'denied' | 'error'>('checking');
+  const [checkVersion, setCheckVersion] = useState(0);
+  const checkedEmailRef = useRef<string | null>(null);
+
+  const email = clerkUser?.primaryEmailAddress?.emailAddress ?? "";
+
   useEffect(() => {
+    if (!isLoaded || isAuthPage || isBetaWelcome || !isSignedIn || !email) return;
+    // Avoid re-checking the same email on every render/navigation
+    if (checkedEmailRef.current === email) return;
+    checkedEmailRef.current = email;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/beta-access", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        const d = await res.json().catch(() => null);
+        if (cancelled) return;
+        if (d && typeof d.approved === "boolean") setBeta(d.approved ? "approved" : "denied");
+        else setBeta("error");
+      } catch {
+        if (!cancelled) setBeta("error");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isLoaded, isAuthPage, isBetaWelcome, isSignedIn, email, checkVersion]);
+
+  const retryAccessCheck = () => {
+    checkedEmailRef.current = null;
+    setBeta("checking");
+    setCheckVersion(v => v + 1);
+  };
+
+  // Ensure a `users` row exists in PostgreSQL for the signed-in Clerk user.
+  // Only runs once the user's email is confirmed beta-approved.
+  useEffect(() => {
+    if (beta !== "approved") return;
     if (!clerkUser?.id) return;
     ensureUser(
       clerkUser.id,
@@ -29,14 +80,7 @@ function AppLayout() {
     ).catch((err) => {
       console.error("[db] ensureUser failed:", err);
     });
-  }, [clerkUser?.id]);
-
-  // Public auth pages (sign-in, sign-up) get a minimal layout without sidebar
-  const isAuthPage =
-    currentPath === "/app/sign-in" || currentPath === "/app/sign-up";
-
-  // Beta welcome page gets full-width minimal layout (no sidebar, no max-w constraint)
-  const isBetaWelcome = currentPath === "/app/beta-welcome";
+  }, [beta, clerkUser?.id]);
 
   if (isBetaWelcome) {
     return <Outlet />;
@@ -58,6 +102,59 @@ function AppLayout() {
     );
   }
 
+  // Signed in: wait for the beta access check before showing anything
+  if (isSignedIn && beta === "checking") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white">
+        <div className="flex items-center gap-3 text-gray-500">
+          <svg
+            className="h-6 w-6 animate-spin text-blue-600"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            />
+          </svg>
+          <span className="text-sm font-medium">{t.common_loading}</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Signed in but not beta-approved: show the waitlist screen
+  if (isSignedIn && beta === "denied") {
+    return <WaitlistScreen />;
+  }
+
+  // Signed in but the access check itself failed: offer a retry
+  if (isSignedIn && beta === "error") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white px-4">
+        <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+          <h2 className="text-xl font-bold text-gray-900">{t.beta_access_error_title}</h2>
+          <p className="mt-2 text-sm text-gray-500">{t.beta_access_error_text}</p>
+          <button
+            onClick={retryAccessCheck}
+            className="mt-6 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-2.5 font-semibold text-white shadow-sm transition-all hover:from-blue-700 hover:to-purple-700"
+          >
+            {t.beta_access_retry}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-white md:flex-row">
       {/* Sidebar */}
@@ -69,6 +166,32 @@ function AppLayout() {
         </div>
       </main>
       <FeedbackButton />
+    </div>
+  );
+}
+
+function WaitlistScreen() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-white px-4">
+      <div className="w-full max-w-md rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-xl">
+        <img src="/logo.png" alt="Growimo" className="mx-auto h-10 w-auto" />
+        <h2 className="mt-6 text-2xl font-bold text-gray-900">{t.beta_waitlist_title}</h2>
+        <p className="mt-3 leading-relaxed text-gray-500">{t.beta_waitlist_text}</p>
+        <Link
+          to="/"
+          className="mt-7 inline-block w-full rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 font-semibold text-white shadow-lg transition-all hover:from-blue-700 hover:to-purple-700"
+        >
+          {t.beta_waitlist_cta}
+        </Link>
+        <div className="mt-5">
+          <SignOutButton>
+            <button className="text-sm text-gray-400 transition-colors hover:text-gray-600">
+              {t.auth_sign_out}
+            </button>
+          </SignOutButton>
+        </div>
+      </div>
     </div>
   );
 }
