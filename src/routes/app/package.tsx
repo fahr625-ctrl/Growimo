@@ -8,6 +8,7 @@ import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { ScoreBadge } from '~/components/ScoreBadge';
 import { ScoreCard } from '~/components/ScoreCard';
 import { PrioritizeCard } from '~/components/PrioritizeCard';
+import { ActionPlanCard } from '~/components/ActionPlanCard';
 import { useTranslation } from '~/i18n';
 import { contentTypeLabel } from '~/lib/content-types';
 import { saveProject, updateChannel } from '~/store/projects';
@@ -612,6 +613,18 @@ function ChannelCard({
               content={display}
               productIdea={productIdea}
               onImproved={handleImproved}
+            />
+          </div>
+
+          {/* F5 Kanal-Aktionspläne — concrete per-channel checklist below the score card */}
+          <div className="mb-4">
+            <ActionPlanCard
+              asset={{
+                channel: contentType,
+                title: display.title,
+                body: display.body,
+                metadata: display.metadata ?? {},
+              }}
             />
           </div>
 

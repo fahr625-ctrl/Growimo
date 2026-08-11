@@ -1108,6 +1108,13 @@ export const de = {
   package_save_project: '💾 Als Projekt speichern',
   package_saved_link: '✓ Zum Projekt',
   package_open_idea: '🚀 Neues Paket',
+  action_plan_title: '🚀 Aktionsplan',
+  action_plan_subtitle: 'Schritt-für-Schritt-Checkliste: genau das tun, was dieses Asset vorgibt — dann abhaken.',
+  action_plan_done_label: 'Fertig, wenn:',
+  action_plan_progress: '%d1 von %d2 erledigt',
+  action_plan_reset: 'Zurücksetzen',
+  action_plan_all_done: '🎉 Alles erledigt — bereit zum Veröffentlichen!',
+  action_plan_unavailable: 'Für dieses Asset ist kein Aktionsplan verfügbar.',
   package_dashboard_title: '✨ Komplettes Marketing-Paket',
   package_dashboard_desc:
     'Alle 5 Kanäle in einem Schritt — ein Strategie-Kern, eine Stimme, ein CTA.',

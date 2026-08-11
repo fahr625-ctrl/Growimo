@@ -11,6 +11,7 @@ import type { ImproveOutcome } from '~/ai/types';
 import type { ContentType, Project, StoredContent } from '~/store/projects';
 import { ImageStudio } from '~/components/ImageStudio';
 import { PrioritizeCard } from '~/components/PrioritizeCard';
+import { ActionPlanCard } from '~/components/ActionPlanCard';
 
 const CONTENT_TYPE_CONFIG: Record<ContentType, { icon: string; color: string }> = {
   pinterest_pin: { icon: '📌', color: 'bg-red-100 text-red-700' },
@@ -233,6 +234,17 @@ function ContentCard({ content, productIdea }: { content: StoredContent; product
               />
             </div>
           )}
+          {/* F5 Kanal-Aktionspläne — concrete per-channel checklist below the asset */}
+          <div className="mt-4">
+            <ActionPlanCard
+              asset={{
+                channel: display.contentType,
+                title: display.title,
+                body: display.body,
+                metadata: display.metadata ?? {},
+              }}
+            />
+          </div>
           <div className="mt-4 flex justify-end">
             <button type="button" onClick={handleCopy} className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${copied ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
               {copied ? (

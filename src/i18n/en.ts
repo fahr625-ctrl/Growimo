@@ -1104,6 +1104,13 @@ export const en: typeof de = {
   package_save_project: '💾 Save as project',
   package_saved_link: '✓ Go to project',
   package_open_idea: '🚀 New package',
+  action_plan_title: '🚀 Action plan',
+  action_plan_subtitle: 'Step-by-step checklist: do exactly what this asset specifies — then tick it off.',
+  action_plan_done_label: 'Done when:',
+  action_plan_progress: '%d1 of %d2 done',
+  action_plan_reset: 'Reset',
+  action_plan_all_done: '🎉 All done — ready to publish!',
+  action_plan_unavailable: 'No action plan is available for this asset.',
   package_dashboard_title: '✨ Complete Marketing Package',
   package_dashboard_desc:
     'All 5 channels in one step — one strategic core, one voice, one CTA.',
