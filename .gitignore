@@ -4,3 +4,4 @@ dist/
 .env
 *.log
 .vercel
+ai-test.tmp.mjs
