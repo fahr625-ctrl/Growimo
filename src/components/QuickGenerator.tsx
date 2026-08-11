@@ -2,12 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useUser } from '@clerk/clerk-react';
 import { generateContentServer } from '~/ai/server';
-import type { ContentResult, ContentType } from '~/ai/types';
+import type { ContentResult, ContentType, ImproveOutcome } from '~/ai/types';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import BrandBadge from '~/components/BrandBadge';
 import { ScoreCard } from '~/components/ScoreCard';
 import { useTranslation } from '~/i18n';
-import { saveProject } from '~/store/projects';
+import { saveProject, updateChannel } from '~/store/projects';
 import { getBrandContext } from '~/store/brand';
 import { canGenerate, recordGeneration } from '~/store/subscriptions';
 import { trackEvent } from '~/store/analytics';
@@ -256,6 +256,32 @@ function QuickGeneratorContent({
     }
   }, []);
 
+  // ── F2 Verbesserungsschleife: swap result + persist to the saved project ──
+  const handleImproved = useCallback(
+    async (outcome: ImproveOutcome) => {
+      if (!outcome.improved || !outcome.improvedContent) return;
+      const improved = outcome.improvedContent;
+      setResult(improved);
+      // Overwrite the saved asset (simpler correct option) and keep
+      // metadata.score updated so the library/detail show the new score.
+      if (savedProjectId) {
+        try {
+          await updateChannel(savedProjectId, contentType, {
+            title: improved.title,
+            body: improved.body,
+            metadata: {
+              ...(improved.metadata ?? {}),
+              score: improved.score ?? undefined,
+            },
+          });
+        } catch (err) {
+          console.error('Persisting improved content failed:', err);
+        }
+      }
+    },
+    [savedProjectId, contentType],
+  );
+
   const sections = useMemo(
     () => (result ? parseSections(result.body) : null),
     [result],
@@ -406,8 +432,14 @@ function QuickGeneratorContent({
             </div>
           </div>
 
-          {/* F1 Qualitäts-Score — decision layer, expanded by default */}
-          <ScoreCard score={result.score} defaultExpanded />
+          {/* F1 Qualitäts-Score + F2 Verbesserungsschleife — decision layer */}
+          <ScoreCard
+            score={result.score}
+            defaultExpanded
+            content={result}
+            productIdea={productIdea}
+            onImproved={handleImproved}
+          />
 
           {/* Sections */}
           {sections ? (

@@ -6,7 +6,8 @@ import { ScoreBadge } from '~/components/ScoreBadge';
 import { ScoreCard, scoreFromMetadata } from '~/components/ScoreCard';
 import { useTranslation } from '~/i18n';
 import { contentTypeLabel } from '~/lib/content-types';
-import { getProject, getProjectContent } from '~/store/projects';
+import { getProject, getProjectContent, updateChannel } from '~/store/projects';
+import type { ImproveOutcome } from '~/ai/types';
 import type { ContentType, Project, StoredContent } from '~/store/projects';
 import { ImageStudio } from '~/components/ImageStudio';
 
@@ -124,7 +125,7 @@ function ProjectDetailContent({ project, contents }: { project: Project; content
         {contents.length === 0 ? (
           <p className="text-sm text-gray-500">No content was generated for this project.</p>
         ) : (
-          contents.map((content) => <ContentCard key={content.id} content={content} />)
+          contents.map((content) => <ContentCard key={content.id} content={content} productIdea={project.productIdea} />)
         )}
       </div>
       {contents.length > 0 && <ImageStudio productIdea={project.productIdea} />}
@@ -132,21 +133,37 @@ function ProjectDetailContent({ project, contents }: { project: Project; content
   );
 }
 
-function ContentCard({ content }: { content: StoredContent }) {
+function ContentCard({ content, productIdea }: { content: StoredContent; productIdea?: string }) {
   const { t } = useTranslation();
-  const config = CONTENT_TYPE_CONFIG[content.contentType];
+  const [display, setDisplay] = useState<StoredContent>(content);
+  const config = CONTENT_TYPE_CONFIG[display.contentType];
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const [showScore, setShowScore] = useState(false);
-  const score = scoreFromMetadata(content.metadata);
+  const score = scoreFromMetadata(display.metadata);
+  // F2: persist the improved asset (overwrite) so the new score survives reloads
+  const handleImproved = async (outcome: ImproveOutcome) => {
+    if (!outcome.improved || !outcome.improvedContent) return;
+    const ic = outcome.improvedContent;
+    try {
+      const updated = await updateChannel(display.projectId, display.contentType, {
+        title: ic.title,
+        body: ic.body,
+        metadata: { ...(ic.metadata ?? {}), score: ic.score ?? undefined },
+      });
+      if (updated) setDisplay(updated);
+    } catch (err) {
+      console.error('Persisting improved content failed:', err);
+    }
+  };
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await navigator.clipboard.writeText(content.body);
+      await navigator.clipboard.writeText(display.body);
     } catch {
       const textarea = document.createElement('textarea');
-      textarea.value = content.body;
+      textarea.value = display.body;
       textarea.style.position = 'fixed';
       textarea.style.opacity = '0';
       document.body.appendChild(textarea);
@@ -164,8 +181,8 @@ function ContentCard({ content }: { content: StoredContent }) {
       <button type="button" onClick={() => setExpanded((p) => !p)} className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-gray-50">
         <span className="flex-shrink-0 text-xl">{config?.icon ?? '📄'}</span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-gray-900">{contentTypeLabel(t, content.contentType)}</p>
-          <p className="truncate text-xs text-gray-500">{content.title}</p>
+          <p className="text-sm font-semibold text-gray-900">{contentTypeLabel(t, display.contentType)}</p>
+          <p className="truncate text-xs text-gray-500">{display.title}</p>
         </div>
         {score != null && score.total !== undefined && (
           <button
@@ -183,11 +200,23 @@ function ContentCard({ content }: { content: StoredContent }) {
       </button>
       {expanded && (
         <div className="border-t border-gray-100 px-5 py-4">
-          <h4 className="mb-2 text-base font-bold text-gray-900">{content.title}</h4>
-          <pre className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700 font-sans">{content.body}</pre>
+          <h4 className="mb-2 text-base font-bold text-gray-900">{display.title}</h4>
+          <pre className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700 font-sans">{display.body}</pre>
           {showScore && (
             <div className="mt-3">
-              <ScoreCard score={score} defaultExpanded />
+              <ScoreCard
+                score={score}
+                defaultExpanded
+                content={{
+                  contentType: display.contentType,
+                  title: display.title,
+                  body: display.body,
+                  metadata: display.metadata ?? {},
+                  score: score ?? undefined,
+                }}
+                productIdea={productIdea}
+                onImproved={handleImproved}
+              />
             </div>
           )}
           <div className="mt-4 flex justify-end">

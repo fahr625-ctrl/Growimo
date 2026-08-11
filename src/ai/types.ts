@@ -92,6 +92,35 @@ export interface ContentScore {
   ruleVersion: number;
 }
 
+// ── F2 Automatische Verbesserungsschleife (decision layer) ────────────────────
+
+/**
+ * Result of the one-click auto-improve loop. `improved === true` means a
+ * regenerated version was produced and re-scored; `false` means Growimo
+ * deliberately did nothing (asset already strong / no issues / scoring missing
+ * / the improvement call failed — distinguished by `reason`).
+ */
+export interface ImproveOutcome {
+  /** true when a regenerated, re-scored version was produced. */
+  improved: boolean;
+  /** Machine-readable reason when improved === false. */
+  reason?: 'already_strong' | 'no_issues' | 'no_score' | 'failed';
+  /** The regenerated content with its fresh score (improved === true). */
+  improvedContent?: ContentResult;
+  /** Score of the original asset. */
+  oldScore: ContentScore | null;
+  /** Freshly computed score of the improved content. */
+  newScore: ContentScore | null;
+  /** newScore.total - oldScore.total (can be negative in rare regressions). */
+  delta: number;
+  /** The issues/fixes that were handed to the model as instructions. */
+  appliedFixes: ScoreIssue[];
+  /** German labels of the dimensions that scored well and were kept unchanged. */
+  unchangedSections: string[];
+  /** true when the improvement call failed — content returned unchanged. */
+  error?: boolean;
+}
+
 export interface AIConfig {
   provider: 'openai' | 'anthropic' | 'gemini';
   model?: string;

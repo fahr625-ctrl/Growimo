@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start';
-import type { ContentRequest, ContentResult, ContentType } from './types';
+import type { ContentRequest, ContentResult, ContentScore, ContentType, ImproveOutcome } from './types';
 
 /**
  * Reports whether the OpenAI API key is configured on the server.
@@ -92,4 +92,55 @@ Generiere eine verbesserte Version des ${channelLabel}. Behalte das gleiche Form
     const result = await generateContent(improvementRequest);
     console.log('[server.improveContent] Result:', result.title);
     return result;
+  });
+
+/**
+ * F2 server-side auto-improve loop: apply the score's concrete fixes to an
+ * existing asset, re-score the result, and return the delta + before/after.
+ * Consumes the F1 ScoreIssue fix contract (field/action/suggestion) directly.
+ */
+export const improveByScoreServer = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const d = input as {
+      contentType: ContentType;
+      productIdea?: string;
+      title: string;
+      body: string;
+      metadata?: Record<string, unknown>;
+      score: ContentScore;
+    };
+    if (!d || typeof d !== 'object') throw new Error('data is required');
+    if (!d.contentType) throw new Error('contentType is required');
+    if (!d.title) throw new Error('title is required');
+    if (!d.body) throw new Error('body is required');
+    if (!d.score || typeof d.score.total !== 'number') throw new Error('score is required');
+    return {
+      contentType: d.contentType,
+      productIdea: d.productIdea ?? '',
+      title: d.title,
+      body: d.body,
+      metadata: d.metadata ?? {},
+      score: d.score,
+    };
+  })
+  .handler(async ({ data }): Promise<ImproveOutcome> => {
+    console.log('[server.improveByScore]', data.contentType, 'old score:', data.score.total);
+    const { improveByScore } = await import('./improve');
+    const outcome = await improveByScore(
+      { contentType: data.contentType, productIdea: data.productIdea },
+      {
+        contentType: data.contentType,
+        title: data.title,
+        body: data.body,
+        metadata: data.metadata,
+        score: data.score,
+      },
+      data.score,
+    );
+    console.log(
+      '[server.improveByScore] outcome:',
+      outcome.improved ? 'improved' : outcome.reason,
+      outcome.improved ? `new score: ${outcome.newScore?.total}` : '',
+    );
+    return outcome;
   });

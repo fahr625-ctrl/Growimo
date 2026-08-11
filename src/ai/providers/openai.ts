@@ -545,7 +545,8 @@ Ein Trend, der NOCH NICHT Mainstream ist, aber in 6–12 Monaten relevant wird. 
   ${NO_INVENT_CONSTRAINT}`,
   };
 
-function parseResponse(contentType: ContentType, text: string): ContentResult {
+/** Exported for the F2 auto-improve loop, which re-parses improved output with the same structure contract as generation. */
+export function parseResponse(contentType: ContentType, text: string): ContentResult {
   const trimmed = text.trim();
 
   // Pinterest: extract structured sections

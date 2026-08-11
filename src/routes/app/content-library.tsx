@@ -4,7 +4,8 @@ import { useUser } from "@clerk/clerk-react";
 import { ProtectedRoute } from "~/components/ProtectedRoute";
 import { ScoreBadge } from "~/components/ScoreBadge";
 import { ScoreCard, scoreFromMetadata } from "~/components/ScoreCard";
-import { getAllContentByUser } from "~/store/projects";
+import { getAllContentByUser, updateChannel } from "~/store/projects";
+import type { ImproveOutcome } from "~/ai/types";
 import type { ContentType, StoredContent } from "~/store/projects";
 import { useTranslation } from "~/i18n";
 import { contentTypeLabel } from "~/lib/content-types";
@@ -216,17 +217,33 @@ function ContentCard({
   locale?: string;
 }) {
   const { t } = useTranslation();
+  const [display, setDisplay] = useState<StoredContent & { projectTitle: string }>(content);
   const [copied, setCopied] = useState(false);
   const [copying, setCopying] = useState(false);
   const [showScore, setShowScore] = useState(false);
-  const score = scoreFromMetadata(content.metadata);
+  const score = scoreFromMetadata(display.metadata);
+  // F2: persist the improved asset (overwrite) so the new score survives reloads
+  const handleImproved = async (outcome: ImproveOutcome) => {
+    if (!outcome.improved || !outcome.improvedContent) return;
+    const ic = outcome.improvedContent;
+    try {
+      const updated = await updateChannel(display.projectId, display.contentType, {
+        title: ic.title,
+        body: ic.body,
+        metadata: { ...(ic.metadata ?? {}), score: ic.score ?? undefined },
+      });
+      if (updated) setDisplay({ ...display, ...updated });
+    } catch (err) {
+      console.error("Persisting improved content failed:", err);
+    }
+  };
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (copying) return;
     setCopying(true);
     try {
-      await navigator.clipboard.writeText(content.body);
+      await navigator.clipboard.writeText(display.body);
     } catch {
       const textarea = document.createElement("textarea");
       textarea.value = content.body;
@@ -243,32 +260,32 @@ function ContentCard({
   };
 
   const preview =
-    content.body.length > 100
-      ? content.body.slice(0, 100) + "..."
-      : content.body;
+    display.body.length > 100
+      ? display.body.slice(0, 100) + "..."
+      : display.body;
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span>{CONTENT_TYPE_CONFIG[content.contentType]?.icon ?? "📄"}</span>
+            <span>{CONTENT_TYPE_CONFIG[display.contentType]?.icon ?? "📄"}</span>
             <h3 className="text-sm font-semibold text-gray-900">
-              {content.title}
+              {display.title}
             </h3>
           </div>
           {showProject && (
             <Link
               to="/app/projects/$projectId"
-              params={{ projectId: content.projectId }}
+              params={{ projectId: display.projectId }}
               className="mt-1 inline-block text-xs text-blue-600 hover:text-blue-800"
             >
-              {content.projectTitle}
+              {display.projectTitle}
             </Link>
           )}
           <p className="mt-1 text-xs text-gray-500">{preview}</p>
           <p className="mt-1 text-xs text-gray-400">
-            {timeAgo(content.createdAt, t, locale)}
+            {timeAgo(display.createdAt, t, locale)}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -331,10 +348,21 @@ function ContentCard({
         </div>
       </div>
 
-      {/* F1 score detail — toggled via the badge */}
+      {/* F1 score detail + F2 Verbessern — toggled via the badge */}
       {showScore && (
         <div className="mt-3">
-          <ScoreCard score={score} defaultExpanded />
+          <ScoreCard
+            score={score}
+            defaultExpanded
+            content={{
+              contentType: display.contentType,
+              title: display.title,
+              body: display.body,
+              metadata: display.metadata ?? {},
+              score: score ?? undefined,
+            }}
+            onImproved={handleImproved}
+          />
         </div>
       )}
     </div>
