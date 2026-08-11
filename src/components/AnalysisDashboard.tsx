@@ -78,6 +78,7 @@ function parseSections(body: string): AnalysisSections {
 // ── Circular Score ─────────────────────────────────────────────────────────────
 
 function CircularScore({ score, size = 120 }: { score: number | null; size?: number }) {
+  const { t } = useTranslation();
   const displayScore = score ?? 0;
   const colors = scoreColor(displayScore);
   const radius = (size - 10) / 2;
@@ -116,6 +117,7 @@ function CircularScore({ score, size = 120 }: { score: number | null; size?: num
 // ── Priority Card ──────────────────────────────────────────────────────────────
 
 function PriorityCard({ number, title, impact, reason }: { number: number; title: string; impact: string; reason: string }) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
       <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">

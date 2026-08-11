@@ -3,6 +3,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { useTranslation } from '~/i18n';
+import { contentTypeLabel } from '~/lib/content-types';
 import { getProject, getProjectContent } from '~/store/projects';
 import type { ContentType, Project, StoredContent } from '~/store/projects';
 import { ImageStudio } from '~/components/ImageStudio';
@@ -92,6 +93,7 @@ function ProjectDetailPage() {
 }
 
 function ProjectDetailContent({ project, contents }: { project: Project; contents: StoredContent[] }) {
+  const { t } = useTranslation();
   return (
     <div>
       <Link to="/app" className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-blue-600 transition-colors">
@@ -129,6 +131,7 @@ function ProjectDetailContent({ project, contents }: { project: Project; content
 }
 
 function ContentCard({ content }: { content: StoredContent }) {
+  const { t } = useTranslation();
   const config = CONTENT_TYPE_CONFIG[content.contentType];
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(true);
@@ -157,7 +160,7 @@ function ContentCard({ content }: { content: StoredContent }) {
       <button type="button" onClick={() => setExpanded((p) => !p)} className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-gray-50">
         <span className="flex-shrink-0 text-xl">{config?.icon ?? '📄'}</span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-gray-900">{config?.label ?? content.contentType}</p>
+          <p className="text-sm font-semibold text-gray-900">{contentTypeLabel(t, content.contentType)}</p>
           <p className="truncate text-xs text-gray-500">{content.title}</p>
         </div>
         <svg className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
