@@ -14,6 +14,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppSettingsRouteImport } from './routes/app/settings'
 import { Route as AppPricingRouteImport } from './routes/app/pricing'
+import { Route as AppPackageRouteImport } from './routes/app/package'
 import { Route as AppNewProjectRouteImport } from './routes/app/new-project'
 import { Route as AppImageStudioRouteImport } from './routes/app/image-studio'
 import { Route as AppFeedbackRouteImport } from './routes/app/feedback'
@@ -56,6 +57,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
 const AppPricingRoute = AppPricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPackageRoute = AppPackageRouteImport.update({
+  id: '/package',
+  path: '/package',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNewProjectRoute = AppNewProjectRouteImport.update({
@@ -162,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/app/feedback': typeof AppFeedbackRoute
   '/app/image-studio': typeof AppImageStudioRoute
   '/app/new-project': typeof AppNewProjectRoute
+  '/app/package': typeof AppPackageRoute
   '/app/pricing': typeof AppPricingRoute
   '/app/settings': typeof AppSettingsRoute
   '/app/': typeof AppIndexRoute
@@ -186,6 +193,7 @@ export interface FileRoutesByTo {
   '/app/feedback': typeof AppFeedbackRoute
   '/app/image-studio': typeof AppImageStudioRoute
   '/app/new-project': typeof AppNewProjectRoute
+  '/app/package': typeof AppPackageRoute
   '/app/pricing': typeof AppPricingRoute
   '/app/settings': typeof AppSettingsRoute
   '/app': typeof AppIndexRoute
@@ -212,6 +220,7 @@ export interface FileRoutesById {
   '/app/feedback': typeof AppFeedbackRoute
   '/app/image-studio': typeof AppImageStudioRoute
   '/app/new-project': typeof AppNewProjectRoute
+  '/app/package': typeof AppPackageRoute
   '/app/pricing': typeof AppPricingRoute
   '/app/settings': typeof AppSettingsRoute
   '/app/': typeof AppIndexRoute
@@ -239,6 +248,7 @@ export interface FileRouteTypes {
     | '/app/feedback'
     | '/app/image-studio'
     | '/app/new-project'
+    | '/app/package'
     | '/app/pricing'
     | '/app/settings'
     | '/app/'
@@ -263,6 +273,7 @@ export interface FileRouteTypes {
     | '/app/feedback'
     | '/app/image-studio'
     | '/app/new-project'
+    | '/app/package'
     | '/app/pricing'
     | '/app/settings'
     | '/app'
@@ -288,6 +299,7 @@ export interface FileRouteTypes {
     | '/app/feedback'
     | '/app/image-studio'
     | '/app/new-project'
+    | '/app/package'
     | '/app/pricing'
     | '/app/settings'
     | '/app/'
@@ -341,6 +353,13 @@ declare module '@tanstack/react-router' {
       path: '/pricing'
       fullPath: '/app/pricing'
       preLoaderRoute: typeof AppPricingRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/package': {
+      id: '/app/package'
+      path: '/package'
+      fullPath: '/app/package'
+      preLoaderRoute: typeof AppPackageRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/new-project': {
@@ -483,6 +502,7 @@ interface AppRouteChildren {
   AppFeedbackRoute: typeof AppFeedbackRoute
   AppImageStudioRoute: typeof AppImageStudioRoute
   AppNewProjectRoute: typeof AppNewProjectRoute
+  AppPackageRoute: typeof AppPackageRoute
   AppPricingRoute: typeof AppPricingRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -507,6 +527,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppFeedbackRoute: AppFeedbackRoute,
   AppImageStudioRoute: AppImageStudioRoute,
   AppNewProjectRoute: AppNewProjectRoute,
+  AppPackageRoute: AppPackageRoute,
   AppPricingRoute: AppPricingRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,

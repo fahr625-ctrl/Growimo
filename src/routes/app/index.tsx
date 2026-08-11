@@ -669,9 +669,10 @@ function DashboardContent() {
         </section>
 
         <section>
-          <div className="mb-4 flex items-end justify-between"><div><p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Next best actions</p><h2 className="mt-1 text-xl font-bold text-gray-900">Your priority tasks</h2></div><span className="text-xs text-gray-400">3 actions to accelerate growth</span></div>
+          <div className="mb-4 flex items-end justify-between"><div><p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Next best actions</p><h2 className="mt-1 text-xl font-bold text-gray-900">Your priority tasks</h2></div><span className="text-xs text-gray-400">5 actions to accelerate growth</span></div>
           <div className="grid gap-4 md:grid-cols-3">
             {[
+              { title: t.package_dashboard_title, desc: t.package_dashboard_desc, icon: '✨', to: '/app/package', style: 'border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-purple-50', iconStyle: 'bg-fuchsia-100' },
               { title: 'Publish Pinterest Pin', desc: 'Turn your next idea into a scroll-stopping pin.', icon: '📌', to: '/app/generate/pinterest', style: 'border-pink-100 bg-gradient-to-br from-rose-50 to-white', iconStyle: 'bg-rose-100' },
               { title: 'Improve Etsy SEO', desc: 'Optimize your listing for more qualified searches.', icon: '🛍️', to: '/app/generate/etsy', style: 'border-amber-100 bg-gradient-to-br from-amber-50 to-white', iconStyle: 'bg-amber-100' },
               { title: 'Create Blog Post', desc: 'Publish useful content that compounds over time.', icon: '📝', to: '/app/generate/blog', style: 'border-blue-100 bg-gradient-to-br from-blue-50 to-white', iconStyle: 'bg-blue-100' },

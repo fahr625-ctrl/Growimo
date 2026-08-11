@@ -1076,4 +1076,39 @@ export const de = {
   prioritize_tag_weak_score: 'Score ausbaufähig',
   prioritize_tag_improve_first: 'vorher verbessern',
 
+  // ── F4 Komplettes Marketing-Paket ───────────────────────────────────────
+  package_title: '✨ Komplettes Marketing-Paket',
+  package_subtitle:
+    'Eine Produktidee → ein abgestimmtes Paket: Pinterest-Pins, Etsy-Listing, SEO-Blog, Social-Posts und Newsletter — mit gemeinsamen Keywords, einem Hook, einem CTA und einer Stimme.',
+  package_idea_label: 'Produktidee',
+  package_idea_placeholder:
+    'z. B. Personalisierte Sternenhimmel-Poster als Aquarell — als Geschenk zur Geburt, personalisiert mit Namen und Sternzeichen…',
+  package_generate: '✨ Paket generieren',
+  package_loading_1: 'Bestimme den gemeinsamen Strategie-Kern …',
+  package_loading_2: 'Erstelle den Pinterest-Pin mit dem Kern …',
+  package_loading_3: 'Schreibe das Etsy-Listing passend zum Kern …',
+  package_loading_4: 'Verfasse den SEO-Blog rund um den Kern …',
+  package_loading_5: 'Baue Social-Posts und Newsletter auf dem Kern auf …',
+  package_loading_6: 'Berechne die Qualitäts-Scores und die Priorisierung …',
+  package_kernel_badge: 'Der gemeinsame Kern',
+  package_kernel_title: '🧠 Gemeinsamer Strategie-Kern',
+  package_kernel_subtitle:
+    'Aus diesem Kern entstehen alle 5 Kanäle — gleiche Keywords, gleiche Botschaft, gleiche Stimme. So bleibt dein Paket konsistent.',
+  package_kernel_keywords: 'Keywords',
+  package_kernel_hook: 'Hook / Hauptbotschaft',
+  package_kernel_cta: 'Call-to-Action',
+  package_kernel_voice: 'Stimme / Ton',
+  package_kernel_audience: 'Zielgruppe',
+  package_kernel_fallback_note: 'Der Strategie-Kern wurde automatisch aus der Produktidee abgeleitet.',
+  package_channels_title: 'Deine 5 Kanäle',
+  package_channels_subtitle:
+    'Jeder Kanal nutzt denselben Kern — mit eigenem F1-Qualitäts-Score und einem Klick „Verbessern“.',
+  package_result_badge: 'Fertiges Paket',
+  package_channel_failed: 'Dieser Kanal konnte nicht generiert werden und wurde übersprungen.',
+  package_save_project: '💾 Als Projekt speichern',
+  package_saved_link: '✓ Zum Projekt',
+  package_open_idea: '🚀 Neues Paket',
+  package_dashboard_title: '✨ Komplettes Marketing-Paket',
+  package_dashboard_desc:
+    'Alle 5 Kanäle in einem Schritt — ein Strategie-Kern, eine Stimme, ein CTA.',
 } as const;

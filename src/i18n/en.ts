@@ -1072,4 +1072,39 @@ export const en: typeof de = {
   prioritize_tag_weak_score: 'score has room',
   prioritize_tag_improve_first: 'improve first',
 
+  // ── F4 Complete Marketing Package ───────────────────────────────────────
+  package_title: '✨ Complete Marketing Package',
+  package_subtitle:
+    'One product idea → one coordinated package: Pinterest pins, Etsy listing, SEO blog, social posts and newsletter — with shared keywords, one hook, one CTA and one voice.',
+  package_idea_label: 'Product idea',
+  package_idea_placeholder:
+    'e.g. Personalized watercolor starry-sky posters — as a gift for a baby birth, personalized with name and zodiac sign…',
+  package_generate: '✨ Generate package',
+  package_loading_1: 'Determining the shared strategic core …',
+  package_loading_2: 'Creating the Pinterest pin around the core …',
+  package_loading_3: 'Writing the Etsy listing around the core …',
+  package_loading_4: 'Drafting the SEO blog around the core …',
+  package_loading_5: 'Building social posts and newsletter on the core …',
+  package_loading_6: 'Calculating quality scores and prioritization …',
+  package_kernel_badge: 'The shared core',
+  package_kernel_title: '🧠 Shared Strategic Core',
+  package_kernel_subtitle:
+    'All 5 channels are built from this core — same keywords, same message, same voice. This keeps your package consistent.',
+  package_kernel_keywords: 'Keywords',
+  package_kernel_hook: 'Hook / main message',
+  package_kernel_cta: 'Call-to-action',
+  package_kernel_voice: 'Voice / tone',
+  package_kernel_audience: 'Audience',
+  package_kernel_fallback_note: 'The strategic core was derived automatically from the product idea.',
+  package_channels_title: 'Your 5 channels',
+  package_channels_subtitle:
+    'Every channel uses the same core — with its own F1 quality score and a one-click “Improve”.',
+  package_result_badge: 'Finished package',
+  package_channel_failed: 'This channel could not be generated and was skipped.',
+  package_save_project: '💾 Save as project',
+  package_saved_link: '✓ Go to project',
+  package_open_idea: '🚀 New package',
+  package_dashboard_title: '✨ Complete Marketing Package',
+  package_dashboard_desc:
+    'All 5 channels in one step — one strategic core, one voice, one CTA.',
 }

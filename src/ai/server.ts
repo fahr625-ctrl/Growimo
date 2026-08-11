@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
 import type { ContentRequest, ContentResult, ContentScore, ContentType, ImproveOutcome, PrioritizeAsset, PrioritizeOutcome } from './types';
+import type { MarketingPackage } from './package/package';
 
 /**
  * Reports whether the OpenAI API key is configured on the server.
@@ -183,4 +184,48 @@ export const prioritizeServer = createServerFn({ method: 'POST' })
       outcome ? `ranked ${outcome.ordered.length} channels (llm: ${outcome.llmUsed})` : 'null (<2 scored channels)',
     );
     return outcome;
+  });
+
+/**
+ * F4 server-side complete marketing package.
+ * ONE product idea → shared strategic kernel → all five channels (each with
+ * F1 score) → F3 prioritization. Single channel failures are skipped (null),
+ * the package itself never blocks. Cost: 1 kernel + 5 generations + 5 score
+ * passes per call.
+ */
+export const generatePackageServer = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const d = input as { productIdea?: unknown; lang?: unknown; brief?: unknown };
+    if (!d || typeof d !== 'object') throw new Error('data is required');
+    if (typeof d.productIdea !== 'string' || !d.productIdea.trim()) {
+      throw new Error('productIdea is required');
+    }
+    let brief: Record<string, string> | null = null;
+    if (d.brief && typeof d.brief === 'object') {
+      brief = {};
+      for (const [k, v] of Object.entries(d.brief as Record<string, unknown>)) {
+        if (typeof v === 'string' && v.trim()) brief[k] = v.trim();
+      }
+      if (Object.keys(brief).length === 0) brief = null;
+    }
+    return {
+      productIdea: d.productIdea.trim(),
+      lang: (d.lang === 'en' ? 'en' : 'de') as 'de' | 'en',
+      brief,
+    };
+  })
+  .handler(async ({ data }): Promise<MarketingPackage> => {
+    console.log('[server.generatePackage] idea:', data.productIdea.slice(0, 80), 'lang:', data.lang);
+    const { generateMarketingPackage } = await import('./package/package');
+    const pkg = await generateMarketingPackage(data.productIdea, {
+      lang: data.lang,
+      brief: data.brief,
+    });
+    const ok = Object.values(pkg.channels).filter(Boolean).length;
+    console.log(
+      '[server.generatePackage] done:',
+      `${ok}/5 channels,`,
+      'prioritized:', pkg.prioritized ? pkg.prioritized.ordered.map((i) => i.channel).join(' > ') : 'n/a',
+    );
+    return pkg;
   });
