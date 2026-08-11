@@ -5,6 +5,7 @@ import { generateContentServer } from '~/ai/server';
 import type { ContentResult, ContentType } from '~/ai/types';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import BrandBadge from '~/components/BrandBadge';
+import { ScoreCard } from '~/components/ScoreCard';
 import { useTranslation } from '~/i18n';
 import { saveProject } from '~/store/projects';
 import { getBrandContext } from '~/store/brand';
@@ -219,7 +220,11 @@ function QuickGeneratorContent({
           contentType,
           title: result.title,
           body: result.body,
-          metadata: result.metadata,
+          metadata: {
+            ...(result.metadata ?? {}),
+            // F1: persist the score with the asset so it survives reloads
+            score: result.score ?? undefined,
+          },
         },
       ],
     );
@@ -400,6 +405,9 @@ function QuickGeneratorContent({
               </Link>
             </div>
           </div>
+
+          {/* F1 Qualitäts-Score — decision layer, expanded by default */}
+          <ScoreCard score={result.score} defaultExpanded />
 
           {/* Sections */}
           {sections ? (

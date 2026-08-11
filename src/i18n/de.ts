@@ -1009,6 +1009,26 @@ export const de = {
   beta_admin_email: 'E-Mail',
   beta_admin_date: 'Registriert am',
   beta_admin_empty: 'Noch keine Anmeldungen.',
+
   sidebar_beta_signups: 'Beta-Anmeldungen',
+  // ── F1 Qualitäts-Score ───────────────────────────────────────────────────
+  score_badge: 'Qualität',
+  score_unavailable: 'Bewertung nicht verfügbar',
+  score_unavailable_desc: 'Die Qualitätsbewertung konnte nicht geladen werden — der Inhalt bleibt davon unberührt.',
+  score_summary_title: 'Warum dieser Score?',
+  score_details: 'Details',
+  score_issues_title: 'Konkrete Verbesserungen',
+  score_issues_empty: 'Keine offenen Punkte — starke Arbeit!',
+  score_issue_critical: 'Kritisch',
+  score_issue_warning: 'Hinweis',
+  score_fix_label: 'So behebst du es:',
+  score_dim_title: 'Titel',
+  score_dim_keywords: 'Keywords',
+  score_dim_cta: 'CTA',
+  score_dim_length: 'Länge',
+  score_dim_image: 'Bild',
+  score_dim_structure: 'Struktur',
+  score_dim_relevance: 'Relevanz',
+  score_points: '/100',
 
 } as const;

@@ -2,6 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { ProtectedRoute } from "~/components/ProtectedRoute";
+import { ScoreBadge } from "~/components/ScoreBadge";
+import { ScoreCard, scoreFromMetadata } from "~/components/ScoreCard";
 import { getAllContentByUser } from "~/store/projects";
 import type { ContentType, StoredContent } from "~/store/projects";
 import { useTranslation } from "~/i18n";
@@ -216,6 +218,8 @@ function ContentCard({
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const [copying, setCopying] = useState(false);
+  const [showScore, setShowScore] = useState(false);
+  const score = scoreFromMetadata(content.metadata);
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -267,53 +271,72 @@ function ContentCard({
             {timeAgo(content.createdAt, t, locale)}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={handleCopy}
-          disabled={copying}
-          className={`flex-shrink-0 inline-flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
-            copied
-              ? "bg-emerald-50 text-emerald-700"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          }`}
-        >
-          {copied ? (
-            <>
-              <svg
-                className="h-3.5 w-3.5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-              {t.common_copied}
-            </>
-          ) : (
-            <>
-              <svg
-                className="h-3.5 w-3.5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                />
-              </svg>
-              {t.common_copy}
-            </>
+        <div className="flex items-center gap-2">
+          {score != null && score.total !== undefined && (
+            <button
+              type="button"
+              onClick={() => setShowScore((s) => !s)}
+              title={t.score_badge}
+              className="transition-transform hover:scale-105"
+            >
+              <ScoreBadge total={score.total} size="sm" />
+            </button>
           )}
-        </button>
+          <button
+            type="button"
+            onClick={handleCopy}
+            disabled={copying}
+            className={`flex-shrink-0 inline-flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+              copied
+                ? "bg-emerald-50 text-emerald-700"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            {copied ? (
+              <>
+                <svg
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                {t.common_copied}
+              </>
+            ) : (
+              <>
+                <svg
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                  />
+                </svg>
+                {t.common_copy}
+              </>
+            )}
+          </button>
+        </div>
       </div>
+
+      {/* F1 score detail — toggled via the badge */}
+      {showScore && (
+        <div className="mt-3">
+          <ScoreCard score={score} defaultExpanded />
+        </div>
+      )}
     </div>
   );
 }

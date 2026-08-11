@@ -2,6 +2,8 @@ import { trackEvent } from '~/store/analytics';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
+import { ScoreBadge } from '~/components/ScoreBadge';
+import { ScoreCard, scoreFromMetadata } from '~/components/ScoreCard';
 import { useTranslation } from '~/i18n';
 import { contentTypeLabel } from '~/lib/content-types';
 import { getProject, getProjectContent } from '~/store/projects';
@@ -135,6 +137,8 @@ function ContentCard({ content }: { content: StoredContent }) {
   const config = CONTENT_TYPE_CONFIG[content.contentType];
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(true);
+  const [showScore, setShowScore] = useState(false);
+  const score = scoreFromMetadata(content.metadata);
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -163,6 +167,16 @@ function ContentCard({ content }: { content: StoredContent }) {
           <p className="text-sm font-semibold text-gray-900">{contentTypeLabel(t, content.contentType)}</p>
           <p className="truncate text-xs text-gray-500">{content.title}</p>
         </div>
+        {score != null && score.total !== undefined && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setShowScore((s) => !s); }}
+            title={t.score_badge}
+            className="flex-shrink-0 transition-transform hover:scale-105"
+          >
+            <ScoreBadge total={score.total} size="sm" />
+          </button>
+        )}
         <svg className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
@@ -171,6 +185,11 @@ function ContentCard({ content }: { content: StoredContent }) {
         <div className="border-t border-gray-100 px-5 py-4">
           <h4 className="mb-2 text-base font-bold text-gray-900">{content.title}</h4>
           <pre className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700 font-sans">{content.body}</pre>
+          {showScore && (
+            <div className="mt-3">
+              <ScoreCard score={score} defaultExpanded />
+            </div>
+          )}
           <div className="mt-4 flex justify-end">
             <button type="button" onClick={handleCopy} className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${copied ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
               {copied ? (
