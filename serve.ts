@@ -10,6 +10,7 @@
 // the takeover works across user boundaries.
 import handler from "./dist/server/server.js";
 import { initDb } from "./src/db/init";
+import { handleBetaApi } from "./src/api/beta";
 
 // Initialise the Neon PostgreSQL schema before serving. Wrapped in try/catch so
 // the server still starts (landing page, sign-in, etc.) if the database is
@@ -54,6 +55,8 @@ for (let attempt = 1; ; attempt++) {
       hostname: HOST,
       async fetch(req) {
         const { pathname } = new URL(req.url);
+        const apiResponse = await handleBetaApi(req, pathname);
+        if (apiResponse) return apiResponse;
         if (pathname.startsWith("/generated/")) {
           const file = Bun.file(GENERATED_DIR + pathname.slice("/generated".length));
           if (await file.exists()) {

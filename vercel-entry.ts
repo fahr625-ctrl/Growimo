@@ -11,6 +11,11 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import handler from "./dist/server/server.js";
+import { initDb } from "./src/db/init";
+import { handleBetaApi } from "./src/api/beta";
+
+// Initialise the database once at cold start
+try { await initDb(); } catch (err) { console.error("[vercel] Database init failed:", err); }
 
 const fetchHandler = handler as {
   fetch: (request: Request) => Response | Promise<Response>;
@@ -42,7 +47,27 @@ export default async function vercelHandler(
   res: ServerResponse,
 ): Promise<void> {
   try {
-    const webRes = await fetchHandler.fetch(toWebRequest(req));
+    const webReq = toWebRequest(req);
+    const url = new URL(webReq.url);
+    
+    // Handle beta API routes before passing to SSR handler
+    const apiResponse = await handleBetaApi(webReq, url.pathname);
+    if (apiResponse) {
+      res.statusCode = apiResponse.status;
+      apiResponse.headers.forEach((value, key) => res.setHeader(key, value));
+      if (apiResponse.body) {
+        const reader = apiResponse.body.getReader();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          res.write(value);
+        }
+      }
+      res.end();
+      return;
+    }
+    
+    const webRes = await fetchHandler.fetch(webReq);
     res.statusCode = webRes.status;
     webRes.headers.forEach((value, key) => res.setHeader(key, value));
     if (webRes.body) {

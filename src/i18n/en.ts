@@ -977,4 +977,25 @@ export const en: typeof de = {
   image_studio_prompt_format_instagram: 'Instagram post image for: %s. Square 1:1 format, modern social media aesthetic, vibrant and engaging.',
   image_studio_prompt_format_blog: 'Blog hero image for: %s. Wide 16:9 format, professional header style, subtle gradient overlay for text readability.',
 
+  // Beta signup
+  beta_modal_title: 'Get early beta access',
+  beta_modal_subtitle: 'Be among the first to try Growimo.',
+  beta_form_firstname: 'First name',
+  beta_form_firstname_placeholder: 'Your first name',
+  beta_form_email: 'Email',
+  beta_form_email_placeholder: 'you@example.com',
+  beta_form_submit: 'Get beta access',
+  beta_form_submitting: 'Submitting…',
+  beta_form_success_title: 'You’re on the list!',
+  beta_form_success_text: 'Thanks for signing up. We’ll be in touch soon.',
+  beta_form_error_required: 'Please enter your first name.',
+  beta_form_error_email: 'Please enter a valid email address.',
+  beta_admin_title: 'Beta signups',
+  beta_admin_count: '%d signups',
+  beta_admin_name: 'Name',
+  beta_admin_email: 'Email',
+  beta_admin_date: 'Registered',
+  beta_admin_empty: 'No signups yet.',
+  sidebar_beta_signups: 'Beta signups',
+
 }

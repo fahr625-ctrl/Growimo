@@ -980,4 +980,25 @@ export const de = {
   image_studio_prompt_format_instagram: 'Instagram-Post-Bild für: %s. Quadratisches 1:1-Format, moderne Social-Media-Ästhetik, lebendig und ansprechend.',
   image_studio_prompt_format_blog: 'Blog-Headerbild für: %s. Breites 16:9-Format, professioneller Header-Stil, dezenter Verlauf für gute Lesbarkeit von Text.',
 
+  // Beta signup
+  beta_modal_title: 'Beta-Zugang sichern',
+  beta_modal_subtitle: 'Sei unter den Ersten, die Growimo testen.',
+  beta_form_firstname: 'Vorname',
+  beta_form_firstname_placeholder: 'Dein Vorname',
+  beta_form_email: 'E-Mail',
+  beta_form_email_placeholder: 'du@beispiel.de',
+  beta_form_submit: 'Beta-Zugang sichern',
+  beta_form_submitting: 'Wird gesendet…',
+  beta_form_success_title: 'Du bist dabei!',
+  beta_form_success_text: 'Danke für deine Anmeldung. Wir melden uns bald bei dir.',
+  beta_form_error_required: 'Bitte gib deinen Vornamen ein.',
+  beta_form_error_email: 'Bitte gib eine gültige E-Mail-Adresse ein.',
+  beta_admin_title: 'Beta-Anmeldungen',
+  beta_admin_count: '%d Anmeldungen',
+  beta_admin_name: 'Name',
+  beta_admin_email: 'E-Mail',
+  beta_admin_date: 'Registriert am',
+  beta_admin_empty: 'Noch keine Anmeldungen.',
+  sidebar_beta_signups: 'Beta-Anmeldungen',
+
 } as const;

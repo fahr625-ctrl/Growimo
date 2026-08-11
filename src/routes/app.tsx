@@ -80,6 +80,8 @@ function AppSidebar() {
 
   // Navigation items — defined inside component to access t
   const navItems = [
+    { label: t.sidebar_beta_signups, to: "/app/beta-signups", icon: (active: boolean) => <svg className={`h-5 w-5 ${active ? "text-blue-600" : "text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2m7-8a4 4 0 100-8 4 4 0 000 8zm7-5h4m-2-2v4" /></svg> },
+
     {
       label: t.sidebar_dashboard,
       to: "/app",

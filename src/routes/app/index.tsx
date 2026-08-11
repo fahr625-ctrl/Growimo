@@ -79,8 +79,7 @@ const CONTENT_TYPE_CONFIG: Record<
   },
 };
 
-function timeAgo(date: Date, t: ReturnType<typeof useTranslation>['t']): string {
-  const { locale } = useTranslation();
+function timeAgo(date: Date, t: ReturnType<typeof useTranslation>['t'], locale: string): string {
   return timeAgoFromLib(date, t, locale);
 }
 
@@ -1270,7 +1269,7 @@ function ProjectCard({
           {project.title}
         </h3>
         <p className="mt-1 text-xs text-gray-500">
-          {timeAgo(project.createdAt, t)}
+          {timeAgo(project.createdAt, t, locale)}
         </p>
 
         {/* Content type badges */}

@@ -28,7 +28,21 @@ const I18nContext = createContext<{
 }>({ locale: 'de', t: de, setLocale: () => {} });
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(getInitialLocale);
+  // Always start with 'de' during SSR and initial client render to avoid
+  // hydration mismatches (localStorage is unavailable server-side).
+  const [locale, setLocaleState] = useState<Locale>('de');
+  const [hydrated, setHydrated] = useState(false);
+
+  // After hydration, sync with localStorage if a preference was saved
+  useEffect(() => {
+    setHydrated(true);
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored === 'de' || stored === 'en') {
+        setLocaleState(stored);
+      }
+    } catch {}
+  }, []);
 
   const setLocale = useCallback((l: Locale) => {
     setLocaleState(l);

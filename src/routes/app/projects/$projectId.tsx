@@ -2,6 +2,7 @@ import { trackEvent } from '~/store/analytics';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
+import { useTranslation } from '~/i18n';
 import { getProject, getProjectContent } from '~/store/projects';
 import type { ContentType, Project, StoredContent } from '~/store/projects';
 import { ImageStudio } from '~/components/ImageStudio';
@@ -26,6 +27,7 @@ function ProjectDetailPage() {
   const [project, setProject] = useState<Project | undefined | null>(undefined);
   const [contents, setContents] = useState<StoredContent[]>([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
 
   useEffect(() => {
     let cancelled = false;

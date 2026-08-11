@@ -22,6 +22,7 @@ import { Route as AppCalendarRouteImport } from './routes/app/calendar'
 import { Route as AppBrandRouteImport } from './routes/app/brand'
 import { Route as AppBillingRouteImport } from './routes/app/billing'
 import { Route as AppBetaWelcomeRouteImport } from './routes/app/beta-welcome'
+import { Route as AppBetaSignupsRouteImport } from './routes/app/beta-signups'
 import { Route as AppAnalyticsRouteImport } from './routes/app/analytics'
 import { Route as AppSignUpIndexRouteImport } from './routes/app/sign-up/index'
 import { Route as AppSignInIndexRouteImport } from './routes/app/sign-in/index'
@@ -97,6 +98,11 @@ const AppBetaWelcomeRoute = AppBetaWelcomeRouteImport.update({
   path: '/beta-welcome',
   getParentRoute: () => AppRoute,
 } as any)
+const AppBetaSignupsRoute = AppBetaSignupsRouteImport.update({
+  id: '/beta-signups',
+  path: '/beta-signups',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
@@ -147,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/app/analytics': typeof AppAnalyticsRoute
+  '/app/beta-signups': typeof AppBetaSignupsRoute
   '/app/beta-welcome': typeof AppBetaWelcomeRoute
   '/app/billing': typeof AppBillingRoute
   '/app/brand': typeof AppBrandRoute
@@ -170,6 +177,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app/analytics': typeof AppAnalyticsRoute
+  '/app/beta-signups': typeof AppBetaSignupsRoute
   '/app/beta-welcome': typeof AppBetaWelcomeRoute
   '/app/billing': typeof AppBillingRoute
   '/app/brand': typeof AppBrandRoute
@@ -195,6 +203,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/app/analytics': typeof AppAnalyticsRoute
+  '/app/beta-signups': typeof AppBetaSignupsRoute
   '/app/beta-welcome': typeof AppBetaWelcomeRoute
   '/app/billing': typeof AppBillingRoute
   '/app/brand': typeof AppBrandRoute
@@ -221,6 +230,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/app/analytics'
+    | '/app/beta-signups'
     | '/app/beta-welcome'
     | '/app/billing'
     | '/app/brand'
@@ -244,6 +254,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/app/analytics'
+    | '/app/beta-signups'
     | '/app/beta-welcome'
     | '/app/billing'
     | '/app/brand'
@@ -268,6 +279,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/app/analytics'
+    | '/app/beta-signups'
     | '/app/beta-welcome'
     | '/app/billing'
     | '/app/brand'
@@ -387,6 +399,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBetaWelcomeRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/beta-signups': {
+      id: '/app/beta-signups'
+      path: '/beta-signups'
+      fullPath: '/app/beta-signups'
+      preLoaderRoute: typeof AppBetaSignupsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/analytics': {
       id: '/app/analytics'
       path: '/analytics'
@@ -455,6 +474,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAnalyticsRoute: typeof AppAnalyticsRoute
+  AppBetaSignupsRoute: typeof AppBetaSignupsRoute
   AppBetaWelcomeRoute: typeof AppBetaWelcomeRoute
   AppBillingRoute: typeof AppBillingRoute
   AppBrandRoute: typeof AppBrandRoute
@@ -478,6 +498,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAnalyticsRoute: AppAnalyticsRoute,
+  AppBetaSignupsRoute: AppBetaSignupsRoute,
   AppBetaWelcomeRoute: AppBetaWelcomeRoute,
   AppBillingRoute: AppBillingRoute,
   AppBrandRoute: AppBrandRoute,
