@@ -10,6 +10,7 @@ import { getProject, getProjectContent, updateChannel } from '~/store/projects';
 import type { ImproveOutcome } from '~/ai/types';
 import type { ContentType, Project, StoredContent } from '~/store/projects';
 import { ImageStudio } from '~/components/ImageStudio';
+import { PrioritizeCard } from '~/components/PrioritizeCard';
 
 const CONTENT_TYPE_CONFIG: Record<ContentType, { icon: string; color: string }> = {
   pinterest_pin: { icon: '📌', color: 'bg-red-100 text-red-700' },
@@ -128,6 +129,19 @@ function ProjectDetailContent({ project, contents }: { project: Project; content
           contents.map((content) => <ContentCard key={content.id} content={content} productIdea={project.productIdea} />)
         )}
       </div>
+      {contents.length > 0 && (
+        <div className="mt-8">
+          <PrioritizeCard
+            assets={contents.map((c) => ({
+              channel: c.contentType,
+              assetId: c.id,
+              qualityScore: scoreFromMetadata(c.metadata)?.total ?? null,
+              title: c.title,
+            }))}
+            productIdea={project.productIdea}
+          />
+        </div>
+      )}
       {contents.length > 0 && <ImageStudio productIdea={project.productIdea} />}
     </div>
   );

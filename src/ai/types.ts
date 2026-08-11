@@ -121,6 +121,62 @@ export interface ImproveOutcome {
   error?: boolean;
 }
 
+// ── F3 Veröffentlichungs-Priorisierung (decision layer) ───────────────────────
+
+/** Machine-readable tags that explain WHY a channel ranks where it does. */
+export type PriorityTag =
+  | 'fast-feedback'
+  | 'low-effort'
+  | 'visual'
+  | 'discovery'
+  | 'direct-sales'
+  | 'buyer-intent'
+  | 'existing-audience'
+  | 'engagement'
+  | 'compound'
+  | 'slow-burn'
+  | 'strong-score'
+  | 'weak-score'
+  | 'improve-first';
+
+/** One ranked position in the "what to publish first" list. */
+export interface PriorityItem {
+  /** Publication channel (pinterest_pin / etsy_listing / seo_blog / social_post / email_newsletter). */
+  channel: ContentType;
+  /** Content row id of the scored asset, when known. */
+  assetId?: string;
+  /** F1 Qualitäts-Score of the generated asset (null when missing/unsupported). */
+  qualityScore: number | null;
+  /** Combined priority 0–100: channel character (base) + quality adjustment. */
+  priorityScore: number;
+  /** 1-based position in the ordered list. */
+  rank: number;
+  /** Plain-language rationale — "Warum dieser Kanal zuerst/zweitens/…?". */
+  rationale: string;
+  /** Machine-readable reason tags (UI translates them). */
+  reasonTags: PriorityTag[];
+}
+
+/** Result of prioritizeChannels(): ranked list + one-sentence summary. */
+export interface PrioritizeOutcome {
+  /** Ranked list — first item is "publish first". */
+  ordered: PriorityItem[];
+  /** One-sentence plain-language summary (German or English per request). */
+  summary: string;
+  /** Rules version so the ranking can evolve without breaking clients. */
+  ruleVersion: number;
+  /** true when the LLM phrasing pass produced the texts (false = templates). */
+  llmUsed: boolean;
+}
+
+/** Input asset for prioritization (UI already read the score from metadata). */
+export interface PrioritizeAsset {
+  channel: ContentType;
+  assetId?: string;
+  qualityScore: number | null;
+  title?: string;
+}
+
 export interface AIConfig {
   provider: 'openai' | 'anthropic' | 'gemini';
   model?: string;

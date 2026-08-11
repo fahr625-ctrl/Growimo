@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start';
-import type { ContentRequest, ContentResult, ContentScore, ContentType, ImproveOutcome } from './types';
+import type { ContentRequest, ContentResult, ContentScore, ContentType, ImproveOutcome, PrioritizeAsset, PrioritizeOutcome } from './types';
 
 /**
  * Reports whether the OpenAI API key is configured on the server.
@@ -141,6 +141,46 @@ export const improveByScoreServer = createServerFn({ method: 'POST' })
       '[server.improveByScore] outcome:',
       outcome.improved ? 'improved' : outcome.reason,
       outcome.improved ? `new score: ${outcome.newScore?.total}` : '',
+    );
+    return outcome;
+  });
+
+/**
+ * F3 server-side publication prioritization.
+ * Takes the project's scored assets (channel + F1 quality score per asset),
+ * ranks them deterministically and phrases the WHY via one GPT-4o call.
+ * Returns null when fewer than 2 scored publishable channels are provided.
+ */
+export const prioritizeServer = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const d = input as {
+      assets?: Array<{ channel: ContentType; assetId?: string; qualityScore?: number | null }>;
+      productIdea?: string;
+      lang?: string;
+    };
+    if (!d || typeof d !== 'object') throw new Error('data is required');
+    if (!Array.isArray(d.assets) || d.assets.length === 0) throw new Error('assets are required');
+    const assets: PrioritizeAsset[] = d.assets.map((a) => ({
+      channel: a.channel,
+      assetId: a.assetId,
+      qualityScore: typeof a.qualityScore === 'number' ? a.qualityScore : null,
+    }));
+    return {
+      assets,
+      productIdea: d.productIdea ?? '',
+      lang: (d.lang === 'en' ? 'en' : 'de') as 'de' | 'en',
+    };
+  })
+  .handler(async ({ data }): Promise<PrioritizeOutcome | null> => {
+    console.log('[server.prioritize]', data.assets.length, 'assets, lang:', data.lang);
+    const { prioritizeChannels } = await import('./prioritize');
+    const outcome = await prioritizeChannels(data.assets, {
+      productIdea: data.productIdea,
+      lang: data.lang,
+    });
+    console.log(
+      '[server.prioritize] outcome:',
+      outcome ? `ranked ${outcome.ordered.length} channels (llm: ${outcome.llmUsed})` : 'null (<2 scored channels)',
     );
     return outcome;
   });
