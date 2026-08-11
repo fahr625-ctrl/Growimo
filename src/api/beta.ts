@@ -1,18 +1,43 @@
 import { getDb } from "../db/index";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 
 // In-memory rate limiter (resets on cold start — fine for beta)
 const betaRate = new Map<string, { count: number; at: number }>();
+
+// ── Clerk session verification (networkless) ────────────────────────────────
+// Clerk's backend endpoint POST /v1/tokens/verify no longer exists (404), and
+// POST /v1/sessions/{id}/verify is deprecated (410). The supported method is
+// networkless JWT verification: check the __session token's signature against
+// the Clerk instance's JWKS. The instance origin is encoded in the publishable
+// key (pk_test_<base64> decodes to "<origin>$...").
+let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+
+function clerkFrontendApiOrigin(): string | null {
+  const pk = process.env.VITE_CLERK_PUBLISHABLE_KEY || "";
+  if (!pk.startsWith("pk_")) return null;
+  try {
+    const decoded = Buffer.from(pk.slice("pk_test_".length), "base64").toString("utf8");
+    const origin = decoded.split("$")[0];
+    return origin ? (origin.startsWith("http") ? origin : `https://${origin}`) : null;
+  } catch { return null; }
+}
+
+function getJWKS() {
+  const origin = clerkFrontendApiOrigin();
+  if (!origin) return null;
+  if (!jwks) jwks = createRemoteJWKSet(new URL(`${origin}/.well-known/jwks.json`));
+  return jwks;
+}
 
 async function verifyClerkSession(req: Request): Promise<boolean> {
   const sessionToken = req.headers.get("cookie")?.split(";").find(c=>c.trim().startsWith("__session="))?.split("=")[1];
   if (!sessionToken) return false;
   try {
-    const verify = await fetch("https://api.clerk.com/v1/tokens/verify", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${process.env.CLERK_SECRET_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ token: sessionToken }),
-    });
-    return verify.ok;
+    const origin = clerkFrontendApiOrigin();
+    const keys = getJWKS();
+    if (!origin || !keys) return false;
+    await jwtVerify(sessionToken, keys, { issuer: origin });
+    return true;
   } catch { return false; }
 }
 
