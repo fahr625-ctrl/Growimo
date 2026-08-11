@@ -398,8 +398,6 @@ export const de = {
   // ── Results ──────────────────────────────────────────────────────────────────
   results_consistency_prefix: 'Alle Inhalte basieren auf deiner Idee: ',
   results_tone_label: '%s Tonalität',
-  results_demo_mode:
-    'Demo-Modus — füge OPENAI_API_KEY für KI-gestützte Generierung hinzu',
   results_channel_count: '%d Kanal',
   results_channel_count_plural: '%d Kanäle generiert',
   results_words: '%s Wörter insgesamt',

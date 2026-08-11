@@ -400,8 +400,6 @@ export const en: typeof de = {
   // ── Results ──────────────────────────────────────────────────────────────────
   results_consistency_prefix: 'All content is based on your idea: ',
   results_tone_label: '%s tone',
-  results_demo_mode:
-    'Demo mode — add OPENAI_API_KEY for AI-powered generation',
   results_channel_count: '%d channel',
   results_channel_count_plural: '%d channels generated',
   results_words: '%s words total',

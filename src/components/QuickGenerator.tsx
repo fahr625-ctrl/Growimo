@@ -30,7 +30,7 @@ export interface QuickGeneratorProps {
 // ── Section parsing for structured AI output ─────────────────────────────────
 // OpenAI responses are "N. Heading\ncontent" blocks. We split them so each
 // output gets its own card + copy button. Falls back to the raw body if the
-// body doesn't follow that structure (e.g. mock/demo output).
+// body doesn't follow that structure (e.g. malformed AI output).
 interface Section {
   heading: string;
   content: string;
@@ -255,7 +255,6 @@ function QuickGeneratorContent({
     () => (result ? parseSections(result.body) : null),
     [result],
   );
-  const isDemoMode = result?.metadata?.generatedBy === 'mock';
   const canGenerateNow = productIdea.trim().length > 0;
 
   return (
@@ -353,13 +352,6 @@ function QuickGeneratorContent({
         </div>
       )}
 
-      {/* Demo mode banner */}
-      {!isLoading && result && isDemoMode && (
-        <div className="mb-6 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <span className="flex-shrink-0 text-base">⚡</span>
-          <span>{t.results_demo_mode.split('OPENAI_API_KEY')[0]}OPENAI_API_KEY{t.results_demo_mode.split('OPENAI_API_KEY')[1] || ''}</span>
-        </div>
-      )}
 
       {/* Results */}
       {!isLoading && result && (

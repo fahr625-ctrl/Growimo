@@ -91,8 +91,6 @@ function NewProjectContent() {
   // Upsell modal for usage limits
   const [showUpsell, setShowUpsell] = useState(false);
 
-  // Check if results came from the mock fallback
-  const isDemoMode = results.some((r) => r.metadata?.generatedBy === 'mock');
 
   // ── Cycle loading messages ────────────────────────────────────────────────
   useEffect(() => {
@@ -431,7 +429,6 @@ function NewProjectContent() {
           loadingMessage={loadingMessage}
           selectedCount={selectedTypes.length}
           results={results}
-          isDemoMode={isDemoMode}
           productIdea={productIdea}
           tone={tone}
           channelCount={channelCount}
@@ -736,7 +733,6 @@ function Step2Results({
   loadingMessage,
   selectedCount,
   results,
-  isDemoMode,
   productIdea,
   tone,
   channelCount,
@@ -755,7 +751,6 @@ function Step2Results({
   loadingMessage: string;
   selectedCount: number;
   results: ContentResult[];
-  isDemoMode: boolean;
   productIdea: string;
   tone: string;
   channelCount: number;
@@ -829,19 +824,6 @@ function Step2Results({
             )}
           </div>
 
-          {/* Demo mode banner */}
-          {isDemoMode && (
-            <div className="mb-6 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              <span className="flex-shrink-0 text-base">⚡</span>
-              <span>
-                {t.results_demo_mode.split('OPENAI_API_KEY')[0]}
-                <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-medium">
-                  OPENAI_API_KEY
-                </code>
-                {t.results_demo_mode.split('OPENAI_API_KEY')[1] || ''}
-              </span>
-            </div>
-          )}
 
           {/* Header: title + stats + actions */}
           <div className="mb-6">

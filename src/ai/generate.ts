@@ -1,6 +1,5 @@
 import type { AIConfig, ContentRequest, ContentResult } from './types';
 import { getConfiguredProviders } from './providers/index';
-import { generateMockContent } from './mock';
 
 export async function generateContent(
   request: ContentRequest,
@@ -26,6 +25,9 @@ export async function generateContent(
     return configured[0].generate(request, providerConfig);
   }
 
-  console.warn('[generate] No providers configured, using mock');
-  return generateMockContent(request);
+  // Never silently fall back to placeholder/demo content. Without a configured
+  // AI provider the user must see a clear error, not fake output.
+  throw new Error(
+    'Kein KI-Anbieter konfiguriert. Bitte OPENAI_API_KEY in den Umgebungsvariablen setzen, um Inhalte zu generieren.',
+  );
 }
