@@ -1,0 +1,25 @@
+F7 TEST-EVIDENCE — 2026-08-12T09:29:51.481Z
+Projekt: Personalisierte Sternenhimmel-Poster mit dem Nacht... (cb50fc2e-6a8c-4f4d-99e2-a3d3a42ad3a6)
+Produktidee: Personalisierte Sternenhimmel-Poster mit dem Nachthimmel eines besonderen Datums – individuell gestaltet als Geschenk zur Hochzeit, Geburt oder zum Jahrestag.
+Strategie-Brief im Projekt: nein
+
+── pinterest_pin: A/B-Varianten ──
+3 Varianten erhalten (lang=de).
+Variante A: Score 84/100 | Titel „„Der Himmel eurer Liebe: Ein Poster, das Geschichten erzählt”“ | Body 2428 Zeichen
+Variante B: Score 84/100 | Titel „„Ein Geschenk, das Herzen verbindet: Euer persönlicher Sternenhimmel”“ | Body 2412 Zeichen
+Variante C: Score 84/100 | Titel „„Verewigt eure Erinnerungen: Ein individuelles Sternenhimmel-Poster”“ | Body 2323 Zeichen
+Varianten untereinander verschieden (Titel und/oder Body).
+Original: „„So verewigt ihr euren besonderen Tag — mit einem Sternenhimmel-Poster“ (2400 Zeichen) — nicht verändert (read-only Call).
+✅ pinterest_pin — A/B-Varianten erfolgreich
+
+── etsy_listing: A/B-Varianten ──
+3 Varianten erhalten (lang=de).
+Variante A: Score 56/100 | Titel „Sternenhimmel-Poster: Dein Moment im Universum“ | Body 5896 Zeichen
+Variante B: Score 56/100 | Titel „Praktische Sternenkarten: Persönliche Momente verewigen“ | Body 5897 Zeichen
+Variante C: Score 56/100 | Titel „Individuelle Sternenhimmel-Posterkarten“ | Body 5677 Zeichen
+Varianten untereinander verschieden (Titel und/oder Body).
+Original: „Personalisierte Sternenhimmel-Poster | Hochzeit Geschenk | Geburt Erin“ (6161 Zeichen) — nicht verändert (read-only Call).
+✅ etsy_listing — A/B-Varianten erfolgreich
+
+
+ALLE F7-CHECKS BESTANDEN ✅
