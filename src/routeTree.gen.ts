@@ -14,6 +14,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppSettingsRouteImport } from './routes/app/settings'
 import { Route as AppPricingRouteImport } from './routes/app/pricing'
+import { Route as AppPerformanceRouteImport } from './routes/app/performance'
 import { Route as AppPackageRouteImport } from './routes/app/package'
 import { Route as AppNewProjectRouteImport } from './routes/app/new-project'
 import { Route as AppImageStudioRouteImport } from './routes/app/image-studio'
@@ -57,6 +58,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
 const AppPricingRoute = AppPricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPerformanceRoute = AppPerformanceRouteImport.update({
+  id: '/performance',
+  path: '/performance',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPackageRoute = AppPackageRouteImport.update({
@@ -169,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/app/image-studio': typeof AppImageStudioRoute
   '/app/new-project': typeof AppNewProjectRoute
   '/app/package': typeof AppPackageRoute
+  '/app/performance': typeof AppPerformanceRoute
   '/app/pricing': typeof AppPricingRoute
   '/app/settings': typeof AppSettingsRoute
   '/app/': typeof AppIndexRoute
@@ -194,6 +201,7 @@ export interface FileRoutesByTo {
   '/app/image-studio': typeof AppImageStudioRoute
   '/app/new-project': typeof AppNewProjectRoute
   '/app/package': typeof AppPackageRoute
+  '/app/performance': typeof AppPerformanceRoute
   '/app/pricing': typeof AppPricingRoute
   '/app/settings': typeof AppSettingsRoute
   '/app': typeof AppIndexRoute
@@ -221,6 +229,7 @@ export interface FileRoutesById {
   '/app/image-studio': typeof AppImageStudioRoute
   '/app/new-project': typeof AppNewProjectRoute
   '/app/package': typeof AppPackageRoute
+  '/app/performance': typeof AppPerformanceRoute
   '/app/pricing': typeof AppPricingRoute
   '/app/settings': typeof AppSettingsRoute
   '/app/': typeof AppIndexRoute
@@ -249,6 +258,7 @@ export interface FileRouteTypes {
     | '/app/image-studio'
     | '/app/new-project'
     | '/app/package'
+    | '/app/performance'
     | '/app/pricing'
     | '/app/settings'
     | '/app/'
@@ -274,6 +284,7 @@ export interface FileRouteTypes {
     | '/app/image-studio'
     | '/app/new-project'
     | '/app/package'
+    | '/app/performance'
     | '/app/pricing'
     | '/app/settings'
     | '/app'
@@ -300,6 +311,7 @@ export interface FileRouteTypes {
     | '/app/image-studio'
     | '/app/new-project'
     | '/app/package'
+    | '/app/performance'
     | '/app/pricing'
     | '/app/settings'
     | '/app/'
@@ -353,6 +365,13 @@ declare module '@tanstack/react-router' {
       path: '/pricing'
       fullPath: '/app/pricing'
       preLoaderRoute: typeof AppPricingRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/performance': {
+      id: '/app/performance'
+      path: '/performance'
+      fullPath: '/app/performance'
+      preLoaderRoute: typeof AppPerformanceRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/package': {
@@ -503,6 +522,7 @@ interface AppRouteChildren {
   AppImageStudioRoute: typeof AppImageStudioRoute
   AppNewProjectRoute: typeof AppNewProjectRoute
   AppPackageRoute: typeof AppPackageRoute
+  AppPerformanceRoute: typeof AppPerformanceRoute
   AppPricingRoute: typeof AppPricingRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -528,6 +548,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppImageStudioRoute: AppImageStudioRoute,
   AppNewProjectRoute: AppNewProjectRoute,
   AppPackageRoute: AppPackageRoute,
+  AppPerformanceRoute: AppPerformanceRoute,
   AppPricingRoute: AppPricingRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,

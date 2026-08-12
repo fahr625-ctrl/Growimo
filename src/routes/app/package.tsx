@@ -10,6 +10,7 @@ import { StrategyBrief } from '~/components/StrategyBrief';
 import { ScoreBadge } from '~/components/ScoreBadge';
 import { VariantPicker } from '~/components/VariantPicker';
 import { ScoreCard } from '~/components/ScoreCard';
+import { tempAssetId } from '~/components/AssetFeedback';
 import { PrioritizeCard } from '~/components/PrioritizeCard';
 import { ActionPlanCard } from '~/components/ActionPlanCard';
 import { useTranslation } from '~/i18n';
@@ -689,6 +690,7 @@ function ChannelCard({
               productIdea={productIdea}
               strategyContext={strategyContext}
               onImproved={handleImproved}
+              assetId={tempAssetId(display.title, display.body)}
             />
           </div>
           {/* F7 A/B-Varianten - 3 gescorte Alternativen, die beste uebernehmen */}

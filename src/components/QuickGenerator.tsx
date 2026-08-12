@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useUser } from '@clerk/clerk-react';
-import { generateContentServer, getPerformanceOverviewServer } from '~/ai/server';
+import { generateContentServer, getPerformanceOverviewServer, getPreferencesServer } from '~/ai/server';
 import type { ContentResult, ContentType, ImproveOutcome, VariantAsset } from '~/ai/types';
 import { buildBriefContext } from '~/ai/strategy-brief/questions';
 import { hasBriefAnswers } from '~/ai/strategy-brief';
 import { buildPerformanceContext } from '~/ai/performance/context';
+import { buildLearningContext } from '~/ai/learning/context';
 import { StrategyBrief } from '~/components/StrategyBrief';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import BrandBadge from '~/components/BrandBadge';
 import { ScoreCard } from '~/components/ScoreCard';
+import { tempAssetId } from '~/components/AssetFeedback';
 import { VariantPicker } from '~/components/VariantPicker';
 import { useTranslation } from '~/i18n';
 import { saveProject, updateChannel } from '~/store/projects';
@@ -202,12 +204,23 @@ function QuickGeneratorContent({
         perfContext = '';
       }
 
+      // F10: gelernte Präferenzen (👍/👎) als zusätzlicher Kontext — gleiches
+      // Nie-blockierend-Prinzip (Fehler oder 0 Signale → leerer Block).
+      let learnContext = '';
+      try {
+        const prefs = await getPreferencesServer({ data: { userId: uid } });
+        learnContext = buildLearningContext(prefs, locale === 'en' ? 'en' : 'de');
+      } catch (err) {
+        console.error('F10 learning context skipped:', err);
+        learnContext = '';
+      }
+
       const generated = (await generateContentServer({
         data: {
           contentType,
           productIdea: enhancedIdea,
           tone: tone || undefined,
-          additionalContext: [briefContext, perfContext].filter(Boolean).join('\n\n') || undefined,
+          additionalContext: [briefContext, perfContext, learnContext].filter(Boolean).join('\n\n') || undefined,
         },
       })) as ContentResult;
 
@@ -521,6 +534,7 @@ function QuickGeneratorContent({
             productIdea={productIdea}
             strategyContext={strategyContext}
             onImproved={handleImproved}
+            assetId={tempAssetId(result.title, result.body)}
           />
 
           {/* Sections */}

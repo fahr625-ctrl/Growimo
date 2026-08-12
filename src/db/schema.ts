@@ -96,6 +96,24 @@ CREATE TABLE IF NOT EXISTS performance_entries (
 );
 CREATE INDEX IF NOT EXISTS idx_perf_entries_user_date ON performance_entries(user_id, published_at);
 
+-- F10 Persönliche Lernschleife: Like/Dislike-Feedback je Nutzer steuert Ton &
+-- Format künftiger Generierungen. Die Präferenz-Ableitung ist deterministisch
+-- (kein LLM): feedback_assets hält die letzten Bewertungen (Dedupe je Asset),
+-- likes/dislikes + tone_profile/format_profile/channel_affinity werden daraus
+-- aggregiert. Stichproben-Gate: erst ab >= 3 Signalen wird gesteuert.
+CREATE TABLE IF NOT EXISTS user_preferences (
+  user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  likes INTEGER NOT NULL DEFAULT 0,
+  dislikes INTEGER NOT NULL DEFAULT 0,
+  tone_profile JSONB NOT NULL DEFAULT '{}',
+  format_profile JSONB NOT NULL DEFAULT '{}',
+  channel_affinity JSONB NOT NULL DEFAULT '{}',
+  feedback_assets JSONB NOT NULL DEFAULT '[]',
+  rule_version INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ── Migrations for pre-existing databases ────────────────────────────────────
 -- These are idempotent: they run on every init so an existing DB created before
 -- these columns/constraints existed is brought up to date without dropping data.

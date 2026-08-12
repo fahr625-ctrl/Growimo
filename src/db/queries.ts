@@ -791,3 +791,113 @@ export async function qGetPublishedAssets(userId: string): Promise<PublishedAsse
     };
   });
 }
+
+// ── F10 Persönliche Lernschleife (user_preferences table) ────────────────────
+/** One stored feedback signal: the classification is captured at feedback time
+ * so toggling an asset later does NOT re-classify it (stability). */
+export interface FeedbackAssetEntry {
+  assetId: string;
+  kind: 'like' | 'dislike';
+  /** Detected dominant tone at feedback time, null when ambiguous. */
+  tone: string | null;
+  /** Detected format at feedback time (concise|detailed), null when neutral. */
+  format: string | null;
+  /** Asset channel (ContentType string) — for channel affinity. */
+  channel: string;
+  /** Optional free-text reason from the user. */
+  reason?: string;
+  /** ISO timestamp of the feedback. */
+  ts: string;
+}
+
+export interface UserPreferencesRow {
+  userId: string;
+  likes: number;
+  dislikes: number;
+  toneProfile: Record<string, number>;
+  formatProfile: Record<string, number>;
+  channelAffinity: Record<string, number>;
+  feedbackAssets: FeedbackAssetEntry[];
+  ruleVersion: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function mapUserPreferencesRow(row: Record<string, unknown>): UserPreferencesRow {
+  return {
+    userId: String(row.user_id),
+    likes: Number(row.likes ?? 0),
+    dislikes: Number(row.dislikes ?? 0),
+    toneProfile: parseJson<Record<string, number>>(row.tone_profile, {}),
+    formatProfile: parseJson<Record<string, number>>(row.format_profile, {}),
+    channelAffinity: parseJson<Record<string, number>>(row.channel_affinity, {}),
+    feedbackAssets: parseJson<FeedbackAssetEntry[]>(row.feedback_assets, []),
+    ruleVersion: Number(row.rule_version ?? 1),
+    createdAt: isoString(row.created_at),
+    updatedAt: isoString(row.updated_at),
+  };
+}
+
+/** Read the stored preference row for a user (clerk_id), or null when none. */
+export async function qGetUserPreferences(userId: string): Promise<UserPreferencesRow | null> {
+  const uid = await resolveUserId(userId);
+  if (!uid) return null;
+  const sql = getDb();
+  const rows = await sql`
+    SELECT * FROM user_preferences
+    WHERE user_id = ${uid}
+    LIMIT 1
+  `;
+  return rows.length > 0 ? mapUserPreferencesRow(rows[0]) : null;
+}
+
+/**
+ * Upsert the full preference state for a user (clerk_id). The caller computes
+ * the aggregated profile deterministically (src/ai/learning/profile.ts) and
+ * this helper persists it. Creates the users row on demand (like qSaveProject).
+ */
+export async function qSaveUserPreferences(
+  userId: string,
+  prefs: {
+    likes: number;
+    dislikes: number;
+    toneProfile: Record<string, number>;
+    formatProfile: Record<string, number>;
+    channelAffinity: Record<string, number>;
+    feedbackAssets: FeedbackAssetEntry[];
+    ruleVersion: number;
+  },
+): Promise<UserPreferencesRow | null> {
+  const uid = await ensureUserRow(userId);
+  const sql = getDb();
+  const rows = await sql`
+    INSERT INTO user_preferences
+      (user_id, likes, dislikes, tone_profile, format_profile, channel_affinity, feedback_assets, rule_version)
+    VALUES (
+      ${uid}, ${prefs.likes}, ${prefs.dislikes},
+      ${JSON.stringify(prefs.toneProfile)}, ${JSON.stringify(prefs.formatProfile)},
+      ${JSON.stringify(prefs.channelAffinity)}, ${JSON.stringify(prefs.feedbackAssets)},
+      ${prefs.ruleVersion}
+    )
+    ON CONFLICT (user_id) DO UPDATE SET
+      likes = EXCLUDED.likes,
+      dislikes = EXCLUDED.dislikes,
+      tone_profile = EXCLUDED.tone_profile,
+      format_profile = EXCLUDED.format_profile,
+      channel_affinity = EXCLUDED.channel_affinity,
+      feedback_assets = EXCLUDED.feedback_assets,
+      rule_version = EXCLUDED.rule_version,
+      updated_at = NOW()
+    RETURNING *
+  `;
+  return rows.length > 0 ? mapUserPreferencesRow(rows[0]) : null;
+}
+
+/** Delete the preference row (reset). Returns true when a row was removed. */
+export async function qResetUserPreferences(userId: string): Promise<boolean> {
+  const uid = await resolveUserId(userId);
+  if (!uid) return false;
+  const sql = getDb();
+  const rows = await sql`DELETE FROM user_preferences WHERE user_id = ${uid} RETURNING user_id`;
+  return rows.length > 0;
+}

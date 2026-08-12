@@ -1,0 +1,19 @@
+F10 TEST-EVIDENCE — 2026-08-12T11:26:10.204Z
+Test-Nutzer: 26bd3951… (clerk f10-test-user)
+Test-Projekt 37dd1a76… mit 5 emotionalen Pins angelegt.
+✅ 1. Like: enoughData=false, Warn-Block MIT Flag (n = 1) — keine erfundene Präferenz.
+✅ 2. Like: Zähler=2, weiterhin kein präferierter Ton (Gate nicht erreicht).
+🎯 Nach 3 Likes: enoughData=true — Ton=emotional, Format=kompakt, Kanal=pinterest_pin.
+✅ Persistenz: Zähler 3/0 + toneProfile.emotional=3 in der DB (3 Signale).
+📈 Kontext-Block (243 Zeichen) enthält die Präferenz (Ton=emotional).
+✅ Paket-Naht: learnContext steckt in [kernelContext, briefContext, perfContext, learnContext] → generate-additionalContext.
+✅ QuickGenerator-Naht: learnContext wird an additionalContext angehängt.
+✅ Dedupe: erneuter Like auf dasselbe Asset zählt nicht doppelt (weiterhin 3).
+✅ Toggle: Like→Dislike flippt Zähler (2/1), gespeicherte Klassifikation bleibt stabil.
+✅ Nach 5 Signalen (4 👍 / 1 👎): Präferenz wieder eindeutig (Ton=emotional).
+✅ buildLearningProfile: gleiche View wie recordFeedback (4/1, Ton=emotional).
+✅ Reset: user_preferences-Zeile gelöscht, buildLearningProfile liefert leere View.
+🧹 Test-Daten entfernt (Projekt + Nutzer kaskadierend gelöscht).
+
+
+ALLE F10-CHECKS BESTANDEN ✅

@@ -263,6 +263,7 @@ function ContentCard({ content, productIdea, strategyContext }: { content: Store
                 productIdea={productIdea}
                 strategyContext={strategyContext}
                 onImproved={handleImproved}
+                assetId={display.id}
               />
             </div>
           )}

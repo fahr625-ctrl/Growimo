@@ -12,6 +12,7 @@ import {
 } from '~/ai/server';
 import { CHANNEL_METRICS } from '~/ai/performance/metrics';
 import { ScoreBadge } from '~/components/ScoreBadge';
+import { PreferencesCard } from '~/components/PreferencesCard';
 
 export const Route = createFileRoute('/app/performance')({ component: PerformancePage });
 
@@ -197,6 +198,9 @@ function PerformanceContent() {
           />
         </>
       )}
+
+      {/* F10 Persönliche Lernschleife — gelernte Präferenzen + Reset */}
+      <PreferencesCard />
 
       {toast && (
         <div className="fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">

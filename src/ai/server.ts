@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start';
-import type { AutoImproveSectionOutcome, ContentRequest, ContentResult, ContentScore, ContentType, ImproveOutcome, PerformanceEntry, PerformanceOverview, PrioritizeAsset, PrioritizeOutcome, PublishPlanItem, VariantsResult } from './types';
+import type { AutoImproveSectionOutcome, ContentRequest, ContentResult, ContentScore, ContentType, ImproveOutcome, PerformanceEntry, PerformanceOverview, PrioritizeAsset, PrioritizeOutcome, PublishPlanItem, UserPreferencesView, VariantsResult } from './types';
 import type { MarketingPackage } from './package/package';
 
 /**
@@ -530,6 +530,87 @@ export const getPublishedAssetsServer = createServerFn({ method: 'POST' })
     const { qGetPublishedAssets } = await import('../db/queries');
     return qGetPublishedAssets(data.userId);
   });
+
+/**
+ * F10 persist ONE like/dislike signal for a generated asset. The asset
+ * snapshot (title/body/channel) is used for the deterministic classification
+ * (tone/format/channel) — no DB lookup needed, so even fresh unsaved content
+ * can be rated. Returns the updated preference view (never throws).
+ */
+export const recordFeedbackServer = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const d = input as {
+      userId?: unknown;
+      assetId?: unknown;
+      kind?: unknown;
+      reason?: unknown;
+      title?: unknown;
+      body?: unknown;
+      channel?: unknown;
+    };
+    if (!d || typeof d !== 'object' || typeof d.userId !== 'string' || !d.userId) {
+      throw new Error('userId is required');
+    }
+    if (typeof d.assetId !== 'string' || !d.assetId) throw new Error('assetId is required');
+    if (d.kind !== 'like' && d.kind !== 'dislike') throw new Error('kind must be like or dislike');
+    return {
+      userId: d.userId,
+      assetId: d.assetId,
+      kind: d.kind as 'like' | 'dislike',
+      reason: typeof d.reason === 'string' && d.reason.trim() ? d.reason.trim() : undefined,
+      title: typeof d.title === 'string' ? d.title : undefined,
+      body: typeof d.body === 'string' ? d.body : undefined,
+      channel: typeof d.channel === 'string' ? d.channel : undefined,
+    };
+  })
+  .handler(async ({ data }): Promise<UserPreferencesView | null> => {
+    console.log('[server.recordFeedback]', data.kind, data.assetId.slice(0, 12), 'user:', data.userId.slice(0, 12));
+    const { recordFeedback } = await import('./learning');
+    return recordFeedback(data.userId, data.assetId, data.kind, {
+      reason: data.reason,
+      title: data.title,
+      body: data.body,
+      channel: data.channel,
+    });
+  });
+
+/**
+ * F10 full preference profile for one user: counters, data-sufficiency gate
+ * and the derived preferred tone/format/channel. Deterministic — no LLM. Also
+ * used internally by the generation loop (buildLearningProfile).
+ */
+export const getPreferencesServer = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const d = input as { userId?: unknown };
+    if (!d || typeof d !== 'object' || typeof d.userId !== 'string' || !d.userId) {
+      throw new Error('userId is required');
+    }
+    return { userId: d.userId };
+  })
+  .handler(async ({ data }): Promise<UserPreferencesView> => {
+    console.log('[server.getPreferences] user:', data.userId.slice(0, 12));
+    const { buildLearningProfile } = await import('./learning');
+    return buildLearningProfile(data.userId);
+  });
+
+/**
+ * F10 reset the user's preferences (delete the row) — starts learning fresh.
+ */
+export const resetPreferencesServer = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const d = input as { userId?: unknown };
+    if (!d || typeof d !== 'object' || typeof d.userId !== 'string' || !d.userId) {
+      throw new Error('userId is required');
+    }
+    return { userId: d.userId };
+  })
+  .handler(async ({ data }): Promise<{ reset: boolean }> => {
+    console.log('[server.resetPreferences] user:', data.userId.slice(0, 12));
+    const { resetPreferences } = await import('./learning');
+    const reset = await resetPreferences(data.userId);
+    return { reset };
+  });
+
 
 /**
  * F4 server-side complete marketing package.

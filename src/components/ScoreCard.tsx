@@ -4,6 +4,7 @@ import { autoImproveSectionServer, improveByScoreServer } from '~/ai/server';
 import { isAutoImproveFieldSupported } from '~/ai/auto-improve/support';
 import { useTranslation } from '~/i18n';
 import { ScoreBadge, TONE_CLASSES, scoreTone } from './ScoreBadge';
+import { AssetFeedback } from './AssetFeedback';
 
 const DIM_KEY: Record<string, string> = {
   title: 'score_dim_title',
@@ -81,6 +82,7 @@ export function ScoreCard({
   productIdea,
   strategyContext,
   onImproved,
+  assetId,
 }: {
   score: ContentScore | null | undefined;
   defaultExpanded?: boolean;
@@ -92,6 +94,8 @@ export function ScoreCard({
   strategyContext?: string;
   /** F2: called with the outcome after an improvement (parent swaps + persists). */
   onImproved?: (outcome: ImproveOutcome) => void;
+  /** F10: saved asset id (or stable temp id) — enables the 👍/👎 learning buttons. */
+  assetId?: string;
 }) {
   const { t, locale } = useTranslation();
   const tLookup = t as unknown as Record<string, string>;
@@ -295,6 +299,19 @@ export function ScoreCard({
       <p className="border-t border-gray-100 px-4 py-2.5 text-xs leading-relaxed text-gray-600">
         {score.summary}
       </p>
+
+      {/* F10: Like/Dislike learning feedback — steuert Ton & Format künftiger
+          Generierungen (nur wenn eine Asset-Id bekannt ist). */}
+      {assetId && content && (
+        <div className="border-t border-gray-100 px-4 py-2.5">
+          <AssetFeedback
+            assetId={assetId}
+            channel={content.contentType}
+            title={content.title}
+            body={content.body}
+          />
+        </div>
+      )}
 
       {/* F2: improving state */}
       {isImproving && (

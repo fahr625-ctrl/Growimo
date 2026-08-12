@@ -386,6 +386,40 @@ export interface PerfAssetInfo {
   /** F1 quality score 0–100 (from metadata.score.total), null when missing. */
   qualityScore?: number | null;
 }
+// ── F10 Persönliche Lernschleife (decision layer) ─────────────────────────────
+/** The three tone dimensions the learning loop steers. */
+export type PreferenceTone = 'emotional' | 'friendly' | 'professional';
+/** The two format-length dimensions the learning loop steers. */
+export type PreferenceFormat = 'concise' | 'detailed';
+/**
+ * Derived preference profile for one user — fully deterministic (no LLM):
+ * aggregated from stored like/dislike signals. `enoughData` is the honest
+ * Stichproben-Gate (>= MIN_FEEDBACK_SIGNALS signals): before that, no
+ * preference is ever asserted and the generation context only warns.
+ */
+export interface UserPreferencesView {
+  likes: number;
+  dislikes: number;
+  totalSignals: number;
+  enoughData: boolean;
+  /** Signals still missing until the gate (0 when enoughData). */
+  needed: number;
+  /** Dominant tone — only when the signal is clear (never invented). */
+  preferredTone: PreferenceTone | null;
+  /** Dominant format length — only when the signal is clear. */
+  preferredFormat: PreferenceFormat | null;
+  /** Dominant channel affinity — only when the signal is clear. */
+  preferredChannel: string | null;
+  /** Raw weight per tone dimension (sum of +/- signals). */
+  toneProfile: Record<string, number>;
+  /** Raw weight per format dimension. */
+  formatProfile: Record<string, number>;
+  /** Raw weight per channel. */
+  channelAffinity: Record<string, number>;
+  /** Rules version so the derivation can evolve without breaking clients. */
+  ruleVersion: number;
+}
+
 
 export interface AIConfig {
   provider: 'openai' | 'anthropic' | 'gemini';

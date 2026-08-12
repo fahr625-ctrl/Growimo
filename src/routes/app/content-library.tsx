@@ -362,6 +362,7 @@ function ContentCard({
               score: score ?? undefined,
             }}
             onImproved={handleImproved}
+            assetId={display.id}
           />
         </div>
       )}

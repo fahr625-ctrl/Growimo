@@ -81,6 +81,21 @@ export async function generateMarketingPackage(
     }
   }
 
+  // F10: learned preferences (like/dislike) as context — never blocking.
+  let learnContext = '';
+  if (opts.userId) {
+    try {
+      const { buildLearningProfile } = await import('../learning');
+      const { buildLearningContext } = await import('../learning/context');
+      const prefs = await buildLearningProfile(opts.userId);
+      learnContext = buildLearningContext(prefs, lang);
+      if (learnContext) console.log('[package] learning context injected into channels');
+    } catch (err) {
+      console.error('[package] learning context skipped:', err);
+      learnContext = '';
+    }
+  }
+
   // 2. All five channels in parallel; each failure is isolated.
   const channels: PackageChannelResult = {
     pinterest: null,
@@ -99,6 +114,7 @@ export async function generateMarketingPackage(
           productIdea,
           briefContext,
           perfContext,
+          learnContext,
         );
       } catch (err) {
         console.error(`[package] channel ${contentType} failed — skipped:`, err);
