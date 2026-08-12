@@ -72,7 +72,7 @@ function PerformanceContent() {
       setError(null);
     } catch (err) {
       console.error('Failed to load performance data:', err);
-      setError(err instanceof Error ? err.message : 'load failed');
+      setError(t.perf_load_failed);
     } finally {
       setLoading(false);
     }

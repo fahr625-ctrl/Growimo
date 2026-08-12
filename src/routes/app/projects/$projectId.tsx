@@ -81,11 +81,11 @@ function ProjectDetailPage() {
       <ProtectedRoute>
         <div className="flex flex-col items-center justify-center py-20">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100"><span className="text-3xl">🔍</span></div>
-          <h2 className="mt-4 text-lg font-bold text-gray-900">Project Not Found</h2>
-          <p className="mt-1 text-sm text-gray-500">The project you're looking for doesn't exist or has been removed.</p>
+          <h2 className="mt-4 text-lg font-bold text-gray-900">{t.project_not_found}</h2>
+          <p className="mt-1 text-sm text-gray-500">{t.project_not_found_desc}</p>
           <Link to="/app" className="mt-6 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-50">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-            Back to Dashboard
+            {t.common_back_to_dashboard}
           </Link>
         </div>
       </ProtectedRoute>
@@ -126,9 +126,9 @@ function ProjectDetailContent({ project, contents }: { project: Project; content
         </div>
       </div>
       <div className="space-y-3">
-        <h2 className="text-lg font-bold text-gray-900">Generated Content ({contents.length})</h2>
+        <h2 className="text-lg font-bold text-gray-900">{t.project_generated_content} ({contents.length})</h2>
         {contents.length === 0 ? (
-          <p className="text-sm text-gray-500">No content was generated for this project.</p>
+          <p className="text-sm text-gray-500">{t.project_no_content}</p>
         ) : (
           contents.map((content) => (
               <ContentCard
@@ -296,9 +296,9 @@ function ContentCard({ content, productIdea, strategyContext }: { content: Store
           <div className="mt-4 flex justify-end">
             <button type="button" onClick={handleCopy} className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${copied ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
               {copied ? (
-                <><svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg> Copied!</>
+                <><svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg> {t.common_copied}</>
               ) : (
-                <><svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg> Copy</>
+                <><svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg> {t.common_copy}</>
               )}
             </button>
           </div>

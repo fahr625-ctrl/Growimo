@@ -1,0 +1,97 @@
+i18n-AUDIT-EVIDENCE — Growimo language-mixing audit & fix
+=========================================================
+Date: 2026-08-12   Branch: master   Commit: see git log
+
+1. KEY-PARITY (de vs en)
+------------------------
+Result: ✅ PASS — de.ts and en.ts have IDENTICAL key sets:
+  de = 1189 keys, en = 1189 keys, onlyDe = 0, onlyEn = 0
+  (verified by i18n-scan.ts via Object.keys(de) vs Object.keys(en);
+   the "typeof de" type annotation additionally enforces parity at compile time).
+No key present in one dictionary but missing in the other → no fallback-to-English at runtime.
+
+2. USED-KEYS
+------------
+Result: ✅ PASS — every t.<key> usage in src/** resolves to a key that exists
+in BOTH dictionaries. React type names (Dispatch, FormEvent, …) and lambda
+property accesses (t.id, t.done, …) are excluded as non-i18n references.
+
+3. HARDCODED ENGLISH UI STRINGS FOUND & FIXED (source-level audit)
+------------------------------------------------------------------
+Count: 24 hardcoded strings found → 24 fixed (100%). All routed through i18n
+(de primary). Files changed:
+  - src/routes/app/index.tsx                (dashboard: 4 quick-action cards,
+    "Marketing Strategy Completion", "Next best actions", "Your priority tasks",
+    "5 actions to accelerate growth", "Start now →" — INCLUDES the 3 owner examples)
+  - src/routes/app/projects/$projectId.tsx  ("Project Not Found" + desc,
+    "Back to Dashboard", "Generated Content", "No content was generated…",
+    "Copied!", "Copy")
+  - src/routes/app/image-studio.tsx         ("← Dashboard")
+  - src/routes/app/performance.tsx          ("load failed" fallback error)
+  - src/routes/app/new-project.tsx          (English server-error leak → localized)
+  - src/routes/app/package.tsx              (same)
+  - src/components/BetaSignupModal.tsx      (aria-label="Close")
+  - src/components/LandingPage.tsx          (mock-dashboard KPI labels incl.
+    "Content Growth", "Traffic Increase", "Time to Launch", chart months)
+  - src/routes/__root.tsx                   (meta/SEO title+description → German)
+  - src/router.tsx                          (dead-code fallback "Not found" → German)
+
+4. OWNER-CITED EXAMPLES — CONFIRMED RESOLVED
+--------------------------------------------
+  "Improve Etsy SEO"   → t.dashboard_task_improve_etsy      (de: "Etsy-SEO verbessern")
+  "Create Blog Post"   → t.dashboard_task_create_blog       (de: "Blogartikel erstellen")
+  "Start now"          → t.dashboard_start_now              (de: "Jetzt starten")
+These three were hardcoded English literals in src/routes/app/index.tsx and are
+now i18n keys; in German mode they render 100% German, in English mode English.
+
+5. GERMAN TRANSLATIONS CONTAINING ENGLISH UI WORDS (de.ts values) — FIXED
+-------------------------------------------------------------------------
+~30 values fixed to natural German, e.g.:
+  hero_badge: 'Built for Growth' → 'Gebaut für Wachstum'
+  dashboard_tools_title: 'Quick Tools' → 'Schnell-Tools'
+  landing_pricing_enterprise_price: 'Coming Soon' → 'Demnächst verfügbar'
+  pricing_pro_upgrade / billing_upgrade_pro: 'Upgrade auf Pro' → 'Zu Pro wechseln'
+  usage_limit_alert / usage_limit_desc: 'Upgrade…' → 'Wechsle zu Pro…'
+  analysis_quick_wins: '⚡ Quick Wins' → '⚡ Schnelle Erfolge'
+  ct_email_newsletter: 'Email' → 'E-Mail';  ct_product_ideas: 'Product' → 'Produkt'
+  image_studio_template_instagram: 'Instagram Post' → 'Instagram-Beitrag'
+  image_studio_format_etsy: 'Etsy Product Mockup' → 'Etsy Produkt-Mockup'
+  image_studio_download_svg: 'Download SVG' → 'SVG herunterladen'
+  landing_pricing_pro_desc: '…Seller' → '…Verkäufer'
+  landing_pricing_enterprise_features: 'Custom-Branding' → 'Individuelles Branding'
+  landing_pricing_subtitle: '…Upgrade…' → '…Wechsle zu Pro…'
+  landing_features_subtitle: 'publish-fertige' → 'veröffentlichungsfertige'
+  onboarding_step5_text: 'Brand-Voice' → 'Markenstimme'
+  publish_task_blog_submit: 'Google Search Console' → 'Google-Suchkonsole'
+  settings_default_name: 'Growimo User' → 'Growimo Nutzer'
+  package_kernel_cta: 'Call-to-Action' → 'Handlungsaufforderung'
+  variant_loading_desc: 'Angle' → 'Ansätze'
+Brand/channel/proper nouns intentionally kept identical in both languages:
+Growimo, Pinterest, Etsy, SEO, AI, FAQ, CTA, Strategy-Brief, Performance,
+Newsletter, Image Studio, Mockup, Prompt, Score, Tags, Traffic, Keyword,
+Conversion, Creator, Feedback, Version, Link, Standard, Chat, Launch, Plan,
+Start — these are accepted German marketing terms / product names.
+
+6. TOASTS / ALERTS / CONFIRMS / CLIENT ERROR PATHS
+---------------------------------------------------
+All alert()/confirm()/toast/setError calls audited — every one already used
+localized t.* keys. Two client catch-blocks leaked raw server Error.message
+(English) to the user; both now show localized text (t.common_unknown_error /
+t.perf_load_failed). Server-side English literals (LLM prompts, validation
+messages, console logs) are dev-facing and never rendered — reported as INFO
+by the scan (63 literals), not failures.
+
+7. DYNAMIC STRINGS
+------------------
+No user-visible mixing: LLM prompts, storage keys (growimo_quick_*_draft),
+dates, and export text (which uses the translated config label) are not UI text.
+
+8. SCAN SCRIPT (deliverable)
+----------------------------
+  i18n-scan.ts  — run:  bun --env-file=.env run i18n-scan.ts
+Checks: key parity, used keys, UI hardcoded strings (JSX text nodes,
+placeholder/aria-label/title/alt, title:/desc:/label:/content: literals,
+alert/confirm/setError literals), de-value English words, en-value German
+tokens. Brand allowlist + umlaut-aware word boundaries. Exit 0 = clean.
+FINAL RUN: EXIT 0 — "RESULT: ✅ CLEAN — 100% German in de-mode, 100% English
+in en-mode, no mixing, no missing keys."

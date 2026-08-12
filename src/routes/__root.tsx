@@ -15,19 +15,19 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Growimo — Create Pinterest Pins, Etsy Mockups & SEO Content with AI" },
+      { title: "Growimo — Pinterest Pins, Etsy-Mockups & SEO-Content mit KI erstellen" },
       {
         name: "description",
         content:
-          "Create Pinterest pins, Etsy mockups, SEO content and complete marketing strategies with AI — in seconds. Start free.",
+          "Erstelle Pinterest Pins, Etsy-Mockups, SEO-Content und komplette Marketing-Strategien mit KI — in Sekunden. Jetzt kostenlos starten.",
       },
-      { property: "og:title", content: "Growimo — Built for Growth" },
-      { property: "og:description", content: "Create Pinterest pins, Etsy mockups and SEO content with AI. Start free." },
+      { property: "og:title", content: "Growimo — Gebaut für Wachstum" },
+      { property: "og:description", content: "Erstelle Pinterest Pins, Etsy-Mockups und SEO-Content mit KI. Jetzt kostenlos starten." },
       { property: "og:image", content: "/logo.png" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Growimo — Built for Growth" },
-      { name: "twitter:description", content: "Create content, improve SEO, and grow your business with one AI-powered workspace." },
+      { name: "twitter:title", content: "Growimo — Gebaut für Wachstum" },
+      { name: "twitter:description", content: "Erstelle Content, verbessere SEO und wachse mit deinem Business — mit einem KI-gestützten Arbeitsbereich." },
       { name: "twitter:image", content: "/logo.png" },
     ],
     links: [

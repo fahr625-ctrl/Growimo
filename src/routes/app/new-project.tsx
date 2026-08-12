@@ -324,7 +324,7 @@ function NewProjectContent() {
       }
     } catch (error) {
       console.error('Generation failed:', error);
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      const message = t.common_unknown_error;
       setResults([]);
       setErrorMessage(message);
     } finally {

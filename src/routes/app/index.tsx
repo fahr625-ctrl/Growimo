@@ -303,6 +303,13 @@ function DashboardContent() {
   }, []);
 
   const forceRefresh = () => setRefreshKey((k) => k + 1);
+  const quickActions = [
+    { title: t.package_dashboard_title, desc: t.package_dashboard_desc, icon: '✨', to: '/app/package', style: 'border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-purple-50', iconStyle: 'bg-fuchsia-100' },
+    { title: t.dashboard_task_publish_pin, desc: t.dashboard_task_publish_pin_desc, icon: '📌', to: '/app/generate/pinterest', style: 'border-pink-100 bg-gradient-to-br from-rose-50 to-white', iconStyle: 'bg-rose-100' },
+    { title: t.dashboard_task_improve_etsy, desc: t.dashboard_task_improve_etsy_desc, icon: '🛍️', to: '/app/generate/etsy', style: 'border-amber-100 bg-gradient-to-br from-amber-50 to-white', iconStyle: 'bg-amber-100' },
+    { title: t.dashboard_task_create_blog, desc: t.dashboard_task_create_blog_desc, icon: '📝', to: '/app/generate/blog', style: 'border-blue-100 bg-gradient-to-br from-blue-50 to-white', iconStyle: 'bg-blue-100' },
+    { title: t.dashboard_tools_image_studio, desc: t.dashboard_tools_image_studio_desc, icon: '🎨', to: '/app/image-studio', style: 'border-purple-100 bg-gradient-to-br from-purple-50 to-white', iconStyle: 'bg-purple-100' },
+  ];
 
   // Load projects + stats from PostgreSQL
   useEffect(() => {
@@ -661,23 +668,17 @@ function DashboardContent() {
               <div><p className="text-sm font-semibold uppercase tracking-wider text-blue-600">{t.dashboard_marketing_score}</p><h2 className="mt-1 text-2xl font-bold text-gray-900 sm:text-3xl">{t.dashboard_growth_at_glance}</h2><p className="mt-2 max-w-sm text-sm leading-relaxed text-gray-500">{t.dashboard_readiness_desc}</p><p className="mt-3 text-xs font-semibold text-emerald-600">{t.dashboard_momentum}</p></div>
             </div>
             <div className="w-full max-w-sm rounded-2xl border border-white/80 bg-white/70 p-5 shadow-sm">
-              <div className="flex items-center justify-between"><p className="text-sm font-semibold text-gray-800">Marketing Strategy Completion</p><span className="text-lg font-bold text-gray-900">{strategyCompletion}%</span></div>
+              <div className="flex items-center justify-between"><p className="text-sm font-semibold text-gray-800">{t.dashboard_strategy_completion}</p><span className="text-lg font-bold text-gray-900">{strategyCompletion}%</span></div>
               <div className="mt-4 h-3 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-gradient-to-r from-blue-600 to-purple-600 transition-all" style={{ width: `${strategyCompletion}%` }} /></div>
-              <p className="mt-3 text-xs text-gray-500">Build your foundation, then turn every insight into action.</p>
+              <p className="mt-3 text-xs text-gray-500">{t.dashboard_foundation_hint}</p>
             </div>
           </div>
         </section>
 
         <section>
-          <div className="mb-4 flex items-end justify-between"><div><p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Next best actions</p><h2 className="mt-1 text-xl font-bold text-gray-900">Your priority tasks</h2></div><span className="text-xs text-gray-400">5 actions to accelerate growth</span></div>
+          <div className="mb-4 flex items-end justify-between"><div><p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{t.dashboard_next_actions}</p><h2 className="mt-1 text-xl font-bold text-gray-900">{t.dashboard_priority_tasks}</h2></div><span className="text-xs text-gray-400">{t.dashboard_actions_count.replace('%d', String(quickActions.length))}</span></div>
           <div className="grid gap-4 md:grid-cols-3">
-            {[
-              { title: t.package_dashboard_title, desc: t.package_dashboard_desc, icon: '✨', to: '/app/package', style: 'border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-purple-50', iconStyle: 'bg-fuchsia-100' },
-              { title: 'Publish Pinterest Pin', desc: 'Turn your next idea into a scroll-stopping pin.', icon: '📌', to: '/app/generate/pinterest', style: 'border-pink-100 bg-gradient-to-br from-rose-50 to-white', iconStyle: 'bg-rose-100' },
-              { title: 'Improve Etsy SEO', desc: 'Optimize your listing for more qualified searches.', icon: '🛍️', to: '/app/generate/etsy', style: 'border-amber-100 bg-gradient-to-br from-amber-50 to-white', iconStyle: 'bg-amber-100' },
-              { title: 'Create Blog Post', desc: 'Publish useful content that compounds over time.', icon: '📝', to: '/app/generate/blog', style: 'border-blue-100 bg-gradient-to-br from-blue-50 to-white', iconStyle: 'bg-blue-100' },
-              { title: t.dashboard_tools_image_studio, desc: t.dashboard_tools_image_studio_desc, icon: '🎨', to: '/app/image-studio', style: 'border-purple-100 bg-gradient-to-br from-purple-50 to-white', iconStyle: 'bg-purple-100' },
-            ].map((task) => <Link key={task.title} to={task.to} className={`group rounded-2xl border p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md ${task.style}`}><div className="flex items-start justify-between"><span className={`flex h-11 w-11 items-center justify-center rounded-xl text-xl ${task.iconStyle}`}>{task.icon}</span><span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-white/80 text-xs text-gray-300 shadow-sm">○</span></div><h3 className="mt-4 text-base font-bold text-gray-900 group-hover:text-blue-700">{task.title}</h3><p className="mt-1 text-sm leading-relaxed text-gray-500">{task.desc}</p><span className="mt-4 inline-flex text-xs font-semibold text-gray-700 group-hover:text-blue-700">Start now →</span></Link>)}
+            {quickActions.map((task) => <Link key={task.title} to={task.to} className={`group rounded-2xl border p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md ${task.style}`}><div className="flex items-start justify-between"><span className={`flex h-11 w-11 items-center justify-center rounded-xl text-xl ${task.iconStyle}`}>{task.icon}</span><span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-white/80 text-xs text-gray-300 shadow-sm">○</span></div><h3 className="mt-4 text-base font-bold text-gray-900 group-hover:text-blue-700">{task.title}</h3><p className="mt-1 text-sm leading-relaxed text-gray-500">{task.desc}</p><span className="mt-4 inline-flex text-xs font-semibold text-gray-700 group-hover:text-blue-700">{t.dashboard_start_now} →</span></Link>)}
           </div>
         </section>
 

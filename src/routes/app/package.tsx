@@ -183,7 +183,7 @@ function PackageContent() {
       }
     } catch (error) {
       console.error('Package generation failed:', error);
-      const message = error instanceof Error ? error.message : t.common_unknown_error;
+      const message = t.common_unknown_error;
       setErrorMessage(message);
     } finally {
       setIsLoading(false);

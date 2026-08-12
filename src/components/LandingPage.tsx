@@ -295,9 +295,9 @@ function HeroSection() {
                     {/* KPI cards row */}
                     <div className="grid grid-cols-3 gap-3">
                       {[
-                        { growth: '+24%', label: 'Content', color: 'bg-blue-50 text-blue-600' },
-                        { growth: '+18%', label: 'SEO Score', color: 'bg-purple-50 text-purple-600' },
-                        { growth: '+32%', label: 'Traffic', color: 'bg-emerald-50 text-emerald-600' },
+                        { growth: '+24%', label: t.landing_mock_kpi_content, color: 'bg-blue-50 text-blue-600' },
+                        { growth: '+18%', label: t.landing_mock_kpi_seo, color: 'bg-purple-50 text-purple-600' },
+                        { growth: '+32%', label: t.landing_mock_kpi_traffic, color: 'bg-emerald-50 text-emerald-600' },
                       ].map((stat) => (
                         <div key={stat.label} className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
                           <div className={`inline-flex items-center rounded-lg px-2 py-0.5 text-xs font-semibold ${stat.color}`}>
@@ -328,7 +328,7 @@ function HeroSection() {
                         ))}
                       </div>
                       <div className="mt-2 flex justify-between">
-                        {['Jan','Mar','May','Jul','Sep','Nov'].map((m) => (
+                        {t.landing_mock_chart_months.split(',').map((m) => (
                           <span key={m} className="text-[10px] text-gray-300">{m}</span>
                         ))}
                       </div>
@@ -366,10 +366,10 @@ function HeroSection() {
           {/* Mobile: simplified KPI cards */}
           <div className="grid grid-cols-2 gap-3 lg:hidden">
             {[
-              { value: '24%', label: 'Content Growth', color: 'border-l-blue-400 bg-blue-50/50 text-blue-700' },
-              { value: '18%', label: 'SEO Score', color: 'border-l-purple-400 bg-purple-50/50 text-purple-700' },
-              { value: '32%', label: 'Traffic Increase', color: 'border-l-emerald-400 bg-emerald-50/50 text-emerald-700' },
-              { value: '5min', label: 'Time to Launch', color: 'border-l-amber-400 bg-amber-50/50 text-amber-700' },
+              { value: '24%', label: t.landing_mock_kpi_content_growth, color: 'border-l-blue-400 bg-blue-50/50 text-blue-700' },
+              { value: '18%', label: t.landing_mock_kpi_seo, color: 'border-l-purple-400 bg-purple-50/50 text-purple-700' },
+              { value: '32%', label: t.landing_mock_kpi_traffic_inc, color: 'border-l-emerald-400 bg-emerald-50/50 text-emerald-700' },
+              { value: '5min', label: t.landing_mock_kpi_time_launch, color: 'border-l-amber-400 bg-amber-50/50 text-amber-700' },
             ].map((stat) => (
               <div
                 key={stat.label}
