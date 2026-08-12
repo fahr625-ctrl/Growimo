@@ -1,0 +1,21 @@
+F9 TEST-EVIDENCE — 2026-08-12T11:10:58.731Z
+Test-Nutzer: a3807771… (clerk f9-test-user)
+Test-Projekt be7db428… mit 5 Pins angelegt.
+✅ 5 Einträge geloggt (Upsert), Persistenz-Roundtrip OK (5 Zeilen).
+
+Overview: 5 Einträge, 1 Kanäle, ruleVersion=1
+Kanal pinterest_pin: 5 Assets, Ø-Score 68.2, bestes Asset „10 Weihnachtsgeschenke für 202…“ (100)
+✅ dataSufficiency: enoughData=true (perChannel pinterest_pin=5)
+🎯 Erfolgsfaktor: title_number (×6, n=5) — Pins mit einer konkreten Zahl oder einem Anlass im Titel erzielten 6,0× mehr Saves (3 mit, 2 ohne)
+💡 Vorschlag: Füge eine konkrete Zahl oder einen Anlass in den Titel ein — Pins mit einer konkreten Zahl oder einem Anlass im Titel erzielten 6,0× mehr Saves (2 betroffene Assets)
+📊 Gesamt-Trend: Ø 100 (n=2), delta=67 %
+📊 Kanal-Trend pinterest_pin: Ø 100, delta=67 %
+📊 Mini-Balken: 2026-07-27:20.5, 2026-08-03:100
+📈 Kontext-Block (710 Zeichen) enthält den Erfolgsfaktor.
+✅ Paket-Naht: perfContext steckt in [kernelContext, briefContext, perfContext] → generate-additionalContext.
+✅ QuickGenerator-Naht: perfContext wird an additionalContext angehängt.
+✅ Upsert-Roundtrip: Update überschreibt (user,asset)-Eintrag, Re-Read bestätigt.
+🧹 Test-Daten entfernt (Projekt + Nutzer kaskadierend gelöscht).
+
+
+ALLE F9-CHECKS BESTANDEN ✅

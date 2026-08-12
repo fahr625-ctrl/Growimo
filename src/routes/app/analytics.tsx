@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState, useMemo, useEffect } from 'react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { useTranslation } from '~/i18n';
@@ -120,9 +120,17 @@ function AnalyticsContent() {
   if (!hasData) {
     return (
       <div>
-        <div className="mb-8">
-          <h1 className="text-2xl font-extrabold text-gray-900">{t.analytics_title}</h1>
-          <p className="mt-1 text-sm text-gray-500">{t.analytics_subtitle}</p>
+        <div className="mb-8 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-extrabold text-gray-900">{t.analytics_title}</h1>
+            <p className="mt-1 text-sm text-gray-500">{t.analytics_subtitle}</p>
+          </div>
+          <Link
+            to="/app/performance"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-2 text-sm font-semibold text-fuchsia-700 transition-all hover:bg-fuchsia-100"
+          >
+            {t.perf_dashboard_link}
+          </Link>
         </div>
 
         <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-16 text-center">
@@ -142,9 +150,17 @@ function AnalyticsContent() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-extrabold text-gray-900">{t.analytics_title}</h1>
-        <p className="mt-1 text-sm text-gray-500">{t.analytics_subtitle}</p>
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-extrabold text-gray-900">{t.analytics_title}</h1>
+          <p className="mt-1 text-sm text-gray-500">{t.analytics_subtitle}</p>
+        </div>
+        <Link
+          to="/app/performance"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-2 text-sm font-semibold text-fuchsia-700 transition-all hover:bg-fuchsia-100"
+        >
+          {t.perf_dashboard_link}
+        </Link>
       </div>
 
       {/* KPI Row */}

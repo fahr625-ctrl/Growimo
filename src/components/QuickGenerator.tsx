@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useUser } from '@clerk/clerk-react';
-import { generateContentServer } from '~/ai/server';
+import { generateContentServer, getPerformanceOverviewServer } from '~/ai/server';
 import type { ContentResult, ContentType, ImproveOutcome, VariantAsset } from '~/ai/types';
 import { buildBriefContext } from '~/ai/strategy-brief/questions';
 import { hasBriefAnswers } from '~/ai/strategy-brief';
+import { buildPerformanceContext } from '~/ai/performance/context';
 import { StrategyBrief } from '~/components/StrategyBrief';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import BrandBadge from '~/components/BrandBadge';
@@ -188,12 +189,25 @@ function QuickGeneratorContent({
       // (wie F4 den Strategie-Kern voranstellt). Ohne Brief → exakt wie vorher.
       const briefContext = buildBriefContext(brief, locale);
 
+      // F9: Performance-Erkenntnisse als zusätzlicher Kontext (nie blockierend —
+      // Fehler oder zu wenig Daten → leerer Block, Generierung läuft weiter).
+      let perfContext = '';
+      try {
+        const overview = await getPerformanceOverviewServer({
+          data: { userId: uid, lang: locale === 'en' ? 'en' : 'de' },
+        });
+        perfContext = buildPerformanceContext(overview, locale === 'en' ? 'en' : 'de');
+      } catch (err) {
+        console.error('F9 performance context skipped:', err);
+        perfContext = '';
+      }
+
       const generated = (await generateContentServer({
         data: {
           contentType,
           productIdea: enhancedIdea,
           tone: tone || undefined,
-          additionalContext: briefContext || undefined,
+          additionalContext: [briefContext, perfContext].filter(Boolean).join('\n\n') || undefined,
         },
       })) as ContentResult;
 

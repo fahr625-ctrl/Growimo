@@ -30,19 +30,21 @@ export function kernelContext(kernel: MarketingKernel): string {
 
 /**
  * Generate ONE package channel with the shared kernel + optional F6
- * Strategie-Brief as context. The result includes the F1 score (attached by
- * the existing pipeline). Without a brief the request is identical to F4.
+ * Strategie-Brief + optional F9 Performance-Kontext as context. The result
+ * includes the F1 score (attached by the existing pipeline). Without a brief
+ * the request is identical to F4.
  */
 export async function generatePackageChannel(
   kernel: MarketingKernel,
   contentType: ContentType,
   productIdea: string,
   briefContext?: string,
+  perfContext?: string,
 ): Promise<ContentResult> {
   const request: ContentRequest = {
     contentType,
     productIdea,
-    additionalContext: [kernelContext(kernel), briefContext].filter(Boolean).join('\n\n'),
+    additionalContext: [kernelContext(kernel), briefContext, perfContext].filter(Boolean).join('\n\n'),
   };
   const { generateContent } = await import('../generate');
   return generateContent(request);

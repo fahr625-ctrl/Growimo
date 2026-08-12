@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start';
-import type { AutoImproveSectionOutcome, ContentRequest, ContentResult, ContentScore, ContentType, ImproveOutcome, PrioritizeAsset, PrioritizeOutcome, PublishPlanItem, VariantsResult } from './types';
+import type { AutoImproveSectionOutcome, ContentRequest, ContentResult, ContentScore, ContentType, ImproveOutcome, PerformanceEntry, PerformanceOverview, PrioritizeAsset, PrioritizeOutcome, PublishPlanItem, VariantsResult } from './types';
 import type { MarketingPackage } from './package/package';
 
 /**
@@ -443,6 +443,95 @@ export const getPublishPlanServer = createServerFn({ method: 'POST' })
   });
 
 /**
+ * F9 persist one performance entry (upsert per user+asset). Returns the row.
+ */
+export const logPerformanceServer = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const d = input as {
+      userId?: unknown;
+      assetId?: unknown;
+      channel?: unknown;
+      publishedAt?: unknown;
+      metrics?: unknown;
+      notes?: unknown;
+    };
+    if (!d || typeof d !== 'object' || typeof d.userId !== 'string' || !d.userId) {
+      throw new Error('userId is required');
+    }
+    if (typeof d.assetId !== 'string' || !d.assetId) throw new Error('assetId is required');
+    if (typeof d.channel !== 'string' || !d.channel) throw new Error('channel is required');
+    const metrics: Record<string, number> = {};
+    if (d.metrics && typeof d.metrics === 'object') {
+      for (const [k, v] of Object.entries(d.metrics as Record<string, unknown>)) {
+        const n = Number(v);
+        if (Number.isFinite(n) && n >= 0) metrics[k] = n;
+      }
+    }
+    return {
+      userId: d.userId,
+      assetId: d.assetId,
+      channel: d.channel,
+      publishedAt: typeof d.publishedAt === 'string' ? d.publishedAt : undefined,
+      metrics,
+      notes: typeof d.notes === 'string' && d.notes.trim() ? d.notes.trim() : undefined,
+    };
+  })
+  .handler(async ({ data }): Promise<PerformanceEntry | null> => {
+    console.log('[server.logPerformance]', data.channel, data.assetId.slice(0, 12), Object.keys(data.metrics).join(','));
+    const { qLogPerformance } = await import('../db/queries');
+    const row = await qLogPerformance(data.userId, data);
+    if (!row) return null;
+    return {
+      id: row.id,
+      userId: row.userId,
+      assetId: row.assetId,
+      channel: row.channel as ContentType,
+      publishedAt: row.publishedAt,
+      metrics: row.metrics,
+      notes: row.notes ?? undefined,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    };
+  });
+
+/**
+ * F9 full performance overview: entries, per-channel summaries, success
+ * factors, suggestions, trends + honest data sufficiency. Deterministic —
+ * no LLM. Also used internally by the generation loop (buildPerformanceOverview).
+ */
+export const getPerformanceOverviewServer = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const d = input as { userId?: unknown; lang?: unknown };
+    if (!d || typeof d !== 'object' || typeof d.userId !== 'string' || !d.userId) {
+      throw new Error('userId is required');
+    }
+    return { userId: d.userId, lang: (d.lang === 'en' ? 'en' : 'de') as 'de' | 'en' };
+  })
+  .handler(async ({ data }): Promise<PerformanceOverview> => {
+    console.log('[server.getPerformanceOverview] user:', data.userId.slice(0, 12));
+    const { buildPerformanceOverview } = await import('./performance');
+    return buildPerformanceOverview(data.userId, { lang: data.lang });
+  });
+
+/**
+ * F9 list the user's publishable assets (for the "Performance erfassen" form),
+ * including plan dates, F1 scores and whether an entry already exists.
+ */
+export const getPublishedAssetsServer = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const d = input as { userId?: unknown };
+    if (!d || typeof d !== 'object' || typeof d.userId !== 'string' || !d.userId) {
+      throw new Error('userId is required');
+    }
+    return { userId: d.userId };
+  })
+  .handler(async ({ data }) => {
+    console.log('[server.getPublishedAssets] user:', data.userId.slice(0, 12));
+    const { qGetPublishedAssets } = await import('../db/queries');
+    return qGetPublishedAssets(data.userId);
+  });
+
+/**
  * F4 server-side complete marketing package.
  * ONE product idea → shared strategic kernel → all five channels (each with
  * F1 score) → F3 prioritization. Single channel failures are skipped (null),
@@ -451,7 +540,7 @@ export const getPublishPlanServer = createServerFn({ method: 'POST' })
  */
 export const generatePackageServer = createServerFn({ method: 'POST' })
   .validator((input: unknown) => {
-    const d = input as { productIdea?: unknown; lang?: unknown; brief?: unknown };
+    const d = input as { productIdea?: unknown; lang?: unknown; brief?: unknown; userId?: unknown };
     if (!d || typeof d !== 'object') throw new Error('data is required');
     if (typeof d.productIdea !== 'string' || !d.productIdea.trim()) {
       throw new Error('productIdea is required');
@@ -468,6 +557,7 @@ export const generatePackageServer = createServerFn({ method: 'POST' })
       productIdea: d.productIdea.trim(),
       lang: (d.lang === 'en' ? 'en' : 'de') as 'de' | 'en',
       brief,
+      userId: typeof d.userId === 'string' && d.userId ? d.userId : undefined,
     };
   })
   .handler(async ({ data }): Promise<MarketingPackage> => {
@@ -476,6 +566,7 @@ export const generatePackageServer = createServerFn({ method: 'POST' })
     const pkg = await generateMarketingPackage(data.productIdea, {
       lang: data.lang,
       brief: data.brief,
+      userId: data.userId,
     });
     const ok = Object.values(pkg.channels).filter(Boolean).length;
     console.log(

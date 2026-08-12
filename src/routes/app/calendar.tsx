@@ -400,6 +400,15 @@ function CalendarContent() {
                     {open ? '▾' : '▸'} {t.publish_plan_tasks} · {t.publish_plan_tasks_progress.replace('{done}', String(done)).replace('{total}', String(item.tasks.length))}
                   </button>
                   <Link to="/app/projects/$projectId" params={{ projectId: item.projectId }} className="text-xs font-medium text-gray-400 hover:text-fuchsia-700">→ {t.publish_plan_link_project}</Link>
+                  {item.tasks.length > 0 && done === item.tasks.length && (
+                    <Link
+                      to="/app/performance"
+                      search={{ asset: item.assetId }}
+                      className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-fuchsia-600 to-purple-600 px-3 py-1 text-[11px] font-bold text-white shadow-sm transition-all hover:from-fuchsia-700 hover:to-purple-700"
+                    >
+                      {t.perf_calendar_link}
+                    </Link>
+                  )}
                 </div>
                 <p className="mt-2 text-xs leading-relaxed text-gray-500">{item.rationale}</p>
                 {open && item.tasks.length > 0 && (

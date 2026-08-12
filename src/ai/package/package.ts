@@ -40,6 +40,12 @@ export interface PackageOptions {
   lang?: 'de' | 'en';
   /** Optional F6 Strategy-Brief answers (empty when F6 is not implemented). */
   brief?: Record<string, string> | null;
+  /**
+   * F9: user id — when present, the user's performance insights are loaded
+   * (deterministic analysis, never blocks) and flow as context into every
+   * channel generation. Empty when no performance data exists yet.
+   */
+  userId?: string;
 }
 
 /**
@@ -60,6 +66,21 @@ export async function generateMarketingPackage(
   // F6: brief context for every channel request (additionalContext).
   const briefContext = buildBriefContext(opts.brief ?? null, lang);
 
+  // F9: performance insights as context — never blocking (error → empty).
+  let perfContext = '';
+  if (opts.userId) {
+    try {
+      const { buildPerformanceOverview } = await import('../performance');
+      const { buildPerformanceContext } = await import('../performance/context');
+      const overview = await buildPerformanceOverview(opts.userId, { lang });
+      perfContext = buildPerformanceContext(overview, lang);
+      if (perfContext) console.log('[package] performance context injected into channels');
+    } catch (err) {
+      console.error('[package] performance context skipped:', err);
+      perfContext = '';
+    }
+  }
+
   // 2. All five channels in parallel; each failure is isolated.
   const channels: PackageChannelResult = {
     pinterest: null,
@@ -77,6 +98,7 @@ export async function generateMarketingPackage(
           contentType,
           productIdea,
           briefContext,
+          perfContext,
         );
       } catch (err) {
         console.error(`[package] channel ${contentType} failed — skipped:`, err);

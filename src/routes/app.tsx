@@ -344,6 +344,25 @@ function AppSidebar() {
       ),
     },
     {
+      label: t.perf_nav,
+      to: "/app/performance",
+      icon: (active: boolean) => (
+        <svg
+          className={`h-5 w-5 ${active ? "text-blue-600" : "text-gray-400"}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={1.5}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+          />
+        </svg>
+      ),
+    },
+    {
       label: t.fh_nav,
       to: "/app/feedback",
       icon: (active: boolean) => (

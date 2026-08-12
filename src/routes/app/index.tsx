@@ -1077,6 +1077,14 @@ function QuickToolsGrid({
       desc: t.dashboard_tools_calendar_desc,
       tint: 'bg-purple-50',
     },
+    {
+      key: 'performance',
+      to: '/app/performance' as const,
+      icon: '📈',
+      title: t.dashboard_tools_performance,
+      desc: t.dashboard_tools_performance_desc,
+      tint: 'bg-fuchsia-50',
+    },
   ];
 
   return (

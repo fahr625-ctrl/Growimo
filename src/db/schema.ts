@@ -78,6 +78,24 @@ CREATE TABLE IF NOT EXISTS publish_plan (
 );
 CREATE INDEX IF NOT EXISTS idx_publish_plan_user_date ON publish_plan(user_id, scheduled_date);
 
+-- F9 Performance-Feedback-Loop: Nutzer erfasst echte Ergebnisse je Asset
+-- (Impressions, Saves, Klicks, Views, Favoriten, Bestellungen, Ranking, Opens).
+-- Deterministische Analyse korreliert diese Werte mit Asset-Merkmalen. Die
+-- Erkenntnisse fließen als Kontext in zukünftige Generierungen ein.
+CREATE TABLE IF NOT EXISTS performance_entries (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  asset_id UUID NOT NULL REFERENCES generated_content(id) ON DELETE CASCADE,
+  channel TEXT NOT NULL,
+  published_at TIMESTAMPTZ DEFAULT NOW(),
+  metrics JSONB DEFAULT '{}',
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id, asset_id)
+);
+CREATE INDEX IF NOT EXISTS idx_perf_entries_user_date ON performance_entries(user_id, published_at);
+
 -- ── Migrations for pre-existing databases ────────────────────────────────────
 -- These are idempotent: they run on every init so an existing DB created before
 -- these columns/constraints existed is brought up to date without dropping data.

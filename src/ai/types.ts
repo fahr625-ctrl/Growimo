@@ -278,6 +278,114 @@ export interface PublishPlan {
   /** Rules version so scheduling can evolve without breaking clients. */
   ruleVersion: number;
 }
+// ── F9 Performance-Feedback-Loop (decision layer) ─────────────────────────────
+/** Channel-specific metrics the user logs after publishing (numeric). */
+export interface PerformanceMetrics {
+  [key: string]: number;
+}
+/** One logged performance entry: real results for one published asset. */
+export interface PerformanceEntry {
+  id: string;
+  userId: string;
+  assetId: string;
+  channel: ContentType;
+  /** ISO timestamp of the publication. */
+  publishedAt: string;
+  /** Channel-specific metrics (see metrics.ts CHANNEL_METRICS). */
+  metrics: PerformanceMetrics;
+  /** Optional free-text note from the user. */
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+/** A detected correlation between an asset feature and real performance. */
+export interface SuccessFactor {
+  /** Channel the factor was measured on. */
+  channel: ContentType;
+  /** Machine-readable factor key (title_number | title_cta | title_length_short | keyword_present | score_tier_high | …). */
+  factor: string;
+  /** Short human label (de), e.g. 'Zahl oder Anlass im Titel'. */
+  label: string;
+  /** Plain-language evidence with REAL numbers, e.g. 'Pins mit Zahl erzielten 2.1× mehr Saves'. */
+  evidence: string;
+  /** Relative lift (≥1) — e.g. 2.1 means 2.1× better. */
+  magnitude: number;
+  /** positive = feature in top assets, negative = feature in bottom assets. */
+  direction: 'positive' | 'negative';
+  /** Number of channel assets the factor is based on (≥ 3 required). */
+  sampleSize: number;
+}
+/** Concrete, actionable improvement suggestion for underperforming assets. */
+export interface PerfSuggestion {
+  channel: ContentType;
+  /** Concrete action (de), e.g. 'Füge eine konkrete Zahl oder einen Anlass in den Titel ein'. */
+  action: string;
+  /** Why — the measured evidence (de), e.g. 'Pins mit Zahl erzielten 2.1× mehr Saves'. */
+  reason: string;
+  /** The factor key this suggestion is derived from. */
+  factor: string;
+  /** How many underperforming assets of this channel lack the feature. */
+  affectedAssets: number;
+}
+/** One trend slice: average performance score over a period for a channel. */
+export interface PerfTrend {
+  channel: ContentType | 'overall';
+  /** Period label ('week' | 'prev_week' | …). */
+  period: string;
+  count: number;
+  avgScore: number;
+  /** avgScore(current period) − avgScore(previous period); null when no baseline. */
+  delta: number | null;
+}
+/** Per-channel summary for the dashboard channel cards/tabs. */
+export interface PerfChannelSummary {
+  channel: ContentType;
+  /** Number of logged entries. */
+  count: number;
+  /** Average performance score 0–100. */
+  avgScore: number;
+  /** Best performing asset of the channel (null when no entries). */
+  bestAsset: { id: string; title: string; score: number; metrics: PerformanceMetrics } | null;
+  /** Latest week-vs-prev-week trend (null when no baseline). */
+  trend: PerfTrend | null;
+  /** One avg score per week (oldest → newest) for the mini CSS trend bars. */
+  weeklyScores: { week: string; avg: number }[];
+}
+/** Honest data-sufficiency gate — never invent insights without enough data. */
+export interface PerfDataSufficiency {
+  enoughData: boolean;
+  /** Additional entries still needed until reliable insights (across channels). */
+  needed: number;
+  /** Per-channel current entry counts. */
+  perChannel: Record<string, number>;
+}
+/** Everything the performance dashboard + generation context needs. */
+export interface PerformanceOverview {
+  entries: PerformanceEntry[];
+  channels: PerfChannelSummary[];
+  successFactors: SuccessFactor[];
+  suggestions: PerfSuggestion[];
+  trends: PerfTrend[];
+  dataSufficiency: PerfDataSufficiency;
+  /** Overall last-week vs previous-week trend (motivating header). */
+  overallTrend: PerfTrend | null;
+  /** Consecutive weeks with rising overall avg score (0 when unsupported). */
+  streakWeeks: number;
+  /** Global best asset across channels (winner card). */
+  topAsset: { channel: ContentType; title: string; score: number; metrics: PerformanceMetrics } | null;
+  /** Rules version so the analysis can evolve without breaking clients. */
+  ruleVersion: number;
+}
+/** Minimal asset info the analysis needs (joined from generated_content). */
+export interface PerfAssetInfo {
+  id: string;
+  channel: ContentType;
+  title: string;
+  body?: string;
+  metadata?: Record<string, unknown>;
+  /** F1 quality score 0–100 (from metadata.score.total), null when missing. */
+  qualityScore?: number | null;
+}
 
 export interface AIConfig {
   provider: 'openai' | 'anthropic' | 'gemini';

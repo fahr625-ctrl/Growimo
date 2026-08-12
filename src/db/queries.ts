@@ -666,3 +666,128 @@ export async function qUpdatePublishTask(
   if (updated.length === 0) return null;
   return mapPublishPlanRow(updated[0]);
 }
+
+// ── F9 Performance-Feedback-Loop (performance_entries table) ─────────────────
+export interface PerfEntryRow {
+  id: string;
+  userId: string;
+  assetId: string;
+  channel: string;
+  publishedAt: string; // ISO string
+  metrics: Record<string, number>;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+function mapPerfEntryRow(row: Record<string, unknown>): PerfEntryRow {
+  return {
+    id: String(row.id),
+    userId: String(row.user_id),
+    assetId: String(row.asset_id),
+    channel: String(row.channel),
+    publishedAt: isoString(row.published_at),
+    metrics: parseJson<Record<string, number>>(row.metrics, {}),
+    notes: row.notes == null ? null : String(row.notes),
+    createdAt: isoString(row.created_at),
+    updatedAt: isoString(row.updated_at),
+  };
+}
+/** Upsert one performance entry (UNIQUE user_id + asset_id). Returns the stored row. */
+export async function qLogPerformance(
+  userId: string,
+  entry: {
+    assetId: string;
+    channel: string;
+    publishedAt?: string;
+    metrics: Record<string, number>;
+    notes?: string;
+  },
+): Promise<PerfEntryRow | null> {
+  const uid = await resolveUserId(userId);
+  if (!uid) return null;
+  const sql = getDb();
+  const published = entry.publishedAt && !Number.isNaN(Date.parse(entry.publishedAt))
+    ? entry.publishedAt
+    : new Date().toISOString();
+  const rows = await sql`
+    INSERT INTO performance_entries
+      (user_id, asset_id, channel, published_at, metrics, notes)
+    VALUES (
+      ${uid}, ${entry.assetId}, ${entry.channel}, ${published},
+      ${JSON.stringify(entry.metrics ?? {})}, ${entry.notes ?? null}
+    )
+    ON CONFLICT (user_id, asset_id) DO UPDATE SET
+      channel = EXCLUDED.channel,
+      published_at = EXCLUDED.published_at,
+      metrics = EXCLUDED.metrics,
+      notes = EXCLUDED.notes,
+      updated_at = NOW()
+    RETURNING *
+  `;
+  return rows.length > 0 ? mapPerfEntryRow(rows[0]) : null;
+}
+/** Read all performance entries of a user (newest first). */
+export async function qGetPerformanceEntries(userId: string): Promise<PerfEntryRow[]> {
+  const uid = await resolveUserId(userId);
+  if (!uid) return [];
+  const sql = getDb();
+  const rows = await sql`
+    SELECT * FROM performance_entries
+    WHERE user_id = ${uid}
+    ORDER BY published_at DESC
+  `;
+  return rows.map(mapPerfEntryRow);
+}
+/** One asset row for the "Performance erfassen" list (publishable channels). */
+export interface PublishedAssetRow {
+  assetId: string;
+  projectId: string;
+  projectTitle: string;
+  channel: string;
+  title: string;
+  qualityScore: number | null;
+  /** Scheduled date from publish_plan (YYYY-MM-DD), null when unplanned. */
+  plannedDate: string | null;
+  /** Whether a performance entry already exists for this asset. */
+  logged: boolean;
+  /** Existing metrics when logged (for pre-filling the form). */
+  existingMetrics: Record<string, number>;
+  publishedAt: string | null;
+}
+/** List the user's publishable assets + their plan dates + logged status. */
+export async function qGetPublishedAssets(userId: string): Promise<PublishedAssetRow[]> {
+  const uid = await resolveUserId(userId);
+  if (!uid) return [];
+  const sql = getDb();
+  const rows = await sql`
+    SELECT gc.id AS asset_id, gc.project_id, gc.content_type, gc.title, gc.metadata,
+           gc.created_at, p.title AS project_title,
+           pp.scheduled_date AS planned_date,
+           pe.metrics AS existing_metrics, pe.published_at AS entry_published_at
+    FROM generated_content gc
+    JOIN projects p ON gc.project_id = p.id
+    LEFT JOIN publish_plan pp ON pp.asset_id = gc.id AND pp.user_id = ${uid}
+    LEFT JOIN performance_entries pe ON pe.asset_id = gc.id AND pe.user_id = ${uid}
+    WHERE gc.user_id = ${uid}
+      AND gc.content_type IN ('pinterest_pin', 'etsy_listing', 'seo_blog', 'social_post', 'email_newsletter')
+    ORDER BY gc.created_at DESC
+  `;
+  return rows.map((r) => {
+    const meta = parseJson<Record<string, unknown> | undefined>(r.metadata, undefined);
+    const score = meta?.score;
+    return {
+      assetId: String(r.asset_id),
+      projectId: String(r.project_id),
+      projectTitle: String(r.project_title ?? ''),
+      channel: String(r.content_type),
+      title: r.title == null ? '' : String(r.title),
+      qualityScore: score && typeof score === 'object' && typeof (score as { total?: unknown }).total === 'number'
+        ? (score as { total: number }).total
+        : null,
+      plannedDate: r.planned_date == null ? null : String(r.planned_date).slice(0, 10),
+      logged: r.existing_metrics != null,
+      existingMetrics: r.existing_metrics == null ? {} : parseJson<Record<string, number>>(r.existing_metrics, {}),
+      publishedAt: r.entry_published_at == null ? null : isoString(r.entry_published_at),
+    };
+  });
+}
