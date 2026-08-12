@@ -235,6 +235,49 @@ export interface PrioritizeAsset {
   qualityScore: number | null;
   title?: string;
 }
+// ── F8 Veröffentlichungs-Kalender (decision layer) ────────────────────────────
+/** One checkable task inside a scheduled publish-plan item (persisted JSONB). */
+export interface PublishTask {
+  /** Stable task id inside the item (e.g. "t1"…"t5"). */
+  id: string;
+  /** Concrete instruction — embeds real asset data (title/keywords) where possible. */
+  label: string;
+  /** Checkbox state (persisted via updateTaskDoneServer). */
+  done: boolean;
+}
+/** One scheduled publication: which asset, when, at what priority, with which tasks. */
+export interface PublishPlanItem {
+  /** Stable item id — equals the generated-content row id (assetId). */
+  id: string;
+  projectId: string;
+  projectTitle: string;
+  channel: ContentType;
+  assetId: string;
+  /** Asset title to publish (already channel-appropriate). */
+  title: string;
+  /** F1 Qualitäts-Score 0–100 (null when unknown). */
+  qualityScore: number | null;
+  /** F3 combined priority 0–100 (channel character + quality). */
+  priorityScore: number;
+  /** 1-based position in the project's ranked order (1 = publish first). */
+  rank: number;
+  /** Scheduled date, YYYY-MM-DD (local time). */
+  scheduledDate: string;
+  /** Best-time semantic key ("pinterest" | "etsy" | "blog" | "social" | "newsletter") — UI translates. */
+  bestTime: string;
+  /** Plain-language rationale — why this channel at this position. */
+  rationale: string;
+  /** 3–6 checkable tasks (publishTasks). */
+  tasks: PublishTask[];
+}
+/** Full generated publish plan for one user (all projects). */
+export interface PublishPlan {
+  items: PublishPlanItem[];
+  /** ISO timestamp of plan generation. */
+  generatedAt: string;
+  /** Rules version so scheduling can evolve without breaking clients. */
+  ruleVersion: number;
+}
 
 export interface AIConfig {
   provider: 'openai' | 'anthropic' | 'gemini';

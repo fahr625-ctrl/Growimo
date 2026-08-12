@@ -58,6 +58,25 @@ CREATE INDEX IF NOT EXISTS idx_generated_content_project_id ON generated_content
 CREATE INDEX IF NOT EXISTS idx_generated_content_user_id ON generated_content(user_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe_customer_id ON subscriptions(stripe_customer_id);
+-- F8 Veröffentlichungs-Kalender: automatischer Publish-Plan je Nutzer/Asset
+CREATE TABLE IF NOT EXISTS publish_plan (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  asset_id UUID NOT NULL REFERENCES generated_content(id) ON DELETE CASCADE,
+  channel TEXT NOT NULL,
+  scheduled_date DATE NOT NULL,
+  priority_score INTEGER NOT NULL,
+  rank INTEGER NOT NULL,
+  best_time TEXT,
+  tasks JSONB DEFAULT '[]',
+  title TEXT,
+  rationale TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id, asset_id)
+);
+CREATE INDEX IF NOT EXISTS idx_publish_plan_user_date ON publish_plan(user_id, scheduled_date);
 
 -- ── Migrations for pre-existing databases ────────────────────────────────────
 -- These are idempotent: they run on every init so an existing DB created before

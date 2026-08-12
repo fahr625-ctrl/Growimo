@@ -541,3 +541,128 @@ export async function qSearchProjects(
     return mapped;
   });
 }
+
+// ── F8 Veröffentlichungs-Kalender (publish_plan table) ───────────────────────
+export interface PublishPlanRow {
+  id: string;
+  userId: string;
+  projectId: string;
+  assetId: string;
+  channel: string;
+  scheduledDate: string; // YYYY-MM-DD
+  priorityScore: number;
+  rank: number;
+  bestTime: string | null;
+  tasks: { id: string; label: string; done: boolean }[];
+  title: string | null;
+  rationale: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+function mapPublishPlanRow(row: Record<string, unknown>): PublishPlanRow {
+  return {
+    id: String(row.id),
+    userId: String(row.user_id),
+    projectId: String(row.project_id),
+    assetId: String(row.asset_id),
+    channel: String(row.channel),
+    scheduledDate:
+      row.scheduled_date instanceof Date
+        ? dateKeyFromDate(row.scheduled_date)
+        : String(row.scheduled_date).slice(0, 10),
+    priorityScore: Number(row.priority_score ?? 0),
+    rank: Number(row.rank ?? 0),
+    bestTime: row.best_time == null ? null : String(row.best_time),
+    tasks: parseJson(row.tasks, []),
+    title: row.title == null ? null : String(row.title),
+    rationale: row.rationale == null ? null : String(row.rationale),
+    createdAt: isoString(row.created_at),
+    updatedAt: isoString(row.updated_at),
+  };
+}
+function dateKeyFromDate(d: Date): string {
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+/** Upsert the full plan: each item keyed by (user_id, asset_id). */
+export async function qSavePublishPlan(
+  userId: string,
+  items: Array<{
+    assetId: string;
+    projectId: string;
+    channel: string;
+    scheduledDate: string;
+    priorityScore: number;
+    rank: number;
+    bestTime: string;
+    tasks: unknown[];
+    title: string;
+    rationale: string;
+  }>,
+): Promise<PublishPlanRow[]> {
+  const uid = await resolveUserId(userId);
+  if (!uid) return [];
+  const sql = getDb();
+  for (const item of items) {
+    await sql`
+      INSERT INTO publish_plan
+        (user_id, project_id, asset_id, channel, scheduled_date, priority_score, rank, best_time, tasks, title, rationale)
+      VALUES (
+        ${uid}, ${item.projectId}, ${item.assetId}, ${item.channel},
+        ${item.scheduledDate}, ${item.priorityScore}, ${item.rank}, ${item.bestTime},
+        ${JSON.stringify(item.tasks)}, ${item.title}, ${item.rationale}
+      )
+      ON CONFLICT (user_id, asset_id) DO UPDATE SET
+        project_id = EXCLUDED.project_id,
+        channel = EXCLUDED.channel,
+        scheduled_date = EXCLUDED.scheduled_date,
+        priority_score = EXCLUDED.priority_score,
+        rank = EXCLUDED.rank,
+        best_time = EXCLUDED.best_time,
+        tasks = EXCLUDED.tasks,
+        title = EXCLUDED.title,
+        rationale = EXCLUDED.rationale,
+        updated_at = NOW()
+    `;
+  }
+  return qGetPublishPlan(userId);
+}
+/** Read the stored plan for a user, ordered by date + priority. */
+export async function qGetPublishPlan(userId: string): Promise<PublishPlanRow[]> {
+  const uid = await resolveUserId(userId);
+  if (!uid) return [];
+  const sql = getDb();
+  const rows = await sql`
+    SELECT * FROM publish_plan
+    WHERE user_id = ${uid}
+    ORDER BY scheduled_date ASC, priority_score DESC, rank ASC
+  `;
+  return rows.map(mapPublishPlanRow);
+}
+/** Flip one task's done state (persisted). Returns the updated row or null. */
+export async function qUpdatePublishTask(
+  userId: string,
+  assetId: string,
+  taskId: string,
+  done: boolean,
+): Promise<PublishPlanRow | null> {
+  const uid = await resolveUserId(userId);
+  if (!uid) return null;
+  const sql = getDb();
+  const rows = await sql`
+    SELECT * FROM publish_plan WHERE user_id = ${uid} AND asset_id = ${assetId} LIMIT 1
+  `;
+  if (rows.length === 0) return null;
+  const row = rows[0];
+  const tasks = parseJson<{ id: string; label: string; done: boolean }[]>(row.tasks, []);
+  const next = tasks.map((t) => (t.id === taskId ? { ...t, done: Boolean(done) } : t));
+  const updated = await sql`
+    UPDATE publish_plan
+    SET tasks = ${JSON.stringify(next)}, updated_at = NOW()
+    WHERE id = ${row.id}
+    RETURNING *
+  `;
+  if (updated.length === 0) return null;
+  return mapPublishPlanRow(updated[0]);
+}

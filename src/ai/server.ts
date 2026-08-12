@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start';
-import type { AutoImproveSectionOutcome, ContentRequest, ContentResult, ContentScore, ContentType, ImproveOutcome, PrioritizeAsset, PrioritizeOutcome, VariantsResult } from './types';
+import type { AutoImproveSectionOutcome, ContentRequest, ContentResult, ContentScore, ContentType, ImproveOutcome, PrioritizeAsset, PrioritizeOutcome, PublishPlanItem, VariantsResult } from './types';
 import type { MarketingPackage } from './package/package';
 
 /**
@@ -305,6 +305,141 @@ export const prioritizeServer = createServerFn({ method: 'POST' })
       outcome ? `ranked ${outcome.ordered.length} channels (llm: ${outcome.llmUsed})` : 'null (<2 scored channels)',
     );
     return outcome;
+  });
+
+/**
+ * F8 server-side publish-plan builder. Reads the user's stored contents,
+ * groups them per project, ranks each project with the deterministic F3 rules
+ * and spreads the items over the next days (rank + channel cadence). NO LLM —
+ * zero cost. Returns the plan so the client can show it before saving.
+ */
+export const buildPublishPlanServer = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const d = input as { userId?: unknown; lang?: unknown };
+    if (!d || typeof d !== 'object' || typeof d.userId !== 'string' || !d.userId) {
+      throw new Error('userId is required');
+    }
+    return { userId: d.userId, lang: (d.lang === 'en' ? 'en' : 'de') as 'de' | 'en' };
+  })
+  .handler(async ({ data }): Promise<{ items: PublishPlanItem[]; generatedAt: string; ruleVersion: number }> => {
+    console.log('[server.buildPublishPlan] user:', data.userId.slice(0, 12), 'lang:', data.lang);
+    const { qGetAllContentByUser } = await import('../db/queries');
+    const { buildPublishPlan, qualityFromMetadata } = await import('./publish-plan');
+    const contents = await qGetAllContentByUser(data.userId);
+    const plan = buildPublishPlan(
+      contents.map((c) => ({
+        projectId: c.projectId,
+        projectTitle: c.projectTitle,
+        channel: c.contentType,
+        assetId: c.id,
+        title: c.title,
+        qualityScore: qualityFromMetadata(c.metadata),
+        body: c.body,
+        metadata: c.metadata,
+      })),
+      { lang: data.lang },
+    );
+    console.log('[server.buildPublishPlan] done:', plan.items.length, 'items');
+    return plan;
+  });
+
+/**
+ * F8 persist the generated plan (upsert per user+asset). Returns the stored rows.
+ */
+export const savePublishPlanServer = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const d = input as { userId?: unknown; plan?: unknown };
+    if (!d || typeof d !== 'object' || typeof d.userId !== 'string' || !d.userId) {
+      throw new Error('userId is required');
+    }
+    const plan = d.plan as { items?: PublishPlanItem[] };
+    if (!Array.isArray(plan?.items)) throw new Error('plan.items are required');
+    return { userId: d.userId, items: plan.items };
+  })
+  .handler(async ({ data }): Promise<{ saved: number }> => {
+    console.log('[server.savePublishPlan] items:', data.items.length);
+    const { qSavePublishPlan } = await import('../db/queries');
+    const rows = await qSavePublishPlan(
+      data.userId,
+      data.items.map((i) => ({
+        assetId: i.assetId,
+        projectId: i.projectId,
+        channel: i.channel,
+        scheduledDate: i.scheduledDate,
+        priorityScore: i.priorityScore,
+        rank: i.rank,
+        bestTime: i.bestTime,
+        tasks: i.tasks ?? [],
+        title: i.title,
+        rationale: i.rationale,
+      })),
+    );
+    return { saved: rows.length };
+  });
+
+/**
+ * F8 flip one checklist task's done state (persisted per user+asset+task).
+ */
+export const updateTaskDoneServer = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const d = input as { userId?: unknown; itemId?: unknown; taskId?: unknown; done?: unknown };
+    if (!d || typeof d !== 'object' || typeof d.userId !== 'string' || !d.userId) throw new Error('userId is required');
+    if (typeof d.itemId !== 'string' || !d.itemId) throw new Error('itemId is required');
+    if (typeof d.taskId !== 'string' || !d.taskId) throw new Error('taskId is required');
+    return { userId: d.userId, itemId: d.itemId, taskId: d.taskId, done: Boolean(d.done) };
+  })
+  .handler(async ({ data }): Promise<PublishPlanItem | null> => {
+    console.log('[server.updateTaskDone]', data.itemId.slice(0, 12), data.taskId, data.done);
+    const { qUpdatePublishTask } = await import('../db/queries');
+    const row = await qUpdatePublishTask(data.userId, data.itemId, data.taskId, data.done);
+    if (!row) return null;
+    return {
+      id: row.assetId,
+      projectId: row.projectId,
+      projectTitle: row.title ?? '',
+      channel: row.channel as ContentType,
+      assetId: row.assetId,
+      title: row.title ?? '',
+      qualityScore: null,
+      priorityScore: row.priorityScore,
+      rank: row.rank,
+      scheduledDate: row.scheduledDate,
+      bestTime: row.bestTime ?? 'social',
+      rationale: row.rationale ?? '',
+      tasks: row.tasks,
+    };
+  });
+
+/**
+ * F8 read the stored plan for a user (ordered by date + priority).
+ */
+export const getPublishPlanServer = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const d = input as { userId?: unknown };
+    if (!d || typeof d !== 'object' || typeof d.userId !== 'string' || !d.userId) {
+      throw new Error('userId is required');
+    }
+    return { userId: d.userId };
+  })
+  .handler(async ({ data }): Promise<PublishPlanItem[]> => {
+    console.log('[server.getPublishPlan] user:', data.userId.slice(0, 12));
+    const { qGetPublishPlan } = await import('../db/queries');
+    const rows = await qGetPublishPlan(data.userId);
+    return rows.map((row) => ({
+      id: row.assetId,
+      projectId: row.projectId,
+      projectTitle: row.title ?? '',
+      channel: row.channel as ContentType,
+      assetId: row.assetId,
+      title: row.title ?? '',
+      qualityScore: null,
+      priorityScore: row.priorityScore,
+      rank: row.rank,
+      scheduledDate: row.scheduledDate,
+      bestTime: row.bestTime ?? 'social',
+      rationale: row.rationale ?? '',
+      tasks: row.tasks,
+    }));
   });
 
 /**

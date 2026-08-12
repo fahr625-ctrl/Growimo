@@ -6,7 +6,9 @@ import { useTranslation, type Translations } from '~/i18n';
 import { getAllContentByUser } from '~/store/projects';
 import type { StoredContent } from '~/store/projects';
 import { getContentTypeConfig, CONTENT_TYPE_REGISTRY } from '~/ai/content-types';
-import type { ContentType } from '~/ai/types';
+import type { ContentType, PublishPlanItem, PublishTask } from '~/ai/types';
+import { buildPublishPlanServer, savePublishPlanServer, updateTaskDoneServer, getPublishPlanServer } from '~/ai/server';
+import { ScoreBadge } from '~/components/ScoreBadge';
 
 export const Route = createFileRoute('/app/calendar')({ component: CalendarPage });
 
@@ -80,6 +82,76 @@ function CalendarContent() {
       cancelled = true;
     };
   }, [user?.id]);
+
+  // ── F8 Veröffentlichungsplan (automatisch, deterministisch, persistiert) ───
+  const [plan, setPlan] = useState<PublishPlanItem[]>([]);
+  const [loadingPlan, setLoadingPlan] = useState(true);
+  const [creatingPlan, setCreatingPlan] = useState(false);
+  const [confirmRecreate, setConfirmRecreate] = useState(false);
+  const [openTasks, setOpenTasks] = useState<Set<string>>(new Set());
+  const BEST_TIME_I18N: Record<string, keyof Translations> = {
+    pinterest: 'publish_plan_time_pinterest',
+    etsy: 'publish_plan_time_etsy',
+    blog: 'publish_plan_time_blog',
+    social: 'publish_plan_time_social',
+    newsletter: 'publish_plan_time_newsletter',
+  };
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingPlan(true);
+    getPublishPlanServer({ data: { userId: user?.id ?? 'anonymous' } })
+      .then((items) => { if (!cancelled) setPlan(items ?? []); })
+      .catch((err) => { console.error('Failed to load publish plan:', err); if (!cancelled) setPlan([]); })
+      .finally(() => { if (!cancelled) setLoadingPlan(false); });
+    return () => { cancelled = true; };
+  }, [user?.id]);
+  // Plan-Termine in die Kalender-Schedule aufnehmen (erscheinen an scheduledDate)
+  useEffect(() => {
+    if (plan.length === 0) return;
+    setSchedule((prev) => {
+      const next: Record<string, string[]> = {};
+      for (const [k, ids] of Object.entries(prev)) next[k] = [...ids];
+      for (const item of plan) {
+        const k = item.scheduledDate;
+        if (!next[k]) next[k] = [];
+        if (!next[k].includes(item.assetId)) next[k] = [...next[k], item.assetId];
+      }
+      return next;
+    });
+  }, [plan]);
+  const handleCreatePlan = async () => {
+    if (!hasContent) return;
+    setCreatingPlan(true);
+    try {
+      const built = await buildPublishPlanServer({ data: { userId: user?.id ?? 'anonymous', lang: locale } });
+      const items = built?.items ?? [];
+      if (items.length > 0) await savePublishPlanServer({ data: { userId: user?.id ?? 'anonymous', plan: built } });
+      setPlan(items);
+      setConfirmRecreate(false);
+      showToast(t.publish_plan_saved_toast.replace('{n}', String(items.length)));
+    } catch (err) {
+      console.error('Publish plan failed:', err);
+      showToast(t.publish_plan_error);
+    } finally {
+      setCreatingPlan(false);
+    }
+  };
+  const handleToggleTask = async (item: PublishPlanItem, task: PublishTask) => {
+    const next = plan.map((i) =>
+      i.assetId === item.assetId
+        ? { ...i, tasks: i.tasks.map((t) => (t.id === task.id ? { ...t, done: !t.done } : t)) }
+        : i,
+    );
+    setPlan(next); // optimistic
+    try {
+      await updateTaskDoneServer({ data: { userId: user?.id ?? 'anonymous', itemId: item.assetId, taskId: task.id, done: !task.done } });
+    } catch (err) {
+      console.error('Task toggle failed:', err);
+      setPlan(plan); // revert
+    }
+  };
+  const toggleOpen = (id: string) =>
+    setOpenTasks((prev) => { const s = new Set(prev); if (s.has(id)) s.delete(id); else s.add(id); return s; });
 
   const today = new Date();
   const monday = mondayOf(anchor);
@@ -247,6 +319,112 @@ function CalendarContent() {
       <div><h1 className="text-2xl font-bold text-gray-900">{t.calendar_title}</h1><p className="mt-1 text-gray-500">{t.calendar_subtitle}</p></div>
       <div className="flex flex-wrap items-center gap-3"><div className="flex rounded-xl border border-gray-200 bg-gray-50 p-1"><button onClick={() => setView('week')} className={`rounded-lg px-4 py-2 text-sm font-medium ${view === 'week' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500'}`}>{t.calendar_week}</button><button onClick={() => setView('month')} className={`rounded-lg px-4 py-2 text-sm font-medium ${view === 'month' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500'}`}>{t.calendar_month}</button></div><Link to="/app/new-project" className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:from-blue-700 hover:to-purple-700">+ {t.calendar_new_strategy}</Link></div>
     </div>
+    <section className="mb-6 overflow-hidden rounded-2xl border border-fuchsia-100 bg-white shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-fuchsia-100 bg-gradient-to-r from-fuchsia-50 via-purple-50 to-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">{t.publish_plan_title}</h2>
+          <p className="mt-0.5 text-xs text-gray-500">{t.publish_plan_subtitle}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {plan.length > 0 ? (
+            <button
+              onClick={() => setConfirmRecreate(true)}
+              className="rounded-xl border border-fuchsia-200 bg-white px-4 py-2 text-sm font-semibold text-fuchsia-700 shadow-sm transition hover:bg-fuchsia-50"
+            >🔄 {t.publish_plan_recreate}</button>
+          ) : (
+            <button
+              onClick={handleCreatePlan}
+              disabled={!hasContent || creatingPlan}
+              className="rounded-xl bg-gradient-to-r from-fuchsia-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:from-fuchsia-700 hover:to-purple-700 disabled:opacity-50"
+            >✨ {creatingPlan ? t.publish_plan_creating : t.publish_plan_create}</button>
+          )}
+        </div>
+      </div>
+      {confirmRecreate && (
+        <div className="border-b border-fuchsia-100 bg-fuchsia-50/40 px-5 py-3">
+          <p className="text-sm font-semibold text-gray-800">{t.publish_plan_confirm_title}</p>
+          <p className="mt-0.5 text-xs text-gray-500">{t.publish_plan_confirm_desc}</p>
+          <div className="mt-2 flex gap-2">
+            <button onClick={handleCreatePlan} disabled={creatingPlan} className="rounded-lg bg-fuchsia-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-fuchsia-700">{t.publish_plan_confirm_ok}</button>
+            <button onClick={() => setConfirmRecreate(false)} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50">{t.publish_plan_confirm_cancel}</button>
+          </div>
+        </div>
+      )}
+      {loadingPlan ? (
+        <p className="px-5 py-6 text-center text-sm text-gray-400">{t.publish_plan_loading}</p>
+      ) : plan.length === 0 ? (
+        <div className="px-5 py-8 text-center">
+          {!hasContent ? (
+            <>
+              <p className="text-sm text-gray-500">{t.publish_plan_empty_no_content}</p>
+              <Link to="/app/new-project" className="mt-3 inline-block rounded-xl bg-gradient-to-r from-fuchsia-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white">{t.publish_plan_empty_no_content_cta}</Link>
+            </>
+          ) : (
+            <>
+              <p className="mx-auto max-w-lg text-sm text-gray-500">{t.publish_plan_empty_no_plan}</p>
+              <button
+                onClick={handleCreatePlan}
+                disabled={creatingPlan}
+                className="mt-4 rounded-xl bg-gradient-to-r from-fuchsia-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:from-fuchsia-700 hover:to-purple-700 disabled:opacity-50"
+              >✨ {creatingPlan ? t.publish_plan_creating : t.publish_plan_create}</button>
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="divide-y divide-gray-100">
+          <p className="border-b border-gray-100 bg-gray-50/60 px-5 py-2 text-[11px] font-medium text-gray-400">{t.publish_plan_rule_cadence}</p>
+          {plan.map((item) => {
+            const cfg = labelFor(item.channel);
+            const done = item.tasks.filter((x) => x.done).length;
+            const open = openTasks.has(item.assetId);
+            const dayLabel = item.scheduledDate === dateKey(new Date()) ? t.publish_plan_today : item.scheduledDate === dateKey(new Date(Date.now() + 86400000)) ? t.publish_plan_tomorrow : parseDateKey(item.scheduledDate).toLocaleDateString(fmt, { weekday: 'short', day: 'numeric', month: 'short' });
+            return (
+              <div key={item.assetId} className="px-5 py-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-lg border border-fuchsia-100 bg-fuchsia-50 px-2 py-1 text-xs font-semibold text-fuchsia-700">{cfg.icon} {cfg.label}</span>
+                  {item.rank === 1 ? (
+                    <span className="rounded-full bg-gradient-to-r from-fuchsia-600 to-purple-600 px-2.5 py-0.5 text-[11px] font-bold text-white">{t.publish_plan_publish_first}</span>
+                  ) : (
+                    <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-[11px] font-semibold text-gray-600">{t.publish_plan_rank.replace('{rank}', String(item.rank))}</span>
+                  )}
+                  {item.qualityScore != null && <ScoreBadge total={item.qualityScore} size="sm" />}
+                </div>
+                <div className="mt-2 flex flex-wrap items-start gap-x-3 gap-y-1">
+                  <Link to="/app/projects/$projectId" params={{ projectId: item.projectId }} className="max-w-full truncate text-sm font-semibold text-gray-900 hover:text-fuchsia-700">{item.title || item.projectTitle}</Link>
+                  <span className="text-xs text-gray-400">· {item.projectTitle}</span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">📅 {t.publish_plan_planned_for.replace('{date}', dayLabel)}</span>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-purple-100 bg-purple-50 px-2.5 py-0.5 text-[11px] font-semibold text-purple-700">🕒 {t.publish_plan_best_time}: {t[BEST_TIME_I18N[item.bestTime] ?? 'publish_plan_time_social']}</span>
+                  <button onClick={() => toggleOpen(item.assetId)} className="inline-flex items-center gap-1 text-xs font-semibold text-fuchsia-700 hover:text-fuchsia-900">
+                    {open ? '▾' : '▸'} {t.publish_plan_tasks} · {t.publish_plan_tasks_progress.replace('{done}', String(done)).replace('{total}', String(item.tasks.length))}
+                  </button>
+                  <Link to="/app/projects/$projectId" params={{ projectId: item.projectId }} className="text-xs font-medium text-gray-400 hover:text-fuchsia-700">→ {t.publish_plan_link_project}</Link>
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-gray-500">{item.rationale}</p>
+                {open && item.tasks.length > 0 && (
+                  <ul className="mt-3 space-y-1.5 rounded-xl border border-gray-100 bg-gray-50/60 p-3">
+                    {item.tasks.map((task) => (
+                      <li key={task.id}>
+                        <label className="flex cursor-pointer items-start gap-2.5">
+                          <input
+                            type="checkbox"
+                            checked={task.done}
+                            onChange={() => handleToggleTask(item, task)}
+                            className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-fuchsia-600 focus:ring-fuchsia-500"
+                          />
+                          <span className={`text-xs leading-relaxed ${task.done ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{task.label}</span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
     <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
       <div className="mb-5 flex items-center justify-between"><button onClick={() => shift(-1)} className="rounded-lg px-2 py-1 text-sm font-medium text-gray-600 hover:bg-gray-100">← {t.calendar_prev}</button><div className="flex items-center gap-3"><h2 className="text-lg font-bold text-gray-900">{view === 'week' ? `${days[0].toLocaleDateString(fmt, { month: 'short', day: 'numeric' })} – ${days[6].toLocaleDateString(fmt, { month: 'short', day: 'numeric', year: 'numeric' })}` : anchor.toLocaleDateString(fmt, { month: 'long', year: 'numeric' })}</h2>{view === 'week' && <button onClick={() => { setAnchor(new Date()); setSelectedDay(null); }} className="rounded-lg border border-gray-200 px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50">{t.calendar_this_week}</button>}</div><button onClick={() => shift(1)} className="rounded-lg px-2 py-1 text-sm font-medium text-gray-600 hover:bg-gray-100">{t.calendar_next} →</button></div>
       {!hasContent ? <div className="py-16 text-center"><div className="mb-3 text-4xl">📅</div><p className="font-semibold text-gray-900">{t.calendar_empty}</p><Link to="/app/new-project" className="mt-4 inline-block rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white">{t.calendar_empty_cta}</Link></div> : view === 'week' ? (

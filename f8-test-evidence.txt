@@ -1,0 +1,26 @@
+F8 TEST-EVIDENCE — 2026-08-12T10:45:04.539Z
+Projekt: Personalisierte Sternenhimmel-Poster mit dem Nacht... (cb50fc2e-6a8c-4f4d-99e2-a3d3a42ad3a6)
+Produktidee: Personalisierte Sternenhimmel-Poster mit dem Nachthimmel eines besonderen Datums – individuell gestaltet als Geschenk zur Hochzeit, Geburt oder zum Jahrestag.
+Geladene Inhalte des Nutzers: 33
+F1-Score etsy_listing: 60/100
+F1-Score seo_blog: 44/100
+F1-Score pinterest_pin: 84/100
+Plan: 3 Items, ruleVersion=1, generatedAt=2026-08-12T10:45:11.231Z
+rankAssets-Reihenfolge: pinterest_pin > etsy_listing > seo_blog
+Plan-Reihenfolge (rank aufsteigend): pinterest_pin > etsy_listing > seo_blog
+✅ Pinterest zuerst, danach exakt die rankAssets-Reihenfolge.
+✅ Daten aufsteigend: 2026-08-13 … 2026-08-17
+✅ Alle Termine liegen in der Zukunft (heute + Rang + Kanal-Kadenz).
+✅ bestTime je Item vorhanden (pinterest, etsy, blog).
+pinterest_pin (#1, Score 84): 5 Tasks — „Pin-Titel übernehmen: Füge als Pin-Titel exakt ein: „So vere…“
+etsy_listing (#2, Score 60): 5 Tasks — „Listing-Titel einfügen: Füge den Titel ein: „Personalisierte…“
+seo_blog (#3, Score 44): 5 Tasks — „Meta-Titel setzen: Nutze im CMS als Meta-Titel: „Personalisi…“
+✅ 3–6 Tasks je Item, echte Asset-Daten (Titel) eingebettet, Zustand boolean.
+
+── Persistenz (publish_plan-Tabelle) ──
+Gespeichert: 3 Zeilen (user+asset-upsert).
+✅ updateTaskDone persistiert: false → true → Re-Read bestätigt (zurückgesetzt auf false).
+Beispiel-Item: pinterest_pin — „So verewigt ihr euren besonderen Tag — mit einem Sternenhimmel-Poster am 2026-08-13 (Rang 1, Priorität 94, beste Zeit pinterest).
+
+
+ALLE F8-CHECKS BESTANDEN ✅
