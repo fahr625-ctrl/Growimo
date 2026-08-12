@@ -3,11 +3,12 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { ScoreBadge } from '~/components/ScoreBadge';
+import { VariantPicker } from '~/components/VariantPicker';
 import { ScoreCard, scoreFromMetadata } from '~/components/ScoreCard';
 import { useTranslation } from '~/i18n';
 import { contentTypeLabel } from '~/lib/content-types';
 import { getProject, getProjectContent, updateChannel } from '~/store/projects';
-import type { ImproveOutcome } from '~/ai/types';
+import type { ImproveOutcome, VariantAsset } from '~/ai/types';
 import type { ContentType, Project, StoredContent } from '~/store/projects';
 import { ImageStudio } from '~/components/ImageStudio';
 import { PrioritizeCard } from '~/components/PrioritizeCard';
@@ -180,6 +181,27 @@ function ContentCard({ content, productIdea, strategyContext }: { content: Store
       console.error('Persisting improved content failed:', err);
     }
   };
+  // F7: chosen A/B variant replaces title+body, its score stays on the asset
+  const handleAdoptVariant = async (variant: VariantAsset) => {
+    const adopted: StoredContent = {
+      ...display,
+      title: variant.title,
+      body: variant.body,
+      metadata: { ...(display.metadata ?? {}), score: variant.score ?? undefined },
+    };
+    try {
+      const updated = await updateChannel(display.projectId, display.contentType, {
+        title: adopted.title,
+        body: adopted.body,
+        metadata: adopted.metadata,
+      });
+      if (updated) setDisplay(updated);
+      else setDisplay(adopted);
+    } catch (err) {
+      console.error('Persisting adopted variant failed:', err);
+      setDisplay(adopted);
+    }
+  };
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -245,6 +267,21 @@ function ContentCard({ content, productIdea, strategyContext }: { content: Store
             </div>
           )}
           {/* F5 Kanal-Aktionspläne — concrete per-channel checklist below the asset */}
+          <div className="mt-4">
+            <VariantPicker
+              content={{
+                contentType: display.contentType,
+                title: display.title,
+                body: display.body,
+                metadata: display.metadata ?? {},
+                score: score ?? undefined,
+              }}
+              productIdea={productIdea}
+              strategyContext={strategyContext}
+              onAdopt={handleAdoptVariant}
+            />
+          </div>
+          {/* F7 A/B-Varianten — 3 gescorte Alternativen, die beste uebernehmen */}
           <div className="mt-4">
             <ActionPlanCard
               asset={{

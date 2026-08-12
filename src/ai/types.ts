@@ -156,6 +156,30 @@ export interface AutoImproveSectionOutcome {
   error?: boolean;
 }
 
+// ── F7 A/B-Varianten (decision layer) ─────────────────────────────────────────
+
+/**
+ * One A/B variant of a generated asset: alternative title + FULL body in the
+ * same parser-compatible structure as the original, scored with the F1
+ * pipeline (scoreContent). The user picks the best variant — it replaces the
+ * asset (title + body) and its score stays on the asset (same persistence
+ * path as F2/F2.1 via updateChannel).
+ */
+export interface VariantAsset {
+  /** Alternative title (≠ original title). */
+  title: string;
+  /** Alternative FULL body — same numbered-section structure as the original. */
+  body: string;
+  /** F1 Qualitäts-Score (0–100) of this variant; null when scoring failed. */
+  score: ContentScore | null;
+}
+
+/** Result of generateVariants(): exactly the request language + 1–3 scored variants. */
+export interface VariantsResult {
+  variants: VariantAsset[];
+  lang: 'de' | 'en';
+}
+
 // ── F3 Veröffentlichungs-Priorisierung (decision layer) ───────────────────────
 
 /** Machine-readable tags that explain WHY a channel ranks where it does. */

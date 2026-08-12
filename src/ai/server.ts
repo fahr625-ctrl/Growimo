@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start';
-import type { AutoImproveSectionOutcome, ContentRequest, ContentResult, ContentScore, ContentType, ImproveOutcome, PrioritizeAsset, PrioritizeOutcome } from './types';
+import type { AutoImproveSectionOutcome, ContentRequest, ContentResult, ContentScore, ContentType, ImproveOutcome, PrioritizeAsset, PrioritizeOutcome, VariantsResult } from './types';
 import type { MarketingPackage } from './package/package';
 
 /**
@@ -209,6 +209,62 @@ export const autoImproveSectionServer = createServerFn({ method: 'POST' })
       outcome.improved ? `improved ${outcome.oldScore?.total} → ${outcome.newScore?.total}` : outcome.reason,
     );
     return outcome;
+  });
+
+/**
+ * F7 server-side A/B variants: ONE GPT-4o call (json_object) creates 3
+ * clearly different variants {title, body} of an existing asset (same
+ * parser-compatible structure as the original), each scored through the
+ * EXISTING F1 pipeline (scoreContent). Never blocks — on any error null is
+ * returned and the original asset stays untouched.
+ */
+export const generateVariantsServer = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const d = input as {
+      contentType: ContentType;
+      currentTitle?: string;
+      currentBody?: string;
+      metadata?: Record<string, unknown>;
+      productIdea?: string;
+      strategyContext?: string;
+      lang?: 'de' | 'en';
+    };
+    if (!d || typeof d !== 'object') throw new Error('data is required');
+    if (!d.contentType) throw new Error('contentType is required');
+    if (!d.currentTitle && !d.currentBody) throw new Error('content is required');
+    return {
+      contentType: d.contentType,
+      currentTitle: d.currentTitle ?? '',
+      currentBody: d.currentBody ?? '',
+      metadata: d.metadata ?? {},
+      productIdea: d.productIdea ?? '',
+      strategyContext: d.strategyContext ?? '',
+      lang: (d.lang === 'en' ? 'en' : 'de') as 'de' | 'en',
+    };
+  })
+  .handler(async ({ data }): Promise<VariantsResult | null> => {
+    console.log('[server.generateVariants]', data.contentType, 'lang:', data.lang);
+    const { generateVariants } = await import('./variants');
+    const original: ContentResult = {
+      contentType: data.contentType,
+      title: data.currentTitle,
+      body: data.currentBody,
+      metadata: data.metadata,
+    };
+    const result = await generateVariants(
+      {
+        contentType: data.contentType,
+        productIdea: data.productIdea,
+        strategyContext: data.strategyContext,
+      },
+      original,
+      data.lang,
+    );
+    console.log(
+      '[server.generateVariants] outcome:',
+      result ? `${result.variants.length} variants scored` : 'null (failed)',
+    );
+    return result;
   });
 
 /**

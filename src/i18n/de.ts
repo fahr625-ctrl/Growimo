@@ -1142,4 +1142,18 @@ export const de = {
   brief_freetext_placeholder: 'Eigene Antwort (optional)…',
   brief_reset: 'Zurücksetzen',
   brief_skip: 'Überspringen',
+  // ── F7 A/B-Varianten mit Score-Vergleich ───────────────────────────────────
+  variant_btn: 'A/B-Varianten',
+  variant_loading: 'Growimo erstellt 3 Varianten …',
+  variant_loading_desc:
+    'Ich schreibe 3 klar unterschiedliche Angle (emotional, nutzenorientiert, faktisch) und bewerte jede mit dem Qualitäts-Score — einen Moment.',
+  variant_error: 'Varianten nicht verfügbar',
+  variant_error_desc: 'Die Varianten konnten gerade nicht erstellt werden. Dein Inhalt bleibt unverändert. Bitte versuche es erneut.',
+  variant_retry: 'Erneut versuchen',
+  variant_close: 'Schließen',
+  variant_title: '🅰️🅱️ A/B-Varianten — wähle die beste',
+  variant_subtitle:
+    '3 Alternativen, jede mit eigenem Qualitäts-Score. Übernimm die beste Variante — sie ersetzt den aktuellen Inhalt (inklusive Score).',
+  variant_adopt: 'Diese Variante übernehmen',
+  variant_letter: 'Variante %s',
 } as const;

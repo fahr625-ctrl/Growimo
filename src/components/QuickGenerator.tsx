@@ -2,13 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useUser } from '@clerk/clerk-react';
 import { generateContentServer } from '~/ai/server';
-import type { ContentResult, ContentType, ImproveOutcome } from '~/ai/types';
+import type { ContentResult, ContentType, ImproveOutcome, VariantAsset } from '~/ai/types';
 import { buildBriefContext } from '~/ai/strategy-brief/questions';
 import { hasBriefAnswers } from '~/ai/strategy-brief';
 import { StrategyBrief } from '~/components/StrategyBrief';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import BrandBadge from '~/components/BrandBadge';
 import { ScoreCard } from '~/components/ScoreCard';
+import { VariantPicker } from '~/components/VariantPicker';
 import { useTranslation } from '~/i18n';
 import { saveProject, updateChannel } from '~/store/projects';
 import { getBrandContext } from '~/store/brand';
@@ -299,6 +300,38 @@ function QuickGeneratorContent({
     [savedProjectId, contentType],
   );
 
+  // ── F7 A/B-Varianten: chosen variant replaces the asset + persists ────────
+  const handleAdoptVariant = useCallback(
+    async (variant: VariantAsset) => {
+      if (!result) return;
+      const adopted: ContentResult = {
+        ...result,
+        title: variant.title,
+        body: variant.body,
+        metadata: { ...(result.metadata ?? {}), score: variant.score ?? undefined },
+        score: variant.score,
+      };
+      setResult(adopted);
+      // Persist like F2/F2.1 (updateChannel) — the variant's score stays on
+      // the asset so the library/detail show the new state after reload.
+      if (savedProjectId) {
+        try {
+          await updateChannel(savedProjectId, contentType, {
+            title: adopted.title,
+            body: adopted.body,
+            metadata: {
+              ...(adopted.metadata ?? {}),
+              score: adopted.score ?? undefined,
+            },
+          });
+        } catch (err) {
+          console.error('Persisting adopted variant failed:', err);
+        }
+      }
+    },
+    [result, savedProjectId, contentType],
+  );
+
   const sections = useMemo(
     () => (result ? parseSections(result.body) : null),
     [result],
@@ -435,6 +468,13 @@ function QuickGeneratorContent({
               >
                 💾 {t.gen_save_project}
               </button>
+              {/* F7 A/B-Varianten — 3 gescorte Alternativen, die beste übernehmen */}
+              <VariantPicker
+                content={result}
+                productIdea={productIdea}
+                strategyContext={strategyContext}
+                onAdopt={handleAdoptVariant}
+              />
               {savedProjectId && (
                 <button
                   type="button"

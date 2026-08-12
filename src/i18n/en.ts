@@ -1138,4 +1138,18 @@ export const en: typeof de = {
   brief_freetext_placeholder: 'Custom answer (optional)…',
   brief_reset: 'Reset',
   brief_skip: 'Skip',
+  // ── F7 A/B Variants with score comparison ──────────────────────────────────
+  variant_btn: 'A/B Variants',
+  variant_loading: 'Growimo is creating 3 variants …',
+  variant_loading_desc:
+    'I am writing 3 clearly different angles (emotional, benefit-driven, factual) and scoring each one — one moment.',
+  variant_error: 'Variants unavailable',
+  variant_error_desc: 'The variants could not be created right now. Your content stays unchanged. Please try again.',
+  variant_retry: 'Try again',
+  variant_close: 'Close',
+  variant_title: '🅰️🅱️ A/B Variants — pick the best',
+  variant_subtitle:
+    '3 alternatives, each with its own quality score. Adopt the best variant — it replaces the current content (including its score).',
+  variant_adopt: 'Adopt this variant',
+  variant_letter: 'Variant %s',
 }

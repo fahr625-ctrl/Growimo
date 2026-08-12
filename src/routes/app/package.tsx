@@ -2,12 +2,13 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { generatePackageServer } from '~/ai/server';
-import type { ContentResult, ContentType, ImproveOutcome } from '~/ai/types';
+import type { ContentResult, ContentType, ImproveOutcome, VariantAsset } from '~/ai/types';
 import type { MarketingPackage } from '~/ai/package/package';
 import { hasBriefAnswers } from '~/ai/strategy-brief';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { StrategyBrief } from '~/components/StrategyBrief';
 import { ScoreBadge } from '~/components/ScoreBadge';
+import { VariantPicker } from '~/components/VariantPicker';
 import { ScoreCard } from '~/components/ScoreCard';
 import { PrioritizeCard } from '~/components/PrioritizeCard';
 import { ActionPlanCard } from '~/components/ActionPlanCard';
@@ -250,6 +251,29 @@ function PackageContent() {
           });
         } catch (err) {
           console.error('Persisting improved content failed:', err);
+        }
+      }
+    },
+    [savedProjectId],
+  );
+  // F7: chosen A/B variant replaces the channel asset + persists its score
+  const handleAdoptVariant = useCallback(
+    async (channelKey: keyof MarketingPackage['channels'], adopted: ContentResult) => {
+      setPkg((prev) => {
+        if (!prev) return prev;
+        return { ...prev, channels: { ...prev.channels, [channelKey]: adopted } };
+      });
+      if (savedProjectId) {
+        const meta = CHANNEL_META.find((m) => m.key === channelKey);
+        if (!meta) return;
+        try {
+          await updateChannel(savedProjectId, meta.contentType, {
+            title: adopted.title,
+            body: adopted.body,
+            metadata: { ...(adopted.metadata ?? {}), score: adopted.score ?? undefined },
+          });
+        } catch (err) {
+          console.error('Persisting adopted variant failed:', err);
         }
       }
     },
@@ -511,6 +535,7 @@ function PackageContent() {
                     strategyContext={kernelContext}
                     copyText={copyText}
                     onImproved={(outcome) => void handleImproved(key, outcome)}
+                    onAdopt={(adopted) => void handleAdoptVariant(key, adopted)}
                   />
                 );
               })}
@@ -563,6 +588,7 @@ function ChannelCard({
   strategyContext,
   copyText,
   onImproved,
+  onAdopt,
 }: {
   channelKey: string;
   contentType: ContentType;
@@ -573,6 +599,7 @@ function ChannelCard({
   strategyContext?: string;
   copyText: (text: string) => Promise<boolean>;
   onImproved: (outcome: ImproveOutcome) => void;
+  onAdopt: (adopted: ContentResult) => void;
 }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
@@ -594,6 +621,22 @@ function ChannelCard({
       onImproved(outcome);
     },
     [onImproved],
+  );
+  // F7: chosen A/B variant replaces the channel card content locally AND is
+  // handed to the parent (pkg state + persistence with the variant's score).
+  const handleAdoptVariant = useCallback(
+    (variant: VariantAsset) => {
+      const adopted: ContentResult = {
+        ...display,
+        title: variant.title,
+        body: variant.body,
+        metadata: { ...(display.metadata ?? {}), score: variant.score ?? undefined },
+        score: variant.score,
+      };
+      setDisplay(adopted);
+      onAdopt(adopted);
+    },
+    [display, onAdopt],
   );
 
   return (
@@ -646,6 +689,15 @@ function ChannelCard({
               productIdea={productIdea}
               strategyContext={strategyContext}
               onImproved={handleImproved}
+            />
+          </div>
+          {/* F7 A/B-Varianten - 3 gescorte Alternativen, die beste uebernehmen */}
+          <div className="mb-4">
+            <VariantPicker
+              content={display}
+              productIdea={productIdea}
+              strategyContext={strategyContext}
+              onAdopt={handleAdoptVariant}
             />
           </div>
 
