@@ -31,6 +31,8 @@ export interface RawProject {
   createdAt: string; // ISO string
   favorite: boolean;
   versions: RawContent[][];
+  /** Optional project-level metadata (F6 Strategie-Brief unter metadata.brief). */
+  metadata?: Record<string, unknown>;
 }
 
 export interface RawStats {
@@ -124,6 +126,7 @@ export function mapProjectRow(row: Record<string, unknown>): RawProject {
         createdAt: isoString(c?.createdAt),
       })),
     ),
+    metadata: parseJson<Record<string, unknown> | undefined>(row.metadata, undefined),
   };
 }
 
@@ -144,6 +147,8 @@ export async function qSaveProject(
     productIdea: string;
     contentTypes: ContentType[];
     status: string;
+    /** Optional project-level metadata (F6: metadata.brief). */
+    metadata?: Record<string, unknown>;
   },
   contents: {
     contentType: ContentType;
@@ -165,7 +170,7 @@ export async function qSaveProject(
   }));
 
   const projectRows = await sql`
-    INSERT INTO projects (user_id, title, product_idea, content_types, status, favorite, versions)
+    INSERT INTO projects (user_id, title, product_idea, content_types, status, favorite, versions, metadata)
     VALUES (
       ${uid},
       ${project.title},
@@ -173,7 +178,8 @@ export async function qSaveProject(
       ${JSON.stringify(project.contentTypes)},
       ${project.status},
       false,
-      ${JSON.stringify([versionsSnapshot])}
+      ${JSON.stringify([versionsSnapshot])},
+      ${JSON.stringify(project.metadata ?? {})}
     )
     RETURNING *
   `;

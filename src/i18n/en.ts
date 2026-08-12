@@ -1114,4 +1114,14 @@ export const en: typeof de = {
   package_dashboard_title: '✨ Complete Marketing Package',
   package_dashboard_desc:
     'All 5 channels in one step — one strategic core, one voice, one CTA.',
+  // ── F6 Strategy Brief (optional, before generation) ─────────────────────────
+  brief_title: 'Strategy Brief (optional)',
+  brief_subtitle: '5 quick questions on audience, price, season, USP & platform.',
+  brief_benefit:
+    'Invest 30 seconds and get noticeably more relevant results: Growimo learns your product’s context and aligns all content with it.',
+  brief_optional: 'optional',
+  brief_filled_badge: 'Filled in',
+  brief_freetext_placeholder: 'Custom answer (optional)…',
+  brief_reset: 'Reset',
+  brief_skip: 'Skip',
 }

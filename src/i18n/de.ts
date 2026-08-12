@@ -1118,4 +1118,14 @@ export const de = {
   package_dashboard_title: '✨ Komplettes Marketing-Paket',
   package_dashboard_desc:
     'Alle 5 Kanäle in einem Schritt — ein Strategie-Kern, eine Stimme, ein CTA.',
+  // ── F6 Strategie-Brief (optional, vor der Generierung) ──────────────────────
+  brief_title: 'Strategie-Brief (optional)',
+  brief_subtitle: '5 kurze Fragen zu Zielgruppe, Preis, Saison, USP & Plattform.',
+  brief_benefit:
+    'Wer 30 Sekunden investiert, bekommt spürbar relevantere Ergebnisse: Growimo kennt die Rahmenbedingungen deines Produkts und stimmt alle Inhalte darauf ab.',
+  brief_optional: 'optional',
+  brief_filled_badge: 'Ausgefüllt',
+  brief_freetext_placeholder: 'Eigene Antwort (optional)…',
+  brief_reset: 'Zurücksetzen',
+  brief_skip: 'Überspringen',
 } as const;

@@ -11,6 +11,7 @@
 // the product idea itself. Cost: exactly one LLM call.
 
 import OpenAI from 'openai';
+import { buildBriefContext } from '../strategy-brief/questions';
 
 export interface MarketingKernel {
   /** 2–4 keywords with search-volume potential, shared across all channels. */
@@ -126,8 +127,8 @@ export function parseKernelJson(text: string): MarketingKernel | null {
 /**
  * Determine the shared strategic kernel for a product idea.
  * Never throws: any failure degrades to the deterministic fallback kernel.
- * `brief` is an optional map of Strategy-Brief (F6) answers — empty when F6
- * has not been implemented yet; the flow works with or without it.
+ * `brief` is an optional F6 Strategy-Brief map (option values + `_note` free
+ * text) — rendered into the prompt via buildBriefContext; empty/null = F4.
  */
 export async function determineKernel(
   productIdea: string,
@@ -140,9 +141,10 @@ export async function determineKernel(
   }
 
   let userPrompt = KERNEL_USER_TEMPLATE.replace('%IDEA%', productIdea);
-  const briefText = brief && Object.keys(brief).length > 0
-    ? Object.entries(brief).map(([k, v]) => `- ${k}: ${v}`).join('\n')
-    : '';
+  // F6: der Strategie-Brief (optional) wird als lesbarer Text eingebettet
+  // („Strategie-Brief: Zielgruppe=Junge Eltern, …"). Ohne Brief bleibt der
+  // Prompt exakt wie vor F6.
+  const briefText = buildBriefContext(brief, 'de');
   if (briefText) userPrompt += BRIEF_SECTION.replace('%BRIEF%', briefText);
 
   try {

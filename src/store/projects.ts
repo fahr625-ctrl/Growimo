@@ -15,6 +15,8 @@ export interface Project {
   createdAt: Date;
   favorite: boolean;
   versions: StoredContent[][];
+  /** Optional project-level metadata (F6: metadata.brief). */
+  metadata?: Record<string, unknown>;
 }
 
 export interface StoredContent {
@@ -144,6 +146,7 @@ function toProject(raw: RawProject): Project {
     versions: Array.isArray(raw.versions)
       ? raw.versions.map((v) => (Array.isArray(v) ? v.map(toContent) : []))
       : [],
+    metadata: raw.metadata,
   };
 }
 

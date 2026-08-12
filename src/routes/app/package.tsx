@@ -4,7 +4,9 @@ import { useUser } from '@clerk/clerk-react';
 import { generatePackageServer } from '~/ai/server';
 import type { ContentResult, ContentType, ImproveOutcome } from '~/ai/types';
 import type { MarketingPackage } from '~/ai/package/package';
+import { hasBriefAnswers } from '~/ai/strategy-brief';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
+import { StrategyBrief } from '~/components/StrategyBrief';
 import { ScoreBadge } from '~/components/ScoreBadge';
 import { ScoreCard } from '~/components/ScoreCard';
 import { PrioritizeCard } from '~/components/PrioritizeCard';
@@ -84,6 +86,7 @@ function PackageContent() {
   const navigate = useNavigate();
 
   const [productIdea, setProductIdea] = useState('');
+  const [brief, setBrief] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [pkg, setPkg] = useState<MarketingPackage | null>(null);
@@ -99,6 +102,7 @@ function PackageContent() {
       if (raw) {
         const draft = JSON.parse(raw);
         if (typeof draft.productIdea === 'string') setProductIdea(draft.productIdea);
+        if (draft.brief && typeof draft.brief === 'object') setBrief(draft.brief);
       }
     } catch {
       // ignore storage errors
@@ -107,11 +111,11 @@ function PackageContent() {
 
   useEffect(() => {
     try {
-      localStorage.setItem('growimo_package_draft', JSON.stringify({ productIdea }));
+      localStorage.setItem('growimo_package_draft', JSON.stringify({ productIdea, brief }));
     } catch {
       // ignore storage errors
     }
-  }, [productIdea]);
+  }, [productIdea, brief]);
 
   // Cycle loading messages
   const loadingKeys = [
@@ -151,8 +155,9 @@ function PackageContent() {
     setSavedProjectId(null);
 
     try {
+      // F6: Strategie-Brief wird durchgereicht (optional — ohne Brief exakt wie F4).
       const result = (await generatePackageServer({
-        data: { productIdea, lang: locale },
+        data: { productIdea, lang: locale, brief },
       })) as MarketingPackage;
       setPkg(result);
       recordGeneration(uid);
@@ -168,7 +173,7 @@ function PackageContent() {
     } finally {
       setIsLoading(false);
     }
-  }, [productIdea, user?.id, locale]);
+  }, [productIdea, user?.id, locale, brief]);
 
   // ── Save package as a project (all channels persisted like QuickGenerator) ──
   const handleSaveProject = useCallback(async () => {
@@ -201,6 +206,8 @@ function PackageContent() {
           productIdea,
           contentTypes: contents.map((c) => c.contentType),
           status: 'completed',
+          // F6: Strategie-Brief wird mit dem Projekt persistiert (metadata.brief).
+          metadata: hasBriefAnswers(brief) ? { brief } : undefined,
         },
         contents,
       );
@@ -208,7 +215,7 @@ function PackageContent() {
     } catch (err) {
       console.error('saveProject failed:', err);
     }
-  }, [pkg, productIdea, user?.id]);
+  }, [pkg, productIdea, user?.id, brief]);
 
   // ── F2: apply improved asset to state + persisted project ───────────────
   const handleImproved = useCallback(
@@ -298,6 +305,15 @@ function PackageContent() {
           rows={4}
           className="mt-2 w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 transition-all focus:border-fuchsia-500 focus:outline-none focus:ring-2 focus:ring-fuchsia-500/20"
         />
+        {/* F6 Strategie-Brief (optional) — vor dem Generieren-Button */}
+        <div className="mt-5">
+          <StrategyBrief
+            brief={brief}
+            onChange={setBrief}
+            locale={locale === 'en' ? 'en' : 'de'}
+            accent="from-fuchsia-500 to-purple-700"
+          />
+        </div>
         <div className="mt-6 flex justify-center">
           <button
             type="button"

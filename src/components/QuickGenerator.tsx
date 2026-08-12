@@ -3,6 +3,9 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { useUser } from '@clerk/clerk-react';
 import { generateContentServer } from '~/ai/server';
 import type { ContentResult, ContentType, ImproveOutcome } from '~/ai/types';
+import { buildBriefContext } from '~/ai/strategy-brief/questions';
+import { hasBriefAnswers } from '~/ai/strategy-brief';
+import { StrategyBrief } from '~/components/StrategyBrief';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import BrandBadge from '~/components/BrandBadge';
 import { ScoreCard } from '~/components/ScoreCard';
@@ -89,7 +92,7 @@ function QuickGeneratorContent({
   initialIdea,
 }: QuickGeneratorProps) {
   const { user } = useUser();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const navigate = useNavigate();
 
   const draftKey = `growimo_quick_${contentType}_draft`;
@@ -97,6 +100,7 @@ function QuickGeneratorContent({
   // ── State ──────────────────────────────────────────────────────────────────
   const [productIdea, setProductIdea] = useState('');
   const [tone, setTone] = useState('');
+  const [brief, setBrief] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [result, setResult] = useState<ContentResult | null>(null);
@@ -114,6 +118,7 @@ function QuickGeneratorContent({
         const draft = JSON.parse(raw);
         if (typeof draft.productIdea === 'string') restoredIdea = draft.productIdea;
         if (typeof draft.tone === 'string') setTone(draft.tone);
+        if (draft.brief && typeof draft.brief === 'object') setBrief(draft.brief);
       }
       const defaultTone = localStorage.getItem(DEFAULT_TONE_KEY);
       if (defaultTone && TONES.includes(defaultTone as (typeof TONES)[number])) {
@@ -134,11 +139,11 @@ function QuickGeneratorContent({
   // ── Save draft as the user types ───────────────────────────────────────────
   useEffect(() => {
     try {
-      localStorage.setItem(draftKey, JSON.stringify({ productIdea, tone }));
+      localStorage.setItem(draftKey, JSON.stringify({ productIdea, tone, brief }));
     } catch {
       // ignore storage errors
     }
-  }, [productIdea, tone, draftKey]);
+  }, [productIdea, tone, brief, draftKey]);
 
   // ── Cycle loading messages ─────────────────────────────────────────────────
   useEffect(() => {
@@ -173,11 +178,16 @@ function QuickGeneratorContent({
       const brandCtx = getBrandContext();
       const enhancedIdea = brandCtx ? `${brandCtx}\n\nProdukt: ${productIdea}` : productIdea;
 
+      // F6: Strategie-Brief fließt als additionalContext in die Generierung ein
+      // (wie F4 den Strategie-Kern voranstellt). Ohne Brief → exakt wie vorher.
+      const briefContext = buildBriefContext(brief, locale);
+
       const generated = (await generateContentServer({
         data: {
           contentType,
           productIdea: enhancedIdea,
           tone: tone || undefined,
+          additionalContext: briefContext || undefined,
         },
       })) as ContentResult;
 
@@ -196,7 +206,7 @@ function QuickGeneratorContent({
     } finally {
       setIsLoading(false);
     }
-  }, [productIdea, tone, contentType, user?.id]);
+  }, [productIdea, tone, brief, contentType, user?.id, locale]);
 
   // ── Save to project ────────────────────────────────────────────────────────
   const handleSaveProject = useCallback(async () => {
@@ -214,6 +224,8 @@ function QuickGeneratorContent({
         productIdea,
         contentTypes: [contentType],
         status: 'completed',
+        // F6: Strategie-Brief wird mit dem Projekt persistiert (metadata.brief).
+        metadata: hasBriefAnswers(brief) ? { brief } : undefined,
       },
       [
         {
@@ -232,7 +244,7 @@ function QuickGeneratorContent({
     } catch (err) {
       console.error('saveProject failed:', err);
     }
-  }, [result, productIdea, contentType, user?.id]);
+  }, [result, productIdea, contentType, user?.id, brief]);
 
   // ── Copy helper ────────────────────────────────────────────────────────────
   const copyText = useCallback(async (text: string): Promise<boolean> => {
@@ -339,6 +351,16 @@ function QuickGeneratorContent({
               </button>
             ))}
           </div>
+        </div>
+
+        {/* F6 Strategie-Brief (optional) — vor dem Generieren-Button */}
+        <div className="mt-5">
+          <StrategyBrief
+            brief={brief}
+            onChange={setBrief}
+            locale={locale === 'en' ? 'en' : 'de'}
+            accent="from-blue-500 to-purple-600"
+          />
         </div>
 
         <div className="mt-6 flex justify-center">

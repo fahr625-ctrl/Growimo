@@ -14,6 +14,7 @@ import type { ContentResult, ContentType, PrioritizeOutcome } from '../types';
 import { determineKernel, isFallbackKernel, type MarketingKernel } from './kernel';
 import { generatePackageChannel, PACKAGE_CHANNELS } from './generate';
 import { prioritizeChannelsSync } from '../prioritize';
+import { buildBriefContext } from '../strategy-brief/questions';
 
 export interface PackageChannelResult {
   pinterest: ContentResult | null;
@@ -51,9 +52,13 @@ export async function generateMarketingPackage(
 ): Promise<MarketingPackage> {
   const lang: 'de' | 'en' = opts.lang === 'en' ? 'en' : 'de';
 
-  // 1. Shared kernel first — everything else builds on it.
+  // 1. Shared kernel first — everything else builds on it. The F6 brief
+  //    (optional) steers the kernel; empty brief behaves exactly like F4.
   const kernel = await determineKernel(productIdea, opts.brief ?? null);
   const kernelFallback = isFallbackKernel(kernel);
+
+  // F6: brief context for every channel request (additionalContext).
+  const briefContext = buildBriefContext(opts.brief ?? null, lang);
 
   // 2. All five channels in parallel; each failure is isolated.
   const channels: PackageChannelResult = {
@@ -71,6 +76,7 @@ export async function generateMarketingPackage(
           kernel,
           contentType,
           productIdea,
+          briefContext,
         );
       } catch (err) {
         console.error(`[package] channel ${contentType} failed — skipped:`, err);
