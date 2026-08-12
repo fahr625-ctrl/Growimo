@@ -66,9 +66,6 @@ for (const f of allFiles) {
   for (const m of s.matchAll(/\bt\.([a-zA-Z0-9_]+)\b/g)) usedKeys.add(m[1]);
   for (const m of s.matchAll(/\bt\[['"]([a-zA-Z0-9_]+)['"]\]/g)) usedKeys.add(m[1]);
 }
-const missingUsedKeys = [...usedKeys].filter(
-  (k) => !deKeys.has(k) && !REACT_TYPE_NAMES.has(k) && !k.includes('.') && !/^[a-z]+$/.test(k) === false || false,
-);
 // Only snake_case keys are real i18n keys (common_*, dashboard_*, …); bare
 // identifiers (id, done, moved, trim, …) are lambda/property accesses.
 const missingUsedKeysReal = [...usedKeys].filter(
