@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start';
-import type { ContentRequest, ContentResult, ContentScore, ContentType, ImproveOutcome, PrioritizeAsset, PrioritizeOutcome } from './types';
+import type { AutoImproveSectionOutcome, ContentRequest, ContentResult, ContentScore, ContentType, ImproveOutcome, PrioritizeAsset, PrioritizeOutcome } from './types';
 import type { MarketingPackage } from './package/package';
 
 /**
@@ -142,6 +142,71 @@ export const improveByScoreServer = createServerFn({ method: 'POST' })
       '[server.improveByScore] outcome:',
       outcome.improved ? 'improved' : outcome.reason,
       outcome.improved ? `new score: ${outcome.newScore?.total}` : '',
+    );
+    return outcome;
+  });
+
+/**
+ * F2.1 server-side section-precise auto-improve: ONE click regenerates ONLY
+ * the affected field/section (Pinterest-Titel, Etsy-Beschreibung, …) with the
+ * existing strategy + quality rules, deterministically splices the new value
+ * into the original, re-scores via the F1 pipeline and returns the
+ * before/after + delta. Never blocks — on any error improved:false, original
+ * untouched (same contract as improveByScoreServer).
+ */
+export const autoImproveSectionServer = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const d = input as {
+      contentType: ContentType;
+      field: string;
+      currentTitle?: string;
+      currentBody?: string;
+      metadata?: Record<string, unknown>;
+      productIdea?: string;
+      strategyContext?: string;
+      fix?: { field?: string; action?: string; suggestion?: string };
+      score?: ContentScore | null;
+      lang?: 'de' | 'en';
+    };
+    if (!d || typeof d !== 'object') throw new Error('data is required');
+    if (!d.contentType) throw new Error('contentType is required');
+    if (!d.field) throw new Error('field is required');
+    if (!d.currentTitle && !d.currentBody) throw new Error('content is required');
+    if (!d.fix || typeof d.fix !== 'object' || !d.fix.suggestion) throw new Error('fix is required');
+    const score = d.score && typeof d.score.total === 'number' ? d.score : null;
+    return {
+      contentType: d.contentType,
+      field: d.field,
+      currentTitle: d.currentTitle ?? '',
+      currentBody: d.currentBody ?? '',
+      metadata: d.metadata ?? {},
+      productIdea: d.productIdea ?? '',
+      strategyContext: d.strategyContext ?? '',
+      fix: { field: d.fix.field ?? d.field, action: d.fix.action ?? 'rewrite', suggestion: d.fix.suggestion },
+      score,
+      lang: (d.lang === 'en' ? 'en' : 'de') as 'de' | 'en',
+    };
+  })
+  .handler(async ({ data }): Promise<AutoImproveSectionOutcome> => {
+    console.log('[server.autoImproveSection]', data.contentType, 'field:', data.field);
+    const { autoImproveSection } = await import('./auto-improve');
+    const original: ContentResult = {
+      contentType: data.contentType,
+      title: data.currentTitle,
+      body: data.currentBody,
+      metadata: data.metadata,
+      score: data.score,
+    };
+    const outcome = await autoImproveSection(
+      { contentType: data.contentType, productIdea: data.productIdea, strategyContext: data.strategyContext },
+      original,
+      data.fix,
+      data.score,
+      data.lang,
+    );
+    console.log(
+      '[server.autoImproveSection] outcome:',
+      outcome.improved ? `improved ${outcome.oldScore?.total} → ${outcome.newScore?.total}` : outcome.reason,
     );
     return outcome;
   });

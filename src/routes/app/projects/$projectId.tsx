@@ -12,6 +12,7 @@ import type { ContentType, Project, StoredContent } from '~/store/projects';
 import { ImageStudio } from '~/components/ImageStudio';
 import { PrioritizeCard } from '~/components/PrioritizeCard';
 import { ActionPlanCard } from '~/components/ActionPlanCard';
+import { summarizeBrief } from '~/ai/strategy-brief';
 
 const CONTENT_TYPE_CONFIG: Record<ContentType, { icon: string; color: string }> = {
   pinterest_pin: { icon: '📌', color: 'bg-red-100 text-red-700' },
@@ -98,7 +99,8 @@ function ProjectDetailPage() {
 }
 
 function ProjectDetailContent({ project, contents }: { project: Project; contents: StoredContent[] }) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
+  const briefContext = project.metadata?.brief ? summarizeBrief(project.metadata.brief as Record<string, string>, locale === "en" ? "en" : "de") : undefined;
   return (
     <div>
       <Link to="/app" className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-blue-600 transition-colors">
@@ -127,7 +129,14 @@ function ProjectDetailContent({ project, contents }: { project: Project; content
         {contents.length === 0 ? (
           <p className="text-sm text-gray-500">No content was generated for this project.</p>
         ) : (
-          contents.map((content) => <ContentCard key={content.id} content={content} productIdea={project.productIdea} />)
+          contents.map((content) => (
+              <ContentCard
+                key={content.id}
+                content={content}
+                productIdea={project.productIdea}
+                strategyContext={briefContext}
+              />
+            ))
         )}
       </div>
       {contents.length > 0 && (
@@ -148,7 +157,7 @@ function ProjectDetailContent({ project, contents }: { project: Project; content
   );
 }
 
-function ContentCard({ content, productIdea }: { content: StoredContent; productIdea?: string }) {
+function ContentCard({ content, productIdea, strategyContext }: { content: StoredContent; productIdea?: string; strategyContext?: string }) {
   const { t } = useTranslation();
   const [display, setDisplay] = useState<StoredContent>(content);
   const config = CONTENT_TYPE_CONFIG[display.contentType];
@@ -230,6 +239,7 @@ function ContentCard({ content, productIdea }: { content: StoredContent; product
                   score: score ?? undefined,
                 }}
                 productIdea={productIdea}
+                strategyContext={strategyContext}
                 onImproved={handleImproved}
               />
             </div>

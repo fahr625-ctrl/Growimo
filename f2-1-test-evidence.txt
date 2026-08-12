@@ -1,0 +1,29 @@
+F2.1 TEST-EVIDENCE — 2026-08-12T09:04:57.665Z
+Projekt: Personalisierte Sternenhimmel-Poster mit dem Nacht... (cb50fc2e-6a8c-4f4d-99e2-a3d3a42ad3a6)
+Produktidee: Personalisierte Sternenhimmel-Poster mit dem Nachthimmel eines besonderen Datums – individuell gestaltet als Geschenk zur Hochzeit, Geburt oder zum Jahrestag.
+Strategie-Brief im Projekt: nein
+
+──────── pinterest_pin (field: title) ────────
+F1-Score des Originals: 84 (1 Issue(s))
+Fix: [title/insert_keyword] Integriere das Keyword mit dem höchsten Suchvolumen direkt in den Pin-Titel, z. B. als Subjekt der Headline.…
+vorher : „So verewigt ihr euren besonderen Tag — mit einem Sternenhimmel-Poster"
+nachher: „Personalisierte Geschenke: Verewigt euren besonderen Tag mit einem Sternenhimmel-Poster"
+Score: 84 → 88 (+4)
+Splice-Garantie OK: Präfix + Suffix byte-identisch, nur die Ziel-Sektion enthält den neuen Wert
+title-Property konsistent aktualisiert.
+metadata unverändert.
+✅ pinterest_pin — bereichsgenaue Auto-Verbesserung erfolgreich
+
+──────── etsy_listing (field: description) ────────
+F1-Score des Originals: 60 (4 Issue(s))
+Kein F1-Issue mit field='description' — nutze synthetischen Fix (Loop wird trotzdem getestet).
+Fix: [description/rewrite] Schreibe die Etsy-Beschreibung neu: mindestens 500 Zeichen, sensorischer Einstieg, Abschnitte „Das Besondere", „Auf eine…
+vorher : a) ✨ Das Besondere daran   ⏎ Manchmal sieht man in den Himmel und spürt diese Verbindung zu einem besonderen Moment. Dieses Poster fängt genau
+nachher: a) ✨ Das Besondere daran   ⏎ Stell dir vor, du blickst in den tiefblauen Nachthimmel, die Sterne funkeln wie kleine Diamanten und erzählen von
+Score: 60 → 60 (+0)
+Splice-Garantie OK: Präfix + Suffix byte-identisch, nur die Ziel-Sektion enthält den neuen Wert
+metadata unverändert.
+✅ etsy_listing — bereichsgenaue Auto-Verbesserung erfolgreich
+
+
+ALLE F2.1-CHECKS BESTANDEN ✅

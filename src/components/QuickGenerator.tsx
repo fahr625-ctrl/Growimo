@@ -108,6 +108,11 @@ function QuickGeneratorContent({
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
   const [showUpsell, setShowUpsell] = useState(false);
   const loadingIndexRef = useRef(0);
+  // F2.1: Strategie-Kontext (F6-Brief) für die bereichsgenaue Auto-Verbesserung.
+  const strategyContext = useMemo(() => {
+    const ctx = buildBriefContext(brief, locale);
+    return ctx || undefined;
+  }, [brief, locale]);
 
   // ── Restore draft + prefs + ?idea= on mount ────────────────────────────────
   useEffect(() => {
@@ -460,6 +465,7 @@ function QuickGeneratorContent({
             defaultExpanded
             content={result}
             productIdea={productIdea}
+            strategyContext={strategyContext}
             onImproved={handleImproved}
           />
 

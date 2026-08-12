@@ -94,6 +94,19 @@ function PackageContent() {
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
   const [showUpsell, setShowUpsell] = useState(false);
   const loadingIndexRef = useRef(0);
+  // F2.1: shared strategic kernel (F4) as context for section auto-improve.
+  const kernelContext = useMemo(() => {
+    if (!pkg) return undefined;
+    const k = pkg.kernel;
+    const parts = [
+      `Strategie-Kern-Keywords: ${(k.keywords ?? []).join(', ')}`,
+      `Hauptbotschaft: ${k.mainHook ?? ''}`,
+      `Call-to-Action: ${k.cta ?? ''}`,
+      `Ton: ${k.voice ?? ''}`,
+      `Zielgruppe: ${k.audienceNote ?? ''}`,
+    ].filter((p) => p.length > 10);
+    return parts.length > 0 ? parts.join('\n') : undefined;
+  }, [pkg]);
 
   // Restore draft
   useEffect(() => {
@@ -495,6 +508,7 @@ function PackageContent() {
                     color={color}
                     content={c}
                     productIdea={productIdea}
+                    strategyContext={kernelContext}
                     copyText={copyText}
                     onImproved={(outcome) => void handleImproved(key, outcome)}
                   />
@@ -546,6 +560,7 @@ function ChannelCard({
   color,
   content,
   productIdea,
+  strategyContext,
   copyText,
   onImproved,
 }: {
@@ -555,6 +570,7 @@ function ChannelCard({
   color: string;
   content: ContentResult;
   productIdea: string;
+  strategyContext?: string;
   copyText: (text: string) => Promise<boolean>;
   onImproved: (outcome: ImproveOutcome) => void;
 }) {
@@ -628,6 +644,7 @@ function ChannelCard({
               defaultExpanded
               content={display}
               productIdea={productIdea}
+              strategyContext={strategyContext}
               onImproved={handleImproved}
             />
           </div>

@@ -121,6 +121,41 @@ export interface ImproveOutcome {
   error?: boolean;
 }
 
+// ── F2.1 Bereichsgenaue Auto-Verbesserung (decision layer) ────────────────────
+
+/**
+ * Result of ONE "✨ Automatisch verbessern" click (F2.1). Unlike F2 (whole
+ * asset), F2.1 regenerates ONLY the affected field/section: the model's output
+ * is parsed with the generation parser, the target field value is determinis-
+ * tically SPLICED back into the original (all other model deviations are
+ * discarded), and the spliced asset is re-scored with the F1 pipeline.
+ */
+export interface AutoImproveSectionOutcome {
+  /** The field that was improved ('title' | 'description' | …). */
+  field: string;
+  /** Value of the field BEFORE the improvement (from the original asset). */
+  oldValue: string;
+  /** Value of the field AFTER the improvement (from the model, spliced in). */
+  newValue: string;
+  /** Score of the original asset (passed F1 score, or freshly computed). */
+  oldScore: ContentScore | null;
+  /** Freshly computed score of the spliced asset (F1 pipeline). */
+  newScore: ContentScore | null;
+  /** true when a re-generated, re-scored version was produced. */
+  improved: boolean;
+  /** Machine-readable reason when improved === false. */
+  reason?:
+    | 'unsupported' // field/contentType combo not supported yet
+    | 'not_found' // target field could not be located in the asset
+    | 'unchanged' // the model produced the identical value
+    | 'failed' // the improvement call failed — original untouched
+    | 'no_score'; // scoring unavailable
+  /** The spliced asset with its fresh score — parent persists via onImproved. */
+  improvedContent?: ContentResult;
+  /** true when the LLM call failed — original returned untouched. */
+  error?: boolean;
+}
+
 // ── F3 Veröffentlichungs-Priorisierung (decision layer) ───────────────────────
 
 /** Machine-readable tags that explain WHY a channel ranks where it does. */

@@ -1049,6 +1049,20 @@ export const de = {
   improve_retry: 'Erneut versuchen',
   improve_applied: '%d Punkt(e) automatisch behoben',
   improve_regenerate_note: 'Der verbesserte Inhalt ersetzt das Original — zum Vergleichen das Original einblenden.',
+  // ── F2.1 Bereichsgenaue Auto-Verbesserung (Flaggschiff) ───────────────────
+  autoimprove_btn: 'Automatisch verbessern',
+  autoimprove_loading: 'Dieser Bereich wird verbessert …',
+  autoimprove_loading_desc: 'Ich schreibe nur diesen Bereich neu und bewerte das Ergebnis sofort neu — einen Moment.',
+  autoimprove_delta: 'Qualität',
+  autoimprove_old: 'Vorher',
+  autoimprove_new: 'Nachher',
+  autoimprove_apply: 'Übernehmen',
+  autoimprove_discard: 'Verwerfen',
+  autoimprove_error: 'Verbesserung fehlgeschlagen',
+  autoimprove_error_desc: 'Der Inhalt bleibt unverändert. Bitte versuche es erneut.',
+  autoimprove_retry: 'Erneut versuchen',
+  autoimprove_unchanged: 'Keine Änderung nötig',
+  autoimprove_unchanged_desc: 'Growimo fand diesen Bereich bereits optimal — der Rest blieb unverändert.',
 
   // ── F3 Veröffentlichungs-Priorisierung ───────────────────────────────────
   prioritize_title: '📅 Was zuerst publizieren?',

@@ -1045,6 +1045,20 @@ export const en: typeof de = {
   improve_retry: 'Try again',
   improve_applied: '%d point(s) fixed automatically',
   improve_regenerate_note: 'The improved content replaces the original — show the original to compare.',
+  // ── F2.1 Section-precise auto-improve (flagship) ─────────────────────────
+  autoimprove_btn: 'Improve automatically',
+  autoimprove_loading: 'Improving this section …',
+  autoimprove_loading_desc: 'I rewrite only this section and re-score it right away — one moment.',
+  autoimprove_delta: 'Quality',
+  autoimprove_old: 'Before',
+  autoimprove_new: 'After',
+  autoimprove_apply: 'Apply',
+  autoimprove_discard: 'Discard',
+  autoimprove_error: 'Improvement failed',
+  autoimprove_error_desc: 'The content stays unchanged. Please try again.',
+  autoimprove_retry: 'Try again',
+  autoimprove_unchanged: 'No change needed',
+  autoimprove_unchanged_desc: 'Growimo found this section already optimal — everything else stayed unchanged.',
 
   // ── F3 Publish prioritization ─────────────────────────────────────────────
   prioritize_title: '📅 What to publish first?',
