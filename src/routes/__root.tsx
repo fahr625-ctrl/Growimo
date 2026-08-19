@@ -9,6 +9,7 @@ import { ClerkAuthProvider } from "~/auth/clerk";
 import { I18nProvider, useTranslation } from "~/i18n";
 
 import appCss from "~/styles/app.css?url";
+import { Analytics } from "@vercel/analytics/react";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -83,6 +84,7 @@ function RootDocument({ children }: { children: ReactNode }) {
       <body className="font-sans">
         {children}
         <Scripts />
+        <Analytics />
       </body>
     </html>
   );
