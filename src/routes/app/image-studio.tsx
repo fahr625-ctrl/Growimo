@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { useTranslation } from '~/i18n';
@@ -22,6 +22,20 @@ const templates = [
 ] as const;
 const aspectClass = (ratio: string) => ratio === '2:3' ? 'aspect-[2/3]' : ratio === '4:3' ? 'aspect-[4/3]' : ratio === '16:9' ? 'aspect-video' : 'aspect-square';
 
+// Distinct variation directions. Each one explicitly instructs a different
+// combination of composition/perspective/lighting/depth-of-field while the
+// main subject, style and format stay identical. They rotate deterministically
+// per click (see runCardAction + variationCounter) so repeated taps produce
+// visibly different alternates instead of near-identical frames.
+const variationDirectionKeys = [
+  'image_studio_prompt_variant_1',
+  'image_studio_prompt_variant_2',
+  'image_studio_prompt_variant_3',
+  'image_studio_prompt_variant_4',
+  'image_studio_prompt_variant_5',
+  'image_studio_prompt_variant_6',
+] as const;
+
 function ImageStudioPage() { return <ProtectedRoute><ImageStudioContent /></ProtectedRoute>; }
 function ImageStudioContent() {
   const { t } = useTranslation();
@@ -36,6 +50,10 @@ function ImageStudioContent() {
   const [cardError, setCardError] = useState<{ id: string; message: string } | null>(null);
   const [uploads, setUploads] = useState<{ name: string; url: string }[]>([]);
   const [selectedProject, setSelectedProject] = useState('');
+  // Deterministic rotation across the variation directions so that consecutive
+  // "Variation" clicks never request the same direction (and thus never converge
+  // to the same composition via gpt-image-1's similar-prompt fold).
+  const variationCounter = useRef(0);
 
   useEffect(() => { const idea = new URLSearchParams(window.location.search).get('idea'); if (idea) setPrompt(idea); }, []);
   useEffect(() => { if (user?.id) getProjectsByUser(user.id).then(setProjects).catch(() => setProjects([])); }, [user?.id]);
@@ -49,7 +67,16 @@ function ImageStudioContent() {
   // feedback on the card itself, keeps the original image, prepends the new
   // variant, and surfaces a readable per-card error instead of a generic banner.
   const runCardAction = async (image: GeneratedImage, action: 'variation' | 'regenerate') => {
-    const cardPrompt = (action === 'variation' ? `${image.prompt}, ${t.image_studio_prompt_variation}` : image.prompt).trim();
+    // 'regenerate' intentionally reproduces the EXACT original prompt. Only
+    // 'variation' builds a new prompt: it keeps the original subject/style/
+    // format text and appends a rotation-selected direction that explicitly
+    // changes composition/perspective/lighting, so gpt-image-1 produces a
+    // visibly different frame instead of an identical near-fold.
+    const directionKey = variationDirectionKeys[variationCounter.current % variationDirectionKeys.length];
+    const cardPrompt = (action === 'variation'
+      ? `${image.prompt}. ${t.image_studio_prompt_variation.replace('%s', t[directionKey])}`
+      : image.prompt).trim();
+    if (cardPrompt) variationCounter.current += 1;
     if (!cardPrompt) return;
     setBusy({ id: image.id, action });
     setCardError(null);
