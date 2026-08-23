@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { prioritizeServer } from '~/ai/server';
 import type { PrioritizeOutcome, PriorityTag } from '~/ai/types';
-import { hasProfile } from '~/ai/prioritize';
+import { hasProfile, channelGoal, channelLabel } from '~/ai/prioritize/rules';
+import type { ChannelGoal } from '~/ai/prioritize/rules';
 import { useTranslation } from '~/i18n';
 import { contentTypeLabel } from '~/lib/content-types';
-import { ScoreBadge } from '~/components/ScoreBadge';
 import type { ContentType } from '~/store/projects';
 
 const CHANNEL_ICONS: Record<string, string> = {
@@ -160,7 +160,15 @@ export function PrioritizeCard({
                       <span className="text-sm font-semibold text-gray-900">
                         {CHANNEL_ICONS[item.channel] ?? '📄'} {contentTypeLabel(t, item.channel)}
                       </span>
-                      {item.qualityScore != null && <ScoreBadge total={item.qualityScore} size="sm" />}
+                      {/* F3: zwei klar getrennte Scores — Qualität (F1) vs. Priorität (F3) */}
+                      {item.qualityScore != null && (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                          {t.prioritize_quality_label} {item.qualityScore}/100
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-1 rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[11px] font-semibold text-purple-700">
+                        {t.prioritize_priority_label} {item.priorityScore}/100 · Platz {item.rank}
+                      </span>
                     </div>
                     <p className="mt-1.5 text-sm leading-relaxed text-gray-700">{item.rationale}</p>
                     {item.reasonTags.length > 0 && (
@@ -179,6 +187,55 @@ export function PrioritizeCard({
                 </li>
               ))}
             </ol>
+
+            {/* F3 Punkt 3: bereichsbezogene „… zuerst"-Empfehlungen (Reichweite / Verkauf / Bindung)
+                — aus den tatsächlich vorhandenen Kanälen, höchste Priorität je Ziel. */}
+            {(() => {
+              const goals: ChannelGoal[] = ['reach', 'sales', 'retention'];
+              const tLookup = t as unknown as Record<string, string>;
+              const goalKey: Record<ChannelGoal, string> = {
+                reach: 'prioritize_goal_reach',
+                sales: 'prioritize_goal_sales',
+                retention: 'prioritize_goal_retention',
+              };
+              const groupIcon: Record<ChannelGoal, string> = {
+                reach: '🌐',
+                sales: '💰',
+                retention: '🤝',
+              };
+              const groups = goals
+                .map((goal) => {
+                  const best = outcome.ordered.find((it) => channelGoal(it.channel) === goal);
+                  return best
+                    ? { goal, channel: best.channel as ContentType, rank: best.rank }
+                    : null;
+                })
+                .filter((g): g is NonNullable<typeof g> => g != null);
+              if (groups.length === 0) return null;
+              return (
+                <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-indigo-600">
+                    {tLookup.prioritize_goal_title}
+                  </p>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {groups.map((g) => (
+                      <div
+                        key={g.goal}
+                        className="flex items-center gap-2 rounded-lg border border-indigo-100 bg-white px-3 py-2 text-sm shadow-sm"
+                      >
+                        <span className="text-base">{groupIcon[g.goal]}</span>
+                        <span className="font-semibold text-gray-900">{tLookup[goalKey[g.goal]]}</span>
+                        <span className="text-gray-400">:</span>
+                        <span className="font-medium text-indigo-700">
+                          {channelLabel(g.channel, locale === 'en' ? 'en' : 'de')}
+                          <span className="ml-1 text-[10px] font-semibold text-gray-400">#{g.rank}</span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>

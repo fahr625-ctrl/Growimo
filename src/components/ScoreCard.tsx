@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AutoImproveSectionOutcome, ContentResult, ContentScore, ImproveOutcome, ScoreDimension, ScoreIssue } from '~/ai/types';
-import { autoImproveSectionServer, improveByScoreServer } from '~/ai/server';
+import { autoImproveSectionServer, improveByScoreServer, improveToScoreServer } from '~/ai/server';
+import { IMPROVE_TARGET_DEFAULT } from '~/ai/improve';
 import { isAutoImproveFieldSupported } from '~/ai/auto-improve/support';
 import { useTranslation } from '~/i18n';
 import { ScoreBadge, TONE_CLASSES, scoreTone } from './ScoreBadge';
@@ -109,6 +110,9 @@ export function ScoreCard({
   const originalRef = useRef<{ title: string; body: string } | null>(null);
   const lastBodyRef = useRef<string | null>(null);
 
+  // ── F2 "Auf 80+ verbessern" state (targeted improve to a score) ──────────
+  const [isImprovingTarget, setIsImprovingTarget] = useState(false);
+
   // ── F2.1 section-improvement state (one row at a time) ───────────────────
   const [sectionState, setSectionState] = useState<{
     idx: number;
@@ -129,6 +133,7 @@ export function ScoreCard({
       setLastOutcome(null);
       setShowOriginal(false);
       setImproveError(false);
+      setIsImprovingTarget(false);
       setSectionState(null);
       originalRef.current = null;
     }
@@ -141,7 +146,13 @@ export function ScoreCard({
     score != null &&
     score.issues.length > 0 &&
     score.total < 90 &&
-    !isImproving;
+    !isImproving &&
+    !isImprovingTarget;
+
+  // F2 "Auf 80+ verbessern" — offer whenever the asset is clearly below target
+  // (independent of issue count; the engine decides what to fix).
+  const canImproveToTarget =
+    content != null && score != null && score.total < IMPROVE_TARGET_DEFAULT && !isImproving && !isImprovingTarget;
 
   const handleImprove = useCallback(async () => {
     if (!content || !score || isImproving) return;
@@ -182,6 +193,49 @@ export function ScoreCard({
       setIsImproving(false);
     }
   }, [content, score, productIdea, isImproving, onImproved]);
+
+  // ── F2: "✨ Auf 80+ verbessern" — loop improveByScore until the target
+  // is reached (or the score plateaus), then swap + persist like F2. ───────
+  const handleImproveToTarget = useCallback(async () => {
+    if (!content || !score || isImproving || isImprovingTarget) return;
+    originalRef.current = { title: content.title, body: content.body };
+    setShowOriginal(false);
+    setLastOutcome(null);
+    setImproveError(false);
+    setIsImprovingTarget(true);
+    try {
+      const outcome = await improveToScoreServer({
+        data: {
+          contentType: content.contentType,
+          productIdea: productIdea ?? '',
+          title: content.title,
+          body: content.body,
+          metadata: content.metadata ?? {},
+          score,
+          target: IMPROVE_TARGET_DEFAULT,
+        },
+      });
+      setLastOutcome(outcome);
+      if (outcome.improved && outcome.improvedContent) {
+        onImproved?.(outcome);
+      }
+    } catch (err) {
+      console.error('[ScoreCard] improve-to-target failed:', err);
+      setImproveError(true);
+      setLastOutcome({
+        improved: false,
+        reason: 'failed',
+        oldScore: score,
+        newScore: score,
+        delta: 0,
+        appliedFixes: [],
+        unchangedSections: [],
+        error: true,
+      });
+    } finally {
+      setIsImprovingTarget(false);
+    }
+  }, [content, score, productIdea, isImproving, isImprovingTarget, onImproved]);
 
   // ── F2.1: improve exactly ONE field/section (per-issue button) ────────────
   const runSectionImprove = useCallback(
@@ -289,6 +343,31 @@ export function ScoreCard({
               <>
                 <span>⚡</span>
                 {tLookup.improve_btn}
+              </>
+            )}
+          </button>
+        )}
+        {canImproveToTarget && (
+          <button
+            type="button"
+            onClick={handleImproveToTarget}
+            disabled={isImprovingTarget}
+            className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-emerald-200 transition-all hover:from-emerald-700 hover:to-teal-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isImprovingTarget ? (
+              <>
+                <Spinner />
+                <span className="hidden sm:inline">
+                  {(tLookup.improve_to_target_loading as string)?.replace('%d', String(IMPROVE_TARGET_DEFAULT)) ?? ''}
+                </span>
+                <span className="sm:hidden">
+                  {(tLookup.improve_to_target_btn as string)?.replace('%d', String(IMPROVE_TARGET_DEFAULT)) ?? ''}
+                </span>
+              </>
+            ) : (
+              <>
+                <span>✨</span>
+                {(tLookup.improve_to_target_btn as string)?.replace('%d', String(IMPROVE_TARGET_DEFAULT)) ?? ''}
               </>
             )}
           </button>

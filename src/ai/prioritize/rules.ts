@@ -103,6 +103,24 @@ export function hasProfile(channel: ContentType): boolean {
   return Boolean(CHANNEL_PROFILES[channel]);
 }
 
+/**
+ * Deterministic goal classification of a channel — reach (Reichweite) / sales
+ * (Verkauf) / retention (Bindung). Derived from the channel's stable tags so it
+ * never diverges from CHANNEL_PROFILES. Used ONLY to enrich the prioritization
+ * UI with "… zuerst" recommendations; it does NOT change the ranking order.
+ *   sales     → tags direct-sales / buyer-intent   (e.g. Etsy)
+ *   retention → tags existing-audience / engagement (e.g. Social, Newsletter)
+ *   reach     → discovery / visual / compound / slow-burn (e.g. Pinterest, SEO)
+ */
+export type ChannelGoal = 'reach' | 'sales' | 'retention';
+
+export function channelGoal(channel: ContentType): ChannelGoal {
+  const tags = CHANNEL_PROFILES[channel]?.tags ?? [];
+  if (tags.includes('direct-sales') || tags.includes('buyer-intent')) return 'sales';
+  if (tags.includes('existing-audience') || tags.includes('engagement')) return 'retention';
+  return 'reach';
+}
+
 /** Combined priority: channel base + F1 quality modifier. Never exceeds 0–100. */
 export function priorityScoreFor(channel: ContentType, quality: number | null): number {
   const base = CHANNEL_PROFILES[channel]?.base ?? 0;

@@ -39,7 +39,7 @@ Antworte AUSSCHLIESSLICH mit validem JSON — kein anderer Text, keine Markdown-
 
 Regeln:
 - keywords: genau 3 (nie weniger als 2, nie mehr als 4), deutsch, kurz (1-4 Wörter), mit echtem Suchvolumen-Potenzial, so formuliert wie Nutzer wirklich suchen.
-- mainHook: deutsch, ein Satz, kein Marketing-Blabla, keine Versprechen ohne Substanz.
+- mainHook: deutsch, ein Satz — formuliere eine natürliche, lebensnahe und emotional treffende Hauptbotschaft: eine kleine Momentbeschreibung oder ein Gefühl statt eines Werbe-Slogans (z. B. „Manchmal fehlt jemand beim Kaffee plötzlich wieder ganz besonders." statt „Das perfekte Geschenk für jeden Anlass!"). An den Ton und die Zielgruppe angepasst, konkret statt allgemein. Keine künstliche Verkaufssprache, keine Superlative, kein „Jetzt kaufen".
 - cta: deutsch, konkret und handlungsorientiert, kein "Jetzt kaufen"-Standard.
 - voice: an die Produktidee und Zielgruppe angepasst.
 - audienceNote: konkret und psychografisch, keine demografischen Klischees.`;
@@ -71,7 +71,7 @@ export function fallbackKernel(productIdea: string): MarketingKernel {
   ].filter((k, i, arr) => k && arr.indexOf(k) === i).slice(0, 4);
   return {
     keywords,
-    mainHook: `${base} — für alle, die etwas wirklich Besonderes suchen.`,
+    mainHook: `${base} — für die kleinen Dinge, auf die man sich im Alltag freut.`,
     cta: 'Jetzt entdecken und dein Exemplar sichern.',
     voice: 'warm, persönlich, begeistert',
     audienceNote: `Menschen, die ${base.toLowerCase()} lieben und Wert auf Qualität, Gefühl und ein besonderes Erlebnis legen.`,
@@ -82,7 +82,7 @@ export function fallbackKernel(productIdea: string): MarketingKernel {
 export function isFallbackKernel(kernel: MarketingKernel): boolean {
   return (
     kernel.voice === 'warm, persönlich, begeistert' &&
-    kernel.mainHook.includes('etwas wirklich Besonderes') &&
+    kernel.mainHook.includes('auf die man sich im Alltag freut') &&
     kernel.cta === 'Jetzt entdecken und dein Exemplar sichern.'
   );
 }

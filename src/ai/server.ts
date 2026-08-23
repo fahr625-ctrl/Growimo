@@ -147,6 +147,62 @@ export const improveByScoreServer = createServerFn({ method: 'POST' })
   });
 
 /**
+ * F2 "Auf 80+ verbessern" server-side: repeatedly applies improveByScore until
+ * the total score reaches `target` (default 80) or the score plateaus. Reuses
+ * the exact improveByScore engine — same contract (oldScore/newScore/delta +
+ * improvedContent) so the UI can swap + persist like the normal F2 flow. The
+ * target drives the wording, never the ranking/structure.
+ */
+export const improveToScoreServer = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const d = input as {
+      contentType: ContentType;
+      productIdea?: string;
+      title: string;
+      body: string;
+      metadata?: Record<string, unknown>;
+      score: ContentScore;
+      target?: number;
+    };
+    if (!d || typeof d !== 'object') throw new Error('data is required');
+    if (!d.contentType) throw new Error('contentType is required');
+    if (!d.title) throw new Error('title is required');
+    if (!d.body) throw new Error('body is required');
+    if (!d.score || typeof d.score.total !== 'number') throw new Error('score is required');
+    const target = typeof d.target === 'number' && d.target > 0 && d.target <= 100 ? Math.round(d.target) : 80;
+    return {
+      contentType: d.contentType,
+      productIdea: d.productIdea ?? '',
+      title: d.title,
+      body: d.body,
+      metadata: d.metadata ?? {},
+      score: d.score,
+      target,
+    };
+  })
+  .handler(async ({ data }): Promise<ImproveOutcome> => {
+    console.log('[server.improveToScore]', data.contentType, 'old:', data.score.total, 'target:', data.target);
+    const { improveToScore } = await import('./improve');
+    const outcome = await improveToScore(
+      { contentType: data.contentType, productIdea: data.productIdea },
+      {
+        contentType: data.contentType,
+        title: data.title,
+        body: data.body,
+        metadata: data.metadata,
+        score: data.score,
+      },
+      data.score,
+      data.target,
+    );
+    console.log(
+      '[server.improveToScore] outcome:',
+      outcome.improved ? `improved ${outcome.oldScore?.total} → ${outcome.newScore?.total}` : outcome.reason,
+    );
+    return outcome;
+  });
+
+/**
  * F2.1 server-side section-precise auto-improve: ONE click regenerates ONLY
  * the affected field/section (Pinterest-Titel, Etsy-Beschreibung, …) with the
  * existing strategy + quality rules, deterministically splices the new value

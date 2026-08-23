@@ -181,3 +181,117 @@ export async function improveByScore(
     return { ...base, reason: 'failed', error: true, appliedFixes: fixes };
   }
 }
+
+/**
+ * F2 "Auf 80+ verbessern": repeatedly apply improveByScore until the total
+ * score reaches `target` (default 80) or the score plateaus / a round produces
+ * no improvement (or fails). Reuses the EXACT improveByScore engine — no new
+ * system — just loops with the current improved asset as the next round's
+ * original. Returns a single ImproveOutcome whose before/after spans the whole
+ * run (oldScore = starting score, newScore = final score, appliedFixes accumulated).
+ * Default target = 80 (weak assets are the ones below it); 0 rounds happen when
+ * the asset is already at/above target or has no score.
+ */
+export const IMPROVE_TARGET_DEFAULT = 80;
+export const IMPROVE_MAX_LOOPS = 3;
+
+export async function improveToScore(
+  request: Pick<ContentRequest, 'contentType' | 'productIdea'>,
+  original: ContentResult,
+  score: ContentScore | null | undefined,
+  target: number = IMPROVE_TARGET_DEFAULT,
+): Promise<ImproveOutcome> {
+  const unchanged = strongSectionLabels(score);
+  if (!score) {
+    return {
+      improved: false,
+      oldScore: null,
+      newScore: null,
+      delta: 0,
+      appliedFixes: [],
+      unchangedSections: unchanged,
+      reason: 'no_score',
+    };
+  }
+  // Already at/above target → nothing to do (same UX as "already strong").
+  if (score.total >= target) {
+    return {
+      improved: false,
+      oldScore: score,
+      newScore: score,
+      delta: 0,
+      appliedFixes: [],
+      unchangedSections: unchanged,
+      reason: 'already_strong',
+    };
+  }
+
+  let current = original;
+  let currentScore = score;
+  const appliedFixes: ScoreIssue[] = [];
+  let improvedEver = false;
+  let lastReason: ImproveOutcome['reason'] | undefined;
+  // Always keep the BEST round (highest re-scored total) — never let repeated
+  // improveByScore rounds drag the result below where we started.
+  let best: { result: ContentResult; bestScore: ContentScore } | null = null;
+  let bestTotal = score.total;
+
+  for (let i = 0; i < IMPROVE_MAX_LOOPS; i++) {
+    const outcome = await improveByScore(request, current, currentScore);
+    if (outcome.improved && outcome.improvedContent && outcome.newScore) {
+      improvedEver = true;
+      if (outcome.appliedFixes) appliedFixes.push(...outcome.appliedFixes);
+      current = outcome.improvedContent;
+      currentScore = outcome.newScore;
+      if (currentScore.total > bestTotal) {
+        bestTotal = currentScore.total;
+        best = { result: current, bestScore: currentScore };
+      }
+      if (currentScore.total >= target) break; // reached the goal
+      // else keep going one more round with the freshly improved asset
+    } else {
+      // No progress this round (failed / no_issues / already_strong) → stop.
+      if (outcome.reason) lastReason = outcome.reason;
+      if (outcome.appliedFixes) appliedFixes.push(...outcome.appliedFixes);
+      break;
+    }
+  }
+
+  // Best round is the one to keep; if the best is still not better than the
+  // starting score we keep the original (never return something worse).
+  if (!best || best.bestScore.total <= score.total) {
+    const reason: ImproveOutcome['reason'] | undefined = !improvedEver
+      ? (lastReason ?? 'no_issues')
+      : 'no_issues';
+    const outcome: ImproveOutcome = {
+      improved: false,
+      oldScore: score,
+      newScore: score,
+      delta: 0,
+      appliedFixes,
+      unchangedSections: unchanged,
+      reason,
+    };
+    if (reason === 'failed') outcome.error = true;
+    return outcome;
+  }
+
+  console.log(
+    '[improveToScore]',
+    request.contentType,
+    score.total,
+    '->',
+    best.bestScore.total,
+    `(target ${target}, best-möglich: ${best.bestScore.total >= target}, ${appliedFixes.length} fix(es) attempted)`,
+  );
+
+  return {
+    improved: true,
+    improvedContent: best.result,
+    oldScore: score,
+    newScore: best.bestScore,
+    delta: best.bestScore.total - score.total,
+    appliedFixes,
+    unchangedSections: unchanged,
+  };
+}

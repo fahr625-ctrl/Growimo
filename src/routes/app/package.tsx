@@ -12,6 +12,7 @@ import { VariantPicker } from '~/components/VariantPicker';
 import { ScoreCard } from '~/components/ScoreCard';
 import { tempAssetId } from '~/components/AssetFeedback';
 import { PrioritizeCard } from '~/components/PrioritizeCard';
+import { PackageOverview } from '~/components/PackageOverview';
 import { ActionPlanCard } from '~/components/ActionPlanCard';
 import { useTranslation } from '~/i18n';
 import { contentTypeLabel } from '~/lib/content-types';
@@ -402,7 +403,13 @@ function PackageContent() {
                 <span className="text-xs font-semibold uppercase tracking-wide text-fuchsia-600">
                   {t.package_result_badge}
                 </span>
-                <h2 className="mt-1 text-lg font-bold text-gray-900">{productIdea}</h2>
+                <h2
+                  className="mt-1 text-lg font-bold text-gray-900"
+                  title={productIdea}
+                >
+                  {productIdea.trim().split('\n')[0].slice(0, 70)}
+                  {productIdea.trim().split('\n')[0].length > 70 ? '…' : ''}
+                </h2>
               </div>
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -435,6 +442,9 @@ function PackageContent() {
               </Link>
             </div>
           </div>
+
+          {/* F4 Punkt 1: kompakte Paket-Überblick-Karte direkt nach dem Header */}
+          <PackageOverview productIdea={productIdea} brief={brief} kernel={pkg.kernel} />
 
           {/* Strategie-Kern-Karte */}
           <div className="overflow-hidden rounded-2xl border border-fuchsia-100 bg-gradient-to-br from-white via-fuchsia-50/40 to-purple-50/50 shadow-sm">
