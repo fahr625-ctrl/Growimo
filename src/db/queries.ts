@@ -901,3 +901,127 @@ export async function qResetUserPreferences(userId: string): Promise<boolean> {
   const rows = await sql`DELETE FROM user_preferences WHERE user_id = ${uid} RETURNING user_id`;
   return rows.length > 0;
 }
+
+// ── Serverseitiges Beta-Tracking (additiv) ──────────────────────────────────
+// NUR user_id (Clerk-id) + event + created_at + harmlose metadata. Keine PII,
+// keine Inhalte. Admin-Aggregate werden serverseitig berechnet und im Dashboard
+// nur für die geprüfte Owner-Session ausgeliefert.
+
+/** Record a beta-tracking event. Fire-and-forget from the caller's point of view. */
+export async function qInsertTrackingEvent(
+  userId: string,
+  event: string,
+  metadata: Record<string, unknown> = {},
+): Promise<void> {
+  try {
+    const sql = getDb();
+    await sql`
+      INSERT INTO tracking_events (user_id, event, metadata)
+      VALUES (${userId}, ${event}, ${JSON.stringify(metadata ?? {})})
+    `;
+  } catch (err) {
+    // Tracking must NEVER break the calling feature. Swallow + log only.
+    console.error("[tracking] insert failed:", err);
+  }
+}
+
+export interface TrackingReport {
+  rangeDays: number | null;
+  excludedUserIds: string[];
+  uniqueUsers: number;
+  newRegistrations: number;
+  activeUsers: number;
+  eventsByType: { event: string; count: number }[];
+  lastActivity: { userId: string; lastActive: string; firstSeen: string; eventCount: number }[];
+  funnel: { stage: string; users: number }[];
+}
+
+/**
+ * Compute the admin aggregate in one pass. `rangeDays` = time window (null =
+ * alltime). `excludeUserIds` = users excluded (e.g. owner test activity).
+ */
+export async function qGetTrackingReport(
+  rangeDays: number | null,
+  excludeUserIds: string[],
+): Promise<TrackingReport> {
+  const sql = getDb();
+  const EXCL = excludeUserIds.length > 0 ? excludeUserIds : null;
+
+  const uniqueUsersRow = await sql`
+    SELECT COUNT(DISTINCT user_id) AS n FROM tracking_events
+    WHERE 1=1 ${rangeDays == null ? sql`` : sql`AND created_at >= NOW() - make_interval(days => ${rangeDays})`}
+      ${EXCL ? sql`AND user_id <> ALL(${EXCL})` : sql``}
+  `;
+  const newRegRow = await sql`
+    SELECT COUNT(*) AS n FROM tracking_events
+    WHERE event = 'user_registered'
+      ${rangeDays == null ? sql`` : sql`AND created_at >= NOW() - make_interval(days => ${rangeDays})`}
+      ${EXCL ? sql`AND user_id <> ALL(${EXCL})` : sql``}
+  `;
+  const activeRow = await sql`
+    SELECT COUNT(DISTINCT user_id) AS n FROM tracking_events
+    WHERE event <> 'user_registered'
+      ${rangeDays == null ? sql`` : sql`AND created_at >= NOW() - make_interval(days => ${rangeDays})`}
+      ${EXCL ? sql`AND user_id <> ALL(${EXCL})` : sql``}
+  `;
+  const byTypeRows = await sql`
+    SELECT event, COUNT(*) AS n FROM tracking_events
+    WHERE 1=1
+      ${rangeDays == null ? sql`` : sql`AND created_at >= NOW() - make_interval(days => ${rangeDays})`}
+      ${EXCL ? sql`AND user_id <> ALL(${EXCL})` : sql``}
+    GROUP BY event ORDER BY n DESC
+  `;
+  const lastActivityRows = await sql`
+    SELECT
+      user_id AS "userId",
+      MAX(created_at) AS "lastActive",
+      MIN(created_at) AS "firstSeen",
+      COUNT(*) AS "eventCount"
+    FROM tracking_events
+    WHERE 1=1
+      ${rangeDays == null ? sql`` : sql`AND created_at >= NOW() - make_interval(days => ${rangeDays})`}
+      ${EXCL ? sql`AND user_id <> ALL(${EXCL})` : sql``}
+    GROUP BY user_id ORDER BY "lastActive" DESC
+  `;
+  // Funnel: leaky funnel over the stages we ACTUALLY record (see TRACKED_EVENTS).
+  const stageQueries: { stage: string; where: unknown }[] = [
+    {
+      stage: "user_registered",
+      where: sql`event = 'user_registered'`,
+    },
+    {
+      stage: "project_created",
+      where: sql`event = 'project_created'`,
+    },
+    {
+      stage: "asset_created",
+      where: sql`event IN ('image_generated', 'pinterest_pin_created')`,
+    },
+  ];
+  const funnel: { stage: string; users: number }[] = [];
+  for (const s of stageQueries) {
+    const r = await sql`
+      SELECT COUNT(DISTINCT user_id) AS n FROM tracking_events
+      WHERE ${s.where as unknown as ReturnType<typeof sql>}
+        ${rangeDays == null ? sql`` : sql`AND created_at >= NOW() - make_interval(days => ${rangeDays})`}
+        ${EXCL ? sql`AND user_id <> ALL(${EXCL})` : sql``}
+    `;
+    funnel.push({ stage: s.stage, users: Number(r[0].n) });
+  }
+
+  return {
+    rangeDays,
+    excludedUserIds: excludeUserIds,
+    uniqueUsers: Number(uniqueUsersRow[0].n),
+    newRegistrations: Number(newRegRow[0].n),
+    activeUsers: Number(activeRow[0].n),
+    eventsByType: byTypeRows.map((r) => ({ event: String(r.event), count: Number(r.n) })),
+    lastActivity: lastActivityRows.map((r) => ({
+      userId: String(r.userId),
+      lastActive: String(r.lastActive as Date),
+      firstSeen: String(r.firstSeen as Date),
+      eventCount: Number(r.eventCount),
+    })),
+    funnel,
+  };
+}

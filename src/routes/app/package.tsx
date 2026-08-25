@@ -19,6 +19,7 @@ import { contentTypeLabel } from '~/lib/content-types';
 import { saveProject, updateChannel } from '~/store/projects';
 import { canGenerate, recordGeneration } from '~/store/subscriptions';
 import { trackEvent } from '~/store/analytics';
+import { track } from '~/lib/tracking-client';
 
 export const Route = createFileRoute('/app/package')({ component: PackagePage });
 
@@ -96,6 +97,8 @@ function PackageContent() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
   const [showUpsell, setShowUpsell] = useState(false);
+  // Server-side beta-tracking (additive): package page opened.
+  useEffect(() => { track('package_or_pricing_opened', user?.id, { page: 'package' }); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user?.id]);
   const loadingIndexRef = useRef(0);
   // F2.1: shared strategic kernel (F4) as context for section auto-improve.
   const kernelContext = useMemo(() => {
@@ -181,6 +184,11 @@ function PackageContent() {
         trackEvent('package_created', { channels: Object.values(result.channels).filter(Boolean).length });
       } catch {
         // ignore analytics errors
+      }
+      // Server-side beta-tracking (additive): a Pinterest pin was generated as a
+      // package channel.
+      if (result.channels.pinterest) {
+        track('pinterest_pin_created', uid, { channel: 'pinterest_pin', source: 'package' });
       }
     } catch (error) {
       console.error('Package generation failed:', error);
@@ -567,7 +575,7 @@ function PackageContent() {
             <div className="mt-6 space-y-3">
               <Link
                 to="/app/pricing"
-                onClick={() => setShowUpsell(false)}
+                onClick={() => { setShowUpsell(false); track('upgrade_clicked', user?.id, { source: 'package_upsell' }); }}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition-all hover:from-blue-700 hover:to-purple-700"
               >
                 {t.usage_limit_cta}

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { useTranslation } from '~/i18n';
+import { track } from '~/lib/tracking-client';
 import { getProjectsByUser, type Project } from '~/store/projects';
 import type { GeneratedImage } from '~/ai/image-providers/types';
 
@@ -57,10 +58,12 @@ function ImageStudioContent() {
 
   useEffect(() => { const idea = new URLSearchParams(window.location.search).get('idea'); if (idea) setPrompt(idea); }, []);
   useEffect(() => { if (user?.id) getProjectsByUser(user.id).then(setProjects).catch(() => setProjects([])); }, [user?.id]);
+  // Server-side beta-tracking (additive): Image Studio opened.
+  useEffect(() => { track('image_studio_opened', user?.id); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user?.id]);
   const generate = async (text = prompt, selectedRatio = ratio) => {
     if (!text.trim()) return;
     setLoading(true); setError(false);
-    try { const result = await generateImageServer({ data: { prompt: text, aspectRatio: selectedRatio } }); setImages((prev) => [{ id: crypto.randomUUID(), url: result.url, prompt: text, aspectRatio: selectedRatio, createdAt: new Date() }, ...prev]); }
+    try { const result = await generateImageServer({ data: { prompt: text, aspectRatio: selectedRatio } }); setImages((prev) => [{ id: crypto.randomUUID(), url: result.url, prompt: text, aspectRatio: selectedRatio, createdAt: new Date() }, ...prev]); track('image_generated', user?.id, { aspectRatio: selectedRatio }); }
     catch { setError(true); } finally { setLoading(false); }
   };
   // Per-card gallery action (Variation / Neu generieren): shows immediate
@@ -83,6 +86,7 @@ function ImageStudioContent() {
     try {
       const result = await generateImageServer({ data: { prompt: cardPrompt, aspectRatio: image.aspectRatio } });
       setImages((prev) => [{ id: crypto.randomUUID(), url: result.url, prompt: cardPrompt, aspectRatio: image.aspectRatio, createdAt: new Date() }, ...prev]);
+      track('image_generated', user?.id, { aspectRatio: image.aspectRatio, action });
     } catch {
       setCardError({ id: image.id, message: t.image_studio_card_error });
     } finally {

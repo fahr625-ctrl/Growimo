@@ -18,6 +18,7 @@ import { saveProject, updateChannel } from '~/store/projects';
 import { getBrandContext } from '~/store/brand';
 import { canGenerate, recordGeneration } from '~/store/subscriptions';
 import { trackEvent } from '~/store/analytics';
+import { track } from '~/lib/tracking-client';
 import { TONES, toneLabel } from '~/lib/tones';
 
 const DEFAULT_TONE_KEY = 'growimo_default_tone';
@@ -231,6 +232,10 @@ function QuickGeneratorContent({
         trackEvent('strategy_created', { channels: contentType });
       } catch {
         // ignore analytics errors
+      }
+      // Server-side beta-tracking (additive): a Pinterest pin was generated.
+      if (contentType === 'pinterest_pin') {
+        track('pinterest_pin_created', uid, { channel: 'pinterest_pin' });
       }
     } catch (error) {
       console.error('Generation failed:', error);

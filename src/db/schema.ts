@@ -132,4 +132,21 @@ ALTER TABLE generated_content ADD CONSTRAINT generated_content_content_type_chec
 
 -- approved on beta_signups (beta access gate: every signup is auto-approved)
 ALTER TABLE beta_signups ADD COLUMN IF NOT EXISTS approved BOOLEAN DEFAULT TRUE;
+-- ── Serverseitiges Beta-Tracking (additiv) ────────────────────────────────────
+-- Zweck: Owner sieht im Admin-Bereich eindeutig, ob echte Nutzer die App
+-- verwenden. Speichert NUR user_id (Clerk-id als TEXT), event, created_at und
+-- optionale harmlose metadata (channel/aspectRatio/page/source). KEINE
+-- Passwörter, KEINE E-Mails, KEINE Inhalte von Projekten/Postings/Bildern.
+-- user_id ist bewusst TEXT (Clerk-ids sind NICHT UUID) und hat KEINEN FK auf die
+-- users-Tabelle — das vermeidet Kopplung an die users-UUID/Pii und macht das
+-- Ereignis-Loggen robust und additiv.
+CREATE TABLE IF NOT EXISTS tracking_events (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id TEXT NOT NULL,
+  event TEXT NOT NULL,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_tracking_user_created ON tracking_events(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_tracking_event_created ON tracking_events(event, created_at);
 `;

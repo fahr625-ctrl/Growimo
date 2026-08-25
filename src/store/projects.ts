@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import type { ContentType } from '~/ai/types';
 import { trackEvent } from '~/store/analytics';
+import { track } from '~/lib/tracking-client';
 import type { RawContent, RawProject } from '~/db/queries';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -169,6 +170,8 @@ export async function saveProject(
   ]);
   // Track project save
   try { trackEvent('project_saved'); } catch { /* ignore */ }
+  // Server-side beta-tracking (additive): a project was truly persisted.
+  try { track('project_created', userId); } catch { /* ignore */ }
   return toProject(raw.project);
 }
 

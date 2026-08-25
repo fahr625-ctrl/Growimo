@@ -26,6 +26,7 @@ import { Route as AppBillingRouteImport } from './routes/app/billing'
 import { Route as AppBetaWelcomeRouteImport } from './routes/app/beta-welcome'
 import { Route as AppBetaSignupsRouteImport } from './routes/app/beta-signups'
 import { Route as AppAnalyticsRouteImport } from './routes/app/analytics'
+import { Route as AppAdminTrackingRouteImport } from './routes/app/admin-tracking'
 import { Route as AppSignUpIndexRouteImport } from './routes/app/sign-up/index'
 import { Route as AppSignInIndexRouteImport } from './routes/app/sign-in/index'
 import { Route as AppSignUpSplatRouteImport } from './routes/app/sign-up/$'
@@ -120,6 +121,11 @@ const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminTrackingRoute = AppAdminTrackingRouteImport.update({
+  id: '/admin-tracking',
+  path: '/admin-tracking',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSignUpIndexRoute = AppSignUpIndexRouteImport.update({
   id: '/sign-up/',
   path: '/sign-up/',
@@ -164,6 +170,7 @@ const AppGenerateBlogRoute = AppGenerateBlogRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
+  '/app/admin-tracking': typeof AppAdminTrackingRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/beta-signups': typeof AppBetaSignupsRoute
   '/app/beta-welcome': typeof AppBetaWelcomeRoute
@@ -190,6 +197,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/app/admin-tracking': typeof AppAdminTrackingRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/beta-signups': typeof AppBetaSignupsRoute
   '/app/beta-welcome': typeof AppBetaWelcomeRoute
@@ -218,6 +226,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
+  '/app/admin-tracking': typeof AppAdminTrackingRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/beta-signups': typeof AppBetaSignupsRoute
   '/app/beta-welcome': typeof AppBetaWelcomeRoute
@@ -247,6 +256,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/app'
+    | '/app/admin-tracking'
     | '/app/analytics'
     | '/app/beta-signups'
     | '/app/beta-welcome'
@@ -273,6 +283,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/app/admin-tracking'
     | '/app/analytics'
     | '/app/beta-signups'
     | '/app/beta-welcome'
@@ -300,6 +311,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/app'
+    | '/app/admin-tracking'
     | '/app/analytics'
     | '/app/beta-signups'
     | '/app/beta-welcome'
@@ -451,6 +463,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAnalyticsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/admin-tracking': {
+      id: '/app/admin-tracking'
+      path: '/admin-tracking'
+      fullPath: '/app/admin-tracking'
+      preLoaderRoute: typeof AppAdminTrackingRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/sign-up/': {
       id: '/app/sign-up/'
       path: '/sign-up'
@@ -511,6 +530,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppAdminTrackingRoute: typeof AppAdminTrackingRoute
   AppAnalyticsRoute: typeof AppAnalyticsRoute
   AppBetaSignupsRoute: typeof AppBetaSignupsRoute
   AppBetaWelcomeRoute: typeof AppBetaWelcomeRoute
@@ -537,6 +557,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAdminTrackingRoute: AppAdminTrackingRoute,
   AppAnalyticsRoute: AppAnalyticsRoute,
   AppBetaSignupsRoute: AppBetaSignupsRoute,
   AppBetaWelcomeRoute: AppBetaWelcomeRoute,

@@ -13,6 +13,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import handler from "./dist/server/server.js";
 import { initDb } from "./src/db/init";
 import { handleBetaApi } from "./src/api/beta";
+import { handleTrackingApi } from "./src/api/tracking";
 
 // Initialise the database once at cold start
 try { await initDb(); } catch (err) { console.error("[vercel] Database init failed:", err); }
@@ -57,6 +58,21 @@ export default async function vercelHandler(
       apiResponse.headers.forEach((value, key) => res.setHeader(key, value));
       if (apiResponse.body) {
         const reader = apiResponse.body.getReader();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          res.write(value);
+        }
+      }
+      res.end();
+      return;
+    }
+    const trackingResponse = await handleTrackingApi(webReq, url.pathname);
+    if (trackingResponse) {
+      res.statusCode = trackingResponse.status;
+      trackingResponse.headers.forEach((value, key) => res.setHeader(key, value));
+      if (trackingResponse.body) {
+        const reader = trackingResponse.body.getReader();
         for (;;) {
           const { done, value } = await reader.read();
           if (done) break;

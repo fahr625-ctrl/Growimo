@@ -6,6 +6,7 @@ import { ProtectedRoute } from "~/components/ProtectedRoute";
 import { useTranslation } from "~/i18n";
 import OnboardingTour from "~/components/OnboardingTour";
 import { trackEvent } from "~/store/analytics";
+import { track } from "~/lib/tracking-client";
 import {
   getProjectsByUser,
   getFavoriteProjects,
@@ -292,9 +293,13 @@ function DashboardContent() {
       const pendingTrack = localStorage.getItem('growimo_pending_track');
       if (pendingTrack === 'signup') {
         trackEvent('signup');
+        // Server-side beta-tracking (additive): fresh registration
+        track('user_registered', user?.id);
         localStorage.removeItem('growimo_pending_track');
       } else if (pendingTrack === 'signin') {
         trackEvent('signin');
+        // Server-side beta-tracking (additive): successful sign-in
+        track('user_login', user?.id);
         localStorage.removeItem('growimo_pending_track');
       }
     } catch {

@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { getUserSubscription, isStripeConfigured } from '~/store/subscriptions';
 import { createCheckoutSession } from '~/stripe/checkout';
 import { useTranslation } from '~/i18n';
+import { track } from '~/lib/tracking-client';
 
 export const Route = createFileRoute('/app/pricing')({
   component: PricingPage,
@@ -32,8 +33,11 @@ function PricingPage() {
   const monthlyPrice = 19;
   const annualPrice = 190;
   const annualMonthlyEquivalent = Math.round(annualPrice / 12);
+  // Server-side beta-tracking (additive): pricing page opened.
+  useEffect(() => { track('package_or_pricing_opened', userId === 'anonymous' ? undefined : userId, { page: 'pricing' }); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   const handleUpgrade = async () => {
+    track('upgrade_clicked', userId === 'anonymous' ? undefined : userId, { source: 'pricing' });
     if (!stripeReady) return;
     setIsLoading(true);
     setError(null);

@@ -4,6 +4,7 @@ import { useUser } from '@clerk/clerk-react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { useTranslation } from '~/i18n';
 import { formatDate } from '~/lib/date';
+import { track } from '~/lib/tracking-client';
 import {
   getUserSubscription,
   getGenerationLimit,
@@ -65,6 +66,8 @@ function BillingContent() {
   };
 
   const handleUpgrade = async () => {
+
+    track('upgrade_clicked', user?.id, { source: 'billing' });
     setCheckoutLoading(true);
     setError(null);
     try {
