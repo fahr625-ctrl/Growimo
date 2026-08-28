@@ -35,6 +35,9 @@ const EVENT_LABEL_KEYS: Record<string, string> = {
   pinterest_pin_created: "tracking_event_pinterest_pin_created",
   package_or_pricing_opened: "tracking_event_package_or_pricing_opened",
   upgrade_clicked: "tracking_event_upgrade_clicked",
+  tiktok_area_opened: "tracking_event_tiktok_area_opened",
+  tiktok_created: "tracking_event_tiktok_created",
+  tiktok_diagnosed: "tracking_event_tiktok_diagnosed",
 };
 
 const FUNNEL_LABEL_KEYS: Record<string, string> = {

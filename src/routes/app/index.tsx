@@ -314,6 +314,7 @@ function DashboardContent() {
     { title: t.dashboard_task_improve_etsy, desc: t.dashboard_task_improve_etsy_desc, icon: '🛍️', to: '/app/generate/etsy', style: 'border-amber-100 bg-gradient-to-br from-amber-50 to-white', iconStyle: 'bg-amber-100' },
     { title: t.dashboard_task_create_blog, desc: t.dashboard_task_create_blog_desc, icon: '📝', to: '/app/generate/blog', style: 'border-blue-100 bg-gradient-to-br from-blue-50 to-white', iconStyle: 'bg-blue-100' },
     { title: t.dashboard_tools_image_studio, desc: t.dashboard_tools_image_studio_desc, icon: '🎨', to: '/app/image-studio', style: 'border-purple-100 bg-gradient-to-br from-purple-50 to-white', iconStyle: 'bg-purple-100' },
+    { title: t.dashboard_tools_tiktok, desc: t.dashboard_tools_tiktok_desc, icon: '🎵', to: '/app/tiktok', style: 'border-cyan-100 bg-gradient-to-br from-cyan-50 to-white', iconStyle: 'bg-cyan-100' },
   ];
 
   // Load projects + stats from PostgreSQL

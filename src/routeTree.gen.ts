@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app/index'
+import { Route as AppTiktokRouteImport } from './routes/app/tiktok'
 import { Route as AppSettingsRouteImport } from './routes/app/settings'
 import { Route as AppPricingRouteImport } from './routes/app/pricing'
 import { Route as AppPerformanceRouteImport } from './routes/app/performance'
@@ -49,6 +50,11 @@ const IndexRoute = IndexRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTiktokRoute = AppTiktokRouteImport.update({
+  id: '/tiktok',
+  path: '/tiktok',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
@@ -185,6 +191,7 @@ export interface FileRoutesByFullPath {
   '/app/performance': typeof AppPerformanceRoute
   '/app/pricing': typeof AppPricingRoute
   '/app/settings': typeof AppSettingsRoute
+  '/app/tiktok': typeof AppTiktokRoute
   '/app/': typeof AppIndexRoute
   '/app/generate/blog': typeof AppGenerateBlogRoute
   '/app/generate/etsy': typeof AppGenerateEtsyRoute
@@ -212,6 +219,7 @@ export interface FileRoutesByTo {
   '/app/performance': typeof AppPerformanceRoute
   '/app/pricing': typeof AppPricingRoute
   '/app/settings': typeof AppSettingsRoute
+  '/app/tiktok': typeof AppTiktokRoute
   '/app': typeof AppIndexRoute
   '/app/generate/blog': typeof AppGenerateBlogRoute
   '/app/generate/etsy': typeof AppGenerateEtsyRoute
@@ -241,6 +249,7 @@ export interface FileRoutesById {
   '/app/performance': typeof AppPerformanceRoute
   '/app/pricing': typeof AppPricingRoute
   '/app/settings': typeof AppSettingsRoute
+  '/app/tiktok': typeof AppTiktokRoute
   '/app/': typeof AppIndexRoute
   '/app/generate/blog': typeof AppGenerateBlogRoute
   '/app/generate/etsy': typeof AppGenerateEtsyRoute
@@ -271,6 +280,7 @@ export interface FileRouteTypes {
     | '/app/performance'
     | '/app/pricing'
     | '/app/settings'
+    | '/app/tiktok'
     | '/app/'
     | '/app/generate/blog'
     | '/app/generate/etsy'
@@ -298,6 +308,7 @@ export interface FileRouteTypes {
     | '/app/performance'
     | '/app/pricing'
     | '/app/settings'
+    | '/app/tiktok'
     | '/app'
     | '/app/generate/blog'
     | '/app/generate/etsy'
@@ -326,6 +337,7 @@ export interface FileRouteTypes {
     | '/app/performance'
     | '/app/pricing'
     | '/app/settings'
+    | '/app/tiktok'
     | '/app/'
     | '/app/generate/blog'
     | '/app/generate/etsy'
@@ -363,6 +375,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/app/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/tiktok': {
+      id: '/app/tiktok'
+      path: '/tiktok'
+      fullPath: '/app/tiktok'
+      preLoaderRoute: typeof AppTiktokRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/settings': {
@@ -545,6 +564,7 @@ interface AppRouteChildren {
   AppPerformanceRoute: typeof AppPerformanceRoute
   AppPricingRoute: typeof AppPricingRoute
   AppSettingsRoute: typeof AppSettingsRoute
+  AppTiktokRoute: typeof AppTiktokRoute
   AppIndexRoute: typeof AppIndexRoute
   AppGenerateBlogRoute: typeof AppGenerateBlogRoute
   AppGenerateEtsyRoute: typeof AppGenerateEtsyRoute
@@ -572,6 +592,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppPerformanceRoute: AppPerformanceRoute,
   AppPricingRoute: AppPricingRoute,
   AppSettingsRoute: AppSettingsRoute,
+  AppTiktokRoute: AppTiktokRoute,
   AppIndexRoute: AppIndexRoute,
   AppGenerateBlogRoute: AppGenerateBlogRoute,
   AppGenerateEtsyRoute: AppGenerateEtsyRoute,

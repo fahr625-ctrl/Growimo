@@ -249,6 +249,15 @@ function AppSidebar() {
       ),
     },
     {
+      label: t.sidebar_tiktok,
+      to: "/app/tiktok",
+      icon: (active: boolean) => (
+        <svg className={`h-5 w-5 ${active ? "text-blue-600" : "text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h3m6-6.5V15a6 6 0 01-6 6H9a6 6 0 01-6-6V9a6 6 0 016-6h1.5M18 4v.01M21 6v3a3 3 0 01-3 3h-3a3 3 0 01-3-3V6a3 3 0 013-3h3a3 3 0 013 3z" />
+        </svg>
+      ),
+    },
+    {
       label: t.sidebar_content_library,
       to: "/app/content-library",
       icon: (active: boolean) => (

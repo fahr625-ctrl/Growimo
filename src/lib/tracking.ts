@@ -28,6 +28,9 @@ export const TRACKED_EVENTS = [
   "pinterest_pin_created",
   "package_or_pricing_opened",
   "upgrade_clicked",
+  "tiktok_area_opened",
+  "tiktok_created",
+  "tiktok_diagnosed",
 ] as const;
 
 export type TrackedEvent = (typeof TRACKED_EVENTS)[number];

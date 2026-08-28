@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import type { AutoImproveSectionOutcome, ContentRequest, ContentResult, ContentScore, ContentType, ImproveOutcome, PerformanceEntry, PerformanceOverview, PrioritizeAsset, PrioritizeOutcome, PublishPlanItem, UserPreferencesView, VariantsResult } from './types';
 import type { MarketingPackage } from './package/package';
+import type { TikTokInput, TikTokMode, TikTokResult } from './tiktok';
 
 /**
  * Reports whether the OpenAI API key is configured on the server.
@@ -712,4 +713,61 @@ export const generatePackageServer = createServerFn({ method: 'POST' })
       'prioritized:', pkg.prioritized ? pkg.prioritized.ordered.map((i) => i.channel).join(' > ') : 'n/a',
     );
     return pkg;
+  });
+
+/**
+ * TikTok-Bereich: eigenständige Server-Fn für die drei Modi (todayIdea /
+ * concept / diagnose). Ruft die gleiche GPT-4o-Engine wie der Rest der App
+ * (siehe src/ai/tiktok.ts) mit strukturiertem System-Prompt auf. `lang`
+ * steuert die Ausgabesprache (de/en). Ergebnisse werden strukturiert als
+ * TikTokResult zurückgegeben und im UI übersichtlich dargestellt (nicht
+ * persistiert — bewusst additive Erweiterung, keine DB-Migration).
+ */
+export const generateTikTokServer = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const d = input as {
+      mode?: unknown;
+      biz?: unknown;
+      goal?: unknown;
+      audience?: unknown;
+      topic?: unknown;
+      metrics?: unknown;
+      lang?: unknown;
+    };
+    if (!d || typeof d !== 'object') throw new Error('data is required');
+    const mode = d.mode as TikTokMode;
+    if (mode !== 'todayIdea' && mode !== 'concept' && mode !== 'diagnose') {
+      throw new Error('mode is required');
+    }
+    if (typeof d.biz !== 'string' || !d.biz.trim()) {
+      throw new Error('biz (Unternehmensbeschreibung) ist erforderlich');
+    }
+    const metrics: TikTokInput['metrics'] =
+      mode === 'diagnose' && d.metrics && typeof d.metrics === 'object'
+        ? {
+            views: Number((d.metrics as Record<string, unknown>).views) || 0,
+            length: typeof (d.metrics as Record<string, unknown>).length === 'string'
+              ? ((d.metrics as Record<string, unknown>).length as string)
+              : '',
+            avgWatch: Number((d.metrics as Record<string, unknown>).avgWatch) || 0,
+            likes: Number((d.metrics as Record<string, unknown>).likes) || 0,
+            comments: Number((d.metrics as Record<string, unknown>).comments) || 0,
+            shares: Number((d.metrics as Record<string, unknown>).shares) || 0,
+            profileVisits: Number((d.metrics as Record<string, unknown>).profileVisits) || 0,
+          }
+        : undefined;
+    return {
+      mode,
+      biz: d.biz.trim(),
+      goal: typeof d.goal === 'string' && d.goal.trim() ? d.goal.trim() : undefined,
+      audience: typeof d.audience === 'string' && d.audience.trim() ? d.audience.trim() : undefined,
+      topic: typeof d.topic === 'string' && d.topic.trim() ? d.topic.trim() : undefined,
+      metrics,
+      lang: (d.lang === 'en' ? 'en' : 'de') as 'de' | 'en',
+    };
+  })
+  .handler(async ({ data }): Promise<TikTokResult> => {
+    console.log('[server.generateTikTok]', data.mode, 'lang:', data.lang, 'biz:', data.biz.slice(0, 60));
+    const { generateTikTok } = await import('./tiktok');
+    return generateTikTok(data, data.lang);
   });
