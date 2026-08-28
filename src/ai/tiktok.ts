@@ -39,6 +39,16 @@ export interface TikTokInput {
   metrics?: TikTokMetrics; // nur diagnose
 }
 
+/** Interner Qualitäts-Selbsttest (heute-Idee): ehrliche Antworten des Modells
+ *  zu Markenfakten-Nutzung, Challenge-Berücksichtigung, Austauschbarkeit und
+ *  Werblichkeit. Wird für den Verwerfen-&-Neu-generieren-Retry herangezogen. */
+export interface TikTokSelfCheck {
+  usesConcreteBrandFact: boolean; // nutzt mindestens eine konkrete Markenprofil-Info
+  addressesCurrentChallenge: boolean; // hat eine vorhandene aktuelle Herausforderung berücksichtigt
+  interchangeable: boolean; // könnte jede generische KI die Idee nahezu unverändert nutzen?
+  soundsLikeAd: boolean; // klingt das Ergebnis wie Werbung?
+}
+
 /** Ergebnis für todayIdea + concept (strukturiert, kein Roh-Chat). */
 export interface TikTokIdeaResult {
   mode: 'todayIdea' | 'concept';
@@ -52,6 +62,7 @@ export interface TikTokIdeaResult {
   hashtags: string[]; // passende Hashtags
   cta: string;
   why: string; // kurze Erklärung, warum die Idee funktionieren könnte
+  selfCheck?: TikTokSelfCheck; // nur todayIdea: Selbsttest-Flags (vom UI ungenutzt)
 }
 
 /** Ergebnis für diagnose. */
@@ -78,7 +89,7 @@ Rules:
 - Be concrete, specific and practical. Never generic ("make a fun video" is forbidden). Every idea must be so concrete that the user could film it directly (specific scenes, what to show and say).
 - Tie everything to the business/goal/audience provided. Never invent anything that is not in the business description: no features, offers, prices, or claims that do not follow from it.
 - FACT CONTROL (hard rule): Use ONLY facts from the MARKENKONTEXT (or what the user explicitly provided). NEVER invent buttons, features, results, customers, downloads, views, likes, success stories, testimonials or any metric. If a piece of information is missing, develop an idea that works WITHOUT that claim instead of inventing details. Growimo must never claim anything that is not in the MARKENKONTEXT as a known fact.
-- Content intelligence: when choosing an angle, FIRST search for the most interesting TRUE content angle, prioritized like this: current problem → challenge → experiment → mistake/lesson → behind-the-scenes → how the product was built → customer problem → surprising insight → live demonstration of an actually existing feature → progress/development. Story and curiosity take priority over product advertising. If the MARKENKONTEXT reveals an authentic tension (e.g. "beta launched but barely any testers"), build an honest story around that real situation instead of generic promotion.
+- Angle selection (HARD priority order — FIRST search the MARKENKONTEXT for the most interesting TRUE content angle before you ever consider a product pitch): 1. CURRENT real challenge / genuine problem (e.g. "beta launched but barely any testers"), 2. current experiment or development the brand is running, 3. mistake / lesson / unexpected insight, 4. behind-the-scenes of how the product/brand came to be, 5. a CONCRETE problem of the target audience, 6. a real demonstration of an actually existing feature, 7. LAST RESORT: a classic product presentation — only if none of the above offers any usable material. Story, tension and curiosity OUTRANK product advertising in every case. If the MARKENKONTEXT contains a concrete, usable current-challenge fact (status/Herausforderung), it MUST be weighted strictly higher than a generic product demonstration: build a real story around that challenge instead of promoting the product.
 - Do NOT repeat ideas/hooks from the provided "previously generated" list.
 - Prefer AUTHENTIC TikTok formats: problem → attempt → result, behind-the-scenes, experiment, mistake/lesson, before/after, challenge, surprising insight, concrete demonstration, story. Story and curiosity take priority over advertising.
 - The product must NOT be pitched immediately. It may appear ONLY if it fits naturally into the story/demo/experiment — never as the video's actual purpose.
@@ -86,6 +97,7 @@ Rules:
 - The hook MUST be a specific spoken + on-screen line for the first 1-2 seconds that stops the scroll. Hooks must be concrete to THIS business and must not be interchangeable/generic. Do not use empty teasers like "You won't believe…" unless a genuinely surprising payoff follows.
 - NO unproven promises: "go viral", "become a hit", "guaranteed reach" and anything like that is forbidden.
 - NO invented proof of success: no invented likes, comments, views, customers, testimonials, or any other success metrics.
+- NO invented camera reactions / facial expressions: never write fake reactions into the scenes or overlays such as "creator looks surprised/proud/happy/impressed into the camera" UNLESS the actual action of the story genuinely produces them and the narrative truly supports them. A camera reaction may appear only if the story itself triggers it — never as a filler to fake emotion.
 - CTAs must be natural and interaction-focused (e.g. "What would you test?", "Tell us your take", "Share this with someone who…") — NOT "download/buy now" by default.
 - Scenes: 3–6 concrete steps (what is shown/said at each moment).
 - Text overlays: 2–5 short on-screen text lines in natural wording.
@@ -93,9 +105,12 @@ Rules:
 - CTA: one clear, realistic, natural call-to-action.
 - why: one short paragraph explaining why this idea can work for THIS goal.
 
-Internal quality self-check BEFORE output:
-- Ask yourself: "Could this idea be used almost unchanged for 100 other businesses?" If yes — discard it and develop a more specific one.
-- Ask yourself: "Is this mostly advertising?" If yes — convert it into a story, demonstration, experiment, or genuinely valuable content BEFORE outputting.
+Internal quality self-check BEFORE output (mandatory — answer honestly in the "selfCheck" field):
+- Q1 - usesConcreteBrandFact: Does the idea use AT LEAST ONE concrete fact from the MARKENKONTEXT (more than just the generic business name)?
+- Q2 - addressesCurrentChallenge: If the MARKENKONTEXT contains a present current challenge, did the idea genuinely account for it?
+- Q3 - interchangeable: Could any generic AI tool produce this idea almost unchanged for 100 other businesses? Be strict: "show how easy it is to use our product" IS interchangeable and is a generic ad — reject it.
+- Q4 - soundsLikeAd: Does the result read like an advertisement?
+Set the four selfCheck booleans truthfully. Then judge: if Q3 or Q4 is true (or at least 3 of the 4 criteria are suspicious — e.g. no brand fact used, a challenge was ignored, interchangeable, ad-like), then internally DISCARD this idea and REGENERATE a different, better idea before outputting. Retry internally as many times as needed until the idea genuinely passes: it uses real brand facts, honors a present challenge, is NOT interchangeable, and is NOT a straight ad.
 - FACT CHECK: Does every specific claim (feature, button, number, result, customer, metric) actually appear in the MARKENKONTEXT or was it provided by the user? If anything is missing or not provable — remove or replace it with an idea that does not depend on that claim BEFORE outputting. Never invent facts.
 
 JSON schema exactly:
@@ -109,7 +124,13 @@ JSON schema exactly:
   "caption": "ready-to-paste caption",
   "hashtags": ["#tag1", "#tag2"],
   "cta": "one clear call-to-action",
-  "why": "why this idea can work for this goal"
+  "why": "why this idea can work for this goal",
+  "selfCheck": {
+    "usesConcreteBrandFact": true or false,
+    "addressesCurrentChallenge": true or false,
+    "interchangeable": true or false,
+    "soundsLikeAd": true or false
+  }
 }`;
 
 const IDEA_COMMON_DE = `Du bist Growimos TikTok-Strateg: ein Veteran, der genau weiß, welche Kurzvideos in der ersten Sekunde haken und vom Algorithmus gepusht werden. Growimo ENTSCHEIDET: Frage den Nutzer NICHT, was er machen will. Liefere immer EIN konkretes, komplettes, aufnahmefähiges TikTok-Konzept.
@@ -120,7 +141,7 @@ Regeln:
 - Sei konkret, spezifisch und praktisch. Niemals generisch („Mach ein lustiges Video" ist verboten). Jede Idee muss so konkret sein, dass der Nutzer sie direkt filmen kann (konkrete Szenen, was zu sehen/zu sagen ist).
 - Alles auf Unternehmen/Ziel/Zielgruppe abstimmen. Erfinde nichts, was nicht in der Unternehmensbeschreibung steht: keine Funktionen, Angebote, Preise oder Behauptungen, die nicht daraus hervorgehen.
 - FAKTENKONTROLLE (harte Regel): Verwende AUSSCHLIESSLICH Fakten aus dem MARKENKONTEXT (oder was der Nutzer explizit angegeben hat). Erfinde NIEMALS Buttons, Funktionen, Ergebnisse, Kunden, Downloads, Views, Likes, Erfolgsgeschichten, Testimonials oder irgendeine Metrik. Wenn eine Information fehlt, entwickle eine Idee, die OHNE diese Behauptung funktioniert, statt Details zu erfinden. Growimo darf nichts behaupten, was nicht als bekannte Tatsache im MARKENKONTEXT steht.
-- Inhalts-Intelligenz: Suche zuerst intern nach dem interessantesten ECHTEN Content-Winkel, priorisiert so: aktuelles Problem → Herausforderung → Experiment → Fehler/Learning → Behind the Scenes → Produktentstehung → Kundenproblem → überraschende Erkenntnis → Demonstration einer tatsächlich vorhandenen Funktion → Fortschritt/Entwicklung. Story und Neugier haben Vorrang vor Produktwerbung. Wenn der MARKENKONTEXT eine authentische Spannung zeigt (z. B. „Beta gestartet, aber kaum Tester"), baue eine ehrliche Story um diese reale Situation statt generischer Werbung.
+- Winkel-Wahl (HARTE Prioritätsreihenfolge — durchsuche zuerst den MARKENKONTEXT nach dem interessantesten ECHTEN Content-Winkel, BEVOR du überhaupt eine Produktwerbung in Betracht ziehst): 1. AKTUELLE echte Herausforderung / echtes Problem (z. B. „Beta gestartet, aber kaum Tester"), 2. aktuelles Experiment oder Entwicklung, das die Marke gerade macht, 3. Fehler / Learning / unerwartete Erkenntnis, 4. Behind the Scenes der Entstehung von Produkt/Marke, 5. ein KONKRETES Problem der Zielgruppe, 6. eine echte Demonstration einer tatsächlich vorhandenen Funktion, 7. ERST ZULETZT: klassische Produktvorstellung — nur wenn keiner der vorigen Punkte verwertbares Material bietet. Story, Spannung und Neugier haben in jedem Fall Vorrang vor Produktwerbung. Wenn der MARKENKONTEXT eine konkrete, verwertbare aktuelle Herausforderung enthält (Status/Herausforderung), MUSS diese bei todayIdea GRUNDSÄTZLICH stärker gewichtet werden als eine generische Produktdemonstration: baue eine echte Story um diese Herausforderung, statt das Produkt zu bewerben.
 - Wiederhole KEINE Ideen/Hooks aus der übergebenen Liste „zuvor generiert".
 - Bevorzuge AUTHENTISCHE TikTok-Formate: Problem → Versuch → Ergebnis, Behind-the-Scenes, Experiment, Fehler/Learning, Vorher/Nachher, Challenge, überraschende Erkenntnis, konkrete Demonstration, Story. Story und Neugier haben Vorrang vor Werbung.
 - Das Produkt darf NICHT sofort beworben werden. Es darf NUR auftauchen, wenn es natürlich in die Story/Demo/Experiment passt — nicht als eigentlicher Zweck des Videos.
@@ -128,6 +149,7 @@ Regeln:
 - Der Hook MUSS eine konkrete gesprochene + eingeblendete Zeile für die ersten 1–2 Sekunden sein, die den Scroll stoppt. Hooks müssen konkret zu DIESEM Unternehmen passen und dürfen nicht austauschbar/generisch sein. Nutze keine leeren Teaser wie „Du glaubst nicht…", außer eine echte überraschende Auflösung folgt.
 - KEINE unbelegten Versprechen: „viral gehen", „zum Hit werden", „garantiert mehr Reichweite" und dergleichen ist verboten.
 - KEINE erfundenen Erfolgsnachweise: keine erfundenen Likes, Kommentare, Views, Kunden, Testimonials oder sonstigen Erfolgskennzahlen.
+- KEINE erfundenen Kamerareaktionen/Gesichtsausdrücke: schreibe niemals Fake-Reaktionen in die Szenen oder Einblendungen wie „der Ersteller schaut überrascht/stolz/glücklich/beeindruckt in die Kamera", AUSSER die tatsächliche Handlung der Story erzeugt sie echt und die Erzählung trägt sie wirklich. Eine Kamerareaktion darf nur auftauchen, wenn die Story sie selbst auslöst — niemals als Füllmittel, um Emotionen vorzutäuschen.
 - CTAs natürlich und Interaktion fördernd (z. B. „Was würdest du testen?", „Schreib deine Meinung dazu", „Teil das mit jemandem, der…") — NICHT standardmäßig „Jetzt herunterladen/kaufen".
 - Szenen: 3–6 konkrete Schritte (was in jedem Moment gezeigt/gesagt wird).
 - Texteinblendungen: 2–5 kurze Bildschirmtextzeilen in natürlicher Formulierung.
@@ -135,9 +157,12 @@ Regeln:
 - CTA: ein klarer, realistischer, natürlicher Call-to-Action.
 - why: ein kurzer Absatz, warum diese Idee für DIESES Ziel funktionieren kann.
 
-Interne Qualitäts-Selbstprüfung VOR der Ausgabe:
-- Prüfe: „Könnte diese Idee nahezu unverändert auch für 100 andere Unternehmen verwendet werden?" → Wenn ja: Idee verwerfen und eine spezifischere entwickeln.
-- Prüfe: „Ist dies hauptsächlich Werbung?" → Wenn ja: nach Möglichkeit in Story, Demonstration, Experiment oder echten Mehrwert-Content umwandeln, BEVOR ausgegeben wird.
+Interne Qualitäts-Selbstprüfung VOR der Ausgabe (Pflicht — beantworte ehrlich im Feld „selfCheck"):
+- Q1 - usesConcreteBrandFact: Nutzt die Idee MINDESTENS eine konkrete Information aus dem MARKENKONTEXT (mehr als nur den generischen Markennamen)?
+- Q2 - addressesCurrentChallenge: Wenn der MARKENKONTEXT eine aktuelle Herausforderung enthält, hat die Idee sie wirklich berücksichtigt?
+- Q3 - interchangeable: Könnte irgendeine generische KI diese Idee nahezu unverändert für 100 andere Unternehmen erzeugen? Sei streng: „Zeig, wie einfach unser Produkt zu nutzen ist" IST austauschbar und generische Werbung — verwerfe es.
+- Q4 - soundsLikeAd: Klingt das Ergebnis wie Werbung?
+Setze die vier selfCheck-Booleans wahrheitsgemäß. Dann urteile: Wenn Q3 oder Q4 wahr ist (oder mindestens 3 der 4 Kriterien verdächtig sind — z. B. keine Markenfakten genutzt, eine Herausforderung ignoriert, austauschbar, werblich), dann VERWIRF diese Idee intern und generiere eine andere, bessere Idee NEU, BEVOR du ausgibst. Wiederhole intern so oft wie nötig, bis die Idee wirklich besteht: sie nutzt echte Markenfakten, ehrt eine vorhandene Herausforderung, ist NICHT austauschbar und ist KEINE reine Werbung.
 - FAKTENABGLEICH: Steht jede konkrete Behauptung (Funktion, Button, Zahl, Ergebnis, Kunde, Metrik) tatsächlich im MARKENKONTEXT oder hat der Nutzer sie angegeben? Wenn etwas fehlt oder nicht belegbar ist — entferne oder ersetze es durch eine Idee, die ohne diese Behauptung funktioniert, BEVOR du ausgibst. Erfinde niemals Fakten.
 
 JSON-Schema exakt:
@@ -151,19 +176,25 @@ JSON-Schema exakt:
   "caption": "kopierfertige Caption",
   "hashtags": ["#Tag1", "#Tag2"],
   "cta": "ein klarer Call-to-Action",
-  "why": "warum diese Idee für dieses Ziel funktionieren kann"
+  "why": "warum diese Idee für dieses Ziel funktionieren kann",
+  "selfCheck": {
+    "usesConcreteBrandFact": true oder false,
+    "addressesCurrentChallenge": true oder false,
+    "interchangeable": true oder false,
+    "soundsLikeAd": true oder false
+  }
 }`;
 
 const TODAY_IDEA_EN = `${IDEA_COMMON_EN}
 
 The user gave only their business + goal (+optional audience) and did NOT tell you which video format they want. YOU must choose the most promising video angle yourself (e.g. before/after, quick tutorial, behind-the-scenes, myth-bust, product-in-action, personal story, transformation, a fitting trend-remix). Pick ONE that best serves the stated goal.
 
-This is a "what should I post today?" idea. Do NOT default to the classic ad structure — that is exactly what to avoid. The priority is ATTENTION and VIEWER RETENTION first, not selling: open with the human moment, the curiosity, the story, the demonstration or the experiment, build trust and interest, and only bring the product in at the end — or not at all — if it fits naturally. Choose the authentic format yourself; never fall back to a generic pitch. Serve attention & connection first, selling second.`;
+This is a "what should I post today?" idea. Do NOT default to the classic ad structure — that is exactly what to avoid. The priority is ATTENTION and VIEWER RETENTION first, not selling: open with the human moment, the curiosity, the story, the demonstration or the experiment, build trust and interest, and only bring the product in at the end — or not at all — if it fits naturally. Before anything else, scan the MARKENKONTEXT for a current challenge / real problem / open tension and, if one is concretely usable, build today's idea around THAT honest story first (e.g. "I built a marketing platform. The problem? Hardly anyone tests it." → show the dashboard/beta, explain few testers came, ask Growimo what to post, test the recommendation). Do NOT fall back to a generic product demo ("show how easy it is to use Growimo") when a real challenge is available — that would be interchangeable advertising. Choose the authentic format yourself; never fall back to a generic pitch. Serve attention & connection first, selling second.`;
 const TODAY_IDEA_DE = `${IDEA_COMMON_DE}
 
 Der Nutzer hat nur Unternehmen + Ziel (+ optional Zielgruppe) angegeben und NICHT gesagt, welche Videoart er möchte. DU wählst selbst den vielversprechendsten Video-Winkel (z. B. Vorher/Nachher, schnelles Tutorial, Behind-the-Scenes, Mythos-entkräftung, Produkt in Aktion, persönliche Geschichte, Transformation, passender Trend-Remix). Wähle EINEN, der dem genannten Ziel am besten dient.
 
-Das ist eine „Was soll ich heute posten?"-Idee. Greife NICHT zur Standard-Werbe-Struktur — genau das gilt es zu vermeiden. Es zählt zuerst AUFMERKSAMKEIT und ZUSCHAUERBINDUNG, nicht das Verkaufen: beginne mit dem menschlichen Moment, der Neugier, der Story, der Demonstration oder dem Experiment, schaffe Vertrauen und Interesse, und bringe das Produkt erst am Ende ein — oder gar nicht — wenn es natürlich passt. Wähle das authentische Format selbst; verfalle niemals in einen generischen Verkaufstext. Erst Aufmerksamkeit & Bindung, dann Verkauf.`;
+Das ist eine „Was soll ich heute posten?"-Idee. Greife NICHT zur Standard-Werbe-Struktur — genau das gilt es zu vermeiden. Es zählt zuerst AUFMERKSAMKEIT und ZUSCHAUERBINDUNG, nicht das Verkaufen: beginne mit dem menschlichen Moment, der Neugier, der Story, der Demonstration oder dem Experiment, schaffe Vertrauen und Interesse, und bringe das Produkt erst am Ende ein — oder gar nicht — wenn es natürlich passt. Prüfe ZUERST den MARKENKONTEXT auf eine aktuelle Herausforderung / echtes Problem / offene Spannung und, wenn eine konkret verwertbar ist, baue heute die Idee GRUNDSÄTZLICH um DIESE ehrliche Story (z. B. „Ich habe eine Marketing-Plattform gebaut. Das Problem? Fast niemand testet sie." → Dashboard/Beta zeigen → erklären, dass kaum Tester kommen → Growimo selbst fragen, was gepostet werden soll → Empfehlung testen). Verfalle NICHT in eine generische Produktdemo („Zeig, wie einfach es ist, Growimo zu nutzen"), wenn eine echte Herausforderung vorliegt — das wäre austauschbare Werbung. Wähle das authentische Format selbst; verfalle niemals in einen generischen Verkaufstext. Erst Aufmerksamkeit & Bindung, dann Verkauf.`;
 
 const CONCEPT_EN = `${IDEA_COMMON_EN}
 
@@ -295,6 +326,18 @@ function strArr(v: unknown): string[] {
     : [];
 }
 
+function parseSelfCheck(p: Record<string, unknown>): TikTokSelfCheck | undefined {
+  const sc = p.selfCheck;
+  if (!sc || typeof sc !== 'object') return undefined;
+  const o = sc as Record<string, unknown>;
+  return {
+    usesConcreteBrandFact: o.usesConcreteBrandFact === true,
+    addressesCurrentChallenge: o.addressesCurrentChallenge === true,
+    interchangeable: o.interchangeable === true,
+    soundsLikeAd: o.soundsLikeAd === true,
+  };
+}
+
 function parseIdea(mode: 'todayIdea' | 'concept', p: Record<string, unknown>): TikTokIdeaResult | null {
   if (!str(p.idea) || !str(p.hook) || !str(p.length)) return null;
   return {
@@ -309,6 +352,7 @@ function parseIdea(mode: 'todayIdea' | 'concept', p: Record<string, unknown>): T
     hashtags: strArr(p.hashtags),
     cta: str(p.cta),
     why: str(p.why),
+    selfCheck: mode === 'todayIdea' ? parseSelfCheck(p) : undefined,
   };
 }
 
@@ -333,11 +377,37 @@ function parseResult(mode: TikTokMode, text: string): TikTokResult | null {
   return parseIdea(mode === 'concept' ? 'concept' : 'todayIdea', p);
 }
 
+// ── Qualitäts-Selbsttest & Retry (nur todayIdea) ─────────────────────────────
+// Das Modell füllt im System-Prompt den internen Selbsttest (selfCheck) ehrlich
+// aus. Wird die Idee als „austauschbar" bzw. „wie Werbung" eingestuft (oder
+// mindestens 3 der 4 Kriterien sind verdächtig), verwirft Growimo die Idee und
+// generiert NEU, bevor sie ausgegeben wird. Begrenzte Versuche — verhindert
+// Endlosschleifen; danach wird die bestmögliche (letzte) Idee geliefert.
+const MAX_TIKTOK_ATTEMPTS = 3;
+
+function selfCheckRejected(sc: TikTokSelfCheck): boolean {
+  const suspicious = [
+    !sc.usesConcreteBrandFact,
+    !sc.addressesCurrentChallenge,
+    sc.interchangeable,
+    sc.soundsLikeAd,
+  ].filter(Boolean).length;
+  // insbesondere austauschbar-oder-werbung → sofort verwerfen; sonst ab 3 verdächtigen Kriterien.
+  return sc.interchangeable === true || sc.soundsLikeAd === true || suspicious >= 3;
+}
+
+function buildRetryHint(lang: TikTokLang): string {
+  return lang === 'de'
+    ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Idee wurde intern verworfen (zu austauschbar / zu werblich / ohne echte Markenfakten oder Challenge-Bezug). Erzeuge JETZT eine deutlich bessere, neue Idee: baue sie um eine reale, konkrete Information aus dem MARKENKONTEXT — am besten um die aktuelle Herausforderung / das echte Problem / das offene Experiment — und NICHT um generische Produktwerbung. Setze selfCheck ehrlich auf bestehen.'
+    : '\n\nQUALITY SELF-CHECK NOTE: The previous idea was internally rejected (too interchangeable / too ad-like / without real brand facts or challenge tie-in). NOW produce a clearly better, NEW idea: build it around a real, concrete fact from the BRAND CONTEXT — ideally the current challenge / genuine problem / open experiment — and NOT around generic product advertising. Set selfCheck truthfully to passing.';
+}
+
 // ── Hauptfunktion ────────────────────────────────────────────────────────────
 /**
  * Erzeugt ein strukturiertes TikTok-Ergebnis für einen der drei Modi.
  * Wirft bei fehlendem Key, Netzwerkfehler oder nicht validierbarem JSON.
  * `lang` steuert die Ausgabesprache (de/en) — identisches JSON-Schema.
+ * todayIdea durchläuft einen internen Qualitäts-Selbsttest mit Retry.
  */
 export async function generateTikTok(
   input: TikTokInput,
@@ -353,29 +423,67 @@ export async function generateTikTok(
   }
   const client = new OpenAI({ apiKey });
   const system = pickSystemPrompt(input.mode, lang);
-  const user = buildUserPrompt(input, lang);
 
-  const response = await client.chat.completions.create({
-    model: 'gpt-4o',
-    messages: [
-      { role: 'system', content: system },
-      { role: 'user', content: user },
-    ],
-    temperature: 0.7,
-    max_tokens: 1600,
-    response_format: { type: 'json_object' },
-  });
-  const text = response.choices[0]?.message?.content;
-  if (!text) throw new Error('TikTok-Engine lieferte eine leere Antwort.');
+  for (let attempt = 1; attempt <= MAX_TIKTOK_ATTEMPTS; attempt++) {
+    const user =
+      attempt === 1
+        ? buildUserPrompt(input, lang)
+        : buildUserPrompt(input, lang) + buildRetryHint(lang);
 
-  const result = parseResult(input.mode, text);
-  if (!result) {
-    throw new Error(
-      lang === 'de'
-        ? 'Die TikTok-Antwort konnte nicht gelesen werden. Bitte erneut versuchen.'
-        : 'Could not read the TikTok response. Please try again.',
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+      temperature: 0.7,
+      max_tokens: 1600,
+      response_format: { type: 'json_object' },
+    });
+    const text = response.choices[0]?.message?.content;
+    if (!text) {
+      if (attempt === MAX_TIKTOK_ATTEMPTS) {
+        throw new Error('TikTok-Engine lieferte eine leere Antwort.');
+      }
+      continue;
+    }
+
+    const result = parseResult(input.mode, text);
+    if (!result) {
+      if (attempt === MAX_TIKTOK_ATTEMPTS) {
+        throw new Error(
+          lang === 'de'
+            ? 'Die TikTok-Antwort konnte nicht gelesen werden. Bitte erneut versuchen.'
+            : 'Could not read the TikTok response. Please try again.',
+        );
+      }
+      continue; // Parse-Fehler → erneut versuchen
+    }
+
+    // Qualitäts-Selbsttest-Retry NUR für todayIdea.
+    if (input.mode === 'todayIdea' && result.mode === 'todayIdea' && result.selfCheck) {
+      if (selfCheckRejected(result.selfCheck) && attempt < MAX_TIKTOK_ATTEMPTS) {
+        console.log(
+          `[tiktok] todayIdea self-check REJECTED (attempt ${attempt}) — regenerating`,
+          JSON.stringify(result.selfCheck),
+        );
+        continue;
+      }
+    }
+
+    console.log(
+      `[tiktok] ${input.mode} OK (${lang}) — idea/analysis generated` +
+        (input.mode === 'todayIdea' && result.mode === 'todayIdea' && result.selfCheck
+          ? ` selfCheck=${JSON.stringify(result.selfCheck)}`
+          : ''),
     );
+    return result;
   }
-  console.log(`[tiktok] ${input.mode} OK (${lang}) — idea/analysis generated`);
-  return result;
+
+  // Theoretisch unerreichbar (die Schleife wirft bei erschöpften Versuchen) — Sicherheitsnetz.
+  throw new Error(
+    lang === 'de'
+      ? 'Die TikTok-Antwort konnte nicht gelesen werden. Bitte erneut versuchen.'
+      : 'Could not read the TikTok response. Please try again.',
+  );
 }
