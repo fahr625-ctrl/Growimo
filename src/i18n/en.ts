@@ -646,6 +646,14 @@ export const en: typeof de = {
   sidebar_image_studio: '🎨 Image Studio', image_studio_page_title: 'AI Image Studio', image_studio_page_subtitle: 'Generate images, Pinterest pins and Etsy mockups with AI', image_studio_prompt_label: 'What would you like to generate?', image_studio_prompt_placeholder: 'Describe the image you want…', image_studio_generate_btn: 'Generate', image_studio_templates_label: 'Quick templates', image_studio_template_pinterest: 'Pinterest Pin (2:3)', image_studio_template_etsy: 'Etsy Mockup (4:3)', image_studio_template_instagram: 'Instagram Post (1:1)', image_studio_template_blog: 'Blog Hero (16:9)', image_studio_from_strategy: 'Generate from Strategy', image_studio_select_project: 'Select a project…', image_studio_prompts_generated: 'Generated Prompts', image_studio_upload_title: 'Edit your own image', image_studio_upload_dropzone: 'Drop an image here or click to upload', image_studio_gallery_title: 'Generated Images', image_studio_empty: 'No images yet. Enter a prompt and click Generate.', image_studio_generating: 'Generating image…', image_studio_error: 'Image generation failed', image_studio_download: 'Download', image_studio_copy_prompt: 'Copy Prompt', image_studio_regenerate: 'Regenerate', image_studio_variation: 'Variation', image_studio_regenerate_generating: 'Regenerating…', image_studio_variation_generating: 'Creating variation…', image_studio_card_error: 'Failed to create the variation. Please try again.', dashboard_tools_image_studio: '🎨 Image Studio', dashboard_tools_image_studio_desc: 'Generate AI images, Pinterest pins & Etsy mockups', image_studio_open_full: 'Open in Image Studio',
   image_studio_format_pinterest: 'Pinterest Pin', image_studio_format_etsy: 'Etsy Product Mockup', image_studio_format_instagram: 'Instagram Post', image_studio_format_blog: 'Blog Hero Image',
   image_studio_alt_placeholder: '%s placeholder', image_studio_download_svg: 'Download SVG', image_studio_copy_prompt_title: 'Copy generation prompt', image_studio_copied: 'Copied!', image_studio_api_required: 'Connect an image API to enable',
+  image_studio_create_from_strategy: '🎨 Create in Image Studio',
+  image_studio_create_from_strategy_hint: 'The AI image prompt from your strategy is carried straight into the Image Studio — nothing to copy, just generate.',
+  image_studio_from_strategy_badge: 'Imported from your strategy',
+  image_studio_from_strategy_info: 'All fields are already prefilled. Adjust them if needed, or hit Generate directly.',
+  image_studio_strategy_platform: 'Platform',
+  image_studio_strategy_concept: 'Image concept',
+  image_studio_strategy_overlay: 'Text overlay',
+  image_studio_strategy_brand: 'Brand (from brand profile)',
 
   // ── TikTok area: tile, sidebar, route, 3 modes ──────────────────────────────
   sidebar_tiktok: '🎵 TikTok',

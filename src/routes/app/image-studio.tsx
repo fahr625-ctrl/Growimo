@@ -7,6 +7,8 @@ import { useTranslation } from '~/i18n';
 import { track } from '~/lib/tracking-client';
 import { getProjectsByUser, type Project } from '~/store/projects';
 import type { GeneratedImage } from '~/ai/image-providers/types';
+import { consumeStrategyPrefill, type StrategyImagePayload } from '~/lib/strategy-image';
+import { getBrandProfile } from '~/store/brand';
 
 const generateImageServer = createServerFn({ method: 'POST' }).validator((input: unknown) => input as { prompt: string; aspectRatio: string }).handler(async ({ data }) => {
   const { generateImage } = await import('~/ai/image-providers/generate');
@@ -37,7 +39,43 @@ const variationDirectionKeys = [
   'image_studio_prompt_variant_6',
 ] as const;
 
-function ImageStudioPage() { return <ProtectedRoute><ImageStudioContent /></ProtectedRoute>; }
+function StrategyStamp({ t, prefill }: { t: ReturnType<typeof useTranslation>['t']; prefill: StrategyImagePayload }) {
+  const profile = getBrandProfile();
+  const infoChip = (label: string, value: string) => (
+    <div className="min-w-0 rounded-lg bg-white/70 px-3 py-2">
+      <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">{label}</p>
+      <p className="mt-0.5 break-words text-xs text-gray-700">{value || '—'}</p>
+    </div>
+  );
+  return (
+    <section className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">✓</span>
+        <span className="text-sm font-bold text-emerald-800">{t.image_studio_from_strategy_badge}</span>
+        <span className="ml-auto rounded-full bg-blue-600 px-3 py-1 text-xs font-bold text-white">{prefill.ratio}</span>
+      </div>
+      <p className="mt-1.5 text-xs text-emerald-700">{t.image_studio_from_strategy_info}</p>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        {infoChip(t.image_studio_strategy_platform, prefill.platform)}
+        {prefill.overlay && infoChip(t.image_studio_strategy_overlay, prefill.overlay)}
+        <div className="min-w-0 rounded-lg bg-white/70 px-3 py-2 sm:col-span-2">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">{t.image_studio_strategy_concept}</p>
+          <p className="mt-0.5 break-words whitespace-pre-wrap text-xs text-gray-700">{prefill.concept || '—'}</p>
+        </div>
+        {profile?.brandName || profile?.brandColors ? (
+          <div className="min-w-0 rounded-lg bg-white/70 px-3 py-2 sm:col-span-2">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">{t.image_studio_strategy_brand}</p>
+            <p className="mt-0.5 break-words text-xs text-gray-700">
+              {[profile?.brandName, profile?.brandColors].filter(Boolean).join(' · ') || '—'}
+            </p>
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+function ImageStudioPage() {
+ return <ProtectedRoute><ImageStudioContent /></ProtectedRoute>; }
 function ImageStudioContent() {
   const { t } = useTranslation();
   const { user } = useUser();
@@ -51,12 +89,27 @@ function ImageStudioContent() {
   const [cardError, setCardError] = useState<{ id: string; message: string } | null>(null);
   const [uploads, setUploads] = useState<{ name: string; url: string }[]>([]);
   const [selectedProject, setSelectedProject] = useState('');
+  const [strategyPrefill, setStrategyPrefill] = useState<StrategyImagePayload | null>(null);
   // Deterministic rotation across the variation directions so that consecutive
   // "Variation" clicks never request the same direction (and thus never converge
   // to the same composition via gpt-image-1's similar-prompt fold).
   const variationCounter = useRef(0);
 
-  useEffect(() => { const idea = new URLSearchParams(window.location.search).get('idea'); if (idea) setPrompt(idea); }, []);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const idea = params.get('idea');
+    const fromStrategy = params.get('fromStrategy') === '1';
+    if (fromStrategy) {
+      const prefill = consumeStrategyPrefill();
+      if (prefill) {
+        setStrategyPrefill(prefill);
+        setPrompt(prefill.prompt);
+        setRatio(prefill.ratio);
+        return;
+      }
+    }
+    if (idea) setPrompt(idea);
+  }, []);
   useEffect(() => { if (user?.id) getProjectsByUser(user.id).then(setProjects).catch(() => setProjects([])); }, [user?.id]);
   // Server-side beta-tracking (additive): Image Studio opened.
   useEffect(() => { track('image_studio_opened', user?.id); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user?.id]);
@@ -115,6 +168,7 @@ function ImageStudioContent() {
   const handleFiles = (files: FileList | null) => { if (!files) return; setUploads((prev) => [...prev, ...Array.from(files).map((file) => ({ name: file.name, url: URL.createObjectURL(file) }))]); };
   return <div className="mx-auto max-w-5xl space-y-8">
     <header><div className="mb-2 flex items-center gap-3"><Link to="/app" className="text-sm text-blue-600 hover:underline">← {t.nav_dashboard}</Link></div><h1 className="text-3xl font-bold text-gray-900">{t.image_studio_page_title}</h1><p className="mt-2 text-gray-500">{t.image_studio_page_subtitle}</p></header>
+    {strategyPrefill && <StrategyStamp t={t} prefill={strategyPrefill} />}
     <section className="rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white shadow-lg"><label className="mb-2 block text-sm font-semibold">{t.image_studio_prompt_label}</label><div className="flex flex-col gap-3 sm:flex-row"><input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={t.image_studio_prompt_placeholder} className="min-w-0 flex-1 rounded-xl border-0 px-4 py-3 text-gray-900 outline-none ring-2 ring-transparent focus:ring-white" /><button onClick={() => void generate()} disabled={loading || !prompt.trim()} className="rounded-xl bg-white px-6 py-3 font-bold text-blue-700 transition hover:bg-blue-50 disabled:opacity-60">{loading ? <span className="inline-block animate-spin">◌</span> : '✨'} {loading ? t.image_studio_generating : t.image_studio_generate_btn}</button></div><p className="mt-5 text-xs font-semibold uppercase tracking-wide text-blue-100">{t.image_studio_templates_label}</p><div className="mt-2 flex flex-wrap gap-2">{templates.map(([r, key, baseKey]) => <button key={r} onClick={() => { setRatio(r); setPrompt(`${t[baseKey]} ${prompt || t.image_studio_prompt_fallback_product}${t.image_studio_prompt_suffix}`); }} className="rounded-full bg-white/15 px-3 py-2 text-xs font-semibold transition hover:bg-white/30">{t[key]} </button>)}</div></section>
     <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"><h2 className="text-lg font-bold text-gray-900">{t.image_studio_from_strategy}</h2><select value={selectedProject} onChange={(e) => setSelectedProject(e.target.value)} className="mt-3 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"><option value="">{t.image_studio_select_project}</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}</select>{strategyPrompts.length > 0 && <><p className="mt-4 text-sm font-semibold text-gray-700">{t.image_studio_prompts_generated}</p><div className="mt-2 flex flex-wrap gap-2">{strategyPrompts.map((p) => <button key={p} onClick={() => setPrompt(p)} className="rounded-full bg-blue-50 px-3 py-2 text-left text-xs text-blue-700 transition hover:bg-blue-100">{p}</button>)}</div></>}</section>
     {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{t.image_studio_error} <button onClick={() => void generate()} className="ml-3 font-bold underline">{t.analysis_retry}</button></div>}

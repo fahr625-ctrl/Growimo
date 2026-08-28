@@ -14,6 +14,7 @@ import { ImageStudio } from '~/components/ImageStudio';
 import { PrioritizeCard } from '~/components/PrioritizeCard';
 import { ActionPlanCard } from '~/components/ActionPlanCard';
 import { summarizeBrief } from '~/ai/strategy-brief';
+import { extractStrategyImage, saveStrategyPrefill } from '~/lib/strategy-image';
 
 const CONTENT_TYPE_CONFIG: Record<ContentType, { icon: string; color: string }> = {
   pinterest_pin: { icon: '📌', color: 'bg-red-100 text-red-700' },
@@ -217,6 +218,12 @@ function ContentCard({ content, productIdea, strategyContext }: { content: Store
       document.execCommand('copy');
       document.body.removeChild(textarea);
     }
+    const strategyImage = extractStrategyImage(display.body, display.contentType);
+    const openImageStudio = () => {
+      if (!strategyImage) return;
+      saveStrategyPrefill(strategyImage);
+      window.location.href = `/app/image-studio?fromStrategy=1`;
+    };
     setCopied(true);
     try { trackEvent('content_exported'); } catch {}
     setTimeout(() => setCopied(false), 2000);
@@ -248,6 +255,18 @@ function ContentCard({ content, productIdea, strategyContext }: { content: Store
         <div className="border-t border-gray-100 px-5 py-4">
           <h4 className="mb-2 text-base font-bold text-gray-900">{display.title}</h4>
           <pre className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700 font-sans">{display.body}</pre>
+          {strategyImage && (
+            <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+              <button
+                type="button"
+                onClick={openImageStudio}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:opacity-95 hover:shadow-lg"
+              >
+                🎨 {t.image_studio_create_from_strategy}
+              </button>
+              <p className="mt-2 text-xs text-blue-700">{t.image_studio_create_from_strategy_hint}</p>
+            </div>
+          )}
           {showScore && (
             <div className="mt-3">
               <ScoreCard

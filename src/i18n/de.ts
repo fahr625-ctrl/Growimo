@@ -649,6 +649,14 @@ export const de = {
   dashboard_tools_image_studio: '🎨 Image Studio', dashboard_tools_image_studio_desc: 'KI-Bilder, Pinterest Pins & Etsy Mockups generieren', image_studio_open_full: 'Im Image Studio öffnen',
   image_studio_format_pinterest: 'Pinterest Pin', image_studio_format_etsy: 'Etsy Produkt-Mockup', image_studio_format_instagram: 'Instagram-Beitrag', image_studio_format_blog: 'Blog-Hero-Bild',
   image_studio_alt_placeholder: '%s Platzhalter', image_studio_download_svg: 'SVG herunterladen', image_studio_copy_prompt_title: 'Generierungsprompt kopieren', image_studio_copied: 'Kopiert!', image_studio_api_required: 'Verbinde eine Bild-API, um dies zu aktivieren',
+  image_studio_create_from_strategy: '🎨 Im Image Studio erstellen',
+  image_studio_create_from_strategy_hint: 'Der KI-Bild-Prompt aus deiner Strategie wird direkt ins Image Studio übernommen — nichts kopieren, direkt generieren.',
+  image_studio_from_strategy_badge: 'Aus deiner Strategie übernommen',
+  image_studio_from_strategy_info: 'Alle Angaben sind bereits vorausgefüllt. Passe sie bei Bedarf an oder klicke direkt auf „Generieren“.',
+  image_studio_strategy_platform: 'Plattform',
+  image_studio_strategy_concept: 'Bildkonzept',
+  image_studio_strategy_overlay: 'Text-Overlay',
+  image_studio_strategy_brand: 'Marke (aus Markenprofil)',
 
   // ── TikTok-Bereich: Kachel, Sidebar, Route, 3 Modi ──────────────────────────
   sidebar_tiktok: '🎵 TikTok',
