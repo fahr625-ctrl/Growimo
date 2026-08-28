@@ -30,7 +30,9 @@ export interface TikTokMetrics {
 
 export interface TikTokInput {
   mode: TikTokMode;
-  biz: string; // kurze Unternehmens-/Produktbeschreibung (Pflicht)
+  biz: string; // kurze Unternehmens-/Produktbeschreibung (Pflicht, ODER brandContext vorhanden)
+  brandContext?: string; // MARKENKONTEXT-Faktenbasis aus dem Markenprofil (autoritativ)
+  history?: string[]; // zuletzt generierte Hooks/Ideen — NIE wiederholen
   goal?: string; // Reichweite | Follower | Verkäufe | Community
   audience?: string; // optionale Zielgruppe
   topic?: string; // nur concept
@@ -75,6 +77,9 @@ Rules:
 - Output must be in English.
 - Be concrete, specific and practical. Never generic ("make a fun video" is forbidden). Every idea must be so concrete that the user could film it directly (specific scenes, what to show and say).
 - Tie everything to the business/goal/audience provided. Never invent anything that is not in the business description: no features, offers, prices, or claims that do not follow from it.
+- FACT CONTROL (hard rule): Use ONLY facts from the MARKENKONTEXT (or what the user explicitly provided). NEVER invent buttons, features, results, customers, downloads, views, likes, success stories, testimonials or any metric. If a piece of information is missing, develop an idea that works WITHOUT that claim instead of inventing details. Growimo must never claim anything that is not in the MARKENKONTEXT as a known fact.
+- Content intelligence: when choosing an angle, FIRST search for the most interesting TRUE content angle, prioritized like this: current problem → challenge → experiment → mistake/lesson → behind-the-scenes → how the product was built → customer problem → surprising insight → live demonstration of an actually existing feature → progress/development. Story and curiosity take priority over product advertising. If the MARKENKONTEXT reveals an authentic tension (e.g. "beta launched but barely any testers"), build an honest story around that real situation instead of generic promotion.
+- Do NOT repeat ideas/hooks from the provided "previously generated" list.
 - Prefer AUTHENTIC TikTok formats: problem → attempt → result, behind-the-scenes, experiment, mistake/lesson, before/after, challenge, surprising insight, concrete demonstration, story. Story and curiosity take priority over advertising.
 - The product must NOT be pitched immediately. It may appear ONLY if it fits naturally into the story/demo/experiment — never as the video's actual purpose.
 - For simple concepts default to SHORT videos of about 8–20 seconds. Only go longer if the story genuinely justifies the extra content — set the length field accordingly.
@@ -91,6 +96,7 @@ Rules:
 Internal quality self-check BEFORE output:
 - Ask yourself: "Could this idea be used almost unchanged for 100 other businesses?" If yes — discard it and develop a more specific one.
 - Ask yourself: "Is this mostly advertising?" If yes — convert it into a story, demonstration, experiment, or genuinely valuable content BEFORE outputting.
+- FACT CHECK: Does every specific claim (feature, button, number, result, customer, metric) actually appear in the MARKENKONTEXT or was it provided by the user? If anything is missing or not provable — remove or replace it with an idea that does not depend on that claim BEFORE outputting. Never invent facts.
 
 JSON schema exactly:
 {
@@ -113,6 +119,9 @@ Regeln:
 - Ausgabe vollständig auf Deutsch.
 - Sei konkret, spezifisch und praktisch. Niemals generisch („Mach ein lustiges Video" ist verboten). Jede Idee muss so konkret sein, dass der Nutzer sie direkt filmen kann (konkrete Szenen, was zu sehen/zu sagen ist).
 - Alles auf Unternehmen/Ziel/Zielgruppe abstimmen. Erfinde nichts, was nicht in der Unternehmensbeschreibung steht: keine Funktionen, Angebote, Preise oder Behauptungen, die nicht daraus hervorgehen.
+- FAKTENKONTROLLE (harte Regel): Verwende AUSSCHLIESSLICH Fakten aus dem MARKENKONTEXT (oder was der Nutzer explizit angegeben hat). Erfinde NIEMALS Buttons, Funktionen, Ergebnisse, Kunden, Downloads, Views, Likes, Erfolgsgeschichten, Testimonials oder irgendeine Metrik. Wenn eine Information fehlt, entwickle eine Idee, die OHNE diese Behauptung funktioniert, statt Details zu erfinden. Growimo darf nichts behaupten, was nicht als bekannte Tatsache im MARKENKONTEXT steht.
+- Inhalts-Intelligenz: Suche zuerst intern nach dem interessantesten ECHTEN Content-Winkel, priorisiert so: aktuelles Problem → Herausforderung → Experiment → Fehler/Learning → Behind the Scenes → Produktentstehung → Kundenproblem → überraschende Erkenntnis → Demonstration einer tatsächlich vorhandenen Funktion → Fortschritt/Entwicklung. Story und Neugier haben Vorrang vor Produktwerbung. Wenn der MARKENKONTEXT eine authentische Spannung zeigt (z. B. „Beta gestartet, aber kaum Tester"), baue eine ehrliche Story um diese reale Situation statt generischer Werbung.
+- Wiederhole KEINE Ideen/Hooks aus der übergebenen Liste „zuvor generiert".
 - Bevorzuge AUTHENTISCHE TikTok-Formate: Problem → Versuch → Ergebnis, Behind-the-Scenes, Experiment, Fehler/Learning, Vorher/Nachher, Challenge, überraschende Erkenntnis, konkrete Demonstration, Story. Story und Neugier haben Vorrang vor Werbung.
 - Das Produkt darf NICHT sofort beworben werden. Es darf NUR auftauchen, wenn es natürlich in die Story/Demo/Experiment passt — nicht als eigentlicher Zweck des Videos.
 - Für einfache Konzepte standardmäßig KURZE Videos von ca. 8–20 Sekunden. Länger NUR, wenn die Story den zusätzlichen Inhalt wirklich rechtfertigt — setze das length-Feld entsprechend.
@@ -129,6 +138,7 @@ Regeln:
 Interne Qualitäts-Selbstprüfung VOR der Ausgabe:
 - Prüfe: „Könnte diese Idee nahezu unverändert auch für 100 andere Unternehmen verwendet werden?" → Wenn ja: Idee verwerfen und eine spezifischere entwickeln.
 - Prüfe: „Ist dies hauptsächlich Werbung?" → Wenn ja: nach Möglichkeit in Story, Demonstration, Experiment oder echten Mehrwert-Content umwandeln, BEVOR ausgegeben wird.
+- FAKTENABGLEICH: Steht jede konkrete Behauptung (Funktion, Button, Zahl, Ergebnis, Kunde, Metrik) tatsächlich im MARKENKONTEXT oder hat der Nutzer sie angegeben? Wenn etwas fehlt oder nicht belegbar ist — entferne oder ersetze es durch eine Idee, die ohne diese Behauptung funktioniert, BEVOR du ausgibst. Erfinde niemals Fakten.
 
 JSON-Schema exakt:
 {
@@ -217,7 +227,13 @@ function pickSystemPrompt(mode: TikTokMode, lang: TikTokLang): string {
 function buildUserPrompt(input: TikTokInput, lang: TikTokLang): string {
   const de = lang === 'de';
   const lines: string[] = [];
-  lines.push(de ? 'Unternehmen / Produkt (kurz):' : 'Business / product (short):', input.biz);
+  if (input.brandContext) {
+    lines.push(de ? 'MARKENKONTEXT (authoritative Faktenbasis — NUR diese Fakten verwenden, NICHTS erfinden):' : 'BRAND CONTEXT (authoritative fact base — use ONLY these facts, invent nothing):');
+    lines.push(input.brandContext);
+  }
+  if (input.biz) {
+    lines.push(de ? 'Unternehmen / Produkt (kurz):' : 'Business / product (short):', input.biz);
+  }
   if (input.goal) {
     lines.push(de ? 'Ziel:' : 'Goal:', input.goal);
   }
@@ -241,6 +257,14 @@ function buildUserPrompt(input: TikTokInput, lang: TikTokLang): string {
     lines.push(label(de ? 'Kommentare' : 'Comments', String(m.comments)));
     lines.push(label(de ? 'Shares' : 'Shares', String(m.shares)));
     lines.push(label(de ? 'Profilaufrufe' : 'Profile visits', String(m.profileVisits)));
+  }
+  if (input.history && input.history.length > 0) {
+    lines.push(
+      de
+        ? 'Zuvor generierte Hooks/Ideen (diese NICHT wiederholen, weder denselben noch einen ähnlichen Hook/Story):'
+        : 'Previously generated hooks/ideas (do NOT repeat these — neither the same nor a similar hook/story):'
+    );
+    lines.push(input.history.join('\n'));
   }
   lines.push(de ? 'Antworte nur mit dem JSON-Schema.' : 'Answer with the JSON schema only.');
   return lines.join('\n');

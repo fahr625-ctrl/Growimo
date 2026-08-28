@@ -728,6 +728,8 @@ export const generateTikTokServer = createServerFn({ method: 'POST' })
     const d = input as {
       mode?: unknown;
       biz?: unknown;
+      brandContext?: unknown;
+      history?: unknown;
       goal?: unknown;
       audience?: unknown;
       topic?: unknown;
@@ -739,9 +741,20 @@ export const generateTikTokServer = createServerFn({ method: 'POST' })
     if (mode !== 'todayIdea' && mode !== 'concept' && mode !== 'diagnose') {
       throw new Error('mode is required');
     }
+    const brandContext =
+      typeof d.brandContext === 'string' && d.brandContext.trim() ? d.brandContext.trim() : undefined;
+    // biz ist Pflicht ODER ein (vollständiges) Markenprofil liefert die Fakten via brandContext.
     if (typeof d.biz !== 'string' || !d.biz.trim()) {
-      throw new Error('biz (Unternehmensbeschreibung) ist erforderlich');
+      if (!brandContext) {
+        throw new Error('biz (Unternehmensbeschreibung) oder ein Markenprofil ist erforderlich');
+      }
     }
+    const history = Array.isArray(d.history)
+      ? d.history
+          .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+          .map((x) => x.trim())
+          .slice(0, 10)
+      : undefined;
     const metrics: TikTokInput['metrics'] =
       mode === 'diagnose' && d.metrics && typeof d.metrics === 'object'
         ? {
@@ -758,7 +771,9 @@ export const generateTikTokServer = createServerFn({ method: 'POST' })
         : undefined;
     return {
       mode,
-      biz: d.biz.trim(),
+      biz: typeof d.biz === 'string' ? d.biz.trim() : '',
+      brandContext,
+      history,
       goal: typeof d.goal === 'string' && d.goal.trim() ? d.goal.trim() : undefined,
       audience: typeof d.audience === 'string' && d.audience.trim() ? d.audience.trim() : undefined,
       topic: typeof d.topic === 'string' && d.topic.trim() ? d.topic.trim() : undefined,

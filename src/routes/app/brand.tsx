@@ -25,22 +25,27 @@ function BrandPage() {
 const TONE_OPTIONS = [
   { value: '' },
   { value: 'professionell' },
-  { value: 'freundlich' },
-  { value: 'verspielt' },
-  { value: 'luxuriös' },
-  { value: 'lässig' },
+  { value: 'locker' },
+  { value: 'emotional' },
+  { value: 'frech' },
+  { value: 'inspirierend' },
 ] as const;
 
 const EMPTY_PROFILE: BrandProfile = {
   brandName: '',
+  website: '',
   tagline: '',
   tone: '',
   targetAudience: '',
   uniqueSellingPoint: '',
+  offerings: '',
+  mainGoal: '',
+  statusChallenge: '',
   brandColors: '',
   competitors: '',
   products: [],
   avoidTopics: '',
+  neverClaim: '',
   brandVoice: '',
   lastUpdated: '',
 };
@@ -117,6 +122,20 @@ function BrandContent() {
             </div>
             <div>
               <label className="mb-1.5 block text-xs font-semibold text-gray-600">
+                {t.brand_website}
+              </label>
+              <input
+                type="text"
+                value={profile.website}
+                onChange={(e) =>
+                  setProfile((p) => ({ ...p, website: e.target.value }))
+                }
+                placeholder={t.brand_website_placeholder}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-gray-600">
                 {t.brand_tagline}
               </label>
               <input
@@ -129,6 +148,37 @@ function BrandContent() {
                 className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-gray-600">
+                {t.brand_status_challenge}
+              </label>
+              <input
+                type="text"
+                value={profile.statusChallenge}
+                onChange={(e) =>
+                  setProfile((p) => ({ ...p, statusChallenge: e.target.value }))
+                }
+                placeholder={t.brand_status_placeholder}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+            </div>
+          </div>
+          <div className="mt-4">
+            <label className="mb-1.5 block text-xs font-semibold text-gray-600">
+              {t.brand_offerings}
+            </label>
+            <textarea
+              value={profile.offerings}
+              onChange={(e) =>
+                setProfile((p) => ({ ...p, offerings: e.target.value }))
+              }
+              rows={3}
+              placeholder={t.brand_offerings_placeholder}
+              className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            />
+            <p className="mt-1 text-[11px] text-gray-400">
+              {t.brand_offerings_hint}
+            </p>
           </div>
         </div>
 
@@ -154,6 +204,25 @@ function BrandContent() {
                     {opt.value === '' ? '—' : toneLabel(t, opt.value)}
                   </option>
                 ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-gray-600">
+                {t.brand_main_goal}
+              </label>
+              <select
+                value={profile.mainGoal}
+                onChange={(e) =>
+                  setProfile((p) => ({ ...p, mainGoal: e.target.value }))
+                }
+                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              >
+                <option value="">{t.brand_main_goal_placeholder}</option>
+                <option value="Reichweite">{t.brand_main_goal_reach}</option>
+                <option value="Follower">{t.brand_main_goal_followers}</option>
+                <option value="Leads">{t.brand_main_goal_leads}</option>
+                <option value="Verkäufe">{t.brand_main_goal_sales}</option>
+                <option value="Bekanntheit">{t.brand_main_goal_awareness}</option>
               </select>
             </div>
             <div>
@@ -277,6 +346,23 @@ function BrandContent() {
                 placeholder={t.brand_avoid_placeholder}
                 className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-gray-600">
+                {t.brand_never_claim}
+              </label>
+              <textarea
+                value={profile.neverClaim}
+                onChange={(e) =>
+                  setProfile((p) => ({ ...p, neverClaim: e.target.value }))
+                }
+                rows={2}
+                placeholder={t.brand_never_claim_placeholder}
+                className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+              <p className="mt-1 text-[11px] text-gray-400">
+                {t.brand_never_claim_hint}
+              </p>
             </div>
           </div>
         </div>

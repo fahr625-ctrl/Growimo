@@ -22,6 +22,11 @@ const TONE_KEYS: Record<string, keyof Translations> = {
   verspielt: 'tone_playful',
   luxuriös: 'tone_luxury',
   lässig: 'tone_casual',
+  // NEU: neue Markenprofil-Tonalitäten (professionell / locker / emotional / frech / inspirierend)
+  locker: 'tone_locker',
+  emotional: 'tone_emotional',
+  frech: 'tone_frech',
+  inspirierend: 'tone_inspiring',
 };
 
 /** Localized display label for a tone value. */

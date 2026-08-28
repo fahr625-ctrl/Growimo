@@ -6,6 +6,32 @@ import { useTranslation } from '~/i18n';
 import { track } from '~/lib/tracking-client';
 import type { TikTokDiagnoseResult, TikTokIdeaResult, TikTokMode, TikTokResult } from '~/ai/tiktok';
 import { generateTikTokServer } from '~/ai/server';
+import {
+  getBrandProfile,
+  getBrandContext,
+  isBrandProfileComplete,
+  type BrandProfile,
+} from '~/store/brand';
+
+/** localStorage-Historie der zuletzt generierten TikTok-Ideen (Hooks). Max 10. */
+const TIKTOK_HISTORY_KEY = 'growimo_tiktok_history';
+const TIKTOK_HISTORY_MAX = 10;
+function loadTikTokHistory(): string[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(TIKTOK_HISTORY_KEY) || '[]');
+    return Array.isArray(raw) ? raw.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+function pushTikTokHistory(hook: string): void {
+  try {
+    const h = [hook.trim(), ...loadTikTokHistory().filter((x) => x.trim() !== hook.trim())];
+    localStorage.setItem(TIKTOK_HISTORY_KEY, JSON.stringify(h.slice(0, TIKTOK_HISTORY_MAX)));
+  } catch {
+    /* localStorage unavailable */
+  }
+}
 
 /**
  * TikTok-Bereich: eigenständige, geführte Route (kein leerer Chat).
@@ -137,16 +163,37 @@ function TikTokContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [result, setResult] = useState<TikTokResult | null>(null);
+  const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null);
 
   useEffect(() => {
     track('tiktok_area_opened', user?.id);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [user?.id]);
 
+  // Markenprofil laden und das Formular (biz/audience) automatisch vorausfüllen.
+  useEffect(() => {
+    const profile = getBrandProfile();
+    if (profile) {
+      setBrandProfile(profile);
+      setBiz((prev) => {
+        if (prev.trim()) return prev;
+        const src = profile.offerings?.trim() || profile.tagline?.trim();
+        return src || profile.uniqueSellingPoint?.trim() || '';
+      });
+      setAudience((prev) => (prev.trim() ? prev : profile.targetAudience?.trim() || ''));
+    }
+  }, []);
+
+  const brandReady = isBrandProfileComplete(brandProfile);
+
   const metric = (k: keyof typeof metrics) => Number(metrics[k]) || 0;
 
   const run = async (mode: TikTokMode) => {
-    if (!biz.trim()) { setError(true); return; }
+    const brandContext = getBrandContext();
+    if (!biz.trim() && !brandContext) {
+      setError(true);
+      return;
+    }
     let valid = true;
     if (mode === 'concept' && !topic.trim()) valid = false;
     if (mode === 'diagnose' && metrics.views.trim() === '') valid = false;
@@ -158,7 +205,9 @@ function TikTokContent() {
       const payload = {
         mode,
         biz: biz.trim(),
-        goal: goal || undefined,
+        brandContext,
+        history: loadTikTokHistory(),
+        goal: goal || (brandProfile?.mainGoal?.trim() || undefined),
         audience: audience.trim() || undefined,
         topic: mode === 'concept' ? topic.trim() : undefined,
         metrics: mode === 'diagnose'
@@ -176,6 +225,7 @@ function TikTokContent() {
       };
       const res = await generateTikTokServer({ data: payload });
       setResult(res);
+      if (res.mode !== 'diagnose') pushTikTokHistory(res.hook);
       if (mode === 'diagnose') track('tiktok_diagnosed', user?.id);
       else track('tiktok_created', user?.id, { mode });
     } catch {
@@ -213,6 +263,16 @@ function TikTokContent() {
         <h1 className="text-3xl font-bold text-gray-900">{t.tiktok_page_title}</h1>
         <p className="mt-2 text-gray-500">{t.tiktok_page_subtitle}</p>
       </header>
+
+      {/* Hinweis, wenn ein (vollständiges) Markenprofil aktiv ist */}
+      {brandReady && brandProfile && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          <span>{t.tiktok_brand_hint.replace('%s', brandProfile.brandName)}</span>
+          <Link to="/app/brand" className="shrink-0 font-bold text-blue-700 underline hover:text-blue-900">
+            {t.tiktok_brand_edit}
+          </Link>
+        </div>
+      )}
 
       {/* Schritt 1 — Unternehmens-Angaben */}
       <section className="rounded-2xl bg-gradient-to-r from-cyan-600 to-teal-600 p-6 text-white shadow-lg">
