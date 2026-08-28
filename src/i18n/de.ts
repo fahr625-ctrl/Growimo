@@ -1307,6 +1307,7 @@ export const de = {
     'Jeder Kanal nutzt denselben Kern — mit eigenem F1-Qualitäts-Score und einem Klick „Verbessern“.',
   package_result_badge: 'Fertiges Paket',
   package_channel_failed: 'Dieser Kanal konnte nicht generiert werden und wurde übersprungen.',
+  package_channel_generating: 'Dieser Kanal wird gerade generiert…',
   package_overview_title: 'Paket-Überblick',
   package_overview_subtitle: 'Das Wesentliche auf einen Blick',
   package_overview_product: 'Produkt(idee)',

@@ -715,6 +715,80 @@ export const generatePackageServer = createServerFn({ method: 'POST' })
     return pkg;
   });
 
+// ── Problem 2: Progressive Marketing-Paket (client-side streaming) ────────────
+// Instead of one blocking call that waits for all 5 channels, the client:
+//   1. fetchPackageKernelServer → shared kernel + context (fast, 1 LLM call),
+//   2. generatePackageChannelServer × 5 in PARALLEL, rendering each the moment
+//      its Promise resolves,
+//   3. finalizePackagePrioritiesServer → deterministic F3 prioritization.
+export const fetchPackageKernelServer = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const d = input as { productIdea?: unknown; lang?: unknown; brief?: unknown; userId?: unknown };
+    if (!d || typeof d !== 'object') throw new Error('data is required');
+    if (typeof d.productIdea !== 'string' || !d.productIdea.trim()) throw new Error('productIdea is required');
+    let brief: Record<string, string> | null = null;
+    if (d.brief && typeof d.brief === 'object') {
+      brief = {};
+      for (const [k, v] of Object.entries(d.brief as Record<string, unknown>)) {
+        if (typeof v === 'string' && v.trim()) brief[k] = v.trim();
+      }
+      if (Object.keys(brief).length === 0) brief = null;
+    }
+    return {
+      productIdea: d.productIdea.trim(),
+      lang: (d.lang === 'en' ? 'en' : 'de') as 'de' | 'en',
+      brief,
+      userId: typeof d.userId === 'string' && d.userId ? d.userId : undefined,
+    };
+  })
+  .handler(async ({ data }) => {
+    console.log('[server.fetchPackageKernel] idea:', data.productIdea.slice(0, 80));
+    const { preparePackageContext } = await import('./package/package');
+    return preparePackageContext(data.productIdea, {
+      lang: data.lang,
+      brief: data.brief,
+      userId: data.userId,
+    });
+  });
+export const generatePackageChannelServer = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const d = input as { productIdea?: unknown; contentType?: unknown; context?: unknown };
+    if (!d || typeof d !== 'object') throw new Error('data is required');
+    if (typeof d.productIdea !== 'string' || !d.productIdea.trim()) throw new Error('productIdea is required');
+    const ct = d.contentType;
+    const allowed: ContentType[] = ['pinterest_pin', 'etsy_listing', 'seo_blog', 'social_post', 'email_newsletter'];
+    if (typeof ct !== 'string' || !(allowed as string[]).includes(ct)) throw new Error('contentType is required');
+    return {
+      productIdea: d.productIdea.trim(),
+      contentType: ct as ContentType,
+      context: typeof d.context === 'string' ? d.context : '',
+    };
+  })
+  .handler(async ({ data }) => {
+    console.log('[server.generatePackageChannel] channel:', data.contentType);
+    const { generatePackageChannelWithContext } = await import('./package/package');
+    return generatePackageChannelWithContext(data.contentType, data.productIdea, data.context);
+  });
+export const finalizePackagePrioritiesServer = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const d = input as { channels?: unknown; lang?: unknown };
+    if (!d || typeof d !== 'object') throw new Error('data is required');
+    return {
+      channels: (d.channels as Record<string, ContentResult | null>) ?? {},
+      lang: (d.lang === 'en' ? 'en' : 'de') as 'de' | 'en',
+    };
+  })
+  .handler(async ({ data }): Promise<PrioritizeOutcome | null> => {
+    const { prioritizeChannelsSync } = await import('./prioritize');
+    const assets: PrioritizeAsset[] = Object.entries(data.channels)
+      .filter(([, c]) => c && typeof c === 'object' && 'title' in (c as object))
+      .map(([key, c]) => {
+        const cc = c as ContentResult;
+        return { channel: key as ContentType, qualityScore: cc.score?.total ?? null, title: cc.title };
+      });
+    if (assets.length < 2) return null;
+    return prioritizeChannelsSync(assets, data.lang);
+  });
 /**
  * TikTok-Bereich: eigenständige Server-Fn für die drei Modi (todayIdea /
  * concept / diagnose). Ruft die gleiche GPT-4o-Engine wie der Rest der App

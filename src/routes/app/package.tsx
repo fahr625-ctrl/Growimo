@@ -1,9 +1,9 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { generatePackageServer } from '~/ai/server';
-import type { ContentResult, ContentType, ImproveOutcome, VariantAsset } from '~/ai/types';
-import type { MarketingPackage } from '~/ai/package/package';
+import { generatePackageChannelServer, fetchPackageKernelServer, finalizePackagePrioritiesServer } from '~/ai/server';
+import type { ContentResult, ContentType, ImproveOutcome, PrioritizeOutcome, VariantAsset } from '~/ai/types';
+import type { MarketingPackage, PreparedPackage } from '~/ai/package/package';
 import { hasBriefAnswers } from '~/ai/strategy-brief';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { StrategyBrief } from '~/components/StrategyBrief';
@@ -163,41 +163,79 @@ function PackageContent() {
     if (!productIdea.trim()) return;
     const uid = user?.id ?? 'anonymous';
     setErrorMessage(null);
-
     if (!canGenerate(uid)) {
       setShowUpsell(true);
       return;
     }
-
     setIsLoading(true);
     setPkg(null);
     setSavedProjectId(null);
-
+    const startedAt = Date.now();
     try {
-      // F6: Strategie-Brief wird durchgereicht (optional — ohne Brief exakt wie F4).
-      const result = (await generatePackageServer({
+      // 1. Shared kernel + combined context (F6 Brief wird durchgereicht) —
+      //    EIN schneller LLM-Call, der die Ergebnisansicht sofort aufmacht.
+      const prep = (await fetchPackageKernelServer({
         data: { productIdea, lang: locale, brief },
-      })) as MarketingPackage;
-      setPkg(result);
+      })) as unknown as PreparedPackage;
+      const seed: MarketingPackage = {
+        kernel: prep.kernel,
+        kernelFallback: prep.kernelFallback,
+        lang: prep.lang,
+        channels: { pinterest: null, etsy: null, seo: null, social: null, newsletter: null },
+        prioritized: null,
+      };
+      setPkg(seed);
+      // 2. Alle fünf Kanäle PARALLEL feuern; jedes fertig generierte Modul wird
+      //    SOFORT gerendert (progressive Darstellung, kein 2-Minuten-Warten).
+      const acc: MarketingPackage['channels'] = {
+        pinterest: null, etsy: null, seo: null, social: null, newsletter: null,
+      };
+      await Promise.all(
+        CHANNEL_META.map(async ({ key, contentType }) => {
+          try {
+            const res = (await generatePackageChannelServer({
+              data: { productIdea, contentType, context: prep.context },
+            })) as ContentResult;
+            acc[key] = res;
+          } catch (err) {
+            console.error('[package] channel ' + key + ' failed:', err);
+            acc[key] = null;
+          }
+          setPkg((p) => p ? { ...p, channels: { ...acc } } : p);
+        }),
+      );
+      // 3. F3 Priorisierung (deterministisch, kein weiterer LLM-Call).
+      let prioritized: PrioritizeOutcome | null = null;
+      try {
+        prioritized = (await finalizePackagePrioritiesServer({
+          data: { channels: acc, lang: locale },
+        })) as PrioritizeOutcome | null;
+      } catch (err) {
+        console.error('[package] finalize priorities failed:', err);
+      }
+      setPkg((p) => p ? { ...p, prioritized } : p);
+      const okCount = Object.values(acc).filter(Boolean).length;
       recordGeneration(uid);
       try {
-        trackEvent('package_created', { channels: Object.values(result.channels).filter(Boolean).length });
+        trackEvent('package_created', { channels: okCount, ms: Date.now() - startedAt });
       } catch {
         // ignore analytics errors
       }
-      // Server-side beta-tracking (additive): a Pinterest pin was generated as a
-      // package channel.
-      if (result.channels.pinterest) {
-        track('pinterest_pin_created', uid, { channel: 'pinterest_pin', source: 'package' });
+      if (acc.pinterest) {
+        try {
+          track('pinterest_pin_created', uid, { channel: 'pinterest_pin', source: 'package' });
+        } catch {
+          // ignore
+        }
       }
     } catch (error) {
       console.error('Package generation failed:', error);
-      const message = t.common_unknown_error;
-      setErrorMessage(message);
+      setErrorMessage(t.common_unknown_error);
     } finally {
       setIsLoading(false);
     }
   }, [productIdea, user?.id, locale, brief]);
+
 
   // ── Save package as a project (all channels persisted like QuickGenerator) ──
   const handleSaveProject = useCallback(async () => {
@@ -374,7 +412,7 @@ function PackageContent() {
       </div>
 
       {/* Loading */}
-      {isLoading && (
+      {isLoading && !pkg && (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-200 bg-white py-16 shadow-sm">
           <div className="relative mb-6">
             <div className="h-16 w-16 animate-spin rounded-full border-4 border-fuchsia-200 border-t-fuchsia-600" />
@@ -401,8 +439,8 @@ function PackageContent() {
         </div>
       )}
 
-      {/* Result */}
-      {!isLoading && pkg && (
+      {/* Result (progressiv — wird gerendert, sobald der Kernel da ist; fertige Kanäle erscheinen sofort) */}
+      {pkg && (
         <div className="space-y-5">
           {/* Result header + save */}
           <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -533,12 +571,12 @@ function PackageContent() {
                   return (
                     <div
                       key={key}
-                      className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-5 py-4 text-sm text-gray-500"
+                      className={`rounded-2xl border border-dashed px-5 py-4 text-sm ${isLoading ? 'animate-pulse border-fuchsia-200 bg-fuchsia-50/50 text-fuchsia-600' : 'border-gray-300 bg-gray-50 text-gray-500'}`}
                     >
                       <span className={`mr-2 inline-flex h-8 w-8 items-center justify-center rounded-lg text-base ${color}`}>
                         {icon}
                       </span>
-                      {contentTypeLabel(t, contentType)} — {t.package_channel_failed}
+                      {contentTypeLabel(t, contentType)} — {isLoading ? t.package_channel_generating : t.package_channel_failed}
                     </div>
                   );
                 }

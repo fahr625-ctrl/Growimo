@@ -13,7 +13,7 @@ export async function generateContent(
     console.log('[generate] Using explicit provider:', config.provider, 'configured:', provider.isConfigured());
     if (provider.isConfigured()) {
       const result = await provider.generate(request, config);
-      return attachScore(request, result);
+      return attachScore(request, await applyMetricGuard(request, result));
     }
   }
 
@@ -24,7 +24,7 @@ export async function generateContent(
     const providerConfig: AIConfig = config ?? { provider: 'openai' };
     console.log('[generate] Using provider:', configured[0].name);
     const result = await configured[0].generate(request, providerConfig);
-    return attachScore(request, result);
+    return attachScore(request, await applyMetricGuard(request, result));
   }
 
   // Never silently fall back to placeholder/demo content. Without a configured
@@ -58,5 +58,33 @@ async function attachScore(
   } catch (err) {
     console.error('[generate] Scoring failed, returning unscored content:', err);
     return { ...result, score: null };
+  }
+}
+
+/**
+ * Problem 3: Post-Generation-Guard gegen unbelegte Metrik-Claims.
+ * Scanner + Neutralisierer, laeuft auf dem Import-Pfad von generateContent,
+ * deckt damit Einzel-Kanaele UND alle Paket-Kanaele ab. Wirft nie — bei Fehler
+ * bleibt der Originaltext erhalten. `userContext` = Nutzer-/Produktfakten, so
+ * dass Echtdaten des Nutzers nie entfernt werden.
+ */
+async function applyMetricGuard(
+  request: ContentRequest,
+  result: ContentResult,
+): Promise<ContentResult> {
+  try {
+    const { sanitizeUnbackedMetrics } = await import('./metric-guard');
+    const userContext = [request.productIdea, request.additionalContext ?? '']
+      .filter(Boolean)
+      .join('\n');
+    const cleanedBody = await sanitizeUnbackedMetrics(result.body, userContext);
+    if (cleanedBody.text !== result.body) {
+      console.log('[generate] Metric-Guard neutralisierte unbelegte Kennzahlen fuer', request.contentType);
+      return { ...result, body: cleanedBody.text };
+    }
+    return result;
+  } catch (err) {
+    console.error('[generate] Metric-Guard skipped:', err);
+    return result;
   }
 }

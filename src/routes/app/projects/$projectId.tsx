@@ -167,6 +167,13 @@ function ContentCard({ content, productIdea, strategyContext }: { content: Store
   const [expanded, setExpanded] = useState(true);
   const [showScore, setShowScore] = useState(false);
   const score = scoreFromMetadata(display.metadata);
+  // Hoisted: recomputed on display change (fixed scopeless image-studio button, Problem 1)
+  const strategyImage = extractStrategyImage(display.body, display.contentType);
+  const openImageStudio = () => {
+    if (!strategyImage) return;
+    saveStrategyPrefill(strategyImage);
+    window.location.href = `/app/image-studio?fromStrategy=1`;
+  };
   // F2: persist the improved asset (overwrite) so the new score survives reloads
   const handleImproved = async (outcome: ImproveOutcome) => {
     if (!outcome.improved || !outcome.improvedContent) return;
@@ -218,12 +225,6 @@ function ContentCard({ content, productIdea, strategyContext }: { content: Store
       document.execCommand('copy');
       document.body.removeChild(textarea);
     }
-    const strategyImage = extractStrategyImage(display.body, display.contentType);
-    const openImageStudio = () => {
-      if (!strategyImage) return;
-      saveStrategyPrefill(strategyImage);
-      window.location.href = `/app/image-studio?fromStrategy=1`;
-    };
     setCopied(true);
     try { trackEvent('content_exported'); } catch {}
     setTimeout(() => setCopied(false), 2000);

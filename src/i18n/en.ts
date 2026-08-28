@@ -1303,6 +1303,7 @@ export const en: typeof de = {
     'Every channel uses the same core — with its own F1 quality score and a one-click “Improve”.',
   package_result_badge: 'Finished package',
   package_channel_failed: 'This channel could not be generated and was skipped.',
+  package_channel_generating: 'This channel is currently being generated…',
   package_overview_title: 'Package overview',
   package_overview_subtitle: 'The essentials at a glance',
   package_overview_product: 'Product (idea)',

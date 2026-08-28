@@ -143,3 +143,69 @@ export async function generateMarketingPackage(
 
 // Re-export for the server function / UI.
 export type { ContentType };
+
+// ── Problem 2: Progressive client path (additive, keep batch flow intact) ─────
+// The batched generateMarketingPackage keeps its parallel Promise.all. For the
+// UI we additionally expose per-request building blocks so the client can
+// (1) fetch the shared kernel+context once and (2) fire the five channel
+// generations in parallel, rendering each the moment it resolves — instead of
+// waiting for the whole package. Nothing here changes the batch behaviour.
+export interface PreparedPackage {
+  kernel: MarketingKernel;
+  kernelFallback: boolean;
+  lang: 'de' | 'en';
+  /** Combined channel additionalContext (kernel + F6 brief + F9 perf + F10 learn). */
+  context: string;
+}
+export async function preparePackageContext(
+  productIdea: string,
+  opts: PackageOptions = {},
+): Promise<PreparedPackage> {
+  const lang: 'de' | 'en' = opts.lang === 'en' ? 'en' : 'de';
+  const kernel = await determineKernel(productIdea, opts.brief ?? null);
+  const kernelFallback = isFallbackKernel(kernel);
+  const briefContext = buildBriefContext(opts.brief ?? null, lang);
+  let perfContext = '';
+  if (opts.userId) {
+    try {
+      const { buildPerformanceOverview } = await import('../performance');
+      const { buildPerformanceContext } = await import('../performance/context');
+      const overview = await buildPerformanceOverview(opts.userId, { lang });
+      perfContext = buildPerformanceContext(overview, lang);
+      if (perfContext) console.log('[package] performance context injected into channels');
+    } catch (err) {
+      console.error('[package] performance context skipped:', err);
+      perfContext = '';
+    }
+  }
+  let learnContext = '';
+  if (opts.userId) {
+    try {
+      const { buildLearningProfile } = await import('../learning');
+      const { buildLearningContext } = await import('../learning/context');
+      const prefs = await buildLearningProfile(opts.userId);
+      learnContext = buildLearningContext(prefs, lang);
+      if (learnContext) console.log('[package] learning context injected into channels');
+    } catch (err) {
+      console.error('[package] learning context skipped:', err);
+      learnContext = '';
+    }
+  }
+  const context = [kernelContext(kernel), briefContext, perfContext, learnContext]
+    .filter(Boolean)
+    .join('\n\n');
+  return { kernel, kernelFallback, lang, context };
+}
+/** Generate ONE package channel with the shared precombined context. */
+export async function generatePackageChannelWithContext(
+  contentType: ContentType,
+  productIdea: string,
+  context: string,
+): Promise<ContentResult> {
+  const { generateContent } = await import('../generate');
+  return generateContent({
+    contentType,
+    productIdea,
+    additionalContext: context,
+  });
+}
