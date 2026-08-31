@@ -161,7 +161,7 @@ function TikTokContent() {
   const [metrics, setMetrics] = useState({ views: '', length: '', avgWatch: '', likes: '', comments: '', shares: '', profile: '' });
   const [activeMode, setActiveMode] = useState<TikTokMode | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [result, setResult] = useState<TikTokResult | null>(null);
   const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null);
 
@@ -191,14 +191,15 @@ function TikTokContent() {
   const run = async (mode: TikTokMode) => {
     const brandContext = getBrandContext();
     if (!biz.trim() && !brandContext) {
-      setError(true);
+      setErrorMessage(t.tiktok_error_brand);
       return;
     }
     let valid = true;
-    if (mode === 'concept' && !topic.trim()) valid = false;
-    if (mode === 'diagnose' && metrics.views.trim() === '') valid = false;
-    if (!valid) { setError(true); return; }
-    setError(false);
+    let validationMsg = '';
+    if (mode === 'concept' && !topic.trim()) { valid = false; validationMsg = t.tiktok_error_topic; }
+    if (mode === 'diagnose' && metrics.views.trim() === '') { valid = false; validationMsg = t.tiktok_error_metrics; }
+    if (!valid) { setErrorMessage(validationMsg); return; }
+    setErrorMessage(null);
     setLoading(true);
     setActiveMode(mode);
     try {
@@ -231,7 +232,7 @@ function TikTokContent() {
       else track('tiktok_created', user?.id, { mode });
     } catch (error) {
       console.error('[tiktok] generation failed:', error);
-      setError(true);
+      setErrorMessage(t.tiktok_error);
     } finally {
       setLoading(false);
     }
@@ -240,7 +241,7 @@ function TikTokContent() {
   const reset = () => {
     setResult(null);
     setActiveMode(null);
-    setError(false);
+    setErrorMessage(null);
   };
 
   const metricInput = (k: keyof typeof metrics, label: string, placeholder?: string) => (
@@ -360,15 +361,15 @@ function TikTokContent() {
       )}
 
       {/* Fehlerzustand */}
-      {error && !loading && (
+      {errorMessage && !loading && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-          {t.tiktok_error}
+          {errorMessage}
           <button onClick={() => activeMode && void run(activeMode)} className="ml-3 font-bold underline">{t.tiktok_retry}</button>
         </div>
       )}
 
       {/* Ergebnis */}
-      {result && !loading && !error && (
+      {result && !loading && !errorMessage && (
         <section>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-900">{activeMode === 'diagnose' ? t.tiktok_result_biggest : t.tiktok_result_idea}</h2>
