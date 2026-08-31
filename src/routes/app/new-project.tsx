@@ -7,6 +7,7 @@ import { CONTENT_TYPE_REGISTRY, getContentTypeConfig } from '~/ai/content-types'
 import { TONES, toneLabel } from '~/lib/tones';
 import { contentTypeLabel } from '~/lib/content-types';
 import { formatDate } from '~/lib/date';
+import { extractStrategyImage, saveStrategyPrefill } from '~/lib/strategy-image';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import AnalysisDashboard, { AnalysisPlaceholder } from '~/components/AnalysisDashboard';
 import BrandBadge from '~/components/BrandBadge';
@@ -1016,6 +1017,14 @@ function AccordionResults({
 
         // Market Intelligence is rendered inside AnalysisDashboard — skip standalone accordion
         if (isMarketIntel) return null;
+        // Prefill bridge — same logic as the project detail page (ContentCard) so the
+        // Image Studio opens pre-filled with the AI image prompt from this result.
+        const strategyImage = extractStrategyImage(result.body, result.contentType);
+        const openImageStudio = () => {
+          if (!strategyImage) return;
+          saveStrategyPrefill(strategyImage);
+          window.location.href = '/app/image-studio?fromStrategy=1';
+        };
 
         const cardClasses = isAnalysis
           ? 'overflow-hidden rounded-xl border border-blue-300 bg-gradient-to-r from-blue-50 to-purple-50 shadow-sm transition-all hover:shadow-md'
@@ -1109,6 +1118,18 @@ function AccordionResults({
                       <pre className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700 font-sans">
                         {result.body}
                       </pre>
+                      {strategyImage && (
+                        <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+                          <button
+                            type="button"
+                            onClick={openImageStudio}
+                            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:opacity-95 hover:shadow-lg"
+                          >
+                            🎨 {t.image_studio_create_from_strategy}
+                          </button>
+                          <p className="mt-2 text-xs text-blue-700">{t.image_studio_create_from_strategy_hint}</p>
+                        </div>
+                      )}
                     </>
                   )}
 
@@ -1123,6 +1144,30 @@ function AccordionResults({
           </div>
         );
       })}
+      {savedProjectId && (
+        <div className="mt-8 flex justify-center">
+          <button
+            type="button"
+            onClick={onViewProject}
+            className="inline-flex items-center gap-2 rounded-xl border border-blue-300 bg-white px-6 py-3 text-sm font-semibold text-blue-700 shadow-sm transition-all hover:bg-blue-50 hover:shadow-md"
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.5}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+              />
+            </svg>
+            {t.results_view_project}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
