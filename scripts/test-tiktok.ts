@@ -148,7 +148,16 @@ async function main() {
     "de",
   );
   checkIdea(f, "todayIdea-regeln");
-  const ff = f as { idea: string; hook: string; scenes: string[]; overlays: string[]; spokenText: string; caption: string; why: string };
+  const ff = f as { idea: string; hook: string; scenes: string[]; overlays: string[]; spokenText: string; caption: string; why: string; selfCheck?: { inventsUserOrTestimonial: boolean; unprovenPerformancePromise: boolean; prescribedEnthusiasm: boolean } };
+  // Determinismus-Nachweis: Der heute-Idee-Retry verwirft bei Q6/Q7 (Regeln A+B)
+  // intern und generiert neu → das zurückgegebene selfCheck MUSS beide neuen
+  // Booleans false haben (dieselbe HARD-REJECT-Logik wie Q5 inventsUserOrTestimonial).
+  if (ff.selfCheck?.unprovenPerformancePromise === true) {
+    throw new Error("Regel A VERLETZT — selfCheck.unprovenPerformancePromise==true → Idee enthält unbelegtes Leistungs-/Zeit-Versprechen");
+  }
+  if (ff.selfCheck?.prescribedEnthusiasm === true) {
+    throw new Error("Regel B VERLETZT — selfCheck.prescribedEnthusiasm==true → Idee verordnet künstliche Begeisterung/Reaktion");
+  }
   const ideaBlob = (ff.idea + " " + ff.hook + " " + ff.scenes.join(" ") + " " + ff.overlays.join(" ") + " " + ff.spokenText + " " + ff.caption + " " + ff.why).toLowerCase();
   // Regel A — konkrete, unbelegte LEISTUNGS-/ERGEBNIS-Versprechen. WICHTIG: nur
   // echte Versprechen an den Nutzer/Erfolg werden erfasst — KEINE legitimen
@@ -181,7 +190,7 @@ async function main() {
   }
   console.log("   idea  :", fmt(ff.idea));
   console.log("   hook  :", fmt(ff.hook));
-  console.log("   ✅ Regel A+B: kein unbelegtes Leistungs-/Zeit-Versprechen, keine künstliche Begeisterung/Überraschung im Ergebnis.");
+  console.log("   ✅ Regel A+B: kein unbelegtes Leistungs-/Zeit-Versprechen, keine künstliche Begeisterung/Überraschung im Ergebnis. selfCheck.unprovenPerformancePromise=" + ff.selfCheck?.unprovenPerformancePromise + ", selfCheck.prescribedEnthusiasm=" + ff.selfCheck?.prescribedEnthusiasm + ".");
 
   console.log("\n✅ TikTok alle 3 Modi (de) + heute-Idee (en) + BETA-FALL + REGEL A/B bestanden.");
 }

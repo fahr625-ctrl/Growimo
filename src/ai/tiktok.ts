@@ -48,6 +48,8 @@ export interface TikTokSelfCheck {
   interchangeable: boolean; // könnte jede generische KI die Idee nahezu unverändert nutzen?
   soundsLikeAd: boolean; // klingt das Ergebnis wie Werbung?
   inventsUserOrTestimonial: boolean; // erfindet eine zitierte Person/Testimonial/Nutzerfeedback ohne Beleg im MARKENKONTEXT (HARD REJECT)
+  unprovenPerformancePromise: boolean; // enthält ein unbelegtes konkretes Zeit-/Ergebnis-Leistungsversprechen ("in nur X Sekunden", "+X%", "verdoppelt die Reichweite", "viral gehen") ohne echte Daten (HARD REJECT)
+  prescribedEnthusiasm: boolean; // verordnet eine künstliche Reaktion/Begeisterung ("Wow!", "😲", "da staunen alle", aufgesetzte Überraschung) ohne echten Bezug zum gezeigten tatsächlichen Ergebnis (HARD REJECT)
 }
 
 /** Ergebnis für todayIdea + concept (strukturiert, kein Roh-Chat). */
@@ -117,7 +119,9 @@ Internal quality self-check BEFORE output (mandatory — answer honestly in the 
 - Q3 - interchangeable: Could any generic AI tool produce this idea almost unchanged for 100 other businesses? Be strict: "show how easy it is to use our product" IS interchangeable and is a generic ad — reject it.
 - Q4 - soundsLikeAd: Does the result read like an advertisement?
 - Q5 - inventsUserOrTestimonial: Does the idea claim that a real person (user, customer, tester, beta user) said/experienced/gave feedback about the product WITHOUT a real quote or proof in the MARKENKONTEXT (or provided by the user)? An invented user/testimonial/quote/user-feedback that is not backed by the MARKENKONTEXT MUST be reported as true. This is a HARD REJECT: if true, the idea is fabricated and MUST be discarded and regenerated — never output it.
-Also verify BEFORE output: the idea contains NO unproven concrete performance promise (no "in just 10 seconds", no "doubles your reach", no success percentages not backed by real data) and NO prescribed artificial reaction/enthusiasm (no demanded "Wow!", "everyone is amazed", no staged surprise) unless it genuinely follows from the real shown result — both are HARD RULES and either one must be discarded and regenerated. Then set the five selfCheck booleans truthfully. Then judge: if Q5 is true, or Q3 or Q4 is true (or at least 3 of the 5 criteria are suspicious — e.g. no brand fact used, a challenge was ignored, interchangeable, ad-like), then internally DISCARD this idea and REGENERATE a different, better idea before outputting. Retry internally as many times as needed until the idea genuinely passes: it uses real brand facts, honors a present challenge, is NOT interchangeable, is NOT a straight ad, and does NOT invent any user/testimonial/quote.
+- Q6 - unprovenPerformancePromise: Does the idea contain ANY unproven concrete time-based / result-based performance promise — e.g. "in just X seconds/minutes/days/weeks", "+X%", "% more reach/engagement/followers/clicks/sales/success", "doubles (the) reach/followers/clicks", "guaranteed more reach/followers/success", "go viral", "become a hit" — across the idea, the hook, the scenes, the overlays, the spoken text, the caption AND the why? Any such unproven concrete promise that is not backed by real data the user actually provided MUST be reported as true. This is a HARD REJECT: if true, the idea MUST be discarded and regenerated — never output it.
+- Q7 - prescribedEnthusiasm: Does the idea prescribe an artificial reaction or required enthusiasm — e.g. "Wow!", "Whoa!", "everyone is amazed" / "da staunen alle", "I am/was surprised", "looks surprised/proud/happy/excited into the camera", staged surprise used as filler? A reaction may appear ONLY if it is genuinely produced by the shown real result; otherwise it is filler and MUST be reported as true. This is a HARD REJECT: if true, the idea MUST be discarded and regenerated — never output it.
+Also verify BEFORE output: the idea contains NO unproven concrete performance promise (no "in just 10 seconds", no "doubles your reach", no success percentages not backed by real data, no "go viral") and NO prescribed artificial reaction/enthusiasm (no demanded "Wow!", "everyone is amazed", no staged surprise) unless it genuinely follows from the real shown result — both are HARD RULES and either one MUST be reported truthfully in Q6/Q7 and discarded and regenerated. Then set the seven selfCheck booleans truthfully. Then judge: if Q5, Q6 or Q7 is true, or Q3 or Q4 is true (or at least 3 of the 5 qualitative criteria are suspicious — e.g. no brand fact used, a challenge was ignored, interchangeable, ad-like), then internally DISCARD this idea and REGENERATE a different, better idea before outputting. Retry internally as many times as needed until the idea genuinely passes: it uses real brand facts, honors a present challenge, is NOT interchangeable, is NOT a straight ad, does NOT invent any user/testimonial/quote, contains NO unproven concrete performance promise and NO prescribed artificial reaction/enthusiasm.
 - FACT CHECK: Does every specific claim (feature, button, number, result, customer, metric) actually appear in the MARKENKONTEXT or was it provided by the user? If anything is missing or not provable — remove or replace it with an idea that does not depend on that claim BEFORE outputting. Never invent facts.
 
 JSON schema exactly:
@@ -137,7 +141,9 @@ JSON schema exactly:
     "addressesCurrentChallenge": true or false,
     "interchangeable": true or false,
     "soundsLikeAd": true or false,
-    "inventsUserOrTestimonial": true or false
+    "inventsUserOrTestimonial": true or false,
+    "unprovenPerformancePromise": true or false,
+    "prescribedEnthusiasm": true or false
   }
 }`;
 
@@ -176,7 +182,9 @@ Interne Qualitäts-Selbstprüfung VOR der Ausgabe (Pflicht — beantworte ehrlic
 - Q3 - interchangeable: Könnte irgendeine generische KI diese Idee nahezu unverändert für 100 andere Unternehmen erzeugen? Sei streng: „Zeig, wie einfach unser Produkt zu nutzen ist" IST austauschbar und generische Werbung — verwerfe es.
 - Q4 - soundsLikeAd: Klingt das Ergebnis wie Werbung?
 - Q5 - inventsUserOrTestimonial: Behauptet die Idee, dass eine echte Person (Nutzer, Kunde, Tester, Beta-Nutzer) etwas über das Produkt gesagt/erlebt/Feedback gegeben hat, OHNE echtes Zitat oder Beleg im MARKENKONTEXT (oder vom Nutzer angegeben)? Ein erfundenes Testimonial/erfundene zitierte Person/erfundenes Nutzerfeedback, das nicht durch den MARKENKONTEXT belegt ist, MUSS als true gemeldet werden. Das ist ein HARD REJECT: Ist das Flag true, ist die Idee erfunden und MUSS verworfen und NEU generiert werden — niemals ausgeben.
-Prüfe außerdem VOR der Ausgabe: Die Idee enthält KEIN unbelegtes konkretes Leistungsversprechen (kein „in nur 10 Sekunden", kein „verdoppelt deine Reichweite", keine Erfolgsprozente, die nicht durch echte Daten belegt sind) und KEINE vorgegebene künstliche Reaktion/Begeisterung (kein verlangtes „Wow!", „Da staunen alle", keine aufgesetzte Überraschung), außer sie ergibt sich echt aus dem gezeigten tatsächlichen Ergebnis — beides sind HARTE REGELN und jede davon muss verworfen und NEU generiert werden. Setze dann die fünf selfCheck-Booleans wahrheitsgemäß. Dann urteile: Wenn Q5 wahr ist, oder Q3 oder Q4 wahr ist (oder mindestens 3 der 5 Kriterien verdächtig sind — z. B. keine Markenfakten genutzt, eine Herausforderung ignoriert, austauschbar, werblich), dann VERWIRF diese Idee intern und generiere eine andere, bessere Idee NEU, BEVOR du ausgibst. Wiederhole intern so oft wie nötig, bis die Idee wirklich besteht: sie nutzt echte Markenfakten, ehrt eine vorhandene Herausforderung, ist NICHT austauschbar, ist KEINE reine Werbung und erfindet KEINE Nutzer/Testimonials/Zitate.
+- Q6 - unprovenPerformancePromise: Enthält die Idee IRGENDEIN unbelegtes konkretes Zeit-/Ergebnis-Leistungsversprechen — z. B. „in nur X Sekunden/Minuten/Tagen/Wochen", „+X%", „% mehr Reichweite/Engagement/Follower/Klicks/Verkäufe/Erfolg", „verdoppelt (die) Reichweite/Follower/Klicks", „garantiert mehr Reichweite/Follower/Erfolg", „viral gehen", „zum Hit werden" — in Idee, Hook, Szenen, Einblendungen, Sprechtext, Caption UND why? Jedes solche unbelegte konkrete Versprechen, das nicht durch echte, vom Nutzer gelieferte Daten belegt ist, MUSS als true gemeldet werden. Das ist ein HARD REJECT: Ist das Flag true, MUSS die Idee verworfen und NEU generiert werden — niemals ausgeben.
+- Q7 - prescribedEnthusiasm: Verordnet die Idee eine künstliche Reaktion oder verlangte Begeisterung — z. B. „Wow!", „Whoa!", „Da staunen alle", „ich bin/war überrascht", „sieht überrascht/stolz/froh/begeistert in die Kamera", aufgesetzte Überraschung als Füllmaterial? Eine Reaktion darf NUR auftauchen, wenn sie das gezeigte tatsächliche Ergebnis echt erzeugt; sonst ist sie Füllmaterial und MUSS als true gemeldet werden. Das ist ein HARD REJECT: Ist das Flag true, MUSS die Idee verworfen und NEU generiert werden — niemals ausgeben.
+Prüfe außerdem VOR der Ausgabe: Die Idee enthält KEIN unbelegtes konkretes Leistungsversprechen (kein „in nur 10 Sekunden", kein „verdoppelt deine Reichweite", keine Erfolgsprozente, kein „viral gehen", die nicht durch echte Daten belegt sind) und KEINE vorgegebene künstliche Reaktion/Begeisterung (kein verlangtes „Wow!", „Da staunen alle", keine aufgesetzte Überraschung), außer sie ergibt sich echt aus dem gezeigten tatsächlichen Ergebnis — beides sind HARTE REGELN und jede davon MUSS wahrheitsgemäß in Q6/Q7 gemeldet und verworfen und NEU generiert werden. Setze dann die sieben selfCheck-Booleans wahrheitsgemäß. Dann urteile: Wenn Q5, Q6 oder Q7 wahr ist, oder Q3 oder Q4 wahr ist (oder mindestens 3 der 5 qualitativen Kriterien verdächtig sind — z. B. keine Markenfakten genutzt, eine Herausforderung ignoriert, austauschbar, werblich), dann VERWIRF diese Idee intern und generiere eine andere, bessere Idee NEU, BEVOR du ausgibst. Wiederhole intern so oft wie nötig, bis die Idee wirklich besteht: sie nutzt echte Markenfakten, ehrt eine vorhandene Herausforderung, ist NICHT austauschbar, ist KEINE reine Werbung, erfindet KEINE Nutzer/Testimonials/Zitate, enthält KEIN unbelegtes konkretes Leistungsversprechen und KEINE vorgegebene künstliche Reaktion/Begeisterung.
 - FAKTENABGLEICH: Steht jede konkrete Behauptung (Funktion, Button, Zahl, Ergebnis, Kunde, Metrik) tatsächlich im MARKENKONTEXT oder hat der Nutzer sie angegeben? Wenn etwas fehlt oder nicht belegbar ist — entferne oder ersetze es durch eine Idee, die ohne diese Behauptung funktioniert, BEVOR du ausgibst. Erfinde niemals Fakten.
 
 JSON-Schema exakt:
@@ -196,7 +204,9 @@ JSON-Schema exakt:
     "addressesCurrentChallenge": true oder false,
     "interchangeable": true oder false,
     "soundsLikeAd": true oder false,
-    "inventsUserOrTestimonial": true oder false
+    "inventsUserOrTestimonial": true oder false,
+    "unprovenPerformancePromise": true oder false,
+    "prescribedEnthusiasm": true oder false
   }
 }`;
 
@@ -225,6 +235,7 @@ Rules:
 - Derive every claim from the numbers given (use them in your wording). Do NOT invent metrics that were not provided.
 - NEVER invent users/testimonials/quotes/user feedback or success stories — only the numbers provided may be referenced.
 - No unproven performance promises and no prescribed enthusiasm: never promise concrete outcomes ("in 2 minutes", "more followers") that do not follow from the numbers, and never prescribe reactions like "Wow!" — reference only the real numbers the user provided, keep any reaction genuine or omit it.
+- NO time-based performance promise phrasing in newHook/optimized: never write a "discover X in just N seconds/minutes/days" hook or any unproven time/result promise such as "in nur X Sekunden", "in just X seconds", "+X%", "% more reach/engagement", "doubles your reach", "go viral". Rewrite hooks around the actual diagnosed problem and the real numbers only — never promise a timeframe or a result the data does not prove.
 - Identify the MOST LIKELY biggest problem from the data (e.g. retention vs reach vs engagement vs clicks), explain it plainly, and ground it in the numbers.
 - whatWorks: what the numbers show is already working (mention the actual figures). If genuinely nothing works yet, say so honestly.
 - whatToImprove: 2–4 concrete, actionable improvements tied to the diagnosis.
@@ -249,6 +260,7 @@ Regeln:
 - Leite jede Aussage aus den genannten Zahlen ab (nutze sie wörtlich). Erfinde keine Metriken, die nicht genannt wurden.
 - Erfinde NIEMALS Nutzer/Testimonials/Zitate/Nutzerfeedback oder Erfolgsgeschichten — nur die genannten Zahlen dürfen referenziert werden.
 - Keine unbelegten Leistungsversprechen und keine vorgegebene Begeisterung: versprich nie konkrete Ergebnisse („in 2 Minuten", „mehr Follower"), die nicht aus den Zahlen hervorgehen, und verordne nie Reaktionen wie „Wow!" — referenziere ausschließlich die echten, vom Nutzer gelieferten Zahlen und halte Reaktionen echt oder lasse sie ganz weg.
+- KEINE zeitbasierten Leistungsversprechen-Formulierungen in newHook/optimized: schreibe niemals einen „Entdecke X in nur N Sekunden/Minuten/Tagen"-Hook oder ein unbelegtes Zeit-/Ergebnis-Versprechen wie „in nur X Sekunden", „in just X seconds", „+X%", „% mehr Reichweite/Engagement", „verdoppelt deine Reichweite", „viral gehen". Formuliere Hooks ausschließlich um das tatsächlich diagnostizierte Problem und die echten Zahlen — versprich nie einen Zeitrahmen oder ein Ergebnis, das die Daten nicht belegen.
 - Benenne das WAHrscheinlich größte Problem aus den Daten (z. B. Retention vs. Reichweite vs. Engagement vs. Klicks), erkläre es verständlich und begründe es mit den Zahlen.
 - whatWorks: was die Zahlen zeigen, dass es bereits funktioniert (mit den konkreten Zahlen). Wenn ehrlich noch nichts funktioniert, sage das.
 - whatToImprove: 2–4 konkrete, umsetzbare Verbesserungen, die zur Diagnose passen.
@@ -355,6 +367,8 @@ function parseSelfCheck(p: Record<string, unknown>): TikTokSelfCheck | undefined
     interchangeable: o.interchangeable === true,
     soundsLikeAd: o.soundsLikeAd === true,
     inventsUserOrTestimonial: o.inventsUserOrTestimonial === true,
+    unprovenPerformancePromise: o.unprovenPerformancePromise === true,
+    prescribedEnthusiasm: o.prescribedEnthusiasm === true,
   };
 }
 
@@ -403,12 +417,16 @@ function parseResult(mode: TikTokMode, text: string): TikTokResult | null {
 // mindestens 3 der 4 Kriterien sind verdächtig), verwirft Growimo die Idee und
 // generiert NEU, bevor sie ausgegeben wird. Begrenzte Versuche — verhindert
 // Endlosschleifen; danach wird die bestmögliche (letzte) Idee geliefert.
-const MAX_TIKTOK_ATTEMPTS = 3;
+const MAX_TIKTOK_ATTEMPTS = 4;
 
 function selfCheckRejected(sc: TikTokSelfCheck): boolean {
   // Erfundenes Testimonial / zitierte Person / Nutzerfeedback ohne Beleg im
   // MARKENKONTEXT → HARD REJECT: solche Ideen dürfen niemals ausgegeben werden.
+  // Ebenso: unbelegtes konkretes Leistungs-/Zeit-Versprechen und vorgegebene
+  // künstliche Reaktion/Begeisterung (Regeln A+B) → HARD REJECT.
   if (sc.inventsUserOrTestimonial === true) return true;
+  if (sc.unprovenPerformancePromise === true) return true;
+  if (sc.prescribedEnthusiasm === true) return true;
   const suspicious = [
     !sc.usesConcreteBrandFact,
     !sc.addressesCurrentChallenge,
@@ -419,10 +437,82 @@ function selfCheckRejected(sc: TikTokSelfCheck): boolean {
   return sc.interchangeable === true || sc.soundsLikeAd === true || suspicious >= 3;
 }
 
-function buildRetryHint(lang: TikTokLang): string {
+// ── DETERMINISTISCHE Regel-A+B-Erkennung (Code-Ebene, de+en) ───────────────
+// Das Modell meldet Q6/Q7 (unprovenPerformancePromise, prescribedEnthusiasm)
+// im selfCheck NICHT immer ehrlich (es kann z.B. ein „in nur X Sekunden" ausgeben
+// und das Flag trotzdem auf false setzen). Damit die Regeln A+B deterministisch
+// durchgesetzt werden, wird der ERZEUGTE TEXT hier zusätzlich auf Code-Ebene
+// gegen die Regel-A-/Regel-B-Muster geprüft — unabhängig vom Modell-Selfcheck.
+// Trifft ein Muster zu, wird die Idee verworfen und neu generiert.
+const RULE_A_PATTERNS: Array<{ name: string; re: RegExp }> = [
+  // „in nur X Sekunden/Minuten/Tagen/Wochen" / „in just X seconds..." (Regel A, Zeit-Versprechen)
+  { name: 'in nur X (Zeitversprechen)', re: /in\s+nur\s+\d+\s*(sekunden?|minuten?|tagen?|wochen?)\b/i },
+  { name: 'in just X (time promise)', re: /in\s+just\s+\d+\s*(seconds?|minutes?|days?|weeks?)\b/i },
+  // Ergebnis-Verb + konkrete Zeit („verbrenne Fett in 10 Sekunden")
+  { name: 'result-verb + time', re: /(verbesser|erhöh|steigere|boost|verdoppel|verbrenn|bbaue? ab|bekomm)\w*.{0,30}\d+\s*(sekunden?|minuten?|tagen?|wochen?|seconds?|minutes?|days?|weeks?)\b/i },
+  // „+X%"
+  { name: '+X%', re: /\+\s?\d+\s*%/ },
+  // „X% mehr Reichweite/..." (de+en)
+  { name: 'X% mehr Erfolg', re: /\d+\s*%\s*(mehr\s+)?(engagement|reichweite|follower|klicks?|verkäufe?|erfolg|reach|followers|clicks?|sales|success)\b/i },
+  // „verdoppelt (die) Reichweite/Follower/Klicks" / „doubles (the) reach..."
+  { name: 'verdoppelt Reichweite', re: /verdoppel(t|n)?\s+(die\s+)?(reichweite|follower|klicks?)\b/i },
+  { name: 'doubles the reach', re: /double[sd]?\s+(the\s+)?(reach|followers|clicks?)\b/i },
+  // „garantiert mehr Reichweite/Follower/Erfolg/Wachstum"
+  { name: 'garantiert mehr Reichweite', re: /garantiert\s+(mehr\s+)?(reichweite|follower|erfolg|wachstum)\b/i },
+  { name: 'guaranteed more reach', re: /guaranteed\s+(more\s+)?(reach|followers|success|growth)\b/i },
+  // „viral gehen" / „go viral" / „zum Hit werden" / „become a hit"
+  { name: 'viral gehen', re: /viral\s+geh(en|t)\b/i },
+  { name: 'go viral', re: /go(ing)?\s+viral\b/i },
+  { name: 'become a hit', re: /become\s+a\s+hit\b/i },
+  { name: 'zum Hit werden', re: /zum\s+hit\s+werden/i },
+];
+
+const RULE_B_PATTERNS: Array<{ name: string; re: RegExp }> = [
+  // „Wow!" / „Whoa!" als verlangte Reaktion
+  { name: 'Wow!/Whoa!', re: /\b(wow|whoa)\s*!/i },
+  // 😲
+  { name: '😲', re: /😲/ },
+  // „Da staunen alle" / „everyone is amazed"
+  { name: 'Da staunen alle', re: /da\s+staunen\s+alle/i },
+  { name: 'everyone is amazed', re: /everyone\s+is\s+amazed/i },
+  // „ich bin/war überrascht" / „I was surprised"
+  { name: 'ich bin überrascht', re: /ich\s+(bin|war)\s+überrascht/i },
+  { name: 'I was surprised', re: /\bi'?m?\s+(so\s+)?(surprised|amazed|shocked)\b/i },
+  // „sieht überrascht/stolz/froh/begeistert in die Kamera" / „looks surprised/proud/happy/excited into the camera"
+  { name: 'sieht ... in die Kamera', re: /sieht\s+überrascht|stolz|froh|begeistert\s+in\s+die\s+kamera/i },
+  { name: 'looks ... into the camera', re: /looks?\s+(surprised|proud|happy|excited)\s+into\s+the\s+camera/i },
+  // „staunt überrascht"
+  { name: 'staunt überrascht', re: /(staunt|staunen)\s+überrascht/i },
+];
+
+/** Sammelt alle relevanten Textfelder einer Idee zu einem Blob für die
+ * deterministische Regel-Prüfung (kontextfrei, gilt für Idee/Hook/Szenen/
+ * Einblendungen/Sprechtext/Caption/why). */
+function ideaContentBlob(r: TikTokIdeaResult): string {
+  return [
+    r.idea, r.hook, r.scenes.join(' '), r.overlays.join(' '),
+    r.spokenText, r.caption, r.why,
+  ].join(' ').toLowerCase();
+}
+
+/** Liefert die Namen aller zutreffenden Regel-A-/Regel-B-Muster (leer = ok). */
+function ruleABViolations(blob: string): string[] {
+  const hits: string[] = [];
+  for (const { name, re } of RULE_A_PATTERNS) if (re.test(blob)) hits.push('A:' + name);
+  for (const { name, re } of RULE_B_PATTERNS) if (re.test(blob)) hits.push('B:' + name);
+  return hits;
+}
+
+function buildRetryHint(lang: TikTokLang, violations: string[] = []): string {
+  const rulePart =
+    violations.length > 0
+      ? lang === 'de'
+        ? ` ERKANNTE REGEL-VERLETZUNGEN DER VERWORFENEN IDEE: ${violations.join(', ')} — entferne diese Wörter/Formulierungen VÖLLIG und ersetze sie durch authentische Neugier/Möglichkeit (bei Regel A: keine konkreten unbelegten Zahlen/Zeiten/Erfolgsversprechen; bei Regel B: keine künstliche/vorgegebene Reaktion, schreibe keine Reaktion in Szenen/Einblendungen, außer sie ergibt sich echt aus dem gezeigten tatsächlichen Ergebnis).`
+        : ` DETECTED RULE VIOLATIONS IN THE REJECTED IDEA: ${violations.join(', ')} — remove those words/phrases COMPLETELY and replace them with authentic curiosity/possibility (Rule A: no concrete unproven numbers/times/success promises; Rule B: no prescribed/artificial reaction — do not write any reaction into scenes/overlays unless it genuinely arises from the shown real result).`
+      : '';
   return lang === 'de'
-    ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Idee wurde intern verworfen (zu austauschbar / zu werblich / ohne echte Markenfakten oder Challenge-Bezug — oder weil sie ein erfundenes Testimonial / eine zitierte Person / erfundenes Nutzerfeedback enthielt, das nicht im MARKENKONTEXT belegt ist). Erzeuge JETZT eine deutlich bessere, neue Idee: baue sie um eine reale, konkrete Information aus dem MARKENKONTEXT — am besten um die aktuelle Herausforderung / das echte Problem / das offene Experiment — und NICHT um generische Produktwerbung. Erfinde keinerlei Nutzer/Tester/Testimonials/Zitate; zeige stattdessen die EIGENE Idee / das EIGENE Experiment des Creators in der echten App (echte Bildschirmaufnahme). Setze selfCheck ehrlich auf bestehen.'
-    : '\n\nQUALITY SELF-CHECK NOTE: The previous idea was internally rejected (too interchangeable / too ad-like / without real brand facts or challenge tie-in — or because it contained an invented testimonial / quoted person / invented user feedback not backed by the BRAND CONTEXT). NOW produce a clearly better, NEW idea: build it around a real, concrete fact from the BRAND CONTEXT — ideally the current challenge / genuine problem / open experiment — and NOT around generic product advertising. Do not invent any users/testers/testimonials/quotes; instead show the creator\'s OWN idea / OWN experiment inside the real app (real screen recording). Set selfCheck truthfully to passing.';
+    ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Idee wurde intern verworfen (zu austauschbar / zu werblich / ohne echte Markenfakten oder Challenge-Bezug — oder weil sie ein erfundenes Testimonial / eine zitierte Person / erfundenes Nutzerfeedback enthielt, das nicht im MARKENKONTEXT belegt ist, ODER weil sie ein unbelegtes konkretes Leistungs-/Zeit-Versprechen oder eine vorgegebene künstliche Reaktion/Begeisterung enthielt).' + rulePart + ' Erzeuge JETZT eine deutlich bessere, neue Idee: baue sie um eine reale, konkrete Information aus dem MARKENKONTEXT — am besten um die aktuelle Herausforderung / das echte Problem / das offene Experiment — und NICHT um generische Produktwerbung. Erfinde keinerlei Nutzer/Tester/Testimonials/Zitate; zeige stattdessen die EIGENE Idee / das EIGENE Experiment des Creators in der echten App (echte Bildschirmaufnahme). Mache KEINERLEI unbelegtes konkretes Leistungs-/Zeit-/Ergebnis-Versprechen (kein „in nur X Sekunden/Minuten/Tagen/Wochen", kein „+X%", kein „verdoppelt die Reichweite", kein „viral gehen") und KEINE vorgegebene künstliche Reaktion/Begeisterung (kein „Wow!", kein „Da staunen alle", keine aufgesetzte Überraschung — eine Reaktion nur, wenn sie das gezeigte tatsächliche Ergebnis echt erzeugt, sonst ganz weglassen). Setze alle sieben selfCheck-Booleans ehrlich auf bestehen.'
+    : '\n\nQUALITY SELF-CHECK NOTE: The previous idea was internally rejected (too interchangeable / too ad-like / without real brand facts or challenge tie-in — or because it contained an invented testimonial / quoted person / invented user feedback not backed by the BRAND CONTEXT, OR because it contained an unproven concrete performance/time promise or a prescribed artificial reaction/enthusiasm).' + rulePart + ' NOW produce a clearly better, NEW idea: build it around a real, concrete fact from the BRAND CONTEXT — ideally the current challenge / genuine problem / open experiment — and NOT around generic product advertising. Do not invent any users/testers/testimonials/quotes; instead show the creator\'s OWN idea / OWN experiment inside the real app (real screen recording). Make NO unproven concrete performance/time/result promise (no "in just X seconds/minutes/days/weeks", no "+X%", no "doubles your reach", no "go viral") and NO prescribed artificial reaction/enthusiasm (no "Wow!", no "everyone is amazed", no staged surprise — a reaction only if genuinely produced by the shown real result, otherwise omit it entirely). Set all seven selfCheck booleans truthfully to passing.';
 }
 
 // ── Hauptfunktion ────────────────────────────────────────────────────────────
@@ -446,12 +536,13 @@ export async function generateTikTok(
   }
   const client = new OpenAI({ apiKey });
   const system = pickSystemPrompt(input.mode, lang);
+  let lastViolations: string[] = [];
 
   for (let attempt = 1; attempt <= MAX_TIKTOK_ATTEMPTS; attempt++) {
     const user =
       attempt === 1
         ? buildUserPrompt(input, lang)
-        : buildUserPrompt(input, lang) + buildRetryHint(lang);
+        : buildUserPrompt(input, lang) + buildRetryHint(lang, lastViolations);
 
     const response = await client.chat.completions.create({
       model: 'gpt-4o',
@@ -484,13 +575,36 @@ export async function generateTikTok(
     }
 
     // Qualitäts-Selbsttest-Retry NUR für todayIdea.
-    if (input.mode === 'todayIdea' && result.mode === 'todayIdea' && result.selfCheck) {
-      if (selfCheckRejected(result.selfCheck) && attempt < MAX_TIKTOK_ATTEMPTS) {
+    if (input.mode === 'todayIdea' && result.mode === 'todayIdea') {
+      // Deterministische Regel-A+B-Prüfung auf Code-Ebene (unabhängig davon, ob
+      // das Modell Q6/Q7 im selfCheck ehrlich gemeldet hat). Erfasst alle
+      // Textfelder inkl. why — und deckt damit auch die Diagnose-Hook-Klasse ab.
+      const violations = ruleABViolations(ideaContentBlob(result));
+      const scRejected = result.selfCheck ? selfCheckRejected(result.selfCheck) : false;
+      lastViolations = violations;
+      if (scRejected && attempt < MAX_TIKTOK_ATTEMPTS) {
         console.log(
           `[tiktok] todayIdea self-check REJECTED (attempt ${attempt}) — regenerating`,
           JSON.stringify(result.selfCheck),
         );
         continue;
+      }
+      if (violations.length > 0) {
+        if (attempt < MAX_TIKTOK_ATTEMPTS) {
+          console.log(
+            `[tiktok] todayIdea Rule A/B REJECTED (attempt ${attempt}) — regenerating` +
+              ` ruleA/B=${violations.join('|')}`,
+            JSON.stringify(result.selfCheck),
+          );
+          continue;
+        }
+        // Fail closed: NIE eine Regel-A-/B-Verletzung ausgeben — lieber einen
+        // klaren Fehler als ein verbotenes Leistungs-/Zeit-/Begeisterungs-Versprechen.
+        throw new Error(
+          lang === 'de'
+            ? 'Die TikTok-Idee konnte nach mehrmaligem Versuch nicht ohne verbotene Leistungs-/Zeit-Versprechen oder künstliche Reaktionen erzeugt werden. Bitte erneut versuchen.'
+            : 'Could not produce a TikTok idea without forbidden unproven performance/time promises or prescribed reactions after several attempts. Please try again.',
+        );
       }
     }
 
