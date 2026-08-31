@@ -133,7 +133,57 @@ async function main() {
   }
   console.log("   ✅ BETA-FALL: keine erfundene Nutzer-/Testimonial-Aussage erkannt, selfCheck.inventsUserOrTestimonial=" + ee.selfCheck?.inventsUserOrTestimonial);
 
-  console.log("\n✅ TikTok alle 3 Modi (de) + heute-Idee (en) + BETA-FALL bestanden.");
+  // (f) NEUE REGELN A+B Nachweis: ein Kontext, der typischerweise zu konkreten
+  //     Leistungs-/Zeit-Versprechen ("in nur X Sekunden/Minuten", "+X%") oder zu
+  //     einer künstlichen "Wow!"-Reaktion verleitet — z. B. ein "schnelle
+  //     Ergebnisse"-Produkt. Es dürfen KEINE unbelegten konkreten Versprechen
+  //     und KEINE vorgegebene Begeisterung/Überraschung auftauchen.
+  console.log("\n=== (f) todayIdea (de) — Regel A: keine unbelegten Leistungs-/Zeit-Versprechen, Regel B: keine künstliche Begeisterung ===");
+  const f = await generateTikTok(
+    {
+      mode: "todayIdea",
+      biz: "Fitness-App für schnelle Ergebnisse — schnelle Fettverbrennung zuhause ohne Geräte",
+      goal: "Mehr Follower",
+    },
+    "de",
+  );
+  checkIdea(f, "todayIdea-regeln");
+  const ff = f as { idea: string; hook: string; scenes: string[]; overlays: string[]; spokenText: string; caption: string; why: string };
+  const ideaBlob = (ff.idea + " " + ff.hook + " " + ff.scenes.join(" ") + " " + ff.overlays.join(" ") + " " + ff.spokenText + " " + ff.caption + " " + ff.why).toLowerCase();
+  // Regel A — konkrete, unbelegte LEISTUNGS-/ERGEBNIS-Versprechen. WICHTIG: nur
+  // echte Versprechen an den Nutzer/Erfolg werden erfasst — KEINE legitimen
+  // Video-Inhalts-Zeiten (z. B. eine "5-Minuten-Challenge" als Videodauer/Content
+  // ist KEIN Leistungsversprechen). Erfasst werden: "in nur X Sekunden/Minuten",
+  // ein Ergebnis-Verb + Zeit, Erfolgsprozente, Verdopplungs-/Garantie-Behauptungen.
+  const promisePatterns = [
+    /in\s+nur\s+\d+\s*(sekunden?|minuten?|tagen?|wochen?)/, // "in nur X" = typisches Zeit-Versprechen
+    /(verbesser|erhöh|steigere|boost|verdoppel)\w*.{0,30}\d+\s*(sekunden?|minuten?|tagen?|wochen?)/, // Ergebnis-Verb + konkrete Zeit
+    /\+\s?\d+\s*%/,                                                       // "+X%"-Erfolgsversprechen
+    /\d+\s*%\s*(mehr\s+)?(engagement|reichweite|follower|klicks?|verkäufe?|erfolg)/, // Erfolgsprozente
+    /verdoppel(t|n)?\s+(die\s+)?(reichweite|follower|klicks?)/,           // Reichweiten-Verdopplung
+    /garantiert\s+(mehr\s+)?(reichweite|follower|erfolg|wachstum)/,       // Garantie-Behauptung
+  ];
+  const promiseHits = promisePatterns.filter((re) => re.test(ideaBlob));
+  // Regel B — künstliche Begeisterung/Überraschung als Füllmittel:
+  const cheerPatterns = [
+    /(wow|whoa)\s*!/,
+    /😲/,
+    /da\s+staunen\s+alle/,
+    /ich\s+(bin|war)\s+überrascht/,
+    /(staunt|staunen)\s+überrascht/,
+  ];
+  const cheerHits = cheerPatterns.filter((re) => re.test(ideaBlob));
+  if (promiseHits.length > 0) {
+    throw new Error("Regel A VERLETZT — unbelegtes Leistungs-/Zeit-Versprechen gefunden: " + promiseHits.map((r) => r.source).join(","));
+  }
+  if (cheerHits.length > 0) {
+    throw new Error("Regel B VERLETZT — künstliche Begeisterung/Überraschung gefunden: " + cheerHits.map((r) => r.source).join(","));
+  }
+  console.log("   idea  :", fmt(ff.idea));
+  console.log("   hook  :", fmt(ff.hook));
+  console.log("   ✅ Regel A+B: kein unbelegtes Leistungs-/Zeit-Versprechen, keine künstliche Begeisterung/Überraschung im Ergebnis.");
+
+  console.log("\n✅ TikTok alle 3 Modi (de) + heute-Idee (en) + BETA-FALL + REGEL A/B bestanden.");
 }
 
 main().catch((err) => {
