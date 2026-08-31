@@ -930,6 +930,7 @@ function Step2Results({
             productIdea={productIdea}
             savedProjectId={savedProjectId}
             onImproveResult={onImproveResult}
+            onViewProject={onViewProject}
           />
 
           {/* Actions footer */}
@@ -1001,11 +1002,13 @@ function AccordionResults({
   productIdea,
   savedProjectId,
   onImproveResult,
+  onViewProject,
 }: {
   results: ContentResult[];
   productIdea: string;
   savedProjectId: string | null;
   onImproveResult: (contentType: ContentType, result: ContentResult) => void;
+  onViewProject: () => void;
 }) {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
   const { t, locale } = useTranslation();
