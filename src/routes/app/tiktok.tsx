@@ -223,12 +223,14 @@ function TikTokContent() {
           : undefined,
         lang: locale,
       };
+      console.info('[tiktok] calling generateTikTokServer at', new Date().toISOString());
       const res = await generateTikTokServer({ data: payload });
       setResult(res);
       if (res.mode !== 'diagnose') pushTikTokHistory(res.hook);
       if (mode === 'diagnose') track('tiktok_diagnosed', user?.id);
       else track('tiktok_created', user?.id, { mode });
-    } catch {
+    } catch (error) {
+      console.error('[tiktok] generation failed:', error);
       setError(true);
     } finally {
       setLoading(false);

@@ -239,6 +239,7 @@ function NewProjectContent() {
         additionalContext: buildAdditionalContext() || undefined,
       }));
 
+      console.info('[new-project] calling generateContentServer at', new Date().toISOString());
       const generated: ContentResult[] = await Promise.all(
         requests.map((req) => generateContentServer({ data: req })),
       ) as ContentResult[];
@@ -325,6 +326,28 @@ function NewProjectContent() {
       }
     } catch (error) {
       console.error('Generation failed:', error);
+      if (error instanceof Error) {
+        console.error('Generation failed - message:', error.message);
+        console.error('Generation failed - stack:', error.stack);
+      }
+      // TanStack Start server-fn errors often carry structured details in .cause/.data
+      try {
+        const detail: unknown =
+          error && typeof error === 'object' && 'cause' in (error as object)
+            ? (error as Record<string, unknown>).cause
+            : undefined;
+        const data: unknown =
+          error && typeof error === 'object' && 'data' in (error as object)
+            ? (error as Record<string, unknown>).data
+            : undefined;
+        if (detail !== undefined || data !== undefined) {
+          console.error('Generation failed - structured detail:', JSON.stringify({ cause: detail, data }));
+        } else {
+          console.error('Generation failed - full error JSON:', JSON.stringify(error));
+        }
+      } catch (stringifyError) {
+        console.error('Generation failed - could not stringify error:', stringifyError);
+      }
       const message = t.common_unknown_error;
       setResults([]);
       setErrorMessage(message);
