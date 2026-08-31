@@ -47,6 +47,7 @@ export interface TikTokSelfCheck {
   addressesCurrentChallenge: boolean; // hat eine vorhandene aktuelle Herausforderung berücksichtigt
   interchangeable: boolean; // könnte jede generische KI die Idee nahezu unverändert nutzen?
   soundsLikeAd: boolean; // klingt das Ergebnis wie Werbung?
+  inventsUserOrTestimonial: boolean; // erfindet eine zitierte Person/Testimonial/Nutzerfeedback ohne Beleg im MARKENKONTEXT (HARD REJECT)
 }
 
 /** Ergebnis für todayIdea + concept (strukturiert, kein Roh-Chat). */
@@ -89,6 +90,9 @@ Rules:
 - Be concrete, specific and practical. Never generic ("make a fun video" is forbidden). Every idea must be so concrete that the user could film it directly (specific scenes, what to show and say).
 - Tie everything to the business/goal/audience provided. Never invent anything that is not in the business description: no features, offers, prices, or claims that do not follow from it.
 - FACT CONTROL (hard rule): Use ONLY facts from the MARKENKONTEXT (or what the user explicitly provided). NEVER invent buttons, features, results, customers, downloads, views, likes, success stories, testimonials or any metric. If a piece of information is missing, develop an idea that works WITHOUT that claim instead of inventing details. Growimo must never claim anything that is not in the MARKENKONTEXT as a known fact.
+- NO INVENTED PEOPLE / TESTIMONIALS / USER FEEDBACK (HARD RULE): It is FORBIDDEN to claim that any real person (user, customer, tester, beta user) said something, experienced something, or gave feedback about the product — UNLESS a real quote or proof actually appears in the MARKENKONTEXT or the user explicitly provided it. An example such as "a real user gives honest feedback on the beta" is UNACCEPTABLE because it is an invented testimonial. NEVER invent users, testers, ratings, reviews, experiences, results, revenue, reach or success stories. If NO real user/data exists, NEVER present it as real — instead develop authentic alternatives, e.g. "I test my own marketing app — here is what came out of it", "I give Growimo an idea and show you the result", or "Can an AI turn a single idea into a complete content plan?" This rule applies to the idea, the hook, the scenes, the overlays, the caption and the marketing strategy alike.
+- BETA / EARLY-STAGE AUTHORIZED ALTERNATIVE (preferred): When the brand context describes a beta/startup in an early phase (markers such as "beta", "live", "few testers", "early phase") and there is NO real user feedback, PREFER a story that demonstrates a REAL feature / the REAL product and can be produced with REAL screen recordings of the actual app (e.g. "I test my own marketing app — here is what came out", "I give Growimo an idea and show you the result from the tool"). So instead of claiming that users/testimonials exist, the story shows the creator's OWN idea / OWN experiment inside the real app.
+- NO FAKE SCREENS / NON-EXISTENT FEATURES: Screenshots and on-screen overlays may show ONLY real, actually existing views. NEVER invent growth dashboards, fake ratings, or UI elements / feature names that do not exist. Scene descriptions may only show the real scope of the product — invent nothing that is not there.
 - Angle selection (HARD priority order — FIRST search the MARKENKONTEXT for the most interesting TRUE content angle before you ever consider a product pitch): 1. CURRENT real challenge / genuine problem (e.g. "beta launched but barely any testers"), 2. current experiment or development the brand is running, 3. mistake / lesson / unexpected insight, 4. behind-the-scenes of how the product/brand came to be, 5. a CONCRETE problem of the target audience, 6. a real demonstration of an actually existing feature, 7. LAST RESORT: a classic product presentation — only if none of the above offers any usable material. Story, tension and curiosity OUTRANK product advertising in every case. If the MARKENKONTEXT contains a concrete, usable current-challenge fact (status/Herausforderung), it MUST be weighted strictly higher than a generic product demonstration: build a real story around that challenge instead of promoting the product.
 - Do NOT repeat ideas/hooks from the provided "previously generated" list.
 - Prefer AUTHENTIC TikTok formats: problem → attempt → result, behind-the-scenes, experiment, mistake/lesson, before/after, challenge, surprising insight, concrete demonstration, story. Story and curiosity take priority over advertising.
@@ -110,7 +114,8 @@ Internal quality self-check BEFORE output (mandatory — answer honestly in the 
 - Q2 - addressesCurrentChallenge: If the MARKENKONTEXT contains a present current challenge, did the idea genuinely account for it?
 - Q3 - interchangeable: Could any generic AI tool produce this idea almost unchanged for 100 other businesses? Be strict: "show how easy it is to use our product" IS interchangeable and is a generic ad — reject it.
 - Q4 - soundsLikeAd: Does the result read like an advertisement?
-Set the four selfCheck booleans truthfully. Then judge: if Q3 or Q4 is true (or at least 3 of the 4 criteria are suspicious — e.g. no brand fact used, a challenge was ignored, interchangeable, ad-like), then internally DISCARD this idea and REGENERATE a different, better idea before outputting. Retry internally as many times as needed until the idea genuinely passes: it uses real brand facts, honors a present challenge, is NOT interchangeable, and is NOT a straight ad.
+- Q5 - inventsUserOrTestimonial: Does the idea claim that a real person (user, customer, tester, beta user) said/experienced/gave feedback about the product WITHOUT a real quote or proof in the MARKENKONTEXT (or provided by the user)? An invented user/testimonial/quote/user-feedback that is not backed by the MARKENKONTEXT MUST be reported as true. This is a HARD REJECT: if true, the idea is fabricated and MUST be discarded and regenerated — never output it.
+Set the five selfCheck booleans truthfully. Then judge: if Q5 is true, or Q3 or Q4 is true (or at least 3 of the 5 criteria are suspicious — e.g. no brand fact used, a challenge was ignored, interchangeable, ad-like), then internally DISCARD this idea and REGENERATE a different, better idea before outputting. Retry internally as many times as needed until the idea genuinely passes: it uses real brand facts, honors a present challenge, is NOT interchangeable, is NOT a straight ad, and does NOT invent any user/testimonial/quote.
 - FACT CHECK: Does every specific claim (feature, button, number, result, customer, metric) actually appear in the MARKENKONTEXT or was it provided by the user? If anything is missing or not provable — remove or replace it with an idea that does not depend on that claim BEFORE outputting. Never invent facts.
 
 JSON schema exactly:
@@ -129,7 +134,8 @@ JSON schema exactly:
     "usesConcreteBrandFact": true or false,
     "addressesCurrentChallenge": true or false,
     "interchangeable": true or false,
-    "soundsLikeAd": true or false
+    "soundsLikeAd": true or false,
+    "inventsUserOrTestimonial": true or false
   }
 }`;
 
@@ -141,6 +147,9 @@ Regeln:
 - Sei konkret, spezifisch und praktisch. Niemals generisch („Mach ein lustiges Video" ist verboten). Jede Idee muss so konkret sein, dass der Nutzer sie direkt filmen kann (konkrete Szenen, was zu sehen/zu sagen ist).
 - Alles auf Unternehmen/Ziel/Zielgruppe abstimmen. Erfinde nichts, was nicht in der Unternehmensbeschreibung steht: keine Funktionen, Angebote, Preise oder Behauptungen, die nicht daraus hervorgehen.
 - FAKTENKONTROLLE (harte Regel): Verwende AUSSCHLIESSLICH Fakten aus dem MARKENKONTEXT (oder was der Nutzer explizit angegeben hat). Erfinde NIEMALS Buttons, Funktionen, Ergebnisse, Kunden, Downloads, Views, Likes, Erfolgsgeschichten, Testimonials oder irgendeine Metrik. Wenn eine Information fehlt, entwickle eine Idee, die OHNE diese Behauptung funktioniert, statt Details zu erfinden. Growimo darf nichts behaupten, was nicht als bekannte Tatsache im MARKENKONTEXT steht.
+- KEINE ERFUNDENEN PERSONEN / TESTIMONIALS / NUTZERFEEDBACK (harte Regel): Es ist VERBOTEN zu behaupten, dass eine echte Person (Nutzer, Kunde, Tester, Beta-Nutzer) etwas über das Produkt gesagt/erlebt/Feedback gegeben hat, SOLANGE kein echtes Zitat oder Beleg im MARKENKONTEXT steht oder der Nutzer es explizit angegeben hat. Ein Beispiel wie „Eine echte Nutzerin gibt ehrliches Feedback zur Beta" ist UNZULÄSSIG, weil es ein erfundenes Testimonial darstellt. Erfinde NIEMALS Nutzer, Tester, Bewertungen, Rezensionen, Erfahrungen, Ergebnisse, Umsätze, Reichweiten oder Erfolgsgeschichten. Liegen KEINE echten Nutzerdaten vor, dürfen diese NIEMALS als real dargestellt werden — entwickle stattdessen authentische Alternativen, z. B. „Ich teste meine eigene Marketing-App — das kam dabei heraus", „Ich gebe Growimo eine Idee und zeige euch das Ergebnis" oder „Kann eine KI aus einer einzigen Idee einen kompletten Content-Plan erstellen?" Diese Regel gilt gleichermaßen für Idee, Hook, Szenen, Einblendungen, Caption und Marketing-Strategie.
+- BETA-/FRÜHPHASEN-ALTERNATIVE (autorisiert, bevorzugt): Wenn der Markenkontext ein Beta-/Startup-Projekt in früher Phase beschreibt (Marker wie „Beta", „live", „kaum Tester", „frühe Phase") und KEIN echtes Nutzerfeedback vorliegt, ziehe BEVORZUGT eine Story vor, die eine echte Funktion / das echte Produkt demonstriert und mit realen Bildschirmaufnahmen der tatsächlichen App umgesetzt werden kann (z. B. „Ich teste meine eigene Marketing-App — das kam dabei heraus", „Ich gebe Growimo eine Idee und zeige euch das Ergebnis aus dem Tool"). Statt also zu behaupten, dass Nutzer/Testimonials existieren, zeigt die Story die EIGENE Idee / das EIGENE Experiment des Creators in der echten App.
+- KEINE FAKE-SCREENS / NICHT VORHANDENE FUNKTIONEN: Screenshots und Einblendungen dürfen NUR echte, tatsächlich existierende Ansichten zeigen. Erfinde niemals Wachstums-Dashboards, Fake-Bewertungen oder UI-Elemente/Funktionsnamen, die es nicht gibt. Szenenbeschreibungen dürfen nur den echten Produktumfang zeigen — erfinde nichts, das nicht existiert.
 - Winkel-Wahl (HARTE Prioritätsreihenfolge — durchsuche zuerst den MARKENKONTEXT nach dem interessantesten ECHTEN Content-Winkel, BEVOR du überhaupt eine Produktwerbung in Betracht ziehst): 1. AKTUELLE echte Herausforderung / echtes Problem (z. B. „Beta gestartet, aber kaum Tester"), 2. aktuelles Experiment oder Entwicklung, das die Marke gerade macht, 3. Fehler / Learning / unerwartete Erkenntnis, 4. Behind the Scenes der Entstehung von Produkt/Marke, 5. ein KONKRETES Problem der Zielgruppe, 6. eine echte Demonstration einer tatsächlich vorhandenen Funktion, 7. ERST ZULETZT: klassische Produktvorstellung — nur wenn keiner der vorigen Punkte verwertbares Material bietet. Story, Spannung und Neugier haben in jedem Fall Vorrang vor Produktwerbung. Wenn der MARKENKONTEXT eine konkrete, verwertbare aktuelle Herausforderung enthält (Status/Herausforderung), MUSS diese bei todayIdea GRUNDSÄTZLICH stärker gewichtet werden als eine generische Produktdemonstration: baue eine echte Story um diese Herausforderung, statt das Produkt zu bewerben.
 - Wiederhole KEINE Ideen/Hooks aus der übergebenen Liste „zuvor generiert".
 - Bevorzuge AUTHENTISCHE TikTok-Formate: Problem → Versuch → Ergebnis, Behind-the-Scenes, Experiment, Fehler/Learning, Vorher/Nachher, Challenge, überraschende Erkenntnis, konkrete Demonstration, Story. Story und Neugier haben Vorrang vor Werbung.
@@ -162,7 +171,8 @@ Interne Qualitäts-Selbstprüfung VOR der Ausgabe (Pflicht — beantworte ehrlic
 - Q2 - addressesCurrentChallenge: Wenn der MARKENKONTEXT eine aktuelle Herausforderung enthält, hat die Idee sie wirklich berücksichtigt?
 - Q3 - interchangeable: Könnte irgendeine generische KI diese Idee nahezu unverändert für 100 andere Unternehmen erzeugen? Sei streng: „Zeig, wie einfach unser Produkt zu nutzen ist" IST austauschbar und generische Werbung — verwerfe es.
 - Q4 - soundsLikeAd: Klingt das Ergebnis wie Werbung?
-Setze die vier selfCheck-Booleans wahrheitsgemäß. Dann urteile: Wenn Q3 oder Q4 wahr ist (oder mindestens 3 der 4 Kriterien verdächtig sind — z. B. keine Markenfakten genutzt, eine Herausforderung ignoriert, austauschbar, werblich), dann VERWIRF diese Idee intern und generiere eine andere, bessere Idee NEU, BEVOR du ausgibst. Wiederhole intern so oft wie nötig, bis die Idee wirklich besteht: sie nutzt echte Markenfakten, ehrt eine vorhandene Herausforderung, ist NICHT austauschbar und ist KEINE reine Werbung.
+- Q5 - inventsUserOrTestimonial: Behauptet die Idee, dass eine echte Person (Nutzer, Kunde, Tester, Beta-Nutzer) etwas über das Produkt gesagt/erlebt/Feedback gegeben hat, OHNE echtes Zitat oder Beleg im MARKENKONTEXT (oder vom Nutzer angegeben)? Ein erfundenes Testimonial/erfundene zitierte Person/erfundenes Nutzerfeedback, das nicht durch den MARKENKONTEXT belegt ist, MUSS als true gemeldet werden. Das ist ein HARD REJECT: Ist das Flag true, ist die Idee erfunden und MUSS verworfen und NEU generiert werden — niemals ausgeben.
+Setze die fünf selfCheck-Booleans wahrheitsgemäß. Dann urteile: Wenn Q5 wahr ist, oder Q3 oder Q4 wahr ist (oder mindestens 3 der 5 Kriterien verdächtig sind — z. B. keine Markenfakten genutzt, eine Herausforderung ignoriert, austauschbar, werblich), dann VERWIRF diese Idee intern und generiere eine andere, bessere Idee NEU, BEVOR du ausgibst. Wiederhole intern so oft wie nötig, bis die Idee wirklich besteht: sie nutzt echte Markenfakten, ehrt eine vorhandene Herausforderung, ist NICHT austauschbar, ist KEINE reine Werbung und erfindet KEINE Nutzer/Testimonials/Zitate.
 - FAKTENABGLEICH: Steht jede konkrete Behauptung (Funktion, Button, Zahl, Ergebnis, Kunde, Metrik) tatsächlich im MARKENKONTEXT oder hat der Nutzer sie angegeben? Wenn etwas fehlt oder nicht belegbar ist — entferne oder ersetze es durch eine Idee, die ohne diese Behauptung funktioniert, BEVOR du ausgibst. Erfinde niemals Fakten.
 
 JSON-Schema exakt:
@@ -181,7 +191,8 @@ JSON-Schema exakt:
     "usesConcreteBrandFact": true oder false,
     "addressesCurrentChallenge": true oder false,
     "interchangeable": true oder false,
-    "soundsLikeAd": true oder false
+    "soundsLikeAd": true oder false,
+    "inventsUserOrTestimonial": true oder false
   }
 }`;
 
@@ -208,6 +219,7 @@ const DIAGNOSE_EN = `You are Growimo's TikTok diagnostician. The user provides r
 Rules:
 - Answer ONLY with valid JSON, no other text, no markdown fences. Output in English.
 - Derive every claim from the numbers given (use them in your wording). Do NOT invent metrics that were not provided.
+- NEVER invent users/testimonials/quotes/user feedback or success stories — only the numbers provided may be referenced.
 - Identify the MOST LIKELY biggest problem from the data (e.g. retention vs reach vs engagement vs clicks), explain it plainly, and ground it in the numbers.
 - whatWorks: what the numbers show is already working (mention the actual figures). If genuinely nothing works yet, say so honestly.
 - whatToImprove: 2–4 concrete, actionable improvements tied to the diagnosis.
@@ -230,6 +242,7 @@ const DIAGNOSE_DE = `Du bist Growimos TikTok-Diagnostiker. Der Nutzer liefert ec
 Regeln:
 - Antworte AUSSCHLIESSLICH mit validem JSON, kein anderer Text, keine Markdown-Fences. Ausgabe auf Deutsch.
 - Leite jede Aussage aus den genannten Zahlen ab (nutze sie wörtlich). Erfinde keine Metriken, die nicht genannt wurden.
+- Erfinde NIEMALS Nutzer/Testimonials/Zitate/Nutzerfeedback oder Erfolgsgeschichten — nur die genannten Zahlen dürfen referenziert werden.
 - Benenne das WAHrscheinlich größte Problem aus den Daten (z. B. Retention vs. Reichweite vs. Engagement vs. Klicks), erkläre es verständlich und begründe es mit den Zahlen.
 - whatWorks: was die Zahlen zeigen, dass es bereits funktioniert (mit den konkreten Zahlen). Wenn ehrlich noch nichts funktioniert, sage das.
 - whatToImprove: 2–4 konkrete, umsetzbare Verbesserungen, die zur Diagnose passen.
@@ -335,6 +348,7 @@ function parseSelfCheck(p: Record<string, unknown>): TikTokSelfCheck | undefined
     addressesCurrentChallenge: o.addressesCurrentChallenge === true,
     interchangeable: o.interchangeable === true,
     soundsLikeAd: o.soundsLikeAd === true,
+    inventsUserOrTestimonial: o.inventsUserOrTestimonial === true,
   };
 }
 
@@ -386,6 +400,9 @@ function parseResult(mode: TikTokMode, text: string): TikTokResult | null {
 const MAX_TIKTOK_ATTEMPTS = 3;
 
 function selfCheckRejected(sc: TikTokSelfCheck): boolean {
+  // Erfundenes Testimonial / zitierte Person / Nutzerfeedback ohne Beleg im
+  // MARKENKONTEXT → HARD REJECT: solche Ideen dürfen niemals ausgegeben werden.
+  if (sc.inventsUserOrTestimonial === true) return true;
   const suspicious = [
     !sc.usesConcreteBrandFact,
     !sc.addressesCurrentChallenge,
@@ -398,8 +415,8 @@ function selfCheckRejected(sc: TikTokSelfCheck): boolean {
 
 function buildRetryHint(lang: TikTokLang): string {
   return lang === 'de'
-    ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Idee wurde intern verworfen (zu austauschbar / zu werblich / ohne echte Markenfakten oder Challenge-Bezug). Erzeuge JETZT eine deutlich bessere, neue Idee: baue sie um eine reale, konkrete Information aus dem MARKENKONTEXT — am besten um die aktuelle Herausforderung / das echte Problem / das offene Experiment — und NICHT um generische Produktwerbung. Setze selfCheck ehrlich auf bestehen.'
-    : '\n\nQUALITY SELF-CHECK NOTE: The previous idea was internally rejected (too interchangeable / too ad-like / without real brand facts or challenge tie-in). NOW produce a clearly better, NEW idea: build it around a real, concrete fact from the BRAND CONTEXT — ideally the current challenge / genuine problem / open experiment — and NOT around generic product advertising. Set selfCheck truthfully to passing.';
+    ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Idee wurde intern verworfen (zu austauschbar / zu werblich / ohne echte Markenfakten oder Challenge-Bezug — oder weil sie ein erfundenes Testimonial / eine zitierte Person / erfundenes Nutzerfeedback enthielt, das nicht im MARKENKONTEXT belegt ist). Erzeuge JETZT eine deutlich bessere, neue Idee: baue sie um eine reale, konkrete Information aus dem MARKENKONTEXT — am besten um die aktuelle Herausforderung / das echte Problem / das offene Experiment — und NICHT um generische Produktwerbung. Erfinde keinerlei Nutzer/Tester/Testimonials/Zitate; zeige stattdessen die EIGENE Idee / das EIGENE Experiment des Creators in der echten App (echte Bildschirmaufnahme). Setze selfCheck ehrlich auf bestehen.'
+    : '\n\nQUALITY SELF-CHECK NOTE: The previous idea was internally rejected (too interchangeable / too ad-like / without real brand facts or challenge tie-in — or because it contained an invented testimonial / quoted person / invented user feedback not backed by the BRAND CONTEXT). NOW produce a clearly better, NEW idea: build it around a real, concrete fact from the BRAND CONTEXT — ideally the current challenge / genuine problem / open experiment — and NOT around generic product advertising. Do not invent any users/testers/testimonials/quotes; instead show the creator\'s OWN idea / OWN experiment inside the real app (real screen recording). Set selfCheck truthfully to passing.';
 }
 
 // ── Hauptfunktion ────────────────────────────────────────────────────────────

@@ -93,7 +93,47 @@ async function main() {
   if (/\w/.test(dd.caption) === false) throw new Error("empty caption");
   console.log("   idea(EN):", fmt(dd.idea));
 
-  console.log("\n✅ TikTok alle 3 Modi (de) + heute-Idee (en) bestanden.");
+  // (e) BETAFALL: Growimo-self Beta ohne Nutzerfeedback → muss eine authentische,
+  //     real umsetzbare Beta-Demo liefern statt eines erfundenen Feedback-Zitats.
+  console.log("\n=== (e) todayIdea BETA-FALL (de) — keine erfundenen Nutzer/Testimonials ===");
+  const e = await generateTikTok(
+    {
+      mode: "todayIdea",
+      biz: "Growimo — KI-Marketing-Entscheidungs-Engine",
+      goal: "Reichweite",
+      brandContext:
+        "Growimo ist eine KI-gestützte Marketing-Entscheidungs-Engine für Creator, Unternehmer und Unternehmen. Beta gestartet, kaum Tester, frühe Phase, keine echten Nutzerstimmen vorhanden. Echte Funktionen: Video-Idee generieren, Qualitäts-Score 0-100, Auto-Verbesserung, Veröffentlichungs-Priorisierung, Kanal-Aktionspläne für Pinterest/Etsy/SEO, A/B-Varianten, Publishing-Kalender, Performance-Feedback.",
+    },
+    "de",
+  );
+  checkIdea(e, "todayIdea-beta");
+  const ee = e as { idea: string; hook: string; scenes: string[]; caption: string; selfCheck?: { inventsUserOrTestimonial: boolean } };
+  console.log("   idea      :", fmt(ee.idea));
+  console.log("   hook      :", fmt(ee.hook));
+  console.log("   scenes    :", ee.scenes.map((s) => "      • " + s.replace(/\n/g, " ")).join("\n"));
+  // Guard: eigenständige Prüfung, dass keine erfundene Nutzerstimme / echtes
+  // Zitat einer echten Person als Testimonial auftaucht (zusätzlich zum selfCheck).
+  const textBlob = (ee.idea + " " + ee.hook + " " + ee.caption + " " + ee.scenes.join(" ")).toLowerCase();
+  const inventedKinds = [
+    /nutzer(in)?\s+(sagt|berichtet|gibt.{0,30}feedback)/,
+    /tester(in)?\s+(sagt|schreibt|berichtet|ist begeistert)/,
+    /ein[en]?\s+(kunde|tester|nutzer).{0,30}(sagt|schreibt|ist begeistert|liebt)/,
+    /eine\s+echte\s+nutzerin/,
+    /"(.*?)"\s*[—-]\s*(ein[en]?\s+)?(nutzer|kunde|tester)/,
+    /kun(din|de)\s+(ist|sind)\s+begeistert/,
+    /user\s+(says|is excited|loves)/,
+    /(kunde|nutzer|tester).{0,40}(sagt|schreibt|fand|hinterlässt).{0,15}bewertung/,
+  ];
+  const hits = inventedKinds.filter((re) => re.test(textBlob));
+  if (ee.selfCheck?.inventsUserOrTestimonial === true) {
+    throw new Error("BETA-FALL: selfCheck.inventsUserOrTestimonial==true → Idee enthält erfundenes Testimonial");
+  }
+  if (hits.length > 0) {
+    throw new Error("BETA-FALL: Idee enthält eine erfundene Nutzer-/Testimonial-Aussage: " + hits.map((r) => r.source).join(","));
+  }
+  console.log("   ✅ BETA-FALL: keine erfundene Nutzer-/Testimonial-Aussage erkannt, selfCheck.inventsUserOrTestimonial=" + ee.selfCheck?.inventsUserOrTestimonial);
+
+  console.log("\n✅ TikTok alle 3 Modi (de) + heute-Idee (en) + BETA-FALL bestanden.");
 }
 
 main().catch((err) => {
