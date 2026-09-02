@@ -639,10 +639,10 @@ export const de = {
   export_channels: 'Kanäle',
 
   // ── AI Image Studio ─────────────────────────────────────────────────────────
-  image_studio_title: '🎨 AI Image Studio',
+  image_studio_title: '🎨 KI-Bild-Studio',
   image_studio_subtitle: 'Visuelle Assets für deine Marketingstrategie',
-  sidebar_image_studio: '🎨 Image Studio',
-  image_studio_page_title: 'AI Image Studio', image_studio_page_subtitle: 'Generiere Bilder, Pinterest Pins und Etsy Mockups mit KI',
+  sidebar_image_studio: '🎨 Bild-Studio',
+  image_studio_page_title: 'KI-Bild-Studio', image_studio_page_subtitle: 'Generiere Bilder, Pinterest Pins und Etsy Mockups mit KI',
   image_studio_prompt_label: 'Was möchtest du generieren?', image_studio_prompt_placeholder: 'Beschreibe das gewünschte Bild…', image_studio_generate_btn: 'Generieren', image_studio_templates_label: 'Schnellvorlagen',
   image_studio_template_pinterest: 'Pinterest Pin (2:3)', image_studio_template_etsy: 'Etsy Mockup (4:3)', image_studio_template_instagram: 'Instagram-Beitrag (1:1)', image_studio_template_blog: 'Blog-Hero (16:9)',
   image_studio_from_strategy: 'Aus Marketing-Strategie generieren', image_studio_select_project: 'Projekt auswählen…', image_studio_prompts_generated: 'Generierte Prompts', image_studio_upload_title: 'Eigenes Bild bearbeiten', image_studio_upload_dropzone: 'Bild hier ablegen oder klicken zum Hochladen', image_studio_gallery_title: 'Generierte Bilder', image_studio_empty: 'Noch keine Bilder generiert. Gib einen Prompt ein und klicke auf Generieren.', image_studio_generating: 'Generiere Bild…', image_studio_error: 'Fehler bei der Bildgenerierung', image_studio_download: 'Herunterladen', image_studio_copy_prompt: 'Prompt kopieren', image_studio_regenerate: 'Neu generieren', image_studio_variation: 'Variation', image_studio_regenerate_generating: 'Wird neu generiert…', image_studio_variation_generating: 'Variation wird erstellt…', image_studio_card_error: 'Fehler bei der Erstellung der Variante. Bitte erneut versuchen.',

@@ -18,10 +18,12 @@ const FORMAT_INFO: Record<string, { width: number; height: number; icon: string;
   '16:9': { width: 1600, height: 900, icon: '🖼️', label: 'Blog Hero Image' },
 };
 
-/** Creates a branded SVG data URL while the image provider is not configured. */
-export function generatePlaceholderImage(aspectRatio: '2:3' | '1:1' | '4:3' | '16:9'): string {
+/** Creates a branded SVG data URL while the image provider is not configured.
+ *  `label` overrides the default English FORMAT_INFO label so callers can render
+ *  the placeholder in the current UI language; falls back to the English default. */
+export function generatePlaceholderImage(aspectRatio: '2:3' | '1:1' | '4:3' | '16:9', label?: string): string {
   const info = FORMAT_INFO[aspectRatio];
-  const escapedLabel = `${info.label} (${aspectRatio})`.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const escapedLabel = `${label ?? info.label} (${aspectRatio})`.replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${info.width} ${info.height}" role="img" aria-label="${escapedLabel}">
   <defs><linearGradient id="growimo-gradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#9333ea"/></linearGradient></defs>
   <rect width="100%" height="100%" fill="url(#growimo-gradient)"/>

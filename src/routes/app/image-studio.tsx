@@ -9,6 +9,7 @@ import { getProjectsByUser, type Project } from '~/store/projects';
 import type { GeneratedImage } from '~/ai/image-providers/types';
 import { consumeStrategyPrefill, type StrategyImagePayload } from '~/lib/strategy-image';
 import { getBrandProfile } from '~/store/brand';
+import { contentTypeLabel } from '~/lib/content-types';
 
 const generateImageServer = createServerFn({ method: 'POST' }).validator((input: unknown) => input as { prompt: string; aspectRatio: string }).handler(async ({ data }) => {
   const { generateImage } = await import('~/ai/image-providers/generate');
@@ -147,7 +148,7 @@ function ImageStudioContent() {
     }
   };
   const project = projects.find((p) => p.id === selectedProject);
-  const strategyPrompts = project ? templates.map(([, , baseKey]) => `${t[baseKey]} ${project.productIdea}, ${t.image_studio_prompt_optimized_for} ${project.contentTypes.join(', ')}.`) : [];
+  const strategyPrompts = project ? templates.map(([, , baseKey]) => `${t[baseKey]} ${project.productIdea}, ${t.image_studio_prompt_optimized_for} ${project.contentTypes.map((ct) => contentTypeLabel(t, ct)).join(', ')}.`) : [];
   const copy = async (text: string) => { try { await navigator.clipboard.writeText(text); } catch { /* clipboard unavailable */ } };
   const download = async (image: GeneratedImage) => {
     try {
