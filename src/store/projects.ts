@@ -138,8 +138,8 @@ function toProject(raw: RawProject): Project {
   return {
     id: raw.id,
     userId: raw.userId,
-    title: raw.title,
-    productIdea: raw.productIdea,
+    title: raw.title == null ? '' : String(raw.title),
+    productIdea: raw.productIdea == null ? '' : String(raw.productIdea),
     contentTypes: Array.isArray(raw.contentTypes) ? raw.contentTypes : [],
     status: (raw.status as Project['status']) || 'completed',
     createdAt: new Date(raw.createdAt),

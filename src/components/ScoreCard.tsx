@@ -497,7 +497,7 @@ export function ScoreCard({
           )}
 
           <p className="mt-1.5 text-[11px] leading-relaxed text-emerald-800/70">
-            {tLookup.improve_applied.replace('%d', String(lastOutcome.appliedFixes.length))} ·{' '}
+            {(tLookup.improve_applied ?? '').replace('%d', String(lastOutcome.appliedFixes?.length ?? 0))} ·{' '}
             {tLookup.improve_regenerate_note}
           </p>
 
