@@ -12,7 +12,7 @@
 
 import type { ContentResult, ContentType, PrioritizeOutcome } from '../types';
 import { determineKernel, isFallbackKernel, type MarketingKernel } from './kernel';
-import { generatePackageChannel, PACKAGE_CHANNELS } from './generate';
+import { generatePackageChannel, PACKAGE_CHANNELS, kernelContext } from './generate';
 import { prioritizeChannelsSync } from '../prioritize';
 import { buildBriefContext } from '../strategy-brief/questions';
 
