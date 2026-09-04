@@ -11,10 +11,10 @@ interface ImageStudioProps {
 type StudioFormat = ImageGenerationRequest['aspectRatio'];
 
 const FORMATS: Array<{ ratio: StudioFormat; labelKey: 'image_studio_format_pinterest' | 'image_studio_format_etsy' | 'image_studio_format_instagram' | 'image_studio_format_blog'; filename: string; promptKey: 'image_studio_prompt_format_pinterest' | 'image_studio_prompt_format_etsy' | 'image_studio_prompt_format_instagram' | 'image_studio_prompt_format_blog'; prompt: (idea: string, template: string) => string }> = [
-  { ratio: '2:3', labelKey: 'image_studio_format_pinterest', filename: 'pinterest-pin', prompt: (idea, template) => template.replace('%s', idea) },
-  { ratio: '4:3', labelKey: 'image_studio_format_etsy', filename: 'etsy-product-mockup', prompt: (idea, template) => template.replace('%s', idea) },
-  { ratio: '1:1', labelKey: 'image_studio_format_instagram', filename: 'instagram-post', prompt: (idea, template) => template.replace('%s', idea) },
-  { ratio: '16:9', labelKey: 'image_studio_format_blog', filename: 'blog-hero-image', prompt: (idea, template) => template.replace('%s', idea) },
+  { ratio: '2:3', labelKey: 'image_studio_format_pinterest', filename: 'pinterest-pin', promptKey: 'image_studio_prompt_format_pinterest', prompt: (idea, template) => template.replace('%s', idea) },
+  { ratio: '4:3', labelKey: 'image_studio_format_etsy', filename: 'etsy-product-mockup', promptKey: 'image_studio_prompt_format_etsy', prompt: (idea, template) => template.replace('%s', idea) },
+  { ratio: '1:1', labelKey: 'image_studio_format_instagram', filename: 'instagram-post', promptKey: 'image_studio_prompt_format_instagram', prompt: (idea, template) => template.replace('%s', idea) },
+  { ratio: '16:9', labelKey: 'image_studio_format_blog', filename: 'blog-hero-image', promptKey: 'image_studio_prompt_format_blog', prompt: (idea, template) => template.replace('%s', idea) },
 ];
 
 function fallbackCopy(text: string) {
@@ -30,6 +30,7 @@ function fallbackCopy(text: string) {
 
 export function ImageStudio({ productIdea }: ImageStudioProps) {
   const { t } = useTranslation();
+  const altTemplate = (t.image_studio_alt_placeholder ?? '') as string;
   const [copied, setCopied] = useState<string | null>(null);
 
   const copyPrompt = async (key: string, prompt: string) => {
@@ -66,14 +67,17 @@ export function ImageStudio({ productIdea }: ImageStudioProps) {
       </div>
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         {FORMATS.map((format) => {
-          const prompt = format.prompt(productIdea, t[format.promptKey]);
+          // Defensive: dynamic t[key] lookups must never yield undefined —
+          // a missing dict key would crash .replace() on the very next line.
+          const template = (t[format.promptKey] ?? '') as string;
+          const prompt = format.prompt(productIdea, template);
           const copiedThis = copied === format.ratio;
-          const label = t[format.labelKey];
+          const label = (t[format.labelKey] ?? '') as string;
           return (
             <article key={format.ratio} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all hover:scale-[1.01] hover:shadow-md">
               <div className={`relative overflow-hidden bg-blue-500 ${format.ratio === '2:3' ? 'aspect-[2/3]' : format.ratio === '4:3' ? 'aspect-[4/3]' : format.ratio === '16:9' ? 'aspect-video' : 'aspect-square'}`}>
-                <img src={generatePlaceholderImage(format.ratio, label)} alt={t.image_studio_alt_placeholder.replace('%s', label)} className="h-full w-full object-cover" />
-                <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-gray-700 shadow-sm">{label} · {format.ratio}</span>
+                <img src={generatePlaceholderImage(format.ratio, label)} alt={altTemplate.replace('%s', label)} className="h-full w-full object-cover" />
+                <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-gray-700 shadow-sm">{label || format.ratio} · {format.ratio}</span>
               </div>
               <div className="grid grid-cols-2 gap-2 p-4 sm:grid-cols-4">
                 <button type="button" onClick={() => void downloadImage(format)} className="inline-flex items-center justify-center gap-1 rounded-xl border border-gray-200 px-2 py-2 text-xs font-semibold text-gray-700 transition hover:border-blue-300 hover:bg-blue-50" title={t.image_studio_download_svg}>⬇ <span>{t.image_studio_download}</span></button>

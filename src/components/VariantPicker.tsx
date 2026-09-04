@@ -169,7 +169,7 @@ export function VariantPicker({
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-2.5 py-0.5 text-[11px] font-bold text-indigo-800">
-                      {tLookup.variant_letter.replace('%s', VARIANT_LETTERS[idx] ?? String(idx + 1))}
+                      {((tLookup.variant_letter ?? '') as string).replace('%s', VARIANT_LETTERS[idx] ?? String(idx + 1))}
                     </span>
                     <h4 className="mt-1.5 text-sm font-bold text-gray-900">{variant.title}</h4>
                   </div>

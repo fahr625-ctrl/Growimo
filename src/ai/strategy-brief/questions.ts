@@ -140,7 +140,7 @@ export function buildBriefContext(brief: Record<string, string> | null | undefin
     const label = option ? option.label[lang] : value;
     let part = `${question.promptLabel[lang]}=${label}`;
     const note = brief[noteKeyOf(question.key)];
-    if (note && note.trim()) part += ` (Zusatz: ${note.trim()})`;
+    if (note && typeof note === 'string' && note.trim()) part += ` (Zusatz: ${note.trim()})`;
     parts.push(part);
   }
   return parts.length > 0 ? `Strategie-Brief: ${parts.join(', ')}` : '';

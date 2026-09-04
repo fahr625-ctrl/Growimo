@@ -167,13 +167,13 @@ export function PrioritizeCard({
                         </span>
                       )}
                       <span className="inline-flex items-center gap-1 rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[11px] font-semibold text-purple-700">
-                        {t.prioritize_priority_label} {item.priorityScore}/100 · Platz {item.rank}
+                        {t.prioritize_priority_label} {item.priorityScore ?? 0}/100 · Platz {item.rank}
                       </span>
                     </div>
                     <p className="mt-1.5 text-sm leading-relaxed text-gray-700">{item.rationale}</p>
-                    {item.reasonTags.length > 0 && (
+                    {(Array.isArray(item.reasonTags) ? item.reasonTags : []).length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        {item.reasonTags.map((tag) => (
+                    {(Array.isArray(item.reasonTags) ? item.reasonTags : []).map((tag) => (
                           <span
                             key={tag}
                             className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[10px] font-medium text-gray-500"

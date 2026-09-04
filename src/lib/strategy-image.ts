@@ -71,6 +71,7 @@ function findSectionValue(
 }
 
 function extractOverlay(concept: string): string {
+  if (typeof concept !== 'string') return '';
   const idx = concept.indexOf('Text-Overlay-Vorschlag');
   if (idx === -1) return '';
   const rest = concept.slice(idx).split('\n')[0].trim();
@@ -79,7 +80,7 @@ function extractOverlay(concept: string): string {
 }
 
 function detectRatio(contentType: string, body: string): GeneratedImage['aspectRatio'] {
-  const ct = contentType.toLowerCase();
+  const ct = String(contentType ?? '').toLowerCase();
   if (/etsy/.test(ct)) return '4:3';
   if (/instagram|social/.test(ct)) return '1:1';
   if (/blog|seo/.test(ct)) return '16:9';
@@ -89,14 +90,14 @@ function detectRatio(contentType: string, body: string): GeneratedImage['aspectR
 
 /** Content-type → human platform label (kept here so the project page stays thin). */
 export function platformLabelFor(contentType: string): string {
-  const ct = contentType.toLowerCase();
+  const ct = String(contentType ?? '').toLowerCase();
   if (/pinterest/.test(ct)) return 'Pinterest';
   if (/etsy/.test(ct)) return 'Etsy';
   if (/instagram/.test(ct)) return 'Instagram';
   if (/blog|seo/.test(ct)) return 'Blog';
   if (/email|newsletter/.test(ct)) return 'Newsletter';
   if (/social/.test(ct)) return 'Social Media';
-  return contentType;
+  return String(contentType ?? '');
 }
 
 /**

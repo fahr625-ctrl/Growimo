@@ -64,7 +64,7 @@ export function ActionPlanCard({ asset }: { asset: ActionPlanAsset }) {
               allDone ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-700'
             }`}
           >
-            {t.action_plan_progress.replace('%d1', String(doneCount)).replace('%d2', String(plan.plan.length))}
+            {((t.action_plan_progress ?? '') as string).replace('%d1', String(doneCount)).replace('%d2', String(plan.plan.length))}
           </span>
         )}
         <svg
@@ -129,7 +129,7 @@ export function ActionPlanCard({ asset }: { asset: ActionPlanAsset }) {
               <p className="text-sm font-semibold text-emerald-700">{t.action_plan_all_done}</p>
             ) : (
               <span className="text-xs text-gray-400">
-                {t.action_plan_progress.replace('%d1', String(doneCount)).replace('%d2', String(plan.plan.length))}
+                {((t.action_plan_progress ?? '') as string).replace('%d1', String(doneCount)).replace('%d2', String(plan.plan.length))}
               </span>
             )}
             {doneCount > 0 && (
