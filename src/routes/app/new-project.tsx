@@ -35,6 +35,81 @@ export const Route = createFileRoute('/app/new-project')({
   component: NewProjectPage,
 });
 
+// ── SSE stream client (Phase 1): one JSON object per `data:` line ───────────
+// Feature flag (Plan §4-R8): '1' (default) = fetch-Stream an /api/generate/stream,
+// '0' = legacy Promise.all/ServerFn path. Both paths stay in the code.
+const STREAM_FLAG_KEY = 'growimo_stream_generate';
+function isStreamGenerateEnabled(): boolean {
+  try {
+    const raw = localStorage.getItem(STREAM_FLAG_KEY);
+    if (raw === '0' || raw === '1') return raw === '1';
+  } catch {
+    // localStorage unavailable (SSR) → default on
+  }
+  return true;
+}
+
+type StreamStepState = { status: 'running' | 'done' | 'error'; durationMs?: number };
+
+interface StreamChannelEvent {
+  type: string;
+  stepId?: string;
+  title?: string;
+  status?: 'running' | 'done' | 'error';
+  durationMs?: number;
+  order?: number;
+  result?: ContentResult;
+  message?: string;
+}
+
+/**
+ * POST to /api/generate/stream and yield parsed SSE events. Throws on
+ * non-200 (carries the JSON error message) or on network abort.
+ */
+async function* readGenerateStream(
+  requests: ContentRequest[],
+): AsyncGenerator<StreamChannelEvent> {
+  const response = await fetch('/api/generate/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requests }),
+  });
+  if (!response.ok) {
+    let message = `HTTP ${response.status}`;
+    try {
+      const data = (await response.json()) as { error?: string };
+      if (data?.error) message = data.error;
+    } catch {
+      // keep generic message
+    }
+    throw new Error(message);
+  }
+  if (!response.body) throw new Error('Empty stream');
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let idx: number;
+    // SSE frames are separated by a blank line (\n\n)
+    while ((idx = buffer.indexOf('\n\n')) !== -1) {
+      const frame = buffer.slice(0, idx);
+      buffer = buffer.slice(idx + 2);
+      for (const line of frame.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue; // skip comments/heartbeats
+        try {
+          yield JSON.parse(trimmed.slice(5).trim()) as StreamChannelEvent;
+        } catch {
+          // ignore malformed line
+        }
+      }
+    }
+  }
+}
+
 function NewProjectPage() {
   return (
     <ProtectedRoute>
@@ -46,7 +121,7 @@ function NewProjectPage() {
 // ── Main content component ────────────────────────────────────────────────────
 function NewProjectContent() {
   const { user } = useUser();
-  const { t, locale } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { idea: ideaParam } = useSearch({ from: '/app/new-project' });
 
@@ -89,6 +164,13 @@ function NewProjectContent() {
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Stream progress state (Phase 1): per-channel step status + elapsed timer.
+  const [stepStatus, setStepStatus] = useState<Record<string, StreamStepState>>({});
+  const [streamOrder, setStreamOrder] = useState<string[]>([]);
+  const [streamTitles, setStreamTitles] = useState<Record<string, string>>({});
+  const [elapsedSecs, setElapsedSecs] = useState(0);
+  const streamStartRef = useRef(0);
+
   // Upsell modal for usage limits
   const [showUpsell, setShowUpsell] = useState(false);
 
@@ -105,6 +187,17 @@ function NewProjectContent() {
     }, 2000);
     return () => clearInterval(interval);
   }, [isLoading, LOADING_MESSAGES]);
+
+  // ── Elapsed timer while streaming ─────────────────────────────────────────
+  useEffect(() => {
+    if (!isLoading) return;
+    streamStartRef.current = Date.now();
+    setElapsedSecs(0);
+    const interval = setInterval(() => {
+      setElapsedSecs(Math.floor((Date.now() - streamStartRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isLoading]);
 
   // ── Auto-save draft to localStorage ───────────────────────────────────────
   const uid = user?.id ?? 'anonymous';
@@ -209,7 +302,7 @@ function NewProjectContent() {
     ].filter(Boolean).join('\n');
   }, [productDetails]);
 
-  // ── Generate all selected content types ────────────────────────────────────
+// ── Generate all selected content types ────────────────────────────────────
   const handleGenerate = useCallback(async () => {
     if (selectedTypes.length === 0) return;
 
@@ -226,6 +319,10 @@ function NewProjectContent() {
     setStep(2);
     setResults([]);
     setSavedProjectId(null);
+    // Reset stream progress state (used by the stream path; harmless for legacy)
+    setStepStatus({});
+    setStreamOrder([]);
+    setStreamTitles({});
 
     try {
       // Inject brand context into product idea
@@ -239,12 +336,51 @@ function NewProjectContent() {
         additionalContext: buildAdditionalContext() || undefined,
       }));
 
-      console.info('[new-project] calling generateContentServer at', new Date().toISOString());
-      const generated: ContentResult[] = await Promise.all(
-        requests.map((req) => generateContentServer({ data: req })),
-      ) as ContentResult[];
+      let generated: ContentResult[];
+      if (isStreamGenerateEnabled()) {
+        // ── Stream path (Phase 1): fetch POST /api/generate/stream, collect
+        // `result` events incrementally, isolate per-channel `error` events.
+        console.info('[new-project] streaming via /api/generate/stream at', new Date().toISOString());
+        const collected: ContentResult[] = [];
+        let streamFailed: string | null = null;
+        for await (const event of readGenerateStream(requests)) {
+          if (event.type === 'step' && event.stepId) {
+            const stepId = event.stepId;
+            if (event.status === 'running') {
+              setStreamTitles((prev) =>
+                prev[stepId] ? prev : { ...prev, [stepId]: event.title ?? stepId },
+              );
+              setStreamOrder((prev) => (prev.includes(stepId) ? prev : [...prev, stepId]));
+              setStepStatus((prev) => ({ ...prev, [stepId]: { status: 'running' } }));
+            } else if (event.status === 'done' || event.status === 'error') {
+              setStepStatus((prev) => ({
+                ...prev,
+                [stepId]: { status: event.status as 'done' | 'error', durationMs: event.durationMs },
+              }));
+            }
+          } else if (event.type === 'result' && event.result) {
+            collected.push(event.result);
+            // Show each finished channel immediately (progressive rendering).
+            setResults((prev) => [...prev, event.result as ContentResult]);
+          } else if (event.type === 'error' && event.stepId) {
+            // Isolated: mark only this channel card, keep the rest running.
+            console.error('Channel generation failed (stream):', event.stepId, event.message);
+          } else if (event.type === 'fatal') {
+            streamFailed = event.message ?? 'Unbekannter Fehler';
+            break;
+          }
+        }
+        if (streamFailed) throw new Error(streamFailed);
+        generated = collected;
+      } else {
+        // ── Legacy path (unchanged): one ServerFn POST per channel, parallel.
+        console.info('[new-project] calling generateContentServer at', new Date().toISOString());
+        generated = await Promise.all(
+          requests.map((req) => generateContentServer({ data: req })),
+        ) as ContentResult[];
 
-      setResults(generated);
+        setResults(generated);
+      }
 
       // Record this generation in usage tracking
       recordGeneration(uid);
@@ -259,6 +395,7 @@ function NewProjectContent() {
       const saved = await saveProject(
         userId,
         {
+          userId,
           title: projectTitle,
           productIdea,
           contentTypes: selectedTypes,
@@ -411,6 +548,9 @@ function NewProjectContent() {
     setIsLoading(false);
     setSavedProjectId(null);
     setErrorMessage(null);
+    setStepStatus({});
+    setStreamOrder([]);
+    setStreamTitles({});
     setProductDetails({
       size: '', material: '', targetAudience: '', platform: '',
       style: '', language: 'Deutsch', price: '', shipping: '', special: '',
@@ -461,6 +601,10 @@ function NewProjectContent() {
           copiedAll={copiedAll}
           savedProjectId={savedProjectId}
           errorMessage={errorMessage}
+          stepStatus={stepStatus}
+          streamOrder={streamOrder}
+          streamTitles={streamTitles}
+          elapsedSecs={elapsedSecs}
           onCopyAll={handleCopyAll}
           onReset={handleReset}
           onViewProject={() =>
@@ -528,7 +672,7 @@ function Step1Strategy({
   showDetails: boolean;
   setShowDetails: (v: boolean) => void;
 }) {
-  const { t, locale } = useTranslation();
+  const { t } = useTranslation();
   const canGen = productIdea.trim().length > 0 && selectedTypes.length > 0;
 
   const updateDetail = (field: string, value: string) => {
@@ -765,6 +909,10 @@ function Step2Results({
   copiedAll,
   savedProjectId,
   errorMessage,
+  stepStatus,
+  streamOrder,
+  streamTitles,
+  elapsedSecs,
   onCopyAll,
   onReset,
   onViewProject,
@@ -783,6 +931,10 @@ function Step2Results({
   copiedAll: boolean;
   savedProjectId: string | null;
   errorMessage: string | null;
+  stepStatus: Record<string, StreamStepState>;
+  streamOrder: string[];
+  streamTitles: Record<string, string>;
+  elapsedSecs: number;
   onCopyAll: () => void;
   onReset: () => void;
   onViewProject: () => void;
@@ -796,22 +948,36 @@ function Step2Results({
 
   return (
     <div className="mx-auto max-w-4xl animate-fadeIn">
-      {/* Loading state */}
+      {/* Loading state: stream progress (Phase 1) or legacy spinner */}
       {isLoading && (
-        <div className="flex flex-col items-center justify-center py-16">
-          <div className="relative mb-6">
-            <div className="h-16 w-16 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-xl">✨</span>
+        streamOrder.length > 0 ? (
+          <StreamProgressPanel
+            streamOrder={streamOrder}
+            streamTitles={streamTitles}
+            stepStatus={stepStatus}
+            elapsedSecs={elapsedSecs}
+            results={results}
+            productIdea={productIdea}
+            savedProjectId={savedProjectId}
+            onImproveResult={onImproveResult}
+            onViewProject={onViewProject}
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center py-16">
+            <div className="relative mb-6">
+              <div className="h-16 w-16 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xl">✨</span>
+              </div>
             </div>
+            <p className="animate-pulse text-sm font-medium text-gray-600">
+              {loadingMessage}
+            </p>
+            <p className="mt-2 text-xs text-gray-400">
+              {t.loading_generating_count.replace('%d', String(selectedCount))}
+            </p>
           </div>
-          <p className="animate-pulse text-sm font-medium text-gray-600">
-            {loadingMessage}
-          </p>
-          <p className="mt-2 text-xs text-gray-400">
-            {t.loading_generating_count.replace('%d', String(selectedCount))}
-          </p>
-        </div>
+        )
       )}
 
       {/* Error message */}
@@ -829,7 +995,7 @@ function Step2Results({
       )}
 
       {/* Results */}
-      {!isLoading && results.length > 0 && (
+      {!isLoading && results.length > 0 && streamOrder.length === 0 && (
         <>
           {/* Consistency header */}
           <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/50 px-5 py-3">
@@ -1011,7 +1177,7 @@ function AccordionResults({
   onViewProject: () => void;
 }) {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
-  const { t, locale } = useTranslation();
+  const { t } = useTranslation();
   const { user } = useUser();
 
   // Load all projects from PostgreSQL for cross-project intelligence
@@ -1202,7 +1368,7 @@ function AccordionResults({
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
-  const { t, locale } = useTranslation();
+  const { t } = useTranslation();
 
   const handleClick = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1282,7 +1448,7 @@ function UpsellModal({
   onClose: () => void;
   remaining: number;
 }) {
-  const { t, locale } = useTranslation();
+  const { t } = useTranslation();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="mx-4 w-full max-w-md animate-fadeIn rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl">
@@ -1325,6 +1491,117 @@ function UpsellModal({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// StreamProgressPanel (Phase 1): per-channel progress bar + incremental results
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function StreamProgressPanel({
+  streamOrder,
+  streamTitles,
+  stepStatus,
+  elapsedSecs,
+  results,
+  productIdea,
+  savedProjectId,
+  onImproveResult,
+  onViewProject,
+}: {
+  streamOrder: string[];
+  streamTitles: Record<string, string>;
+  stepStatus: Record<string, StreamStepState>;
+  elapsedSecs: number;
+  results: ContentResult[];
+  productIdea: string;
+  savedProjectId: string | null;
+  onImproveResult: (contentType: ContentType, result: ContentResult) => void;
+  onViewProject: () => void;
+}) {
+  const { t } = useTranslation();
+  const doneCount = streamOrder.filter((id) => stepStatus[id]?.status === 'done').length;
+  const channelIcon = (stepId: string): string => {
+    const ct = stepId.startsWith('channel:') ? stepId.slice('channel:'.length) : stepId;
+    return getContentTypeConfig(ct as ContentType)?.icon ?? '📄';
+  };
+
+  return (
+    <div className="mx-auto max-w-4xl">
+      {/* Progress header */}
+      <div className="mb-4 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-blue-200 border-t-blue-600" />
+            <p className="text-sm font-semibold text-gray-900">
+              {t.stream_channels_done
+                .replace('%d', String(doneCount))
+                .replace('%d', String(streamOrder.length))}
+            </p>
+          </div>
+          <p className="text-xs text-gray-400">
+            {t.stream_elapsed.replace('%d', String(elapsedSecs))}
+          </p>
+        </div>
+        {/* Overall progress bar */}
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-500"
+            style={{ width: `${streamOrder.length > 0 ? Math.round((doneCount / streamOrder.length) * 100) : 0}%` }}
+          />
+        </div>
+        {/* Per-channel rows */}
+        <ul className="mt-4 space-y-2">
+          {streamOrder.map((stepId) => {
+            const st = stepStatus[stepId];
+            const title = streamTitles[stepId] ?? stepId;
+            const isDone = st?.status === 'done';
+            const isError = st?.status === 'error';
+            const secs = st?.durationMs != null ? Math.round(st.durationMs / 1000) : null;
+            return (
+              <li
+                key={stepId}
+                className="flex items-center gap-3 rounded-xl bg-gray-50 px-3 py-2 text-sm"
+              >
+                <span className="flex-shrink-0 text-lg">{channelIcon(stepId)}</span>
+                <span className="min-w-0 flex-1 truncate font-medium text-gray-800">
+                  {title}
+                </span>
+                {isDone && (
+                  <span className="flex flex-shrink-0 items-center gap-1.5 text-xs text-emerald-700">
+                    <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] text-white">✓</span>
+                    {secs != null ? t.stream_step_done.replace('%d', String(secs)) : '✓'}
+                  </span>
+                )}
+                {isError && (
+                  <span className="flex flex-shrink-0 items-center gap-1.5 text-xs font-medium text-amber-700">
+                    <span>⚠</span>
+                    {t.stream_step_error}
+                  </span>
+                )}
+                {!isDone && !isError && (
+                  <span className="flex flex-shrink-0 items-center gap-1.5 text-xs text-gray-500">
+                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600" />
+                    {t.stream_step_running}
+                  </span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      {/* Incrementally finished channels render immediately (accordion) */}
+      {results.length > 0 && (
+        <AccordionResults
+          results={results}
+          productIdea={productIdea}
+          savedProjectId={savedProjectId}
+          onImproveResult={onImproveResult}
+          onViewProject={onViewProject}
+        />
+      )}
     </div>
   );
 }

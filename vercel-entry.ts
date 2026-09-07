@@ -14,6 +14,7 @@ import handler from "./dist/server/server.js";
 import { initDb } from "./src/db/init";
 import { handleBetaApi } from "./src/api/beta";
 import { handleTrackingApi } from "./src/api/tracking";
+import { handleGenerateStreamApi } from "./src/api/generate-stream";
 
 // Initialise the database once at cold start
 try { await initDb(); } catch (err) { console.error("[vercel] Database init failed:", err); }
@@ -73,6 +74,22 @@ export default async function vercelHandler(
       trackingResponse.headers.forEach((value, key) => res.setHeader(key, value));
       if (trackingResponse.body) {
         const reader = trackingResponse.body.getReader();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          res.write(value);
+        }
+      }
+      res.end();
+      return;
+    }
+    // SSE strategy-generation stream (chunked; same reader/write forwarding).
+    const streamResponse = await handleGenerateStreamApi(webReq, url.pathname);
+    if (streamResponse) {
+      res.statusCode = streamResponse.status;
+      streamResponse.headers.forEach((value, key) => res.setHeader(key, value));
+      if (streamResponse.body) {
+        const reader = streamResponse.body.getReader();
         for (;;) {
           const { done, value } = await reader.read();
           if (done) break;

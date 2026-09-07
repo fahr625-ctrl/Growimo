@@ -27,7 +27,9 @@ function getJWKS() {
   return jwks;
 }
 /** Returns the Clerk subject (user id) if the __session token verifies, else null. */
-async function verifySessionSubject(req: Request): Promise<string | null> {
+// Exported for reuse by the SSE generate-stream route (same __session-cookie
+// auth, no new auth code — see src/api/generate-stream.ts).
+export async function verifySessionSubject(req: Request): Promise<string | null> {
   const cookie = req.headers.get("cookie") || "";
   const match = cookie.split(";").find((c) => c.trim().startsWith("__session="));
   if (!match) return null;

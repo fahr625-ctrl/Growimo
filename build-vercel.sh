@@ -30,7 +30,7 @@ bun build vercel-entry.ts --target node \
   --outfile .vercel/output/functions/render.func/index.mjs
 
 cat > .vercel/output/functions/render.func/.vc-config.json <<'JSON'
-{ "runtime": "nodejs22.x", "handler": "index.mjs", "launcherType": "Nodejs", "supportsResponseStreaming": true }
+{ "runtime": "nodejs22.x", "handler": "index.mjs", "launcherType": "Nodejs", "supportsResponseStreaming": true, "maxDuration": 300 }
 JSON
 cat > .vercel/output/config.json <<'JSON'
 { "version": 3, "routes": [ { "handle": "filesystem" }, { "src": "/(.*)", "dest": "/render" } ] }

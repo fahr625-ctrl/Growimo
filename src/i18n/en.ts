@@ -1,7 +1,8 @@
 // ── English translations ───────────────────────────────────────────────────────
 import type { de } from './de';
 
-export const en: typeof de = {
+type EnShape = { [K in keyof typeof de]: typeof de[K] extends readonly (string | number)[] ? readonly string[] : typeof de[K] extends string ? string : typeof de[K] };
+export const en: EnShape = {
   // ── Nav ──────────────────────────────────────────────────────────────────────
   nav_features: 'Features',
   nav_how_it_works: 'How It Works',
@@ -436,6 +437,14 @@ export const en: typeof de = {
   results_view_project: 'View project',
   results_all_copied: 'All copied!',
   results_generation_failed: 'Generation failed',
+
+  // ── Stream progress (SSE, /app/new-project) ────────────────────────────────
+  stream_elapsed: 'Generating for %ds',
+  stream_channels_done: '%d of %d channels done',
+  stream_step_running: 'Generating…',
+  stream_step_done: 'Done in %ds',
+  stream_step_error: 'Error, please try again',
+  stream_channel_failed: 'This channel failed, the others keep running.',
 
   // ── Content Types ────────────────────────────────────────────────────────────
   ct_pinterest_pins: 'Pinterest',

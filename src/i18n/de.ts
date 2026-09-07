@@ -435,6 +435,14 @@ export const de = {
   results_all_copied: 'Alles kopiert!',
   results_generation_failed: 'Generierung fehlgeschlagen',
 
+  // ── Stream-Fortschritt (SSE, /app/new-project) ─────────────────────────────
+  stream_elapsed: 'Generiert seit %ds',
+  stream_channels_done: '%d von %d Kanälen fertig',
+  stream_step_running: 'Wird generiert …',
+  stream_step_done: 'Fertig in %ds',
+  stream_step_error: 'Fehler, bitte erneut versuchen',
+  stream_channel_failed: 'Dieser Kanal ist fehlgeschlagen, die anderen laufen weiter.',
+
   // ── Content Types ────────────────────────────────────────────────────────────
   ct_pinterest_pins: 'Pinterest',
   ct_seo_blog: 'SEO Blog',

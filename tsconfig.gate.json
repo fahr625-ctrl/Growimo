@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*.ts", "src/**/*.tsx", "serve.ts", "vercel-entry.ts"],
+  "exclude": ["node_modules", "dist", "scripts", ".vercel", "i18n-scan.ts", "f5-test.ts"]
+}

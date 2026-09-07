@@ -3,7 +3,12 @@ import { de } from './de';
 import { en } from './en';
 
 export type Locale = 'de' | 'en';
-export type Translations = typeof de;
+export type Translations = {
+  readonly [K in keyof typeof de]:
+    typeof de[K] extends readonly (string | number)[] ? readonly string[]
+    : typeof de[K] extends string ? string
+    : typeof de[K];
+};
 
 const translations: Record<Locale, Translations> = { de, en };
 
