@@ -13,6 +13,7 @@ import { initDb } from "./src/db/init";
 import { handleBetaApi } from "./src/api/beta";
 import { handleTrackingApi } from "./src/api/tracking";
 import { handleAnalyticsApi } from "./src/api/analytics";
+import { handleAdminAnalyticsApi } from "./src/api/admin-analytics";
 import { handleGenerateStreamApi } from "./src/api/generate-stream";
 
 // Initialise the Neon PostgreSQL schema before serving. Wrapped in try/catch so
@@ -64,6 +65,8 @@ for (let attempt = 1; ; attempt++) {
         if (trackingResponse) return trackingResponse;
         const analyticsResponse = await handleAnalyticsApi(req, pathname);
         if (analyticsResponse) return analyticsResponse;
+        const adminAnalyticsResponse = await handleAdminAnalyticsApi(req, pathname);
+        if (adminAnalyticsResponse) return adminAnalyticsResponse;
         const streamResponse = await handleGenerateStreamApi(req, pathname);
         if (streamResponse) return streamResponse;
         if (pathname.startsWith("/generated/")) {

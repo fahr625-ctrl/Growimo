@@ -15,6 +15,7 @@ import { initDb } from "./src/db/init";
 import { handleBetaApi } from "./src/api/beta";
 import { handleTrackingApi } from "./src/api/tracking";
 import { handleAnalyticsApi } from "./src/api/analytics";
+import { handleAdminAnalyticsApi } from "./src/api/admin-analytics";
 import { handleGenerateStreamApi } from "./src/api/generate-stream";
 
 // Initialise the database once at cold start
@@ -91,6 +92,22 @@ export default async function vercelHandler(
       analyticsResponse.headers.forEach((value, key) => res.setHeader(key, value));
       if (analyticsResponse.body) {
         const reader = analyticsResponse.body.getReader();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          res.write(value);
+        }
+      }
+      res.end();
+      return;
+    }
+    // Owner-only admin analytics report (401/403 inside; aggregates only).
+    const adminAnalyticsResponse = await handleAdminAnalyticsApi(webReq, url.pathname);
+    if (adminAnalyticsResponse) {
+      res.statusCode = adminAnalyticsResponse.status;
+      adminAnalyticsResponse.headers.forEach((value, key) => res.setHeader(key, value));
+      if (adminAnalyticsResponse.body) {
+        const reader = adminAnalyticsResponse.body.getReader();
         for (;;) {
           const { done, value } = await reader.read();
           if (done) break;
