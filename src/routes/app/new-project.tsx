@@ -17,6 +17,8 @@ import type { Project } from '~/store/projects';
 import { getBrandContext } from '~/store/brand';
 import { canGenerate, recordGeneration, getRemainingGenerations } from '~/store/subscriptions';
 import { trackEvent } from '~/store/analytics';
+import { analyticsChannelForContentType } from '~/lib/analytics';
+import { trackAnalytics } from '~/lib/analytics-client';
 
 // ── Tone options ──────────────────────────────────────────────────────────────
 
@@ -324,6 +326,21 @@ function NewProjectContent() {
     setStreamOrder([]);
     setStreamTitles({});
 
+    // Admin-Analytics MVP Phase 1 (additive): one started event per channel.
+    // Channel list is derived from selectedTypes so it is also available in
+    // the error path below (requests itself is built inside the try block).
+    const analyticsStart = Date.now();
+    const analyticsChannels = selectedTypes
+      .map((ct) => analyticsChannelForContentType(ct))
+      .filter((c): c is NonNullable<typeof c> => c !== null);
+    try {
+      for (const channel of analyticsChannels) {
+        trackAnalytics('generation_started', { channel, status: 'started' });
+      }
+    } catch {
+      // analytics must never surface errors
+    }
+
     try {
       // Inject brand context into product idea
       const brandCtx = getBrandContext();
@@ -384,6 +401,16 @@ function NewProjectContent() {
 
       // Record this generation in usage tracking
       recordGeneration(uid);
+
+      // Admin-Analytics MVP Phase 1 (additive): finished/done per channel.
+      try {
+        const durationMs = Date.now() - analyticsStart;
+        for (const channel of analyticsChannels) {
+          trackAnalytics('generation_finished', { channel, status: 'done', durationMs });
+        }
+      } catch {
+        // analytics must never surface errors
+      }
 
       // Save to in-memory store
       const userId = user?.id ?? 'anonymous';
@@ -488,6 +515,15 @@ function NewProjectContent() {
       const message = t.common_unknown_error;
       setResults([]);
       setErrorMessage(message);
+      // Admin-Analytics MVP Phase 1 (additive): finished/error per channel.
+      try {
+        const durationMs = Date.now() - analyticsStart;
+        for (const channel of analyticsChannels) {
+          trackAnalytics('generation_finished', { channel, status: 'error', durationMs });
+        }
+      } catch {
+        // analytics must never surface errors
+      }
     } finally {
       setIsLoading(false);
     }

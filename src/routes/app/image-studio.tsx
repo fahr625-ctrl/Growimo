@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { useTranslation } from '~/i18n';
+import { trackAnalytics } from '~/lib/analytics-client';
 import { track } from '~/lib/tracking-client';
 import { getProjectsByUser, type Project } from '~/store/projects';
 import type { GeneratedImage } from '~/ai/image-providers/types';
@@ -125,8 +126,11 @@ function ImageStudioContent() {
   const generate = async (text = prompt, selectedRatio = ratio) => {
     if (!text.trim()) return;
     setLoading(true); setError(false);
-    try { const result = await generateImageServer({ data: { prompt: text, aspectRatio: selectedRatio } }); setImages((prev) => [{ id: crypto.randomUUID(), url: result.url, prompt: text, aspectRatio: selectedRatio, createdAt: new Date() }, ...prev]); track('image_generated', user?.id, { aspectRatio: selectedRatio }); }
-    catch { setError(true); } finally { setLoading(false); }
+    // Admin-Analytics MVP Phase 1 (additive): image generation started/finished.
+    const imageStart = Date.now();
+    try { trackAnalytics('generation_started', { channel: 'image', status: 'started' }); } catch { /* never block */ }
+    try { const result = await generateImageServer({ data: { prompt: text, aspectRatio: selectedRatio } }); setImages((prev) => [{ id: crypto.randomUUID(), url: result.url, prompt: text, aspectRatio: selectedRatio, createdAt: new Date() }, ...prev]); track('image_generated', user?.id, { aspectRatio: selectedRatio }); try { trackAnalytics('generation_finished', { channel: 'image', status: 'done', durationMs: Date.now() - imageStart }); } catch { /* never block */ } }
+    catch { setError(true); try { trackAnalytics('generation_finished', { channel: 'image', status: 'error', durationMs: Date.now() - imageStart }); } catch { /* never block */ } } finally { setLoading(false); }
   };
   // Per-card gallery action (Variation / Neu generieren): shows immediate
   // feedback on the card itself, keeps the original image, prepends the new
@@ -145,12 +149,17 @@ function ImageStudioContent() {
     if (!cardPrompt) return;
     setBusy({ id: image.id, action });
     setCardError(null);
+    // Admin-Analytics MVP Phase 1 (additive): card action started/finished.
+    const cardStart = Date.now();
+    try { trackAnalytics('generation_started', { channel: 'image', status: 'started' }); } catch { /* never block */ }
     try {
       const result = await generateImageServer({ data: { prompt: cardPrompt, aspectRatio: image.aspectRatio } });
       setImages((prev) => [{ id: crypto.randomUUID(), url: result.url, prompt: cardPrompt, aspectRatio: image.aspectRatio, createdAt: new Date() }, ...prev]);
       track('image_generated', user?.id, { aspectRatio: image.aspectRatio, action });
+      try { trackAnalytics('generation_finished', { channel: 'image', status: 'done', durationMs: Date.now() - cardStart }); } catch { /* never block */ }
     } catch {
       setCardError({ id: image.id, message: t.image_studio_card_error });
+      try { trackAnalytics('generation_finished', { channel: 'image', status: 'error', durationMs: Date.now() - cardStart }); } catch { /* never block */ }
     } finally {
       setBusy(null);
     }

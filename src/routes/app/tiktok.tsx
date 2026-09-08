@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { useTranslation } from '~/i18n';
+import { trackAnalytics } from '~/lib/analytics-client';
 import { track } from '~/lib/tracking-client';
 import type { TikTokDiagnoseResult, TikTokIdeaResult, TikTokMode, TikTokResult } from '~/ai/tiktok';
 import { generateTikTokServer } from '~/ai/server';
@@ -202,6 +203,10 @@ function TikTokContent() {
     setErrorMessage(null);
     setLoading(true);
     setActiveMode(mode);
+    // Admin-Analytics MVP Phase 1 (additive): tiktok run started + finished.
+    const tiktokStart = Date.now();
+    const tiktokEvent = mode === 'diagnose' ? 'tiktok_diagnosed' : 'tiktok_created';
+    try { trackAnalytics(tiktokEvent, { channel: 'tiktok', status: 'started' }); } catch { /* never block */ }
     try {
       const payload = {
         mode,
@@ -230,9 +235,13 @@ function TikTokContent() {
       if (res.mode !== 'diagnose') pushTikTokHistory(res.hook);
       if (mode === 'diagnose') track('tiktok_diagnosed', user?.id);
       else track('tiktok_created', user?.id, { mode });
+      // Admin-Analytics MVP Phase 1 (additive): tiktok run finished/done.
+      try { trackAnalytics(tiktokEvent, { channel: 'tiktok', status: 'done', durationMs: Date.now() - tiktokStart }); } catch { /* never block */ }
     } catch (error) {
       console.error('[tiktok] generation failed:', error);
       setErrorMessage(t.tiktok_error);
+      // Admin-Analytics MVP Phase 1 (additive): tiktok run finished/error.
+      try { trackAnalytics(tiktokEvent, { channel: 'tiktok', status: 'error', durationMs: Date.now() - tiktokStart }); } catch { /* never block */ }
     } finally {
       setLoading(false);
     }

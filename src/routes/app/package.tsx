@@ -19,6 +19,7 @@ import { contentTypeLabel } from '~/lib/content-types';
 import { saveProject, updateChannel } from '~/store/projects';
 import { canGenerate, recordGeneration } from '~/store/subscriptions';
 import { trackEvent } from '~/store/analytics';
+import { trackAnalytics } from '~/lib/analytics-client';
 import { track } from '~/lib/tracking-client';
 
 export const Route = createFileRoute('/app/package')({ component: PackagePage });
@@ -171,6 +172,12 @@ function PackageContent() {
     setPkg(null);
     setSavedProjectId(null);
     const startedAt = Date.now();
+    // Admin-Analytics MVP Phase 1 (additive): package run started.
+    try {
+      trackAnalytics('generation_started', { channel: 'package', status: 'started' });
+    } catch {
+      // analytics must never surface errors
+    }
     try {
       // 1. Shared kernel + combined context (F6 Brief wird durchgereicht) —
       //    EIN schneller LLM-Call, der die Ergebnisansicht sofort aufmacht.
@@ -216,6 +223,16 @@ function PackageContent() {
       setPkg((p) => p ? { ...p, prioritized } : p);
       const okCount = Object.values(acc).filter(Boolean).length;
       recordGeneration(uid);
+      // Admin-Analytics MVP Phase 1 (additive): package run finished.
+      try {
+        trackAnalytics('generation_finished', {
+          channel: 'package',
+          status: okCount > 0 ? 'done' : 'error',
+          durationMs: Date.now() - startedAt,
+        });
+      } catch {
+        // analytics must never surface errors
+      }
       try {
         trackEvent('package_created', { channels: okCount, ms: Date.now() - startedAt });
       } catch {
@@ -231,6 +248,16 @@ function PackageContent() {
     } catch (error) {
       console.error('Package generation failed:', error);
       setErrorMessage(t.common_unknown_error);
+      // Admin-Analytics MVP Phase 1 (additive): package run error.
+      try {
+        trackAnalytics('generation_finished', {
+          channel: 'package',
+          status: 'error',
+          durationMs: Date.now() - startedAt,
+        });
+      } catch {
+        // analytics must never surface errors
+      }
     } finally {
       setIsLoading(false);
     }

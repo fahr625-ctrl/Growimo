@@ -149,4 +149,25 @@ CREATE TABLE IF NOT EXISTS tracking_events (
 );
 CREATE INDEX IF NOT EXISTS idx_tracking_user_created ON tracking_events(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_tracking_event_created ON tracking_events(event, created_at);
+
+-- ── Admin-Analytics MVP Phase 1: Datenerfassung (additiv) ─────────────────────
+-- Zweck: anonyme + pseudonyme Nutzungsanalyse für den Owner (pageviews,
+-- Generierungs-Status/Dauer, Referrer-Host, UTM). KEINE Inhalte, KEINE E-Mails,
+-- KEINE Namen, KEINE IPs, KEINE Clerk-IDs im Klartext. user_pseudonym ist
+-- HMAC-SHA256(server_salt, clerk_id) oder NULL (anonym). TTL (90 Tage) als
+-- "lazy delete" beim Report-Abruf (Phase 2), hier nur Schema.
+CREATE TABLE IF NOT EXISTS analytics_events (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_pseudonym TEXT,
+  event TEXT NOT NULL,
+  channel TEXT,
+  status TEXT,
+  duration_ms INTEGER,
+  referrer_host TEXT,
+  utm_source TEXT,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_analytics_event_created ON analytics_events(event, created_at);
+CREATE INDEX IF NOT EXISTS idx_analytics_user_created ON analytics_events(user_pseudonym, created_at);
 `;

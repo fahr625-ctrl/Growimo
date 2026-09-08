@@ -14,6 +14,7 @@ import handler from "./dist/server/server.js";
 import { initDb } from "./src/db/init";
 import { handleBetaApi } from "./src/api/beta";
 import { handleTrackingApi } from "./src/api/tracking";
+import { handleAnalyticsApi } from "./src/api/analytics";
 import { handleGenerateStreamApi } from "./src/api/generate-stream";
 
 // Initialise the database once at cold start
@@ -74,6 +75,22 @@ export default async function vercelHandler(
       trackingResponse.headers.forEach((value, key) => res.setHeader(key, value));
       if (trackingResponse.body) {
         const reader = trackingResponse.body.getReader();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          res.write(value);
+        }
+      }
+      res.end();
+      return;
+    }
+    // Anonymous analytics events (no owner gate; whitelist + rate-limit inside).
+    const analyticsResponse = await handleAnalyticsApi(webReq, url.pathname);
+    if (analyticsResponse) {
+      res.statusCode = analyticsResponse.status;
+      analyticsResponse.headers.forEach((value, key) => res.setHeader(key, value));
+      if (analyticsResponse.body) {
+        const reader = analyticsResponse.body.getReader();
         for (;;) {
           const { done, value } = await reader.read();
           if (done) break;

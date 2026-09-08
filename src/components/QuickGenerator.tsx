@@ -18,6 +18,8 @@ import { saveProject, updateChannel } from '~/store/projects';
 import { getBrandContext } from '~/store/brand';
 import { canGenerate, recordGeneration } from '~/store/subscriptions';
 import { trackEvent } from '~/store/analytics';
+import { analyticsChannelForContentType } from '~/lib/analytics';
+import { trackAnalytics } from '~/lib/analytics-client';
 import { track } from '~/lib/tracking-client';
 import { TONES, toneLabel } from '~/lib/tones';
 
@@ -184,6 +186,15 @@ function QuickGeneratorContent({
     setResult(null);
     setSavedProjectId(null);
 
+    // Admin-Analytics MVP Phase 1 (additive): quick generation started.
+    const analyticsChannel = analyticsChannelForContentType(contentType);
+    const analyticsStart = Date.now();
+    try {
+      if (analyticsChannel) trackAnalytics('generation_started', { channel: analyticsChannel, status: 'started' });
+    } catch {
+      // analytics must never surface errors
+    }
+
     try {
       const brandCtx = getBrandContext();
       const enhancedIdea = brandCtx ? `${brandCtx}\n\nProdukt: ${productIdea}` : productIdea;
@@ -228,6 +239,19 @@ function QuickGeneratorContent({
       setResult(generated);
       recordGeneration(uid);
 
+      // Admin-Analytics MVP Phase 1 (additive): quick generation finished.
+      try {
+        if (analyticsChannel) {
+          trackAnalytics('generation_finished', {
+            channel: analyticsChannel,
+            status: 'done',
+            durationMs: Date.now() - analyticsStart,
+          });
+        }
+      } catch {
+        // analytics must never surface errors
+      }
+
       try {
         trackEvent('strategy_created', { channels: contentType });
       } catch {
@@ -241,6 +265,18 @@ function QuickGeneratorContent({
       console.error('Generation failed:', error);
       const message = error instanceof Error ? error.message : t.common_unknown_error;
       setErrorMessage(message);
+      // Admin-Analytics MVP Phase 1 (additive): quick generation error.
+      try {
+        if (analyticsChannel) {
+          trackAnalytics('generation_finished', {
+            channel: analyticsChannel,
+            status: 'error',
+            durationMs: Date.now() - analyticsStart,
+          });
+        }
+      } catch {
+        // analytics must never surface errors
+      }
     } finally {
       setIsLoading(false);
     }

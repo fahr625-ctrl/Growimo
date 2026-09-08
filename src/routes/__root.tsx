@@ -3,10 +3,13 @@ import {
   Outlet,
   Scripts,
   createRootRoute,
+  useRouterState,
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { useEffect } from "react";
 import { ClerkAuthProvider } from "~/auth/clerk";
 import { I18nProvider, useTranslation } from "~/i18n";
+import { trackAnalytics } from "~/lib/analytics-client";
 
 import appCss from "~/styles/app.css?url";
 import { Analytics } from "@vercel/analytics/react";
@@ -68,11 +71,23 @@ function RootComponent() {
     <I18nProvider>
       <RootDocument>
         <ClerkAuthProvider>
+          <PageviewTracker />
           <Outlet />
         </ClerkAuthProvider>
       </RootDocument>
     </I18nProvider>
   );
+}
+
+// Admin-Analytics MVP Phase 1: anonymous pageview on every navigation (also
+// logged-out). Fires once per pathname change incl. the initial route; the
+// helper fills referrer-host/utm/route itself. Fire-and-forget, never blocks.
+function PageviewTracker() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  useEffect(() => {
+    trackAnalytics("pageview");
+  }, [pathname]);
+  return null;
 }
 
 function RootDocument({ children }: { children: ReactNode }) {
