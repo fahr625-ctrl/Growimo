@@ -1,5 +1,7 @@
 import { getDb } from "../db/index";
 import { createRemoteJWKSet, jwtVerify } from "jose";
+import { verifySessionSubject } from "./tracking";
+import { OWNER_USER_ID } from "../lib/tracking";
 
 // In-memory rate limiter (resets on cold start — fine for beta)
 const betaRate = new Map<string, { count: number; at: number }>();
@@ -46,8 +48,11 @@ export async function handleBetaApi(req: Request, pathname: string): Promise<Res
   const sql = getDb();
 
   if (pathname === "/api/beta-signups") {
-    // Verify Clerk session via __session cookie
-    if (!(await verifyClerkSession(req))) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    // Owner-only: PII protection — full waitlist visible only to the owner.
+    // Same pattern as handleTrackingApi (verifySessionSubject, then sub check).
+    const sub = await verifySessionSubject(req);
+    if (!sub) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    if (sub !== OWNER_USER_ID) return Response.json({ error: "Forbidden" }, { status: 403 });
     const rows = await sql`SELECT id, first_name, email, approved, created_at FROM beta_signups ORDER BY created_at DESC`;
     return Response.json({ signups: rows });
   }

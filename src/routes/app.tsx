@@ -6,6 +6,7 @@ import { useTranslation } from "~/i18n";
 import LanguageSwitcher from "~/components/LanguageSwitcher";
 import FeedbackButton from "~/components/FeedbackButton";
 import { ensureUser } from "~/store/projects";
+import { OWNER_USER_ID } from "~/lib/tracking";
 
 export const Route = createFileRoute("/app")({
   component: AppLayout,
@@ -458,6 +459,8 @@ function AppSidebar() {
   // Safe to use Clerk hooks now
   const { isSignedIn } = useAuth();
   const { user } = useUser();
+  const isOwner = user?.id === OWNER_USER_ID;
+  const visibleNavItems = isOwner ? navItems : navItems.filter((item) => item.to !== "/app/beta-signups");
 
   return (
     <aside className="flex w-full shrink-0 flex-col border-b border-gray-100 bg-white md:w-64 md:border-b-0 md:border-r">
@@ -466,7 +469,7 @@ function AppSidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         <ul className="space-y-1">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const active = isActive(item.to);
             return (
               <li key={item.label}>
