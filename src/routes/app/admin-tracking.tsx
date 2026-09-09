@@ -140,7 +140,7 @@ function AdminTrackingContent() {
             >
               {r === "all"
                 ? t.tracking_range_all
-                : t.tracking_range_days.replace("%d", String(r))}
+                : t.tracking_range_days.replace("{n}", String(r)).replace("%d", String(r))}
             </button>
           ))}
         </div>
