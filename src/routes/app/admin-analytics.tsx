@@ -119,7 +119,7 @@ function AdminAnalyticsPage() {
 }
 
 function AdminAnalyticsContent() {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const tAny = t as unknown as Record<string, string>;
   const [range, setRange] = useState<RangeKey>(30);
   const [report, setReport] = useState<AnalyticsReport | null>(null);
@@ -206,7 +206,7 @@ function AdminAnalyticsContent() {
           <p className="mt-2 text-gray-500">{t.analytics_admin_subtitle}</p>
         </div>
         {/* Zeitraum-Umschalter */}
-        <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
+        <div className="flex flex-wrap items-center gap-1 rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
           {([7, 30, 90, "all"] as RangeKey[]).map((r) => (
             <button
               key={String(r)}
@@ -220,7 +220,7 @@ function AdminAnalyticsContent() {
             >
               {r === "all"
                 ? t.tracking_range_all
-                : t.tracking_range_days.replace("%d", String(r))}
+                : t.tracking_range_days.replace("{n}", String(r)).replace("%d", String(r))}
             </button>
           ))}
         </div>
@@ -261,11 +261,12 @@ function AdminAnalyticsContent() {
             {report.trend.length === 0 ? (
               <p className="py-6 text-center text-sm text-gray-400">{t.tracking_empty}</p>
             ) : (
-              <div
-                className="mt-4 flex h-40 items-end gap-1"
-                role="img"
-                aria-label={t.analytics_trend_title}
-              >
+              <>
+                <div
+                  className="mt-4 hidden h-40 items-end gap-1 md:flex"
+                  role="img"
+                  aria-label={t.analytics_trend_title}
+                >
                 {report.trend.map((d) => (
                   <div
                     key={d.day}
@@ -282,7 +283,30 @@ function AdminAnalyticsContent() {
                     </span>
                   </div>
                 ))}
-              </div>
+                </div>
+                <ul className="mt-4 divide-y divide-gray-100 md:hidden" aria-label={t.analytics_trend_title}>
+                  {report.trend.map((d) => (
+                    <li key={d.day} className="flex items-center gap-3 py-1.5 text-sm">
+                      <span className="w-20 shrink-0 font-medium text-gray-700">
+                        {new Date(`${d.day}T12:00:00`).toLocaleDateString(locale === "en" ? "en-GB" : "de-DE", {
+                          day: "2-digit",
+                          month: "2-digit",
+                        })}
+                      </span>
+                      <span className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-gray-100">
+                        <span
+                          className="block h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500"
+                          style={{ width: `${Math.max((d.views / maxTrend) * 100, d.views > 0 ? 4 : 0)}%` }}
+                        />
+                      </span>
+                      <span className="w-24 shrink-0 text-right text-gray-600">
+                        <strong className="font-semibold text-gray-900">{d.views}</strong>{" "}
+                        {t.analytics_trend_visits}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
           </section>
 

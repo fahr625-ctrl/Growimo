@@ -1482,6 +1482,7 @@ export const en: EnShape = {
   analytics_kpi_reg: 'Registrations',
   analytics_kpi_active: 'Active users',
   analytics_trend_title: 'Visits per day',
+  analytics_trend_visits: 'visits',
   analytics_referrer_title: 'Top referrers',
   analytics_utm_title: 'Top UTM sources',
   analytics_feature_title: 'Feature usage',

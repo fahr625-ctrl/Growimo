@@ -1485,6 +1485,7 @@ export const de = {
   analytics_kpi_reg: 'Registrierungen',
   analytics_kpi_active: 'Aktive Nutzer',
   analytics_trend_title: 'Besuche je Tag',
+  analytics_trend_visits: 'Besuche',
   analytics_referrer_title: 'Top-Referrer',
   analytics_utm_title: 'Top-UTM-Quellen',
   analytics_feature_title: 'Funktionsnutzung',
