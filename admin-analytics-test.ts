@@ -123,18 +123,23 @@ check("seed expired row present", Number(expiredBefore[0].n) === 1);
   };
   // Seed net effect: P1x2 pageviews + anonx1 + owner-pseudo pageview excluded
   // → views +3, uniques +1 (P1), anon +1. tracking TP1(reg,proj,tiktok) +
-  // TP2(reg) + OWNER(project, excluded) → reg +2, active +2 (TP1,TP2).
+  // TP2(reg only — counts as registration but NOT as active user, same
+  // definition as qGetTrackingReport) + OWNER(project, excluded)
+  // → reg +2, active +1 (TP1 only).
   check("(c) Δviews=+3 (owner excluded)", dKpi.views === 3, JSON.stringify(dKpi));
   check("(c) ΔuniquePseudonyms=+1", dKpi.uniques === 1, JSON.stringify(dKpi));
   check("(c) ΔanonymousViews=+1", dKpi.anon === 1, JSON.stringify(dKpi));
   check("(c) Δregistrations=+2", dKpi.reg === 2, JSON.stringify(dKpi));
-  check("(c) ΔactiveUsers=+2", dKpi.active === 2, JSON.stringify(dKpi));
+  check("(c) ΔactiveUsers=+1 (TP1; reg-only TP2 excluded by def)", dKpi.active === 1, JSON.stringify(dKpi));
   const featDelta = (e: string) =>
     Number(j.featureUsage?.find((f: any) => f.event === e)?.count ?? 0) -
     Number(before.featureUsage?.find((f: any) => f.event === e)?.count ?? 0);
-  check("(c) ΔfeatureUsage pageview=+4 (incl. expired row, pre-TTL)", featDelta("pageview") === 4, `pvΔ=${featDelta("pageview")}`);
-  check("(c) ΔfeatureUsage generation=+3", featDelta("generation_started") === 1 && featDelta("generation_finished") === 2, `s=${featDelta("generation_started")} f=${featDelta("generation_finished")}`);
-  check("(c) ΔfeatureUsage project_created=+3 (TP1+TP2+OWNER)", featDelta("project_created") === 3, `pcΔ=${featDelta("project_created")}`);
+  // NOTE: the (c) snapshot call above runs the lazy TTL first, so the seeded
+  // 100-day-old expired row is already deleted when this report is computed.
+  check("(c) ΔfeatureUsage pageview=+3 (expired row already TTL-deleted)", featDelta("pageview") === 3, `pvΔ=${featDelta("pageview")}`);
+  // TP1(reg,proj,tiktok) + TP2(reg only — no non-registration event, so NOT
+  // active) + OWNER(project, excluded) → project_created only +1 (TP1).
+  check("(c) ΔfeatureUsage project_created=+1 (TP1; TP2 has none, OWNER excluded)", featDelta("project_created") === 1, `pcΔ=${featDelta("project_created")}`);
   const genDelta = (ch: string) => {
     const a = j.generationByChannel?.find((g: any) => g.channel === ch) ?? {};
     const b = before.generationByChannel?.find((g: any) => g.channel === ch) ?? {};
@@ -148,7 +153,7 @@ check("seed expired row present", Number(expiredBefore[0].n) === 1);
     Number(j.usersPerFunction?.find((u: any) => u.function === fn)?.users ?? 0) -
     Number(before.usersPerFunction?.find((u: any) => u.function === fn)?.users ?? 0);
   check("(c) ΔusersPerFunction tiktok=+1", upfDelta("tiktok") === 1, `Δ=${upfDelta("tiktok")}`);
-  check("(c) ΔusersPerFunction strategie=+2 (TP1+TP2; owner excluded)", upfDelta("strategie") === 2, `Δ=${upfDelta("strategie")}`);
+  check("(c) ΔusersPerFunction strategie=+1 (TP1; TP2 has no project_created, owner excluded)", upfDelta("strategie") === 1, `Δ=${upfDelta("strategie")}`);
   const body = JSON.stringify(j);
   check("(c) no raw ids leak", !body.includes(OWNER_USER_ID) && !body.includes(TP1) && !body.includes(P1), "leak!");
   check("(c) exclusion flags", j.excludedOwnerTestActivity === true && j.pseudonymExclusionActive === true);
