@@ -348,10 +348,12 @@ await scenario('S11 todayIdea HARD REJECT dauerhaft → Fail-closed ehrlicher Fe
 
 // ── UI-Logik: computeBrandGaps (Minimal-Abfrage) ─────────────────────────────
 let gapsFn: ((biz: string, audience: string, goal: string, profile: unknown) => { needProduct: boolean; needAudience: boolean; needGoal: boolean }) | null = null;
+let queryFn: ((mode: string, biz: string, brandReady: boolean) => boolean) | null = null;
 try {
   const mod = await import('./src/routes/app/tiktok.tsx');
   gapsFn = mod.computeBrandGaps as typeof gapsFn;
-  console.log('[import] computeBrandGaps aus tiktok.tsx geladen');
+  queryFn = mod.shouldShowMinimalQuery as typeof queryFn;
+  console.log('[import] computeBrandGaps + shouldShowMinimalQuery aus tiktok.tsx geladen');
 } catch (e) {
   console.log('[import] tiktok.tsx nicht ladbar:', (e as Error).message);
 }
@@ -391,10 +393,39 @@ if (gapsFn) {
     check(g.needProduct === false && g.needAudience === false && g.needGoal === false, 'keine Lücken → keine Minimal-Abfrage');
     return Promise.resolve();
   });
+
+  await scenario('S16 shouldShowMinimalQuery (Gate: kein Profil / unvollständig / vollständig)', () => {
+    if (!queryFn) {
+      check(false, 'shouldShowMinimalQuery fehlt');
+      return Promise.resolve();
+    }
+    check(queryFn('todayIdea', '', false) === true, 'ohne Profil → Minimal-Abfrage');
+    check(queryFn('todayIdea', '', false) === true, 'unvollständiges Profil (brandReady=false) → Minimal-Abfrage');
+    check(queryFn('todayIdea', '', true) === false, 'vollständiges Profil (brandReady=true) → keine Abfrage');
+    check(queryFn('todayIdea', 'Keramikbecher', false) === false, 'biz gefüllt → keine Abfrage (generiert normal)');
+    check(queryFn('concept', '', false) === false, 'concept → kein Minimal-Query (generischer Fehler wie bisher)');
+    check(queryFn('diagnose', '', false) === false, 'diagnose → kein Minimal-Query');
+    return Promise.resolve();
+  });
+
+  await scenario('S17 Minimal-Abfrage → nach 2 gefüllten Feldern generiert (Gate+Engine kombiniert)', async () => {
+    if (!queryFn) {
+      check(false, 'Gate-Funktion fehlt');
+      return;
+    }
+    // Phase 1: vor dem Ausfüllen → Gate aktiv
+    check(queryFn('todayIdea', '', false) === true, 'vorher: Gate aktiv (Abfrage erscheint)');
+    // Nach Ausfüllen von Produkt (2. Feld: Zielgruppe optional) → Gate inaktiv
+    check(queryFn('todayIdea', 'Handgemachte Keramikbecher', false) === false, 'nachher: Gate inaktiv (generiert)');
+    // Engine-seitig belegt: biz-only-Input generiert erfolgreich (S1-ähnlich, ohne brandContext)
+    currentResponder = () => ideaPayload();
+    const res = await generateTikTok(baseInput({ mode: 'todayIdea', biz: 'Handgemachte Keramikbecher', brandContext: undefined, audience: 'Kaffeeliebhaber 25-40' }), 'de');
+    check(res.mode === 'todayIdea', 'Generierung nach Ausfüllen funktioniert');
+  });
 } else {
-  console.log('\n[SKIP] S12–S15 (computeBrandGaps nicht ladbar) — UI-Logik nicht verifiziert');
+  console.log('\n[SKIP] S12–S17 (computeBrandGaps/shouldShowMinimalQuery nicht ladbar) — UI-Logik nicht verifiziert');
   failed += 1;
-  failures.push('S12-S15 skipped: tiktok.tsx nicht importierbar');
+  failures.push('S12-S17 skipped: tiktok.tsx nicht importierbar');
 }
 
 server.stop(true);

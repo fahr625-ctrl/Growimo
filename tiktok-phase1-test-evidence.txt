@@ -1,6 +1,6 @@
-TikTok-Modul Phase 1 — Test-Nachweis
-Datum: 2026-09-10T12:06:47Z
-Methode: Bun-Mini-Server als OpenAI-Mock (OPENAI_BASE_URL) + generateTikTok + computeBrandGaps
+TikTok-Modul Phase 1 — Test-Nachweis (final, inkl. Gate isBrandProfileComplete)
+Datum: 2026-09-10 (engine session)
+Methode: Bun-Mini-Server als OpenAI-Mock (OPENAI_BASE_URL) + generateTikTok + computeBrandGaps/shouldShowMinimalQuery
 
 === Szenario-Ergebnisse (Szenario -> Status) ===
 S1  todayIdea MIT Markenprofil (brandContext)              -> PASS (1 Call, alle Pflichtfelder)
@@ -8,7 +8,7 @@ S2  concept OHNE topic (Thema selbst gewaehlt, de+en)      -> PASS (Pflichtfelde
 S3  concept MIT topic (Regression)                          -> PASS (Topic-Zeile im Prompt, 1 Call)
 S4  diagnose mit teilweise fehlenden Metriken              -> PASS (fehlende Felder NICHT als 0 im Prompt)
 S5  diagnose mit allen Werten                              -> PASS (alle 7 Werte im Prompt)
-S6  diagnose echte 0 (0-vs-fehlend)                        -> PASS ('Views: 0' wird gesendet)
+S6  diagnose echte 0 (0-vs-fehlend)                        -> PASS (Views: 0 wird gesendet)
 S7  todayIdea Regel-A-Verletzung -> Retry                   -> PASS (2 Calls, Ergebnis aus Versuch 2)
 S8  concept selfCheck HARD REJECT -> Retry (Retry auf concept) -> PASS (2 Calls)
 S9  diagnose selfCheck HARD REJECT -> Retry (Retry auf diagnose) -> PASS (2 Calls, diagnose-Hint)
@@ -18,13 +18,15 @@ S12 computeBrandGaps OHNE Markenprofil                     -> PASS (Produkt+Ziel
 S13 computeBrandGaps mit teilweisem Profil                 -> PASS (nur echte Luecken)
 S14 computeBrandGaps nach Ausfuellen von 2 Feldern         -> PASS (Pflicht erfuellt -> generiert)
 S15 computeBrandGaps mit vollstaendigem Profil             -> PASS (keine Luecken -> keine Abfrage)
+S16 shouldShowMinimalQuery (Gate)                          -> PASS (auch bei UNVOLLSTAENDIGEM Profil -> Abfrage)
+S17 Minimal-Abfrage -> nach 2 gefuellten Feldern generiert -> PASS (Gate+Engine kombiniert)
 
 === Gates ===
-tsc -p tsconfig.gate.json --noEmit: 60 Fehler (identisches Code-Set wie Baseline, 0 NEUE)
+tsc -p tsconfig.gate.json --noEmit: 60 Fehler (identisches Code-Set wie Baseline, 0 NEUE; keine Fehler in tiktok.ts/tiktok.tsx/server.ts)
 i18n-Paritaet de/en: 1404 = 1404 Keys, PARITY OK
-bash build-vercel.sh: BUILD_EXIT=0
+bash build-vercel.sh: BUILD_EXIT=0 (zweimal: vor + nach Gate-Fix)
 
-=== Volles Test-Log ===
+=== Volles Test-Log (final) ===
 
 [S1 todayIdea MIT Markenprofil (brandContext)]
 [tiktok] todayIdea OK (de) — idea/analysis generated selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":false,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
@@ -33,7 +35,7 @@ bash build-vercel.sh: BUILD_EXIT=0
   PASS Prompt enthält brandContext
   PASS Prompt vollständig
   PASS kein Retry bei gutem Ergebnis (1 Call)
-  // 34 ms, 1 engine call(s)
+  // 12 ms, 1 engine call(s)
 
 [S2 concept OHNE topic → Thema selbst gewählt (de+en)]
 [tiktok] concept OK (de) — idea/analysis generated selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":false,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
@@ -94,7 +96,7 @@ bash build-vercel.sh: BUILD_EXIT=0
   PASS Ergebnis aus Versuch 2 mit selfCheck
   PASS Retry-Hint im zweiten Prompt
   PASS Regel-Violations im Retry-Hint
-  // 3 ms, 2 engine call(s)
+  // 2 ms, 2 engine call(s)
 
 [S8 concept selfCheck HARD REJECT → Retry (Retry auf concept)]
 [tiktok] concept self-check REJECTED (attempt 1) — regenerating selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":true,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
@@ -102,7 +104,7 @@ bash build-vercel.sh: BUILD_EXIT=0
   PASS Mode concept
   PASS Retry auf concept (2 Calls, war 2)
   PASS finales Ergebnis ohne erfundenes Testimonial
-  // 2 ms, 2 engine call(s)
+  // 1 ms, 2 engine call(s)
 
 [S9 diagnose selfCheck HARD REJECT (erfundene Kennzahlen) → Retry]
 [tiktok] diagnose self-check REJECTED (attempt 1) — regenerating selfCheck={"inventsMetrics":true,"unprovenPromise":false,"prescribedEnthusiasm":false,"vagueNextTest":false,"groundedInNumbers":true} ruleA/B=A:X% mehr Erfolg
@@ -110,7 +112,7 @@ bash build-vercel.sh: BUILD_EXIT=0
   PASS Mode diagnose
   PASS Retry auf diagnose (2 Calls, war 2)
   PASS diagnose-spezifischer Retry-Hint
-  // 2 ms, 2 engine call(s)
+  // 1 ms, 2 engine call(s)
 
 [S10 diagnose Regel-A dauerhaft → Fail-closed ehrlicher Fehler]
 [tiktok] diagnose Rule A/B REJECTED (attempt 1) — regenerating selfCheck={"inventsMetrics":false,"unprovenPromise":false,"prescribedEnthusiasm":false,"vagueNextTest":false,"groundedInNumbers":true} ruleA/B=A:in nur X (Zeitversprechen)
@@ -128,8 +130,8 @@ bash build-vercel.sh: BUILD_EXIT=0
 [tiktok] todayIdea self-check REJECTED (attempt 4) — regenerating selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":true,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
   PASS max. 4 Versuche (war 4)
   PASS kein erfundenes Testimonial ausgegeben (Fehler: "Die TikTok-Idee konnte nach mehrmaligem Versuch nicht ohne erfundene Testimonial")
-  // 3 ms, 4 engine call(s)
-[import] computeBrandGaps aus tiktok.tsx geladen
+  // 2 ms, 4 engine call(s)
+[import] computeBrandGaps + shouldShowMinimalQuery aus tiktok.tsx geladen
 
 [S12 computeBrandGaps OHNE Markenprofil]
   PASS Produkt/Angebot fehlt (Pflicht)
@@ -153,6 +155,24 @@ bash build-vercel.sh: BUILD_EXIT=0
   PASS keine Lücken → keine Minimal-Abfrage
   // 0 ms, 0 engine call(s)
 
+[S16 shouldShowMinimalQuery (Gate: kein Profil / unvollständig / vollständig)]
+  PASS ohne Profil → Minimal-Abfrage
+  PASS unvollständiges Profil (brandReady=false) → Minimal-Abfrage
+  PASS vollständiges Profil (brandReady=true) → keine Abfrage
+  PASS biz gefüllt → keine Abfrage (generiert normal)
+  PASS concept → kein Minimal-Query (generischer Fehler wie bisher)
+  PASS diagnose → kein Minimal-Query
+  // 0 ms, 0 engine call(s)
+
+[S17 Minimal-Abfrage → nach 2 gefüllten Feldern generiert (Gate+Engine kombiniert)]
+  PASS vorher: Gate aktiv (Abfrage erscheint)
+  PASS nachher: Gate inaktiv (generiert)
+[tiktok] todayIdea OK (de) — idea/analysis generated selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":false,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
+  PASS Generierung nach Ausfüllen funktioniert
+  // 2 ms, 1 engine call(s)
+
 ===== ERGEBNIS =====
-PASS: 60  FAIL: 0
+PASS: 69  FAIL: 0
 ALLE TESTS BESTANDEN
+
+=== Resultat: PASS 69 / FAIL 0 — ALLE TESTS BESTANDEN ===

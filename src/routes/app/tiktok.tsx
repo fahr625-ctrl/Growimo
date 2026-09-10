@@ -49,6 +49,18 @@ export function computeBrandGaps(
   };
 }
 
+/** Entscheidet, ob statt der Generierung die gezielte Minimal-Abfrage erscheint
+ * (nur todayIdea): wenn weder ein Unternehmensfeld gefüllt ist noch ein
+ * VOLLSTÄNDIGES Markenprofil (isBrandProfileComplete) die Fakten liefert —
+ * also auch bei unvollständigem Profil, nicht nur ohne Profil. */
+export function shouldShowMinimalQuery(
+  mode: TikTokMode,
+  biz: string,
+  brandReady: boolean,
+): boolean {
+  return mode === 'todayIdea' && biz.trim() === '' && !brandReady;
+}
+
 function loadTikTokHistory(): string[] {
   try {
     const raw = JSON.parse(localStorage.getItem(TIKTOK_HISTORY_KEY) || '[]');
@@ -234,17 +246,19 @@ function TikTokContent() {
 
   const run = async (mode: TikTokMode) => {
     const brandContext = getBrandContext();
-    if (!biz.trim() && !brandContext) {
-      if (mode === 'todayIdea') {
-        // Gezielte Minimal-Abfrage statt generischer Fehlermeldung: nur die
-        // Lücken des Markenprofils/Formulars nachfragen (max. 2–3 Felder).
-        setMinimalQuery(computeBrandGaps(biz, audience, goal, brandProfile));
-        setMinimalError(null);
-        setActiveMode(mode);
-        setErrorMessage(null);
-        return;
-      }
+    // concept/diagnose: ohne jegliche Markeninfos generischer Fehler (wie bisher).
+    if (!biz.trim() && !brandContext && mode !== 'todayIdea') {
       setErrorMessage(t.tiktok_error_brand);
+      return;
+    }
+    // todayIdea: GEZIELTE Minimal-Abfrage statt generischer Fehlermeldung —
+    // erscheint, wenn Markeninfos fehlen (kein Profil ODER Profil unvollständig
+    // per isBrandProfileComplete); abgeleitet aus den Lücken (max. 2–3 Felder).
+    if (shouldShowMinimalQuery(mode, biz, brandReady)) {
+      setMinimalQuery(computeBrandGaps(biz, audience, goal, brandProfile));
+      setMinimalError(null);
+      setActiveMode(mode);
+      setErrorMessage(null);
       return;
     }
     let valid = true;
