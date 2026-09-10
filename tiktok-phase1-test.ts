@@ -75,6 +75,15 @@ function ideaPayload(selfCheck = cleanIdeaSelfCheck) {
     idea: 'Wir zeigen, wie eine einzelne Marketing-Idee in der echten App zum fertigen Content-Plan wird.',
     hook: 'Ich habe eine Idee - und Growimo macht daraus einen kompletten Plan',
     length: '15 Sekunden',
+    // Phase 2: vollständiges Konzept (format/timedScenes/title/imageIdeas), damit
+    // der Phase-2-Vollständigkeits-Gate das Ergebnis nicht zurückweist.
+    format: 'Tutorial/How-to – Schritt für Schritt (passt zum Ziel: Verkäufe)',
+    title: 'So wird aus einer Idee ein Content-Plan',
+    timedScenes: [
+      { time: '0-2s', scene: 'Ich öffne die App', text: 'Eine Idee' },
+      { time: '2-8s', scene: 'Ich gebe die Idee ein', text: 'Ein kompletter Plan' },
+      { time: '8-15s', scene: 'Das fertige Ergebnis erscheint', text: '' },
+    ],
     scenes: ['Szene 1: Ich öffne die App', 'Szene 2: Ich gebe die Idee ein', 'Szene 3: Das fertige Ergebnis erscheint'],
     overlays: ['Eine Idee', 'Ein kompletter Plan'],
     spokenText: 'Ich probiere es direkt in der App aus.',
@@ -82,6 +91,10 @@ function ideaPayload(selfCheck = cleanIdeaSelfCheck) {
     hashtags: ['#marketing', '#ki'],
     cta: 'Was würdest du zuerst testen?',
     why: 'Weil die Szene eine echte Demonstration zeigt und Neugier aufbaut.',
+    imageIdeas: [
+      { description: 'Cover: App mit Plan-Ergebnis', studioPrompt: 'Produktfoto, minimalistischer Stil, warmes Licht, Smartphone mit Marketing-App, Nahaufnahme' },
+      { description: 'Mood: Tippen auf dem Bildschirm', studioPrompt: 'Close-up Finger tippt auf Touchscreen, bläuliches Licht, authentische Atmosphäre' },
+    ],
     selfCheck,
   });
 }

@@ -11,6 +11,7 @@ import type { GeneratedImage } from '~/ai/image-providers/types';
 import { consumeStrategyPrefill, type StrategyImagePayload } from '~/lib/strategy-image';
 import { getBrandProfile } from '~/store/brand';
 import { contentTypeLabel } from '~/lib/content-types';
+import { studioSearchPrefill } from '~/lib/studio-deeplink';
 
 const generateImageServer = createServerFn({ method: 'POST' }).validator((input: unknown) => input as { prompt: string; aspectRatio: string }).handler(async ({ data }) => {
   const { generateImage } = await import('~/ai/image-providers/generate');
@@ -99,19 +100,22 @@ function ImageStudioContent() {
   const variationCounter = useRef(0);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const idea = params.get('idea');
-    const fromStrategy = params.get('fromStrategy') === '1';
-    if (fromStrategy) {
-      const prefill = consumeStrategyPrefill();
-      if (prefill) {
-        setStrategyPrefill(prefill);
-        setPrompt(prefill.prompt);
-        setRatio(prefill.ratio);
+    // Query-Param-Auswertung (additiv, bestehende Einstiege unverändert):
+    // - fromStrategy=1: bestehender Strategie-Prefill-Flow (hat Vorrang)
+    // - ?prompt=...: Phase 2 Deep-Link aus der TikTok-ResultView (studioPrompt)
+    // - ?idea=...: bestehender Ideen-Einstieg
+    const prefill = studioSearchPrefill(window.location.search);
+    if (prefill.fromStrategy) {
+      const strategy = consumeStrategyPrefill();
+      if (strategy) {
+        setStrategyPrefill(strategy);
+        setPrompt(strategy.prompt);
+        setRatio(strategy.ratio);
         return;
       }
     }
-    if (idea) setPrompt(idea);
+    if (prefill.prompt) setPrompt(prefill.prompt);
+    else if (prefill.idea) setPrompt(prefill.idea);
   }, []);
   useEffect(() => { if (user?.id) getProjectsByUser(user.id).then(setProjects).catch(() => setProjects([])); }, [user?.id]);
   // Server-side beta-tracking (additive): Image Studio opened.

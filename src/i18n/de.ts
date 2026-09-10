@@ -732,6 +732,13 @@ export const de = {
   tiktok_result_hashtags: 'Hashtags',
   tiktok_result_cta: 'Handlungsaufruf (CTA)',
   tiktok_result_why: 'Warum diese Idee funktionieren kann',
+  // Phase 2 — Vollständiges Konzept: format, timedScenes, title, imageIdeas (+ Image-Studio-Link)
+  tiktok_result_format: 'Video-Format',
+  tiktok_result_title: 'TikTok-Titel',
+  tiktok_result_timed_scenes: 'Szenenplan mit Zeitangaben',
+  tiktok_result_image_ideas: 'Bild-/Videoideen',
+  tiktok_result_studio_prompt: 'Bild-Studio-Prompt',
+  tiktok_result_image_studio: 'Im Bild-Studio erstellen',
   tiktok_result_biggest: 'Wahrscheinlich größtes Problem',
   tiktok_result_works: 'Was bereits funktioniert',
   tiktok_result_improve: 'Was verbessert werden sollte',

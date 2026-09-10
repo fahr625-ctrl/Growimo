@@ -730,6 +730,13 @@ export const en: EnShape = {
   tiktok_result_hashtags: 'Hashtags',
   tiktok_result_cta: 'Call-to-action',
   tiktok_result_why: 'Why this idea can work',
+  // Phase 2 — Complete concept: format, timedScenes, title, imageIdeas (+ Image Studio link)
+  tiktok_result_format: 'Video format',
+  tiktok_result_title: 'TikTok title',
+  tiktok_result_timed_scenes: 'Scene plan with time marks',
+  tiktok_result_image_ideas: 'Image & video ideas',
+  tiktok_result_studio_prompt: 'Image Studio prompt',
+  tiktok_result_image_studio: 'Create in Image Studio',
   tiktok_result_biggest: 'Most likely biggest problem',
   tiktok_result_works: 'What already works',
   tiktok_result_improve: 'What to improve',

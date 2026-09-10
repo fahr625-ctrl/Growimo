@@ -7,6 +7,7 @@ import { trackAnalytics } from '~/lib/analytics-client';
 import { track } from '~/lib/tracking-client';
 import type { TikTokDiagnoseResult, TikTokIdeaResult, TikTokMode, TikTokResult } from '~/ai/tiktok';
 import { generateTikTokServer } from '~/ai/server';
+import { studioDeepLink } from '~/lib/studio-deeplink';
 import {
   getBrandProfile,
   getBrandContext,
@@ -158,6 +159,39 @@ function ResultView({ result }: { result: TikTokResult }) {
       <FieldBlock label={t.tiktok_result_length}>
         <p>{r.length}</p>
       </FieldBlock>
+      {r.format && (
+        <FieldBlock label={t.tiktok_result_format}>
+          <span className="inline-flex items-center rounded-full bg-fuchsia-50 px-3 py-1 text-sm font-semibold text-fuchsia-700">
+            {r.format}
+          </span>
+        </FieldBlock>
+      )}
+      {r.title && (
+        <FieldBlock label={t.tiktok_result_title}>
+          <p>{r.title}<CopyButton text={r.title} label={t.tiktok_copy} /></p>
+        </FieldBlock>
+      )}
+      {r.timedScenes && r.timedScenes.length > 0 && (
+        <FieldBlock label={t.tiktok_result_timed_scenes}>
+          <div className="space-y-2">
+            {r.timedScenes.map((s, i) => (
+              <div key={i} className="flex flex-col gap-1 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 sm:flex-row sm:gap-3">
+                <span className="shrink-0 self-start rounded-full bg-cyan-600 px-2 py-0.5 text-xs font-bold text-white">{s.time}</span>
+                <div className="min-w-0 text-sm text-gray-800">
+                  <p>{s.scene}</p>
+                  {s.text.trim() !== '' && <p className="mt-0.5 text-xs italic text-gray-500">„{s.text}“</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <CopyButton
+              text={r.timedScenes.map((s) => `${s.time} – ${s.scene}${s.text.trim() ? ` – „${s.text}“` : ''}`).join('\n')}
+              label={t.tiktok_copy}
+            />
+          </div>
+        </FieldBlock>
+      )}
       <FieldBlock label={t.tiktok_result_scenes}>
         <ol className="list-decimal space-y-1 pl-5">
           {r.scenes.map((s, i) => <li key={i}>{s}</li>)}
@@ -188,6 +222,29 @@ function ResultView({ result }: { result: TikTokResult }) {
       <FieldBlock label={t.tiktok_result_why}>
         <p>{r.why}</p>
       </FieldBlock>
+      {r.imageIdeas && r.imageIdeas.length > 0 && (
+        <FieldBlock label={t.tiktok_result_image_ideas}>
+          <div className="space-y-3">
+            {r.imageIdeas.map((img, i) => (
+              <div key={i} className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <p className="text-sm font-semibold text-gray-900">
+                  {img.description}<CopyButton text={img.description} label={t.tiktok_copy} />
+                </p>
+                <p className="mt-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">{t.tiktok_result_studio_prompt}</p>
+                <p className="mt-1 break-words whitespace-pre-line text-xs text-gray-700">
+                  {img.studioPrompt}<CopyButton text={img.studioPrompt} label={t.tiktok_copy} />
+                </p>
+                <a
+                  href={studioDeepLink(img.studioPrompt)}
+                  className="mt-3 inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-blue-700"
+                >
+                  🎨 {t.tiktok_result_image_studio}
+                </a>
+              </div>
+            ))}
+          </div>
+        </FieldBlock>
+      )}
     </div>
   );
 }

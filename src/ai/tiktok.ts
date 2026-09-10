@@ -66,6 +66,21 @@ export interface TikTokDiagnoseSelfCheck {
   groundedInNumbers: boolean; // Aussagen sind tatsächlich an den gelieferten Zahlen belegt (false = generisch)
 }
 
+/** Einzelne zeitgestempelte Szene (Phase 2 — „Vollständiges Konzept"): was zu
+ *  sehen ist und was in diesem Moment gesprochen bzw. eingeblendet wird. */
+export interface TikTokTimedScene {
+  time: string; // Zeitmarke, z.B. "0-2s", "2-6s"
+  scene: string; // was passiert / zu sehen ist
+  text: string; // gesprochener oder eingeblendeter Text (leer = kein Text)
+}
+
+/** Bild-/Videoidee (Phase 2): konkrete Idee + fertiger, ins Image-Studio
+ *  übernehmbarer Prompt (studioPrompt). */
+export interface TikTokImageIdea {
+  description: string; // konkrete Bild-/Videoidee
+  studioPrompt: string; // fertiger Image-Studio-Prompt (Subjekt, Stil, Licht, Komposition)
+}
+
 /** Ergebnis für todayIdea + concept (strukturiert, kein Roh-Chat). */
 export interface TikTokIdeaResult {
   mode: 'todayIdea' | 'concept';
@@ -79,6 +94,12 @@ export interface TikTokIdeaResult {
   hashtags: string[]; // passende Hashtags
   cta: string;
   why: string; // kurze Erklärung, warum die Idee funktionieren könnte
+  // ── Phase 2 — Vollständiges Konzept (optional im Typ → alte Outputs ohne die
+  //    neuen Felder rendern weiterhin korrekt; der Parser nutzt Fallbacks).
+  format?: string; // explizites Videoformat (z.B. "Tutorial/How-to") + kurze Begründung
+  timedScenes?: TikTokTimedScene[]; // Szenenplan MIT Zeitangaben (Zeit + Szene + Text)
+  title?: string; // eigenständiger TikTok-Titel (Suche/Profil-Anziehungskraft)
+  imageIdeas?: TikTokImageIdea[]; // 2–4 konkrete Bild-/Videoideen mit studioPrompt
   selfCheck?: TikTokSelfCheck; // todayIdea + concept: Selbsttest-Flags (vom UI ungenutzt)
 }
 
@@ -123,6 +144,11 @@ Rules:
 - NO ARTIFICIAL REACTIONS / PRESCRIBED ENTHUSIASM (HARD RULE): Keep scenes authentic and show the actual result. FORBIDDEN as artificially demanded/prescribed reactions: "Wow!", "Whoa!", "I'm surprised", "in disbelief", "impressed", "excited", etc. Forbidden: prescribed enthusiasm or exaggerated emotion in scene descriptions, overlays or spoken text that is not genuinely produced by the actual action. No filler overlays/screen text such as "😲" or "everyone is amazed". A reaction may only arise genuinely from the shown actual result (naturally, not staged) — or be left out entirely.
 - CTAs must be natural and interaction-focused (e.g. "What would you test?", "Tell us your take", "Share this with someone who…") — NOT "download/buy now" by default.
 - Scenes: 3–6 concrete steps (what is shown/said at each moment).
+- COMPLETE CONCEPT (MANDATORY FIELDS — every idea MUST contain ALL of them): format, timedScenes, title and imageIdeas are REQUIRED in every output:
+  - format: exactly ONE concrete video format (choose from: Talking Head, Tutorial/How-to, Storytelling, Produkt-Showcase, Before/After, POV, Trend-Reaktion, FAQ/Quick-Tipps, Behind the Scenes — or another equally concrete one) plus a SHORT reason why this format serves the stated goal, e.g. "Tutorial/How-to – Schritt für Schritt (passt zum Ziel: Verkäufe)".
+  - timedScenes: the complete scene plan WITH TIME MARKS covering the entire video from second 0 to its end. An array of objects {time, scene, text}: time is the exact time mark (e.g. "0-2s", "2-6s", "6-12s" — must cover the whole length without gaps), scene describes what is shown/happens, text is EXACTLY what is spoken or displayed as on-screen overlay in that moment (empty string if nothing). This is the shot-by-shot plan the user films directly.
+  - title: a standalone TikTok title that stands ON ITS OWN next to the caption — catchy, concrete and appealing for profile/search (max ~60 characters, NOT identical to the hook).
+  - imageIdeas: 2–4 concrete image/video ideas as objects {description, studioPrompt}. description names the concrete image/moment (e.g. "Produktfoto des Bechers in Morgenlicht"). studioPrompt is a COMPLETE, ready-to-paste Image Studio prompt (subject, style, lighting, composition — e.g. "Produktfoto, minimalistischer Stil, warmes Licht, Keramikbecher mit Dampf, Nahaufnahme, weicher Hintergrund") the user can drop straight into Growimo's Image Studio. If the video needs no separate images, still deliver 2–4 supporting image ideas (cover/thumbnail, props, scene mood, before/after).
 - Text overlays: 2–5 short on-screen text lines in natural wording.
 - Caption: ready to paste; Hashtags: 6–10 relevant ones WITH #.
 - CTA: one clear, realistic, natural call-to-action.
@@ -144,6 +170,9 @@ JSON schema exactly:
   "idea": "one-sentence concrete video idea / concept",
   "hook": "exact first 1-2 second hook line (spoken + written)",
   "length": "recommended length, e.g. '45 seconds'",
+  "format": "one concrete video format + short reason, e.g. 'Tutorial/How-to – step by step (fits the goal: sales)'",
+  "title": "standalone TikTok title (max ~60 characters)",
+  "timedScenes": [{"time": "0-2s", "scene": "what is shown/happens", "text": "spoken or on-screen text (empty string if none)"}, {"time": "2-6s", "scene": "…", "text": "…"}],
   "scenes": ["step 1...", "step 2...", "step 3..."],
   "overlays": ["on-screen text 1", "on-screen text 2"],
   "spokenText": "optional spoken script (or empty string)",
@@ -151,6 +180,7 @@ JSON schema exactly:
   "hashtags": ["#tag1", "#tag2"],
   "cta": "one clear call-to-action",
   "why": "why this idea can work for this goal",
+  "imageIdeas": [{"description": "concrete image/video idea", "studioPrompt": "complete Image Studio prompt (subject, style, lighting, composition)"}],
   "selfCheck": {
     "usesConcreteBrandFact": true or false,
     "addressesCurrentChallenge": true or false,
@@ -186,6 +216,11 @@ Regeln:
 - KEINE künstlichen Reaktionen / vorgegebene Begeisterung (harte Regel): Szenen sollen authentisch bleiben und das tatsächliche Ergebnis zeigen. VERBOTEN sind als künstlich verlangte/vorgegebene Reaktionen „Wow!", „Whoa!", „ich bin überrascht", „ungläubig", „beeindruckt", „begeistert" usw. Verboten: vorgegebene Begeisterung/übertriebene Emotionen in Szenenbeschreibungen, Einblendungen oder Sprechtext, die nicht durch die tatsächliche Handlung echt erzeugt werden. Keine Einblendungs-/Screen-Texte wie „😲" oder „Da staunen alle" als Füllmaterial. Eine Reaktion darf sich nur ECHT aus dem gezeigten tatsächlichen Ergebnis ergeben (natürlich, nicht aufgesetzt) — oder ganz weggelassen werden.
 - CTAs natürlich und Interaktion fördernd (z. B. „Was würdest du testen?", „Schreib deine Meinung dazu", „Teil das mit jemandem, der…") — NICHT standardmäßig „Jetzt herunterladen/kaufen".
 - Szenen: 3–6 konkrete Schritte (was in jedem Moment gezeigt/gesagt wird).
+- KOMPLETTES KONZEPT (PFLICHTFELDER — jede Idee MUSS alle enthalten): format, timedScenes, title und imageIdeas sind in JEDER Ausgabe PFLICHT:
+  - format: GENAU EIN konkretes Videoformat (wähle aus: Talking Head, Tutorial/How-to, Storytelling, Produkt-Showcase, Before/After, POV, Trend-Reaktion, FAQ/Quick-Tipps, Behind the Scenes — oder ein anderes ebenso konkretes) plus eine KURZE Begründung, warum dieses Format das genannte Ziel bedient, z. B. „Tutorial/How-to – Schritt für Schritt (passt zum Ziel: Verkäufe)".
+  - timedScenes: der komplette Szenenplan MIT ZEITANGABEN, der das gesamte Video von Sekunde 0 bis zum Ende abdeckt. Ein Array aus Objekten {time, scene, text}: time ist die exakte Zeitmarke (z. B. „0-2s", „2-6s", „6-12s" — muss die ganze Länge lückenlos abdecken), scene beschreibt, was zu sehen ist/passiert, text ist EXAKT das, was in diesem Moment gesprochen oder als Einblendung angezeigt wird (leere Zeichenkette, wenn nichts). Das ist der Shot-für-Shot-Plan, den der Nutzer direkt abfilmen kann.
+  - title: ein eigenständiger TikTok-Titel, der allein neben der Caption steht — einprägsam, konkret, anziehend für Profil/Suche (max. ~60 Zeichen, NICHT identisch mit dem Hook).
+  - imageIdeas: 2–4 konkrete Bild-/Videoideen als Objekte {description, studioPrompt}. description benennt das konkrete Bild/den Moment (z. B. „Produktfoto des Bechers im Morgenlicht"). studioPrompt ist ein KOMPLETTER, direkt ins Image-Studio übernehmbarer Prompt (Subjekt, Stil, Licht, Komposition — z. B. „Produktfoto, minimalistischer Stil, warmes Licht, Keramikbecher mit Dampf, Nahaufnahme, weicher Hintergrund"), den der Nutzer direkt in Growimos Image-Studio einfügen kann. Wenn das Video keine separaten Bilder braucht, liefere trotzdem 2–4 unterstützende Bildideen (Cover/Thumbnail, Requisiten, Szene-Stimmung, Vorher/Nachher).
 - Texteinblendungen: 2–5 kurze Bildschirmtextzeilen in natürlicher Formulierung.
 - Caption: kopierfertig; Hashtags: 6–10 relevante MIT #.
 - CTA: ein klarer, realistischer, natürlicher Call-to-Action.
@@ -207,6 +242,9 @@ JSON-Schema exakt:
   "idea": "ein Satz: konkrete Videoidee/Konzept",
   "hook": "exakte Hook-Zeile für die ersten 1-2 Sekunden (gesprochen + eingeblendet)",
   "length": "empfohlene Länge, z.B. '15 Sekunden'",
+  "format": "ein konkretes Videoformat + kurze Begründung, z.B. 'Tutorial/How-to – Schritt für Schritt (passt zum Ziel: Verkäufe)'",
+  "title": "eigenständiger TikTok-Titel (max. ~60 Zeichen)",
+  "timedScenes": [{"time": "0-2s", "scene": "was zu sehen ist/passiert", "text": "gesprochener oder eingeblendeter Text (leer, wenn keiner)"}, {"time": "2-6s", "scene": "…", "text": "…"}],
   "scenes": ["Schritt 1...", "Schritt 2...", "Schritt 3..."],
   "overlays": ["Texteinblendung 1", "Texteinblendung 2"],
   "spokenText": "optionaler Sprechtext (auch leere Zeichenkette möglich)",
@@ -214,6 +252,7 @@ JSON-Schema exakt:
   "hashtags": ["#Tag1", "#Tag2"],
   "cta": "ein klarer Call-to-Action",
   "why": "warum diese Idee für dieses Ziel funktionieren kann",
+  "imageIdeas": [{"description": "konkrete Bild-/Videoidee", "studioPrompt": "kompletter Image-Studio-Prompt (Subjekt, Stil, Licht, Komposition)"}],
   "selfCheck": {
     "usesConcreteBrandFact": true oder false,
     "addressesCurrentChallenge": true oder false,
@@ -419,6 +458,39 @@ function strArr(v: unknown): string[] {
     : [];
 }
 
+/** Phase 2: Szenenplan MIT Zeitangaben optional parsen. Ungültige/leere Einträge
+ *  werden verworfen; ist am Ende kein Eintrag übrig → undefined (UI fällt auf die
+ *  klassische `scenes`-Liste zurück — alte Outputs rendern weiterhin korrekt). */
+function parseTimedScenes(v: unknown): TikTokTimedScene[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const out: TikTokTimedScene[] = [];
+  for (const item of v as unknown[]) {
+    if (!item || typeof item !== 'object') continue;
+    const o = item as Record<string, unknown>;
+    const time = str(o.time);
+    const scene = str(o.scene);
+    if (!time || !scene) continue; // Zeitmarke + Szene sind Pflicht je Eintrag; text darf leer sein
+    out.push({ time, scene, text: str(o.text) });
+  }
+  return out.length > 0 ? out.slice(0, 12) : undefined;
+}
+
+/** Phase 2: Bild-/Videoideen optional parsen. Ein Eintrag braucht description +
+ *  studioPrompt; sonst wird er verworfen. → undefined, wenn nichts übrig bleibt. */
+function parseImageIdeas(v: unknown): TikTokImageIdea[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const out: TikTokImageIdea[] = [];
+  for (const item of v as unknown[]) {
+    if (!item || typeof item !== 'object') continue;
+    const o = item as Record<string, unknown>;
+    const description = str(o.description);
+    const studioPrompt = str(o.studioPrompt);
+    if (!description || !studioPrompt) continue;
+    out.push({ description, studioPrompt });
+  }
+  return out.length > 0 ? out.slice(0, 6) : undefined;
+}
+
 function parseSelfCheck(p: Record<string, unknown>): TikTokSelfCheck | undefined {
   const sc = p.selfCheck;
   if (!sc || typeof sc !== 'object') return undefined;
@@ -461,6 +533,12 @@ function parseIdea(mode: 'todayIdea' | 'concept', p: Record<string, unknown>): T
     hashtags: strArr(p.hashtags),
     cta: str(p.cta),
     why: str(p.why),
+    // ── Phase 2: neue Felder OPTIONAL parsen (Fallbacks) — alte Outputs ohne
+    //    diese Felder bleiben gültig und rendern im UI weiterhin korrekt.
+    format: str(p.format) || undefined,
+    timedScenes: parseTimedScenes(p.timedScenes),
+    title: str(p.title) || undefined,
+    imageIdeas: parseImageIdeas(p.imageIdeas),
     selfCheck: parseSelfCheck(p), // todayIdea + concept (Retry-Mechanik auf alle Modi)
   };
 }
@@ -623,6 +701,29 @@ function buildRetryHint(lang: TikTokLang, violations: string[] = [], mode: TikTo
     : '\n\nQUALITY SELF-CHECK NOTE: The previous idea was internally rejected (too interchangeable / too ad-like / without real brand facts or challenge tie-in — or because it contained an invented testimonial / quoted person / invented user feedback not backed by the BRAND CONTEXT, OR because it contained an unproven concrete performance/time promise or a prescribed artificial reaction/enthusiasm).' + rulePart + ' NOW produce a clearly better, NEW idea: build it around a real, concrete fact from the BRAND CONTEXT — ideally the current challenge / genuine problem / open experiment — and NOT around generic product advertising. Do not invent any users/testers/testimonials/quotes; instead show the creator\'s OWN idea / OWN experiment inside the real app (real screen recording). Make NO unproven concrete performance/time/result promise (no "in just X seconds/minutes/days/weeks", no "+X%", no "doubles your reach", no "go viral") and NO prescribed artificial reaction/enthusiasm (no "Wow!", no "everyone is amazed", no staged surprise — a reaction only if genuinely produced by the shown real result, otherwise omit it entirely). Set all seven selfCheck booleans truthfully to passing.';
 }
 
+// ── Phase 2 — Vollständigkeitsprüfung („Vollständiges Konzept") ─────────────
+/** Liefert die Liste der fehlenden Phase-2-Konzeptfelder (leer = vollständig).
+ *  Nur für die Idee-Modi (todayIdea/concept) relevant; diagnose prüft nicht. */
+export function conceptCompleteness(r: TikTokIdeaResult): string[] {
+  const missing: string[] = [];
+  if (!r.format) missing.push('format');
+  if (!r.title) missing.push('title');
+  if (!r.timedScenes || r.timedScenes.length === 0) missing.push('timedScenes');
+  else if (r.timedScenes.some((s) => !s.time || !s.scene)) missing.push('timedScenes (vollständig)');
+  if (!r.imageIdeas || r.imageIdeas.length === 0) missing.push('imageIdeas');
+  else if (r.imageIdeas.some((i) => !i.studioPrompt)) missing.push('imageIdeas (studioPrompt)');
+  return missing;
+}
+
+/** Phase 2 — Retry-Hinweis für unvollständige Konzepte: nennt explizit die
+ *  fehlenden Felder, damit das Modell das komplette Schema nachliefert. */
+function buildCompletenessHint(lang: TikTokLang, missing: string[]): string {
+  if (missing.length === 0) return '';
+  return lang === 'de'
+    ? `\n\nVOLLSTÄNDIGKEITSHINWEIS: Die vorherige Antwort war UNVOLLSTÄNDIG — diese PFLICHTFELDER des Konzepts fehlten: ${missing.join(', ')}. Liefere jetzt das KOMPLETTE Konzept mit ALLEN Feldern (idea, hook, length, format, title, timedScenes mit Zeitangaben, scenes, overlays, spokenText, caption, hashtags, cta, why, imageIdeas mit studioPrompt).`
+    : `\n\nCOMPLETENESS NOTE: The previous answer was INCOMPLETE — these REQUIRED concept fields were missing: ${missing.join(', ')}. NOW deliver the COMPLETE concept with ALL fields (idea, hook, length, format, title, timedScenes with time marks, scenes, overlays, spokenText, caption, hashtags, cta, why, imageIdeas with studioPrompt).`;
+}
+
 // ── Hauptfunktion ────────────────────────────────────────────────────────────
 /**
  * Erzeugt ein strukturiertes TikTok-Ergebnis für einen der drei Modi.
@@ -645,12 +746,15 @@ export async function generateTikTok(
   const client = new OpenAI({ apiKey });
   const system = pickSystemPrompt(input.mode, lang);
   let lastViolations: string[] = [];
+  let lastMissing: string[] = [];
 
   for (let attempt = 1; attempt <= MAX_TIKTOK_ATTEMPTS; attempt++) {
     const user =
       attempt === 1
         ? buildUserPrompt(input, lang)
-        : buildUserPrompt(input, lang) + buildRetryHint(lang, lastViolations, input.mode);
+        : buildUserPrompt(input, lang)
+          + buildRetryHint(lang, lastViolations, input.mode)
+          + buildCompletenessHint(lang, lastMissing);
 
     const response = await client.chat.completions.create({
       model: 'gpt-4o',
@@ -659,7 +763,7 @@ export async function generateTikTok(
         { role: 'user', content: user },
       ],
       temperature: 0.7,
-      max_tokens: 1600,
+      max_tokens: 2400, // Phase 2: größeres Schema (format/timedScenes/title/imageIdeas) → Kopfplatz
       response_format: { type: 'json_object' },
     });
     const text = response.choices[0]?.message?.content;
@@ -706,6 +810,9 @@ export async function generateTikTok(
         );
       }
     } else {
+      // Qualitäts-Prüfung ERST (Regel-A/B + selfCheck), dann Vollständigkeit:
+      // eine verbotene/regelwidrige Idee wird auch dann verworfen, wenn sie
+      // zudem unvollständig ist — die Ablehnungsgründe gehen nie verloren.
       const violations = ruleABViolations(ideaContentBlob(result));
       lastViolations = violations;
       const scRejected = result.selfCheck ? selfCheckRejected(result.selfCheck) : false;
@@ -741,6 +848,22 @@ export async function generateTikTok(
         }
         // Nur Soft-Reject (z. B. austauschbar/werblich) bei erschöpften Versuchen:
         // bestmögliche letzte Idee ausliefern.
+      }
+      // Phase 2 — Vollständigkeitsprüfung: format/timedScenes/title/imageIdeas
+      // werden im Prompt als PFLICHT verlangt; fehlen sie, wird mit gezieltem
+      // Hinweis neu generiert. Auf dem letzten Versuch wird das (weiterhin
+      // gültige) Ergebnis mit den alten Feldern zurückgegeben statt zu scheitern
+      // (Parser-Fallback im UI) — kein hartes Fail-closed für fehlende neue Felder.
+      const missing = conceptCompleteness(result);
+      if (missing.length > 0) {
+        lastMissing = missing;
+        console.log(
+          `[tiktok] ${input.mode} INCOMPLETE (${missing.join(', ')}) — regenerating (attempt ${attempt})`,
+        );
+        if (attempt < MAX_TIKTOK_ATTEMPTS) continue;
+        console.log('[tiktok] last attempt still incomplete — returning result with old fields (soft fallback)');
+      } else {
+        lastMissing = [];
       }
     }
 

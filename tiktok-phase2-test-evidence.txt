@@ -1,0 +1,182 @@
+TikTok-Modul Phase 2 — Test-Nachweis („Vollständiges Konzept")
+Datum: 2026-09-10
+Methode: Bun-Mini-Server als OpenAI-Mock (OPENAI_BASE_URL, inkl. max_tokens- und System-Prompt-Mitschrieb) + generateTikTok + conceptCompleteness + studioDeepLink/studioSearchPrefill (Image-Studio-Routebene)
+Commit-Basis: HEAD 7f8e44c (Phase 1 abgeschlossen)
+
+=== Szenario-Ergebnisse (tiktok-phase2-test.ts) ===
+S1  concept OHNE topic (de)                     -> PASS (format/title/timedScenes mit Zeitangaben/imageIdeas mit studioPrompt; 1 Call; Schema im System-Prompt)
+S2  concept OHNE topic (en)                     -> PASS (alle neuen Felder zweisprachig; EN-Schema im System-Prompt)
+S3  concept MIT topic (Regression)              -> PASS (Topic-Zeile im Prompt, neue Felder geparst, 1 Call)
+S4  todayIdea MIT Markenprofil                  -> PASS (brandContext im Prompt, alle neuen Felder vorhanden)
+S5  alte Outputs ohne neue Felder               -> PASS (Parser-Fallback: format/timedScenes/title/imageIdeas = undefined, kein Crash, Return nach 4 Calls)
+S6  unvollständig -> vollständig (Retry)        -> PASS (2 Calls; VOLLSTÄNDIGKEITSHINWEIS nennt fehlende Felder)
+S7  max_tokens=2400 + Antwort nicht abgeschnitten -> PASS (jeder Request max_tokens=2400; vollständiges JSON mit allen 3 Szenen + 3 Bildideen parsebar)
+S8  diagnose funktional (Phase-1-Regression)    -> PASS (alle Diagnosefelder, 1 Call)
+S9  todayIdea Regel-A -> Retry (Regression)     -> PASS (2 Calls; Qualitäts-Hinweis im 2. Prompt; vollständiges Ergebnis)
+S10 studioDeepLink                              -> PASS (URL /app/image-studio?prompt=<enc>; studioPrompt bleibt nach Roundtrip erhalten)
+S11 studioSearchPrefill (Routebene)             -> PASS (?prompt= wird übernommen; ?idea= und fromStrategy unverändert; image-studio.tsx wendet es im Initial-Effekt an)
+
+Ergebnis: PASS 90 / FAIL 0 — bun tiktok-phase2-test.ts EXIT=0
+
+=== Phase-1-Regression (tiktok-phase1-test.ts, angepasste Payloads) ===
+S1–S17 wie gehabt; ideaPayload() um die Phase-2-Pflichtfelder ergänzt (gleiche alte Felder + neue), damit der neu eingebaute Vollständigkeits-Gate die Erfolgs-Payloads nicht zurückweist.
+Ergebnis: PASS 69 / FAIL 0 — bun tiktok-phase1-test.ts EXIT=0
+
+=== Gates ===
+tsc -p tsconfig.gate.json --noEmit: 60 Fehler = identisches Fehler-Set wie Baseline (nur Zeilennummern der 2 vorbestehenden TS1117-Duplikat-Fehler und die „...N more ..."-Anzeige des vorbestehenden tasks.ts-TS2322 verschoben; 0 NEUE Fehler; keine Fehler in tiktok.ts/tiktok.tsx/image-studio.tsx/studio-deeplink.ts; keine „missing property"-Fehler in en.ts)
+i18n-Parität: 6 neue Keys (tiktok_result_format/title/timed_scenes/image_ideas/studio_prompt/image_studio) je exakt 1x in de.ts und en.ts; tiktok_-Keys 75 = 75; kein fehlender Key (en.ts ist typeof de — tsc meldet 0 TS2739/TS2741)
+bash build-vercel.sh: BUILD_EXIT=0
+
+=== Entscheidungen (Schema/Prompts/Parser/UI) ===
+1. format/timedScenes/title/imageIdeas sind im TYP optional (alte Outputs rendern weiter), im PROMPT Pflicht (MANDATORY FIELDS de+en) und werden per conceptCompleteness()-Gate weich erzwungen: fehlende Felder -> Retry mit VOLLSTÄNDIGKEITSHINWEIS; nach 4 Versuchen Soft-Fallback auf das (gültige) alte Ergebnis statt hartem Fehler.
+2. timedScenes = {time, scene, text} („0-2s", lückenlose Abdeckung, gesprochener/Overlay-Text). scenes bleibt als kompakter Überblick erhalten (beide werden im UI gezeigt).
+3. imageIdeas = {description, studioPrompt}; studioPrompt ist ein fertiger, direkt ins Image-Studio übernehmbarer Prompt.
+4. Retry-Reihenfolge: Regel-A/B + selfCheck VOR Vollständigkeitsprüfung — Ablehnungsgründe gehen nie verloren.
+5. Deep-Link additiv: neues src/lib/studio-deeplink.ts (studioDeepLink/studioSearchPrefill); image-studio.tsx liest ?prompt= im bestehenden Initial-Effekt (after fromStrategy, vor ?idea=); ?idea= und fromStrategy=1 bleiben unverändert.
+6. max_tokens 1600 -> 2400.
+7. UI: format-Badge, title-Block, timedScenes-Zeilen (Zeit-Chip + Szene + Text), imageIdeas-Karten mit Copy + „Im Bild-Studio erstellen"-Link; alle Felder kopierbar; bestehende Felder unverändert.
+
+=== Volles Test-Log (tiktok-phase2-test.ts) ===
+
+[S1 concept OHNE topic (de) → vollständiges Konzept]
+[tiktok] concept OK (de) — idea/analysis generated selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":false,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
+  PASS Mode concept
+  PASS alte Pflichtfelder weiterhin da
+  PASS de: format vorhanden
+  PASS de: title vorhanden
+  PASS de: timedScenes (≥3) vorhanden
+  PASS de: jeder Eintrag hat Zeitangabe
+  PASS de: jeder Eintrag hat Szene
+  PASS de: imageIdeas (≥2) vorhanden
+  PASS de: jeder studioPrompt vorhanden
+  PASS Prompt: Thema wird selbst gewählt
+  PASS System-Prompt-Schema erwähnt timedScenes
+  PASS System-Prompt-Schema erwähnt imageIdeas
+  PASS System-Prompt-Schema erwähnt format
+  PASS 1 Call (kein Retry bei vollem Konzept)
+  // 9 ms, 1 engine call(s)
+
+[S2 concept OHNE topic (en) → vollständiges Konzept]
+[tiktok] concept OK (en) — idea/analysis generated selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":false,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
+  PASS Mode concept
+  PASS en: format vorhanden
+  PASS en: title vorhanden
+  PASS en: timedScenes (≥3) vorhanden
+  PASS en: jeder Eintrag hat Zeitangabe
+  PASS en: jeder Eintrag hat Szene
+  PASS en: imageIdeas (≥2) vorhanden
+  PASS en: jeder studioPrompt vorhanden
+  PASS Prompt: englisches Selbstwahl-Szenario
+  PASS EN-Schema: timedScenes im System-Prompt
+  // 2 ms, 1 engine call(s)
+
+[S3 concept MIT topic → Regression + neue Felder]
+[tiktok] concept OK (de) — idea/analysis generated selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":false,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
+  PASS Mode concept
+  PASS Topic-Zeile im Prompt
+  PASS kein Selbstwahl-Hinweis bei Topic
+  PASS mit topic: format vorhanden
+  PASS mit topic: title vorhanden
+  PASS mit topic: timedScenes (≥3) vorhanden
+  PASS mit topic: jeder Eintrag hat Zeitangabe
+  PASS mit topic: jeder Eintrag hat Szene
+  PASS mit topic: imageIdeas (≥2) vorhanden
+  PASS mit topic: jeder studioPrompt vorhanden
+  PASS 1 Call
+  // 1 ms, 1 engine call(s)
+
+[S4 todayIdea MIT Markenprofil (brandContext) → alle neuen Felder]
+[tiktok] todayIdea OK (de) — idea/analysis generated selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":false,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
+  PASS Mode todayIdea
+  PASS todayIdea: format vorhanden
+  PASS todayIdea: title vorhanden
+  PASS todayIdea: timedScenes (≥3) vorhanden
+  PASS todayIdea: jeder Eintrag hat Zeitangabe
+  PASS todayIdea: jeder Eintrag hat Szene
+  PASS todayIdea: imageIdeas (≥2) vorhanden
+  PASS todayIdea: jeder studioPrompt vorhanden
+  PASS Prompt enthält brandContext
+  PASS 1 Call
+  // 1 ms, 1 engine call(s)
+
+[S5 alte Outputs (ohne neue Felder) → Parser-Fallback, kein Crash]
+[tiktok] concept INCOMPLETE (format, title, timedScenes, imageIdeas) — regenerating (attempt 1)
+[tiktok] concept INCOMPLETE (format, title, timedScenes, imageIdeas) — regenerating (attempt 2)
+[tiktok] concept INCOMPLETE (format, title, timedScenes, imageIdeas) — regenerating (attempt 3)
+[tiktok] concept INCOMPLETE (format, title, timedScenes, imageIdeas) — regenerating (attempt 4)
+[tiktok] last attempt still incomplete — returning result with old fields (soft fallback)
+[tiktok] concept OK (de) — idea/analysis generated selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":false,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
+  PASS Return trotz alter Struktur (kein Crash)
+  PASS alte Felder vollständig geparst
+  PASS format Fallback: undefined
+  PASS title Fallback: undefined
+  PASS timedScenes Fallback: undefined (UI rendert scenes)
+  PASS imageIdeas Fallback: undefined
+  PASS Vollständigkeitsprüfung erkennt fehlende Felder
+  PASS 4 Calls (Retry wegen Unvollständigkeit, dann Soft-Fallback)
+  // 3 ms, 4 engine call(s)
+
+[S6 unvollständig (Versuch 1) → vollständig (Versuch 2) mit VOLLSTÄNDIGKEITSHINWEIS]
+[tiktok] concept INCOMPLETE (format, title, timedScenes, imageIdeas) — regenerating (attempt 1)
+[tiktok] concept OK (de) — idea/analysis generated selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":false,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
+  PASS Retry wegen Unvollständigkeit (2 Calls, war 2)
+  PASS nach Retry: format vorhanden
+  PASS nach Retry: title vorhanden
+  PASS nach Retry: timedScenes (≥3) vorhanden
+  PASS nach Retry: jeder Eintrag hat Zeitangabe
+  PASS nach Retry: jeder Eintrag hat Szene
+  PASS nach Retry: imageIdeas (≥2) vorhanden
+  PASS nach Retry: jeder studioPrompt vorhanden
+  PASS Completeness-Hinweis im 2. Prompt
+  PASS Hinweis nennt fehlende Felder
+  // 1 ms, 2 engine call(s)
+
+[S7 max_tokens=2400 + Antwort nicht abgeschnitten (volle Antwort)]
+[tiktok] concept OK (de) — idea/analysis generated selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":false,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
+  PASS Request wurde gesendet
+  PASS max_tokens=2400 wird gesendet (war: 2400)
+  PASS volle Antwort: alle Felder inkl. aller Einträge da
+  PASS Return vollständig
+  // 1 ms, 1 engine call(s)
+
+[S8 diagnose bleibt funktional (Phase-1-Regression)]
+[tiktok] diagnose OK (de) — idea/analysis generated selfCheck={"inventsMetrics":false,"unprovenPromise":false,"prescribedEnthusiasm":false,"vagueNextTest":false,"groundedInNumbers":true}
+  PASS Mode diagnose
+  PASS alle Diagnose-Pflichtfelder
+  PASS Listen geparst
+  PASS Metriken im Prompt
+  PASS 1 Call
+  // 1 ms, 1 engine call(s)
+
+[S9 todayIdea Regel-A → Retry (Phase-1-Regression)]
+[tiktok] todayIdea Rule A/B REJECTED (attempt 1) — regenerating selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":false,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false} ruleA/B=A:in nur X (Zeitversprechen)|A:result-verb + time
+[tiktok] todayIdea OK (de) — idea/analysis generated selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":false,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
+  PASS Retry (2 Calls, war 2)
+  PASS nach Regel-A-Retry: format vorhanden
+  PASS nach Regel-A-Retry: title vorhanden
+  PASS nach Regel-A-Retry: timedScenes (≥3) vorhanden
+  PASS nach Regel-A-Retry: jeder Eintrag hat Zeitangabe
+  PASS nach Regel-A-Retry: jeder Eintrag hat Szene
+  PASS nach Regel-A-Retry: imageIdeas (≥2) vorhanden
+  PASS nach Regel-A-Retry: jeder studioPrompt vorhanden
+  PASS selfCheck geparst
+  PASS Qualitäts-Retry-Hint im 2. Prompt
+  // 2 ms, 2 engine call(s)
+
+[S10 studioDeepLink: URL trägt den encodierten studioPrompt]
+  PASS Deep-Link-URL korrekt aufgebaut
+  PASS Hin-/Rückcodierung: studioPrompt bleibt erhalten
+  PASS keine Leerzeichen in der URL (encodiert)
+  // 0 ms, 0 engine call(s)
+
+[S11 studioSearchPrefill: Image-Studio-Route übernimmt ?prompt= (Routebene)]
+  PASS Prompt wird aus query übernommen
+  PASS keine Nebenwirkungen auf andere Einstiege
+  PASS bestehender ?idea=-Einstieg unverändert
+  PASS fromStrategy wird erkannt (hat Vorrang im Route-Code)
+  PASS image-studio.tsx wendet studioSearchPrefill an (Routebene belegt)
+  // 1 ms, 0 engine call(s)
+
+===== ERGEBNIS =====
+PASS: 90  FAIL: 0
+ALLE TESTS BESTANDEN
