@@ -1,5 +1,5 @@
 TikTok-Modul Phase 1 — Test-Nachweis (final, inkl. Gate isBrandProfileComplete)
-Datum: 2026-09-10 (engine session)
+Datum: 2026-09-10T12:12:19Z
 Methode: Bun-Mini-Server als OpenAI-Mock (OPENAI_BASE_URL) + generateTikTok + computeBrandGaps/shouldShowMinimalQuery
 
 === Szenario-Ergebnisse (Szenario -> Status) ===
@@ -8,7 +8,7 @@ S2  concept OHNE topic (Thema selbst gewaehlt, de+en)      -> PASS (Pflichtfelde
 S3  concept MIT topic (Regression)                          -> PASS (Topic-Zeile im Prompt, 1 Call)
 S4  diagnose mit teilweise fehlenden Metriken              -> PASS (fehlende Felder NICHT als 0 im Prompt)
 S5  diagnose mit allen Werten                              -> PASS (alle 7 Werte im Prompt)
-S6  diagnose echte 0 (0-vs-fehlend)                        -> PASS (Views: 0 wird gesendet)
+S6  diagnose echte 0 (0-vs-fehlend)                        -> PASS ('Views: 0' wird gesendet)
 S7  todayIdea Regel-A-Verletzung -> Retry                   -> PASS (2 Calls, Ergebnis aus Versuch 2)
 S8  concept selfCheck HARD REJECT -> Retry (Retry auf concept) -> PASS (2 Calls)
 S9  diagnose selfCheck HARD REJECT -> Retry (Retry auf diagnose) -> PASS (2 Calls, diagnose-Hint)
@@ -24,7 +24,7 @@ S17 Minimal-Abfrage -> nach 2 gefuellten Feldern generiert -> PASS (Gate+Engine 
 === Gates ===
 tsc -p tsconfig.gate.json --noEmit: 60 Fehler (identisches Code-Set wie Baseline, 0 NEUE; keine Fehler in tiktok.ts/tiktok.tsx/server.ts)
 i18n-Paritaet de/en: 1404 = 1404 Keys, PARITY OK
-bash build-vercel.sh: BUILD_EXIT=0 (zweimal: vor + nach Gate-Fix)
+bash build-vercel.sh: BUILD_EXIT=0 (zweimal, vor + nach Gate-Fix)
 
 === Volles Test-Log (final) ===
 
@@ -174,5 +174,3 @@ bash build-vercel.sh: BUILD_EXIT=0 (zweimal: vor + nach Gate-Fix)
 ===== ERGEBNIS =====
 PASS: 69  FAIL: 0
 ALLE TESTS BESTANDEN
-
-=== Resultat: PASS 69 / FAIL 0 — ALLE TESTS BESTANDEN ===
