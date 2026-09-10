@@ -18,14 +18,16 @@ import OpenAI from 'openai';
 export type TikTokMode = 'todayIdea' | 'concept' | 'diagnose';
 export type TikTokLang = 'de' | 'en';
 
+// Alle Felder optional: Phase 1 trennt „0" von „fehlt" — nur tatsächlich
+// angegebene Werte werden in den Prompt übernommen (fehlende werden weggelassen).
 export interface TikTokMetrics {
-  views: number;
-  length: string; // z.B. "31s"
-  avgWatch: number; // Sekunden durchschnittliche Wiedergabedauer
-  likes: number;
-  comments: number;
-  shares: number;
-  profileVisits: number;
+  views?: number;
+  length?: string; // z.B. "31s"
+  avgWatch?: number; // Sekunden durchschnittliche Wiedergabedauer
+  likes?: number;
+  comments?: number;
+  shares?: number;
+  profileVisits?: number;
 }
 
 export interface TikTokInput {
@@ -52,6 +54,18 @@ export interface TikTokSelfCheck {
   prescribedEnthusiasm: boolean; // verordnet eine künstliche Reaktion/Begeisterung ("Wow!", "😲", "da staunen alle", aufgesetzte Überraschung) ohne echten Bezug zum gezeigten tatsächlichen Ergebnis (HARD REJECT)
 }
 
+/** Interner Qualitäts-Selbsttest FÜR DIE DIAGNOSE (modus-spezifische Fragen):
+ *  ehrliche Antworten des Modells zu erfundenen Kennzahlen, unbelegten
+ *  Versprechen, vorgegebener Begeisterung, vager Test-Empfehlung und
+ *  Zahlen-Bezug. Wird für den Verwerfen-&-Neu-generieren-Retry herangezogen. */
+export interface TikTokDiagnoseSelfCheck {
+  inventsMetrics: boolean; // erfindet Kennzahlen/Zahlen/Werte/Prozente, die der Nutzer NICHT angegeben hat (HARD REJECT)
+  unprovenPromise: boolean; // unbelegtes konkretes Zeit-/Ergebnis-Versprechen in newHook/optimized/nextTest (HARD REJECT)
+  prescribedEnthusiasm: boolean; // verordnete künstliche Reaktion/Begeisterung ("Wow!" etc.) (HARD REJECT)
+  vagueNextTest: boolean; // nextTest ist vage/generisch statt EIN konkreter Test + zu beobachtende Metrik
+  groundedInNumbers: boolean; // Aussagen sind tatsächlich an den gelieferten Zahlen belegt (false = generisch)
+}
+
 /** Ergebnis für todayIdea + concept (strukturiert, kein Roh-Chat). */
 export interface TikTokIdeaResult {
   mode: 'todayIdea' | 'concept';
@@ -65,7 +79,7 @@ export interface TikTokIdeaResult {
   hashtags: string[]; // passende Hashtags
   cta: string;
   why: string; // kurze Erklärung, warum die Idee funktionieren könnte
-  selfCheck?: TikTokSelfCheck; // nur todayIdea: Selbsttest-Flags (vom UI ungenutzt)
+  selfCheck?: TikTokSelfCheck; // todayIdea + concept: Selbsttest-Flags (vom UI ungenutzt)
 }
 
 /** Ergebnis für diagnose. */
@@ -77,6 +91,7 @@ export interface TikTokDiagnoseResult {
   newHook: string; // neuer Hook
   optimized: string; // konkrete optimierte Video-Version
   nextTest: string; // Empfehlung für den nächsten Test
+  selfCheck?: TikTokDiagnoseSelfCheck; // Selbsttest-Flags (vom UI ungenutzt)
 }
 
 export type TikTokResult = TikTokIdeaResult | TikTokDiagnoseResult;
@@ -223,16 +238,17 @@ Das ist eine „Was soll ich heute posten?"-Idee. Greife NICHT zur Standard-Werb
 
 const CONCEPT_EN = `${IDEA_COMMON_EN}
 
-The user additionally provided a topic/product/rough idea. Build the complete TikTok concept around THAT specifically (treat it as the subject) while still choosing the best angle and format yourself. Even with a given topic, stay TikTok-native: lead with the story, demonstration, experiment or genuine value, and weave the product/topic in naturally rather than pitching it as a straight ad.`;
+The user may or may not have provided a topic/product/rough idea (it is OPTIONAL). If a topic was provided, build the complete TikTok concept around THAT specifically (treat it as the subject). If NO topic was provided, choose a fitting topic YOURSELF based on the BRAND CONTEXT / business description (e.g. a concrete product, a typical situation of the target audience or a current brand challenge) and build the complete, ready-to-record concept around it — NEVER ask the user back, always deliver the full concept. Either way you still choose the best angle and format yourself. Stay TikTok-native: lead with the story, demonstration, experiment or genuine value, and weave the product/topic in naturally rather than pitching it as a straight ad.`;
 const CONCEPT_DE = `${IDEA_COMMON_DE}
 
-Der Nutzer hat zusätzlich ein Thema/Produkt/grobe Idee vorgegeben. Baue das komplette TikTok-Konzept gezielt darum (als Gegenstand) — wähle dabei weiterhin selbst den besten Winkel und das Format. Auch mit vorgegebenem Thema bleib TikTok-nativ: führe mit Story, Demonstration, Experiment oder echtem Mehrwert und binde Produkt/Thema natürlich ein, statt es als reine Werbung zu pitchen.`;
+Der Nutzer hat MÖGLICHERWEISE ein Thema/Produkt/grobe Idee vorgegeben (OPTIONAL). Wenn ein Thema angegeben wurde, baue das komplette TikTok-Konzept gezielt darum (als Gegenstand). Wenn KEIN Thema angegeben wurde, wähle selbst ein sinnvolles Thema basierend auf dem Markenkontext / der Unternehmensbeschreibung (z. B. ein konkretes Produkt, eine typische Situation der Zielgruppe oder eine aktuelle Marken-Herausforderung) und baue das komplette, aufnahmefähige Konzept darum — frage den Nutzer NIEMALS zurück, liefere immer das vollständige Konzept. In beiden Fällen wählst du weiterhin selbst den besten Winkel und das Format. Bleib TikTok-nativ: führe mit Story, Demonstration, Experiment oder echtem Mehrwert und binde Produkt/Thema natürlich ein, statt es als reine Werbung zu pitchen.`;
 
 const DIAGNOSE_EN = `You are Growimo's TikTok diagnostician. The user provides real performance numbers for one of their TikToks. You must analyze them honestly and give concrete, prioritized next steps — NEVER a generic pep talk, NEVER "keep going" without evidence.
 
 Rules:
 - Answer ONLY with valid JSON, no other text, no markdown fences. Output in English.
 - Derive every claim from the numbers given (use them in your wording). Do NOT invent metrics that were not provided.
+- MISSING METRICS = NOT PROVIDED: The user's data lists ONLY the values that are present. If a metric is NOT listed (e.g. no likes, no watch time), it was NOT provided — NEVER invent it, NEVER guess it and NEVER draw conclusions from it. Only the listed values may be referenced.
 - NEVER invent users/testimonials/quotes/user feedback or success stories — only the numbers provided may be referenced.
 - No unproven performance promises and no prescribed enthusiasm: never promise concrete outcomes ("in 2 minutes", "more followers") that do not follow from the numbers, and never prescribe reactions like "Wow!" — reference only the real numbers the user provided, keep any reaction genuine or omit it.
 - NO time-based performance promise phrasing in newHook/optimized: never write a "discover X in just N seconds/minutes/days" hook or any unproven time/result promise such as "in nur X Sekunden", "in just X seconds", "+X%", "% more reach/engagement", "doubles your reach", "go viral". Rewrite hooks around the actual diagnosed problem and the real numbers only — never promise a timeframe or a result the data does not prove.
@@ -243,6 +259,14 @@ Rules:
 - optimized: ONE concrete optimized video version (retain what works, fix the problem, describe the new scenes/hook/overlay concretely).
 - nextTest: exactly ONE concrete next test (what to change and what metric to watch), so the user can A/B iterate.
 
+Internal quality self-check BEFORE output (mandatory — answer honestly in the "selfCheck" field):
+- Q1 - inventsMetrics: Does the analysis reference ANY metric, number, percentage, time value or performance figure that is NOT listed in the Existing TikTok data provided above? Any invented/derived metric MUST be reported as true. This is a HARD REJECT: if true, the diagnosis is fabricated and MUST be discarded and regenerated — never output it.
+- Q2 - unprovenPromise: Do newHook, optimized or nextTest contain an unproven concrete time-/result-promise ("in just X seconds/minutes/days/weeks", "+X%", "% more reach/engagement/followers", "doubles your reach", "more followers/sales", "go viral") that does not follow from the numbers provided? MUST be reported as true. This is a HARD REJECT.
+- Q3 - prescribedEnthusiasm: Does the analysis prescribe an artificial reaction or required enthusiasm ("Wow!", "everyone is amazed", staged surprise) anywhere in its wording? MUST be reported as true. This is a HARD REJECT.
+- Q4 - vagueNextTest: Is nextTest vague or generic ("try different hooks", "keep posting", "test more content") instead of ONE concrete change plus the exact metric to watch? If it cannot be executed and measured exactly as described, report true.
+- Q5 - groundedInNumbers: Are the claims in biggestProblem, whatWorks and whatToImprove actually derived from and grounded in the numbers provided (referencing the actual figures), not generic advice that would apply to any TikTok? If they are generic/unmoored, report false.
+Then judge: if Q1, Q2 or Q3 is true, or Q4 is true, or Q5 is false, internally DISCARD this diagnosis and REGENERATE a different, better one grounded strictly in the numbers provided. Retry internally as many times as needed until it genuinely passes: it references only provided numbers, makes no unproven promise, prescribes no reaction, names one concrete next test and is grounded in the actual figures.
+
 JSON schema exactly:
 {
   "biggestProblem": "most likely biggest problem, plainly explained with the numbers",
@@ -250,7 +274,14 @@ JSON schema exactly:
   "whatToImprove": ["improvement 1", "improvement 2", "improvement 3"],
   "newHook": "specific rewritten first-1-2-second hook",
   "optimized": "one concrete optimized video version",
-  "nextTest": "one concrete next test + the metric to watch"
+  "nextTest": "one concrete next test + the metric to watch",
+  "selfCheck": {
+    "inventsMetrics": true or false,
+    "unprovenPromise": true or false,
+    "prescribedEnthusiasm": true or false,
+    "vagueNextTest": true or false,
+    "groundedInNumbers": true or false
+  }
 }`;
 
 const DIAGNOSE_DE = `Du bist Growimos TikTok-Diagnostiker. Der Nutzer liefert echte Performance-Zahlen zu einem seiner TikToks. Analysiere sie ehrlich und gib konkrete, priorisierte nächste Schritte — NIEMALS einen generischen Motivationsspruch, NIEMALS „mach einfach weiter" ohne Beleg.
@@ -258,6 +289,7 @@ const DIAGNOSE_DE = `Du bist Growimos TikTok-Diagnostiker. Der Nutzer liefert ec
 Regeln:
 - Antworte AUSSCHLIESSLICH mit validem JSON, kein anderer Text, keine Markdown-Fences. Ausgabe auf Deutsch.
 - Leite jede Aussage aus den genannten Zahlen ab (nutze sie wörtlich). Erfinde keine Metriken, die nicht genannt wurden.
+- FEHLENDE METRIKEN = NICHT ANGEGEBEN: Die Nutzerdaten listen ausschließlich die vorhandenen Werte. Wenn eine Metrik NICHT gelistet ist (z. B. keine Likes, keine Wiedergabedauer), wurde sie NICHT angegeben — erfinde sie NIEMALS, rate sie NIEMALS und leite NIEMALS Schlüsse aus ihr ab. Nur die gelisteten Werte dürfen referenziert werden.
 - Erfinde NIEMALS Nutzer/Testimonials/Zitate/Nutzerfeedback oder Erfolgsgeschichten — nur die genannten Zahlen dürfen referenziert werden.
 - Keine unbelegten Leistungsversprechen und keine vorgegebene Begeisterung: versprich nie konkrete Ergebnisse („in 2 Minuten", „mehr Follower"), die nicht aus den Zahlen hervorgehen, und verordne nie Reaktionen wie „Wow!" — referenziere ausschließlich die echten, vom Nutzer gelieferten Zahlen und halte Reaktionen echt oder lasse sie ganz weg.
 - KEINE zeitbasierten Leistungsversprechen-Formulierungen in newHook/optimized: schreibe niemals einen „Entdecke X in nur N Sekunden/Minuten/Tagen"-Hook oder ein unbelegtes Zeit-/Ergebnis-Versprechen wie „in nur X Sekunden", „in just X seconds", „+X%", „% mehr Reichweite/Engagement", „verdoppelt deine Reichweite", „viral gehen". Formuliere Hooks ausschließlich um das tatsächlich diagnostizierte Problem und die echten Zahlen — versprich nie einen Zeitrahmen oder ein Ergebnis, das die Daten nicht belegen.
@@ -268,6 +300,14 @@ Regeln:
 - optimized: EINE konkrete optimierte Video-Version (Behalte, was funktioniert, behebe das Problem, beschreibe neue Szenen/Hook/Einblendung konkret).
 - nextTest: GENAU EIN konkreter nächster Test (was zu ändern und welche Metrik zu beobachten), damit der Nutzer iterieren kann.
 
+Interne Qualitäts-Selbstprüfung VOR der Ausgabe (Pflicht — beantworte ehrlich im Feld „selfCheck"):
+- Q1 - inventsMetrics: Referenziert die Analyse IRGENDEINE Metrik, Zahl, Prozentangabe, Zeitangabe oder Leistungskennzahl, die NICHT in den oben gelieferten „Bestehende TikTok-Daten" gelistet ist? Jede erfundene/abgeleitete Kennzahl MUSS als true gemeldet werden. Das ist ein HARD REJECT: Ist das Flag true, ist die Diagnose erfunden und MUSS verworfen und NEU generiert werden — niemals ausgeben.
+- Q2 - unprovenPromise: Enthalten newHook, optimized oder nextTest ein unbelegtes konkretes Zeit-/Ergebnis-Versprechen („in nur X Sekunden/Minuten/Tagen/Wochen", „+X%", „% mehr Reichweite/Engagement/Follower", „verdoppelt deine Reichweite", „mehr Follower/Verkäufe", „viral gehen"), das nicht aus den gelieferten Zahlen hervorgeht? MUSS als true gemeldet werden. Das ist ein HARD REJECT.
+- Q3 - prescribedEnthusiasm: Verordnet die Analyse irgendwo eine künstliche Reaktion oder verlangte Begeisterung („Wow!", „Da staunen alle", aufgesetzte Überraschung)? MUSS als true gemeldet werden. Das ist ein HARD REJECT.
+- Q4 - vagueNextTest: Ist nextTest vage oder generisch („probiere andere Hooks", „poste einfach weiter", „teste mehr Inhalte") statt EIN konkreter Test mit der exakt zu beobachtenden Metrik? Wenn er nicht genau so umsetzbar und messbar ist, melde true.
+- Q5 - groundedInNumbers: Sind die Aussagen in biggestProblem, whatWorks und whatToImprove tatsächlich aus den gelieferten Zahlen abgeleitet und an ihnen belegt (mit Bezug auf die konkreten Werte) — nicht generischer Rat, der auf jedes TikTok passen würde? Wenn sie generisch/unverankert sind, melde false.
+Dann urteile: Wenn Q1, Q2 oder Q3 wahr ist, oder Q4 wahr ist, oder Q5 false ist, VERWIRF diese Diagnose intern und generiere eine andere, bessere Diagnose NEU, die ausschließlich an den gelieferten Zahlen belegt ist. Wiederhole intern so oft wie nötig, bis sie wirklich besteht: sie referenziert nur gelieferte Zahlen, macht kein unbelegtes Versprechen, verordnet keine Reaktion, nennt einen konkreten nächsten Test und ist an den tatsächlichen Werten belegt.
+
 JSON-Schema exakt:
 {
   "biggestProblem": "wahrscheinlich größtes Problem, verständlich erklärt mit den Zahlen",
@@ -275,7 +315,14 @@ JSON-Schema exakt:
   "whatToImprove": ["Verbesserung 1", "Verbesserung 2", "Verbesserung 3"],
   "newHook": "konkrete neu geschriebene Hook-Zeile für die ersten 1-2 Sekunden",
   "optimized": "eine konkrete optimierte Video-Version",
-  "nextTest": "ein konkreter nächster Test + die zu beobachtende Metrik"
+  "nextTest": "ein konkreter nächster Test + die zu beobachtende Metrik",
+  "selfCheck": {
+    "inventsMetrics": true oder false,
+    "unprovenPromise": true oder false,
+    "prescribedEnthusiasm": true oder false,
+    "vagueNextTest": true oder false,
+    "groundedInNumbers": true oder false
+  }
 }`;
 
 // ── System-/User-Prompt-Auswahl ──────────────────────────────────────────────
@@ -302,23 +349,38 @@ function buildUserPrompt(input: TikTokInput, lang: TikTokLang): string {
   if (input.audience) {
     lines.push(de ? ('Zielgruppe: ' + input.audience) : ('Target audience: ' + input.audience));
   }
-  if (input.mode === 'concept' && input.topic) {
-    lines.push(
-      de ? 'Thema / Produkt / grobe Idee:' : 'Topic / product / rough idea:',
-      input.topic,
-    );
+  if (input.mode === 'concept') {
+    if (input.topic) {
+      lines.push(
+        de ? 'Thema / Produkt / grobe Idee:' : 'Topic / product / rough idea:',
+        input.topic,
+      );
+    } else {
+      lines.push(
+        de
+          ? 'Kein Thema angegeben — wähle selbst ein sinnvolles Thema basierend auf dem Markenkontext / der Unternehmensbeschreibung (z. B. ein konkretes Produkt, eine typische Situation der Zielgruppe oder eine aktuelle Marken-Herausforderung) und baue das komplette Konzept darum. KEINE Rückfragen an den Nutzer.'
+          : 'No topic provided — choose a fitting topic yourself based on the BRAND CONTEXT / business description (e.g. a concrete product, a typical target-audience situation or a current brand challenge) and build the complete concept around it. Do NOT ask the user back.',
+      );
+    }
   }
   if (input.mode === 'diagnose' && input.metrics) {
     const m = input.metrics;
-    const label = (k: string, v: string) => (de ? `${k}: ${v}` : `${k}: ${v}`);
-    lines.push(de ? 'Bestehende TikTok-Daten:' : 'Existing TikTok data:');
-    lines.push(label(de ? 'Aufrufe (Views)' : 'Views', String(m.views)));
-    lines.push(label(de ? 'Videolänge' : 'Video length', m.length));
-    lines.push(label(de ? 'Durchschn. Wiedergabedauer (Sek.)' : 'Avg watch time (s)', String(m.avgWatch)));
-    lines.push(label(de ? 'Likes' : 'Likes', String(m.likes)));
-    lines.push(label(de ? 'Kommentare' : 'Comments', String(m.comments)));
-    lines.push(label(de ? 'Shares' : 'Shares', String(m.shares)));
-    lines.push(label(de ? 'Profilaufrufe' : 'Profile visits', String(m.profileVisits)));
+    const data: string[] = [];
+    if (m.views !== undefined) data.push((de ? 'Aufrufe (Views): ' : 'Views: ') + String(m.views));
+    if (m.length) data.push((de ? 'Videolänge: ' : 'Video length: ') + m.length);
+    if (m.avgWatch !== undefined) data.push((de ? 'Durchschn. Wiedergabedauer (Sek.): ' : 'Avg watch time (s): ') + String(m.avgWatch));
+    if (m.likes !== undefined) data.push((de ? 'Likes: ' : 'Likes: ') + String(m.likes));
+    if (m.comments !== undefined) data.push((de ? 'Kommentare: ' : 'Comments: ') + String(m.comments));
+    if (m.shares !== undefined) data.push((de ? 'Shares: ' : 'Shares: ') + String(m.shares));
+    if (m.profileVisits !== undefined) data.push((de ? 'Profilaufrufe: ' : 'Profile visits: ') + String(m.profileVisits));
+    if (data.length > 0) {
+      lines.push(
+        de
+          ? 'Bestehende TikTok-Daten (NUR die folgenden Werte sind bekannt — fehlende Metriken wurden NICHT angegeben und dürfen NICHT erfunden oder abgeleitet werden):'
+          : 'Existing TikTok data (ONLY the following values are known — missing metrics were NOT provided and must NOT be invented or inferred):',
+      );
+      lines.push(...data);
+    }
   }
   if (input.history && input.history.length > 0) {
     lines.push(
@@ -372,6 +434,19 @@ function parseSelfCheck(p: Record<string, unknown>): TikTokSelfCheck | undefined
   };
 }
 
+function parseDiagnoseSelfCheck(p: Record<string, unknown>): TikTokDiagnoseSelfCheck | undefined {
+  const sc = p.selfCheck;
+  if (!sc || typeof sc !== 'object') return undefined;
+  const o = sc as Record<string, unknown>;
+  return {
+    inventsMetrics: o.inventsMetrics === true,
+    unprovenPromise: o.unprovenPromise === true,
+    prescribedEnthusiasm: o.prescribedEnthusiasm === true,
+    vagueNextTest: o.vagueNextTest === true,
+    groundedInNumbers: o.groundedInNumbers === true,
+  };
+}
+
 function parseIdea(mode: 'todayIdea' | 'concept', p: Record<string, unknown>): TikTokIdeaResult | null {
   if (!str(p.idea) || !str(p.hook) || !str(p.length)) return null;
   return {
@@ -386,7 +461,7 @@ function parseIdea(mode: 'todayIdea' | 'concept', p: Record<string, unknown>): T
     hashtags: strArr(p.hashtags),
     cta: str(p.cta),
     why: str(p.why),
-    selfCheck: mode === 'todayIdea' ? parseSelfCheck(p) : undefined,
+    selfCheck: parseSelfCheck(p), // todayIdea + concept (Retry-Mechanik auf alle Modi)
   };
 }
 
@@ -400,6 +475,7 @@ function parseDiagnose(p: Record<string, unknown>): TikTokDiagnoseResult | null 
     newHook: str(p.newHook),
     optimized: str(p.optimized),
     nextTest: str(p.nextTest),
+    selfCheck: parseDiagnoseSelfCheck(p),
   };
 }
 
@@ -411,12 +487,14 @@ function parseResult(mode: TikTokMode, text: string): TikTokResult | null {
   return parseIdea(mode === 'concept' ? 'concept' : 'todayIdea', p);
 }
 
-// ── Qualitäts-Selbsttest & Retry (nur todayIdea) ─────────────────────────────
+// ── Qualitäts-Selbsttest & Retry (alle Modi: todayIdea / concept / diagnose) ─
 // Das Modell füllt im System-Prompt den internen Selbsttest (selfCheck) ehrlich
-// aus. Wird die Idee als „austauschbar" bzw. „wie Werbung" eingestuft (oder
-// mindestens 3 der 4 Kriterien sind verdächtig), verwirft Growimo die Idee und
-// generiert NEU, bevor sie ausgegeben wird. Begrenzte Versuche — verhindert
-// Endlosschleifen; danach wird die bestmögliche (letzte) Idee geliefert.
+// aus. Wird ein Ergebnis als „erfunden"/„austauschbar"/„werblich"/„nicht an
+// Zahlen belegt" eingestuft (oder eine Regel-A-/B-Verletzung erkannt), verwirft
+// Growimo das Ergebnis und generiert NEU, bevor es ausgegeben wird. Begrenzte
+// Versuche — verhindert Endlosschleifen; danach Fail-closed: keine erfundenen
+// Testimonials/Kennzahlen, keine unbelegten Versprechen, keine vorgegebene
+// Begeisterung werden ausgegeben, sondern ein ehrlicher Fehler.
 const MAX_TIKTOK_ATTEMPTS = 4;
 
 function selfCheckRejected(sc: TikTokSelfCheck): boolean {
@@ -435,6 +513,16 @@ function selfCheckRejected(sc: TikTokSelfCheck): boolean {
   ].filter(Boolean).length;
   // insbesondere austauschbar-oder-werbung → sofort verwerfen; sonst ab 3 verdächtigen Kriterien.
   return sc.interchangeable === true || sc.soundsLikeAd === true || suspicious >= 3;
+}
+
+/** Diagnose-Selbsttest: erfundene Kennzahlen / unbelegte Versprechen /
+ *  vorgegebene Begeisterung → HARD REJECT; vager Test oder nicht an Zahlen
+ *  belegte Aussagen → ebenfalls verwerfen. */
+function diagnoseSelfCheckRejected(sc: TikTokDiagnoseSelfCheck): boolean {
+  if (sc.inventsMetrics === true) return true;
+  if (sc.unprovenPromise === true) return true;
+  if (sc.prescribedEnthusiasm === true) return true;
+  return sc.vagueNextTest === true || sc.groundedInNumbers === false;
 }
 
 // ── DETERMINISTISCHE Regel-A+B-Erkennung (Code-Ebene, de+en) ───────────────
@@ -495,6 +583,15 @@ function ideaContentBlob(r: TikTokIdeaResult): string {
   ].join(' ').toLowerCase();
 }
 
+/** Analog für die Diagnose: alle Textfelder inkl. neu geschriebenem Hook und
+ * optimierter Version auf Regel-A-/B-Muster prüfen. */
+function diagnoseContentBlob(r: TikTokDiagnoseResult): string {
+  return [
+    r.biggestProblem, r.whatWorks.join(' '), r.whatToImprove.join(' '),
+    r.newHook, r.optimized, r.nextTest,
+  ].join(' ').toLowerCase();
+}
+
 /** Liefert die Namen aller zutreffenden Regel-A-/Regel-B-Muster (leer = ok). */
 function ruleABViolations(blob: string): string[] {
   const hits: string[] = [];
@@ -503,7 +600,18 @@ function ruleABViolations(blob: string): string[] {
   return hits;
 }
 
-function buildRetryHint(lang: TikTokLang, violations: string[] = []): string {
+function buildRetryHint(lang: TikTokLang, violations: string[] = [], mode: TikTokMode = 'todayIdea'): string {
+  if (mode === 'diagnose') {
+    const rulePart =
+      violations.length > 0
+        ? lang === 'de'
+          ? ` ERKANNTE REGEL-VERLETZUNGEN DER VERWORFENEN DIAGNOSE: ${violations.join(', ')} — entferne diese Wörter/Formulierungen VÖLLIG und ersetze sie durch Aussagen, die ausschließlich an den vom Nutzer gelieferten Zahlen belegt sind.`
+          : ` DETECTED RULE VIOLATIONS IN THE REJECTED DIAGNOSIS: ${violations.join(', ')} — remove those words/phrases COMPLETELY and replace them with statements grounded strictly in the numbers the user provided.`
+        : '';
+    return lang === 'de'
+      ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Diagnose wurde intern verworfen (sie erfand Kennzahlen, die der Nutzer nicht angegeben hat, enthielt ein unbelegtes Leistungs-/Zeit-Versprechen, eine vorgegebene künstliche Reaktion/Begeisterung oder einen zu vagen nächsten Test — oder ihre Aussagen waren nicht an den gelieferten Zahlen belegt).' + rulePart + ' Erzeuge JETZT eine deutlich bessere Diagnose: referenziere AUSSCHLIESSLICH die tatsächlich gelieferten Zahlen (nur die im Prompt gelisteten Metriken), erfinde KEINE zusätzlichen Kennzahlen/Werte/Prozente, mache in newHook/optimized/nextTest KEIN unbelegtes Versprechen (kein „in nur X Sekunden/Minuten/Tagen/Wochen", kein „+X%", kein „mehr Follower", kein „viral gehen"), verordne KEINE Reaktion/Begeisterung und nenne GENAU EINEN konkret umsetzbaren nächsten Test mit der zu beobachtenden Metrik. Setze alle fünf selfCheck-Booleans ehrlich auf bestehen.'
+      : '\n\nQUALITY SELF-CHECK NOTE: The previous diagnosis was internally rejected (it invented metrics the user did not provide, contained an unproven performance/time promise, a prescribed artificial reaction/enthusiasm or a vague next test — or its claims were not grounded in the provided numbers).' + rulePart + ' NOW produce a clearly better diagnosis: reference ONLY the numbers actually provided (the metrics listed in the prompt), invent NO additional metrics/values/percentages, make NO unproven promise in newHook/optimized/nextTest (no "in just X seconds/minutes/days/weeks", no "+X%", no "more followers", no "go viral"), prescribe NO reaction/enthusiasm and name EXACTLY ONE concrete next test with the metric to watch. Set all five selfCheck booleans truthfully to passing.';
+  }
   const rulePart =
     violations.length > 0
       ? lang === 'de'
@@ -542,7 +650,7 @@ export async function generateTikTok(
     const user =
       attempt === 1
         ? buildUserPrompt(input, lang)
-        : buildUserPrompt(input, lang) + buildRetryHint(lang, lastViolations);
+        : buildUserPrompt(input, lang) + buildRetryHint(lang, lastViolations, input.mode);
 
     const response = await client.chat.completions.create({
       model: 'gpt-4o',
@@ -574,45 +682,71 @@ export async function generateTikTok(
       continue; // Parse-Fehler → erneut versuchen
     }
 
-    // Qualitäts-Selbsttest-Retry NUR für todayIdea.
-    if (input.mode === 'todayIdea' && result.mode === 'todayIdea') {
-      // Deterministische Regel-A+B-Prüfung auf Code-Ebene (unabhängig davon, ob
-      // das Modell Q6/Q7 im selfCheck ehrlich gemeldet hat). Erfasst alle
-      // Textfelder inkl. why — und deckt damit auch die Diagnose-Hook-Klasse ab.
-      const violations = ruleABViolations(ideaContentBlob(result));
-      const scRejected = result.selfCheck ? selfCheckRejected(result.selfCheck) : false;
+    // Qualitäts-Selbsttest + deterministische Regel-A+B-Prüfung auf Code-Ebene
+    // (unabhängig davon, ob das Modell die Flags ehrlich gemeldet hat) —
+    // angewendet auf ALLE drei Modi (todayIdea / concept / diagnose).
+    if (result.mode === 'diagnose') {
+      const violations = ruleABViolations(diagnoseContentBlob(result));
       lastViolations = violations;
-      if (scRejected && attempt < MAX_TIKTOK_ATTEMPTS) {
+      const scRejected = result.selfCheck ? diagnoseSelfCheckRejected(result.selfCheck) : false;
+      if (scRejected || violations.length > 0) {
+        const reason = scRejected ? 'self-check' : 'Rule A/B';
         console.log(
-          `[tiktok] todayIdea self-check REJECTED (attempt ${attempt}) — regenerating`,
-          JSON.stringify(result.selfCheck),
+          `[tiktok] diagnose ${reason} REJECTED (attempt ${attempt}) — regenerating` +
+            (result.selfCheck ? ` selfCheck=${JSON.stringify(result.selfCheck)}` : '') +
+            (violations.length > 0 ? ` ruleA/B=${violations.join('|')}` : ''),
         );
-        continue;
-      }
-      if (violations.length > 0) {
-        if (attempt < MAX_TIKTOK_ATTEMPTS) {
-          console.log(
-            `[tiktok] todayIdea Rule A/B REJECTED (attempt ${attempt}) — regenerating` +
-              ` ruleA/B=${violations.join('|')}`,
-            JSON.stringify(result.selfCheck),
-          );
-          continue;
-        }
-        // Fail closed: NIE eine Regel-A-/B-Verletzung ausgeben — lieber einen
-        // klaren Fehler als ein verbotenes Leistungs-/Zeit-/Begeisterungs-Versprechen.
+        if (attempt < MAX_TIKTOK_ATTEMPTS) continue;
+        // Fail closed: NIE eine Diagnose ausgeben, die Kennzahlen erfindet,
+        // verbotene Versprechen enthält oder Reaktionen verordnet.
         throw new Error(
           lang === 'de'
-            ? 'Die TikTok-Idee konnte nach mehrmaligem Versuch nicht ohne verbotene Leistungs-/Zeit-Versprechen oder künstliche Reaktionen erzeugt werden. Bitte erneut versuchen.'
-            : 'Could not produce a TikTok idea without forbidden unproven performance/time promises or prescribed reactions after several attempts. Please try again.',
+            ? 'Die TikTok-Diagnose konnte nach mehrmaligem Versuch nicht ohne erfundene Kennzahlen, verbotene Leistungs-/Zeit-Versprechen oder künstliche Reaktionen erzeugt werden. Bitte erneut versuchen.'
+            : 'Could not produce a TikTok diagnosis without invented metrics, forbidden performance/time promises or prescribed reactions after several attempts. Please try again.',
         );
+      }
+    } else {
+      const violations = ruleABViolations(ideaContentBlob(result));
+      lastViolations = violations;
+      const scRejected = result.selfCheck ? selfCheckRejected(result.selfCheck) : false;
+      if (scRejected || violations.length > 0) {
+        const reason = scRejected ? 'self-check' : 'Rule A/B';
+        console.log(
+          `[tiktok] ${input.mode} ${reason} REJECTED (attempt ${attempt}) — regenerating` +
+            (result.selfCheck ? ` selfCheck=${JSON.stringify(result.selfCheck)}` : '') +
+            (violations.length > 0 ? ` ruleA/B=${violations.join('|')}` : ''),
+        );
+        if (attempt < MAX_TIKTOK_ATTEMPTS) continue;
+        // Fail closed bei Regel-Verletzungen: NIE eine Regel-A-/B-Verletzung ausgeben.
+        if (violations.length > 0) {
+          throw new Error(
+            lang === 'de'
+              ? 'Die TikTok-Idee konnte nach mehrmaligem Versuch nicht ohne verbotene Leistungs-/Zeit-Versprechen oder künstliche Reaktionen erzeugt werden. Bitte erneut versuchen.'
+              : 'Could not produce a TikTok idea without forbidden unproven performance/time promises or prescribed reactions after several attempts. Please try again.',
+          );
+        }
+        // Fail closed bei HARD REJECT (erfundenes Testimonial/Zitat, unbelegtes
+        // Versprechen, vorgegebene Begeisterung): ehrlicher Fehler statt Ausgabe.
+        if (
+          result.selfCheck &&
+          (result.selfCheck.inventsUserOrTestimonial === true ||
+            result.selfCheck.unprovenPerformancePromise === true ||
+            result.selfCheck.prescribedEnthusiasm === true)
+        ) {
+          throw new Error(
+            lang === 'de'
+              ? 'Die TikTok-Idee konnte nach mehrmaligem Versuch nicht ohne erfundene Testimonials, verbotene Leistungs-/Zeit-Versprechen oder künstliche Reaktionen erzeugt werden. Bitte erneut versuchen.'
+              : 'Could not produce a TikTok idea without invented testimonials, forbidden performance/time promises or prescribed reactions after several attempts. Please try again.',
+          );
+        }
+        // Nur Soft-Reject (z. B. austauschbar/werblich) bei erschöpften Versuchen:
+        // bestmögliche letzte Idee ausliefern.
       }
     }
 
     console.log(
       `[tiktok] ${input.mode} OK (${lang}) — idea/analysis generated` +
-        (input.mode === 'todayIdea' && result.mode === 'todayIdea' && result.selfCheck
-          ? ` selfCheck=${JSON.stringify(result.selfCheck)}`
-          : ''),
+        (result.selfCheck ? ` selfCheck=${JSON.stringify(result.selfCheck)}` : ''),
     );
     return result;
   }

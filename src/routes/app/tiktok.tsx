@@ -17,6 +17,38 @@ import {
 /** localStorage-Historie der zuletzt generierten TikTok-Ideen (Hooks). Max 10. */
 const TIKTOK_HISTORY_KEY = 'growimo_tiktok_history';
 const TIKTOK_HISTORY_MAX = 10;
+
+/** Lücken des Markenkontexts für die Minimal-Abfrage (Phase 1): welche der
+ * 2–3 Kernfelder (Produkt/Angebot, Zielgruppe, Hauptziel) fehlen, damit der
+ * Nutzer gezielt nur das nachtragen muss, was Growimo wirklich braucht. */
+export interface BrandGaps {
+  needProduct: boolean; // Produkt/Angebot fehlt (Pflicht für heute-Idee ohne Markenprofil)
+  needAudience: boolean; // Zielgruppe fehlt (optional, aber hilfreich)
+  needGoal: boolean; // Hauptziel fehlt (optional)
+}
+
+/** Reine Funktion (exportiert für Tests): leitet die fehlenden Felder aus dem
+ * aktuellen Formular-Stand + dem (ggf. unvollständigen) Markenprofil ab. */
+export function computeBrandGaps(
+  biz: string,
+  audience: string,
+  goal: string,
+  profile: BrandProfile | null,
+): BrandGaps {
+  const p = profile;
+  const profileHasOffer = !!(
+    p?.offerings?.trim() ||
+    (Array.isArray(p?.products) && p.products.length > 0) ||
+    p?.uniqueSellingPoint?.trim() ||
+    p?.tagline?.trim()
+  );
+  return {
+    needProduct: biz.trim() === '' && !profileHasOffer,
+    needAudience: audience.trim() === '' && !(p?.targetAudience?.trim()),
+    needGoal: goal.trim() === '' && !(p?.mainGoal?.trim()),
+  };
+}
+
 function loadTikTokHistory(): string[] {
   try {
     const raw = JSON.parse(localStorage.getItem(TIKTOK_HISTORY_KEY) || '[]');
@@ -165,6 +197,10 @@ function TikTokContent() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [result, setResult] = useState<TikTokResult | null>(null);
   const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null);
+  // Gezielte Minimal-Abfrage (Phase 1): statt generischem Fehler werden nur die
+  // wirklich fehlenden 2–3 Felder abgefragt (Produkt/Angebot, Zielgruppe, Hauptziel).
+  const [minimalQuery, setMinimalQuery] = useState<BrandGaps | null>(null);
+  const [minimalError, setMinimalError] = useState<string | null>(null);
 
   useEffect(() => {
     track('tiktok_area_opened', user?.id);
@@ -187,20 +223,38 @@ function TikTokContent() {
 
   const brandReady = isBrandProfileComplete(brandProfile);
 
-  const metric = (k: keyof typeof metrics) => Number(metrics[k]) || 0;
+  // Metrik-Feld: leeres Feld = "nicht angegeben" (undefined, wird NICHT gesendet);
+  // eine echte 0 wird als 0 gesendet. So kann das Modell "fehlt" von "0" trennen.
+  const metricNumber = (raw: string): number | undefined => {
+    const v = raw.trim();
+    if (v === '') return undefined;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : undefined;
+  };
 
   const run = async (mode: TikTokMode) => {
     const brandContext = getBrandContext();
     if (!biz.trim() && !brandContext) {
+      if (mode === 'todayIdea') {
+        // Gezielte Minimal-Abfrage statt generischer Fehlermeldung: nur die
+        // Lücken des Markenprofils/Formulars nachfragen (max. 2–3 Felder).
+        setMinimalQuery(computeBrandGaps(biz, audience, goal, brandProfile));
+        setMinimalError(null);
+        setActiveMode(mode);
+        setErrorMessage(null);
+        return;
+      }
       setErrorMessage(t.tiktok_error_brand);
       return;
     }
     let valid = true;
     let validationMsg = '';
-    if (mode === 'concept' && !topic.trim()) { valid = false; validationMsg = t.tiktok_error_topic; }
+    // concept: topic ist seit Phase 1 OPTIONAL (Modell wählt das Thema selbst).
     if (mode === 'diagnose' && metrics.views.trim() === '') { valid = false; validationMsg = t.tiktok_error_metrics; }
     if (!valid) { setErrorMessage(validationMsg); return; }
     setErrorMessage(null);
+    setMinimalQuery(null);
+    setMinimalError(null);
     setLoading(true);
     setActiveMode(mode);
     // Admin-Analytics MVP Phase 1 (additive): tiktok run started + finished.
@@ -218,13 +272,15 @@ function TikTokContent() {
         topic: mode === 'concept' ? topic.trim() : undefined,
         metrics: mode === 'diagnose'
           ? {
-              views: metric('views'),
-              length: metrics.length || 'n/a',
-              avgWatch: metric('avgWatch'),
-              likes: metric('likes'),
-              comments: metric('comments'),
-              shares: metric('shares'),
-              profileVisits: metric('profile'),
+              // 0-vs-fehlend: leere Felder → undefined (werden NICHT an die Engine
+              // gesendet); eine echte 0 wird als 0 übertragen.
+              views: metricNumber(metrics.views),
+              length: metrics.length.trim() ? metrics.length.trim() : undefined,
+              avgWatch: metricNumber(metrics.avgWatch),
+              likes: metricNumber(metrics.likes),
+              comments: metricNumber(metrics.comments),
+              shares: metricNumber(metrics.shares),
+              profileVisits: metricNumber(metrics.profile),
             }
           : undefined,
         lang: locale,
@@ -251,6 +307,20 @@ function TikTokContent() {
     setResult(null);
     setActiveMode(null);
     setErrorMessage(null);
+    setMinimalQuery(null);
+    setMinimalError(null);
+  };
+
+  /** Minimal-Abfrage absenden: fehlendes Pflichtfeld (Produkt/Angebot) muss
+   * gefüllt sein — Zielgruppe/Hauptziel sind optional. Danach normal generieren. */
+  const submitMinimal = () => {
+    const gaps = computeBrandGaps(biz, audience, goal, brandProfile);
+    if (gaps.needProduct) {
+      setMinimalError(t.tiktok_minq_error_product);
+      return;
+    }
+    setMinimalError(null);
+    void run('todayIdea');
   };
 
   const metricInput = (k: keyof typeof metrics, label: string, placeholder?: string) => (
@@ -284,6 +354,74 @@ function TikTokContent() {
             {t.tiktok_brand_edit}
           </Link>
         </div>
+      )}
+
+      {/* Gezielte Minimal-Abfrage (Phase 1): erscheint statt des generischen
+          Fehlers, wenn für die heute-Idee Markeninfos fehlen — max. 2–3 Felder,
+          abgeleitet aus den Lücken des Markenprofils. */}
+      {minimalQuery && !loading && (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-gray-900">{t.tiktok_minq_title}</h2>
+          <p className="mt-1 text-sm text-gray-600">{t.tiktok_minq_subtitle}</p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {minimalQuery.needProduct && (
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-xs font-semibold text-gray-700">{t.tiktok_minq_product}</label>
+                <input
+                  value={biz}
+                  onChange={(e) => setBiz(e.target.value)}
+                  placeholder={t.tiktok_minq_product_ph}
+                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-400"
+                />
+              </div>
+            )}
+            {minimalQuery.needAudience && (
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-xs font-semibold text-gray-700">{t.tiktok_minq_audience}</label>
+                <input
+                  value={audience}
+                  onChange={(e) => setAudience(e.target.value)}
+                  placeholder={t.tiktok_minq_audience_ph}
+                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-400"
+                />
+              </div>
+            )}
+            {minimalQuery.needGoal && (
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-xs font-semibold text-gray-700">{t.tiktok_minq_goal}</label>
+                <select
+                  value={goal}
+                  onChange={(e) => setGoal(e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-amber-400"
+                >
+                  <option value="">{t.tiktok_goal_placeholder}</option>
+                  <option value={t.tiktok_goal_reach}>{t.tiktok_goal_reach}</option>
+                  <option value={t.tiktok_goal_followers}>{t.tiktok_goal_followers}</option>
+                  <option value={t.tiktok_goal_sales}>{t.tiktok_goal_sales}</option>
+                  <option value={t.tiktok_goal_community}>{t.tiktok_goal_community}</option>
+                </select>
+              </div>
+            )}
+          </div>
+          {minimalError && <p className="mt-3 text-sm font-semibold text-red-700">{minimalError}</p>}
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <button
+              onClick={submitMinimal}
+              className="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-amber-600"
+            >
+              {t.tiktok_minq_submit}
+            </button>
+            <button
+              onClick={() => { setMinimalQuery(null); setMinimalError(null); }}
+              className="text-sm font-semibold text-gray-600 underline hover:text-gray-800"
+            >
+              {t.tiktok_minq_later}
+            </button>
+            <Link to="/app/brand" className="text-sm font-semibold text-amber-700 underline hover:text-amber-900">
+              {t.tiktok_minq_brandlink}
+            </Link>
+          </div>
+        </section>
       )}
 
       {/* Schritt 1 — Unternehmens-Angaben */}
@@ -345,20 +483,22 @@ function TikTokContent() {
         <section className="rounded-2xl border border-fuchsia-100 bg-white p-6 shadow-sm">
           <label className="mb-2 block text-sm font-semibold">{t.tiktok_topic_label}</label>
           <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={t.tiktok_topic_placeholder} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-fuchsia-400" />
+          <p className="mt-2 text-xs text-gray-500">{t.tiktok_topic_hint}</p>
         </section>
       )}
       {activeMode === 'diagnose' && (
         <section className="rounded-2xl border border-teal-100 bg-white p-6 shadow-sm">
           <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-gray-500">{t.tiktok_metrics_label}</h3>
           <div className="grid gap-4 sm:grid-cols-2">
-            {metricInput('views', t.tiktok_metrics_views)}
+            {metricInput('views', t.tiktok_metrics_views, '–')}
             {metricInput('length', t.tiktok_metrics_length, '31s')}
-            {metricInput('avgWatch', t.tiktok_metrics_avgwatch)}
-            {metricInput('likes', t.tiktok_metrics_likes)}
-            {metricInput('comments', t.tiktok_metrics_comments)}
-            {metricInput('shares', t.tiktok_metrics_shares)}
-            {metricInput('profile', t.tiktok_metrics_profile)}
+            {metricInput('avgWatch', t.tiktok_metrics_avgwatch, '–')}
+            {metricInput('likes', t.tiktok_metrics_likes, '–')}
+            {metricInput('comments', t.tiktok_metrics_comments, '–')}
+            {metricInput('shares', t.tiktok_metrics_shares, '–')}
+            {metricInput('profile', t.tiktok_metrics_profile, '–')}
           </div>
+          <p className="mt-3 text-xs text-gray-500">{t.tiktok_metrics_hint}</p>
         </section>
       )}
 

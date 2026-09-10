@@ -829,19 +829,33 @@ export const generateTikTokServer = createServerFn({ method: 'POST' })
           .map((x) => x.trim())
           .slice(0, 10)
       : undefined;
+    // Metriken 0-vs-fehlend: nur tatsächlich gelieferte Werte durchreichen —
+    // eine Zahl 0 bleibt 0 (echte Info), ein fehlender/leerer Wert wird als
+    // undefined weggelassen und taucht NICHT als 0 im Prompt auf.
     const metrics: TikTokInput['metrics'] =
       mode === 'diagnose' && d.metrics && typeof d.metrics === 'object'
-        ? {
-            views: Number((d.metrics as Record<string, unknown>).views) || 0,
-            length: typeof (d.metrics as Record<string, unknown>).length === 'string'
-              ? ((d.metrics as Record<string, unknown>).length as string)
-              : '',
-            avgWatch: Number((d.metrics as Record<string, unknown>).avgWatch) || 0,
-            likes: Number((d.metrics as Record<string, unknown>).likes) || 0,
-            comments: Number((d.metrics as Record<string, unknown>).comments) || 0,
-            shares: Number((d.metrics as Record<string, unknown>).shares) || 0,
-            profileVisits: Number((d.metrics as Record<string, unknown>).profileVisits) || 0,
-          }
+        ? (() => {
+            const m = d.metrics as Record<string, unknown>;
+            const num = (v: unknown): number | undefined => {
+              if (typeof v === 'number' && Number.isFinite(v)) return v;
+              if (typeof v === 'string' && v.trim() !== '') {
+                const n = Number(v);
+                return Number.isFinite(n) ? n : undefined;
+              }
+              return undefined;
+            };
+            const text = (v: unknown): string | undefined =>
+              typeof v === 'string' && v.trim() ? v.trim() : undefined;
+            return {
+              views: num(m.views),
+              length: text(m.length),
+              avgWatch: num(m.avgWatch),
+              likes: num(m.likes),
+              comments: num(m.comments),
+              shares: num(m.shares),
+              profileVisits: num(m.profileVisits),
+            };
+          })()
         : undefined;
     return {
       mode,

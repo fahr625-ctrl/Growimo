@@ -1,0 +1,158 @@
+TikTok-Modul Phase 1 — Test-Nachweis
+Datum: 2026-09-10T12:06:47Z
+Methode: Bun-Mini-Server als OpenAI-Mock (OPENAI_BASE_URL) + generateTikTok + computeBrandGaps
+
+=== Szenario-Ergebnisse (Szenario -> Status) ===
+S1  todayIdea MIT Markenprofil (brandContext)              -> PASS (1 Call, alle Pflichtfelder)
+S2  concept OHNE topic (Thema selbst gewaehlt, de+en)      -> PASS (Pflichtfelder, Selbstwahl-Hinweis im Prompt)
+S3  concept MIT topic (Regression)                          -> PASS (Topic-Zeile im Prompt, 1 Call)
+S4  diagnose mit teilweise fehlenden Metriken              -> PASS (fehlende Felder NICHT als 0 im Prompt)
+S5  diagnose mit allen Werten                              -> PASS (alle 7 Werte im Prompt)
+S6  diagnose echte 0 (0-vs-fehlend)                        -> PASS ('Views: 0' wird gesendet)
+S7  todayIdea Regel-A-Verletzung -> Retry                   -> PASS (2 Calls, Ergebnis aus Versuch 2)
+S8  concept selfCheck HARD REJECT -> Retry (Retry auf concept) -> PASS (2 Calls)
+S9  diagnose selfCheck HARD REJECT -> Retry (Retry auf diagnose) -> PASS (2 Calls, diagnose-Hint)
+S10 diagnose Regel-A dauerhaft                             -> PASS (Fail-closed: ehrlicher Fehler nach 4 Versuchen)
+S11 todayIdea HARD REJECT dauerhaft                        -> PASS (Fail-closed: ehrlicher Fehler nach 4 Versuchen)
+S12 computeBrandGaps OHNE Markenprofil                     -> PASS (Produkt+Zielgruppe+Hauptziel = Luecken)
+S13 computeBrandGaps mit teilweisem Profil                 -> PASS (nur echte Luecken)
+S14 computeBrandGaps nach Ausfuellen von 2 Feldern         -> PASS (Pflicht erfuellt -> generiert)
+S15 computeBrandGaps mit vollstaendigem Profil             -> PASS (keine Luecken -> keine Abfrage)
+
+=== Gates ===
+tsc -p tsconfig.gate.json --noEmit: 60 Fehler (identisches Code-Set wie Baseline, 0 NEUE)
+i18n-Paritaet de/en: 1404 = 1404 Keys, PARITY OK
+bash build-vercel.sh: BUILD_EXIT=0
+
+=== Volles Test-Log ===
+
+[S1 todayIdea MIT Markenprofil (brandContext)]
+[tiktok] todayIdea OK (de) — idea/analysis generated selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":false,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
+  PASS Mode todayIdea
+  PASS alle Pflichtfelder vorhanden
+  PASS Prompt enthält brandContext
+  PASS Prompt vollständig
+  PASS kein Retry bei gutem Ergebnis (1 Call)
+  // 34 ms, 1 engine call(s)
+
+[S2 concept OHNE topic → Thema selbst gewählt (de+en)]
+[tiktok] concept OK (de) — idea/analysis generated selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":false,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
+  PASS de: Mode concept
+  PASS de: alle Pflichtfelder vorhanden
+  PASS de: Prompt fragt Thema selbst zu wählen
+  PASS de: selfCheck wird auch bei concept geparst
+[tiktok] concept OK (en) — idea/analysis generated selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":false,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
+  PASS en: Mode concept
+  PASS en: Prompt wählt Thema selbst
+  // 3 ms, 2 engine call(s)
+
+[S3 concept MIT topic → Regression]
+[tiktok] concept OK (de) — idea/analysis generated selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":false,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
+  PASS Mode concept
+  PASS Topic-Zeile im Prompt
+  PASS kein Selbstwahl-Hinweis bei vorhandenem Topic
+  PASS 1 Call
+  // 1 ms, 1 engine call(s)
+
+[S4 diagnose teilweise fehlende Metriken (kein 0 im Prompt)]
+[tiktok] diagnose OK (de) — idea/analysis generated selfCheck={"inventsMetrics":false,"unprovenPromise":false,"prescribedEnthusiasm":false,"vagueNextTest":false,"groundedInNumbers":true}
+  PASS Mode diagnose
+  PASS Views: 1200 wird gesendet
+  PASS fehlende Videolänge NICHT im Prompt
+  PASS fehlende Likes NICHT im Prompt
+  PASS fehlende Wiedergabedauer NICHT im Prompt
+  PASS fehlende Profilaufrufe NICHT im Prompt
+  PASS kein erfundener 0-Wert im Prompt
+  PASS Hinweis auf fehlende Metriken im Prompt
+  PASS 1 Call
+  // 2 ms, 1 engine call(s)
+
+[S5 diagnose alle Werte]
+[tiktok] diagnose OK (de) — idea/analysis generated selfCheck={"inventsMetrics":false,"unprovenPromise":false,"prescribedEnthusiasm":false,"vagueNextTest":false,"groundedInNumbers":true}
+  PASS Mode diagnose
+  PASS Views
+  PASS Videolänge
+  PASS Wiedergabedauer
+  PASS Likes
+  PASS Kommentare
+  PASS Shares
+  PASS Profilaufrufe
+  // 1 ms, 1 engine call(s)
+
+[S6 diagnose echte 0 wird gesendet (0-vs-fehlend)]
+[tiktok] diagnose OK (de) — idea/analysis generated selfCheck={"inventsMetrics":false,"unprovenPromise":false,"prescribedEnthusiasm":false,"vagueNextTest":false,"groundedInNumbers":true}
+  PASS Mode diagnose
+  PASS echte 0 Views wird gesendet
+  PASS echte 0 Likes wird gesendet
+  PASS fehlende Kommentare weiterhin ausgelassen
+  // 1 ms, 1 engine call(s)
+
+[S7 todayIdea Regel-A-Verletzung → Retry (Versuch 2 gewinnt)]
+[tiktok] todayIdea Rule A/B REJECTED (attempt 1) — regenerating selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":false,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false} ruleA/B=A:in nur X (Zeitversprechen)|A:result-verb + time
+[tiktok] todayIdea OK (de) — idea/analysis generated selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":false,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
+  PASS Retry fand statt (2 Calls, war 2)
+  PASS Ergebnis aus Versuch 2 mit selfCheck
+  PASS Retry-Hint im zweiten Prompt
+  PASS Regel-Violations im Retry-Hint
+  // 3 ms, 2 engine call(s)
+
+[S8 concept selfCheck HARD REJECT → Retry (Retry auf concept)]
+[tiktok] concept self-check REJECTED (attempt 1) — regenerating selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":true,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
+[tiktok] concept OK (de) — idea/analysis generated selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":false,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
+  PASS Mode concept
+  PASS Retry auf concept (2 Calls, war 2)
+  PASS finales Ergebnis ohne erfundenes Testimonial
+  // 2 ms, 2 engine call(s)
+
+[S9 diagnose selfCheck HARD REJECT (erfundene Kennzahlen) → Retry]
+[tiktok] diagnose self-check REJECTED (attempt 1) — regenerating selfCheck={"inventsMetrics":true,"unprovenPromise":false,"prescribedEnthusiasm":false,"vagueNextTest":false,"groundedInNumbers":true} ruleA/B=A:X% mehr Erfolg
+[tiktok] diagnose OK (de) — idea/analysis generated selfCheck={"inventsMetrics":false,"unprovenPromise":false,"prescribedEnthusiasm":false,"vagueNextTest":false,"groundedInNumbers":true}
+  PASS Mode diagnose
+  PASS Retry auf diagnose (2 Calls, war 2)
+  PASS diagnose-spezifischer Retry-Hint
+  // 2 ms, 2 engine call(s)
+
+[S10 diagnose Regel-A dauerhaft → Fail-closed ehrlicher Fehler]
+[tiktok] diagnose Rule A/B REJECTED (attempt 1) — regenerating selfCheck={"inventsMetrics":false,"unprovenPromise":false,"prescribedEnthusiasm":false,"vagueNextTest":false,"groundedInNumbers":true} ruleA/B=A:in nur X (Zeitversprechen)
+[tiktok] diagnose Rule A/B REJECTED (attempt 2) — regenerating selfCheck={"inventsMetrics":false,"unprovenPromise":false,"prescribedEnthusiasm":false,"vagueNextTest":false,"groundedInNumbers":true} ruleA/B=A:in nur X (Zeitversprechen)
+[tiktok] diagnose Rule A/B REJECTED (attempt 3) — regenerating selfCheck={"inventsMetrics":false,"unprovenPromise":false,"prescribedEnthusiasm":false,"vagueNextTest":false,"groundedInNumbers":true} ruleA/B=A:in nur X (Zeitversprechen)
+[tiktok] diagnose Rule A/B REJECTED (attempt 4) — regenerating selfCheck={"inventsMetrics":false,"unprovenPromise":false,"prescribedEnthusiasm":false,"vagueNextTest":false,"groundedInNumbers":true} ruleA/B=A:in nur X (Zeitversprechen)
+  PASS max. 4 Versuche (war 4)
+  PASS ehrlicher Fehler statt Ausgabe: "Die TikTok-Diagnose konnte nach mehrmaligem Versuch nicht ohne erfundene Kennzahlen, verbo"
+  // 2 ms, 4 engine call(s)
+
+[S11 todayIdea HARD REJECT dauerhaft → Fail-closed ehrlicher Fehler]
+[tiktok] todayIdea self-check REJECTED (attempt 1) — regenerating selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":true,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
+[tiktok] todayIdea self-check REJECTED (attempt 2) — regenerating selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":true,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
+[tiktok] todayIdea self-check REJECTED (attempt 3) — regenerating selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":true,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
+[tiktok] todayIdea self-check REJECTED (attempt 4) — regenerating selfCheck={"usesConcreteBrandFact":true,"addressesCurrentChallenge":true,"interchangeable":false,"soundsLikeAd":false,"inventsUserOrTestimonial":true,"unprovenPerformancePromise":false,"prescribedEnthusiasm":false}
+  PASS max. 4 Versuche (war 4)
+  PASS kein erfundenes Testimonial ausgegeben (Fehler: "Die TikTok-Idee konnte nach mehrmaligem Versuch nicht ohne erfundene Testimonial")
+  // 3 ms, 4 engine call(s)
+[import] computeBrandGaps aus tiktok.tsx geladen
+
+[S12 computeBrandGaps OHNE Markenprofil]
+  PASS Produkt/Angebot fehlt (Pflicht)
+  PASS Zielgruppe fehlt
+  PASS Hauptziel fehlt
+  // 0 ms, 0 engine call(s)
+
+[S13 computeBrandGaps mit teilweisem Profil → nur echte Lücken]
+  PASS Angebot aus Profil vorhanden → kein Produkt-Feld
+  PASS Zielgruppe aus Profil vorhanden → kein Audience-Feld
+  PASS Hauptziel fehlt → optionales Feld bleibt
+  // 0 ms, 0 engine call(s)
+
+[S14 computeBrandGaps nach Ausfüllen von 2 Feldern → Generierung möglich]
+  PASS Produkt gefüllt → Pflicht erfüllt
+  PASS Zielgruppe gefüllt → Lücke geschlossen
+  PASS reine Logik, kein Engine-Call nötig
+  // 0 ms, 0 engine call(s)
+
+[S15 computeBrandGaps mit vollständigem Profil (brandReady)]
+  PASS keine Lücken → keine Minimal-Abfrage
+  // 0 ms, 0 engine call(s)
+
+===== ERGEBNIS =====
+PASS: 60  FAIL: 0
+ALLE TESTS BESTANDEN
