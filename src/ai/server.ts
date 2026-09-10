@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start';
 import type { AutoImproveSectionOutcome, ContentRequest, ContentResult, ContentScore, ContentType, ImproveOutcome, PerformanceEntry, PerformanceOverview, PrioritizeAsset, PrioritizeOutcome, PublishPlanItem, UserPreferencesView, VariantsResult } from './types';
 import type { MarketingPackage } from './package/package';
 import type { TikTokInput, TikTokMode, TikTokResult } from './tiktok';
+import { diagnoseRetentionGaps } from './tiktok';
 
 /**
  * Reports whether the OpenAI API key is configured on the server.
@@ -857,6 +858,25 @@ export const generateTikTokServer = createServerFn({ method: 'POST' })
             };
           })()
         : undefined;
+    // Phase 3 — Pflichtfelder der Diagnose schärfen: views + length + avgWatch
+    // müssen angegeben sein, damit die Diagnose mit Retentions-Daten läuft.
+    // Fehlt etwas, wirft der Validator eine klare Meldung mit den exakten
+    // fehlenden Feldern (kein Raten ohne Daten — Engine mufft ebenso ab).
+    if (mode === 'diagnose') {
+      const gaps = diagnoseRetentionGaps(metrics);
+      if (gaps.length > 0) {
+        const de = d.lang !== 'en';
+        const labels: Record<string, string> = de
+          ? { views: 'Aufrufe (Views)', length: 'Videolänge', avgWatch: 'durchschnittliche Wiedergabedauer' }
+          : { views: 'Views', length: 'video length', avgWatch: 'average watch time' };
+        const list = gaps.map((k) => labels[k]).join(', ');
+        throw new Error(
+          de
+            ? `Für eine fundierte TikTok-Diagnose fehlen: ${list}. Bitte ergänze diese Angaben — ohne sie kann Growimo die Länge und den Aufbau nicht mit Zahlen belegen (Growimo rät bewusst nicht).`
+            : `A grounded TikTok diagnosis needs: ${list}. Please add them — without them Growimo cannot back the length/structure recommendation with numbers (it deliberately does not guess).`,
+        );
+      }
+    }
     return {
       mode,
       biz: typeof d.biz === 'string' ? d.biz.trim() : '',

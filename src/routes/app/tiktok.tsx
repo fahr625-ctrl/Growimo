@@ -62,6 +62,21 @@ export function shouldShowMinimalQuery(
   return mode === 'todayIdea' && biz.trim() === '' && !brandReady;
 }
 
+/** Phase 3 — Pflichtfelder der Diagnose (views + length + avgWatch): liefert die
+ *  exakt fehlenden Felder (leer = vollständig). Reine Funktion (exportiert für
+ *  Tests); die Fehlermeldung nennt dem Nutzer genau diese Felder. */
+export function missingDiagnoseMetrics(m: {
+  views: string;
+  length: string;
+  avgWatch: string;
+}): Array<'views' | 'length' | 'avgWatch'> {
+  const out: Array<'views' | 'length' | 'avgWatch'> = [];
+  if (m.views.trim() === '') out.push('views');
+  if (m.length.trim() === '') out.push('length');
+  if (m.avgWatch.trim() === '') out.push('avgWatch');
+  return out;
+}
+
 function loadTikTokHistory(): string[] {
   try {
     const raw = JSON.parse(localStorage.getItem(TIKTOK_HISTORY_KEY) || '[]');
@@ -118,6 +133,27 @@ function FieldBlock({ label, children }: { label: string; children: React.ReactN
 
 function ResultView({ result }: { result: TikTokResult }) {
   const { t } = useTranslation();
+  if (result.mode === 'diagnose' && result.dataGap) {
+    // Phase 3 — ehrlicher „zu wenig Daten"-Zustand: das Modell wurde nicht
+    // gerufen; Growimo erklärt, was ohne die fehlenden Felder nicht beurteilbar
+    // ist, und listet die exakt zu ergänzenden Angaben.
+    const g = result;
+    const labelOf = (k: 'views' | 'length' | 'avgWatch') =>
+      k === 'views' ? t.tiktok_metrics_views : k === 'length' ? t.tiktok_metrics_length : t.tiktok_metrics_avgwatch;
+    return (
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+        <FieldBlock label={t.tiktok_data_gap_title}>
+          <p className="whitespace-pre-line">{g.note}</p>
+        </FieldBlock>
+        <FieldBlock label={t.tiktok_data_gap_missing}>
+          <ul className="list-disc space-y-1 pl-5">
+            {g.missingMetrics.map((k, i) => <li key={i}>{labelOf(k)}</li>)}
+          </ul>
+        </FieldBlock>
+        <div className="rounded-xl bg-white/70 px-4 py-3 text-sm leading-relaxed text-gray-800">{g.cta}</div>
+      </div>
+    );
+  }
   if (result.mode === 'diagnose') {
     const r = result as TikTokDiagnoseResult;
     return (
@@ -141,6 +177,20 @@ function ResultView({ result }: { result: TikTokResult }) {
         <FieldBlock label={t.tiktok_result_optimized}>
           <p className="whitespace-pre-line">{r.optimized}<CopyButton text={r.optimized} label={t.tiktok_copy} /></p>
         </FieldBlock>
+        {r.lengthRecommendation && (
+          <FieldBlock label={t.tiktok_result_length_recommendation}>
+            <div className="space-y-2">
+              <p className="font-semibold text-gray-900">
+                {t.tiktok_result_length_seconds.replace('%s', String(r.lengthRecommendation.seconds))}
+              </p>
+              <p className="whitespace-pre-line text-gray-800">{r.lengthRecommendation.structure}</p>
+              <div className="rounded-lg bg-gray-50 px-3 py-2">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">{t.tiktok_result_length_reason}</p>
+                <p className="mt-1 text-xs leading-relaxed text-gray-700">{r.lengthRecommendation.reason}</p>
+              </div>
+            </div>
+          </FieldBlock>
+        )}
         <FieldBlock label={t.tiktok_result_nexttest}>
           <p>{r.nextTest}<CopyButton text={r.nextTest} label={t.tiktok_copy} /></p>
         </FieldBlock>
@@ -321,7 +371,19 @@ function TikTokContent() {
     let valid = true;
     let validationMsg = '';
     // concept: topic ist seit Phase 1 OPTIONAL (Modell wählt das Thema selbst).
-    if (mode === 'diagnose' && metrics.views.trim() === '') { valid = false; validationMsg = t.tiktok_error_metrics; }
+    // diagnose (Phase 3): views + length + avgWatch sind Pflicht — nur damit kann
+    // die Diagnose eine Retentions-basierte Längen-/Aufbau-Empfehlung liefern.
+    // Die Fehlermeldung nennt die EXAKT fehlenden Felder.
+    if (mode === 'diagnose') {
+      const missingDiag = missingDiagnoseMetrics(metrics);
+      if (missingDiag.length > 0) {
+        valid = false;
+        const labels = missingDiag.map((k) =>
+          k === 'views' ? t.tiktok_metrics_views : k === 'length' ? t.tiktok_metrics_length : t.tiktok_metrics_avgwatch,
+        );
+        validationMsg = t.tiktok_error_metrics.replace('%s', labels.join(', '));
+      }
+    }
     if (!valid) { setErrorMessage(validationMsg); return; }
     setErrorMessage(null);
     setMinimalQuery(null);
@@ -592,7 +654,9 @@ function TikTokContent() {
       {result && !loading && !errorMessage && (
         <section>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900">{activeMode === 'diagnose' ? t.tiktok_result_biggest : t.tiktok_result_idea}</h2>
+            <h2 className="text-xl font-bold text-gray-900">
+              {result.mode === 'diagnose' && result.dataGap ? t.tiktok_data_gap_title : activeMode === 'diagnose' ? t.tiktok_result_biggest : t.tiktok_result_idea}
+            </h2>
             <button onClick={reset} className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100">{t.tiktok_new_session}</button>
           </div>
           <ResultView result={result} />

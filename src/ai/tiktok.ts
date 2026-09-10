@@ -64,6 +64,7 @@ export interface TikTokDiagnoseSelfCheck {
   prescribedEnthusiasm: boolean; // verordnete künstliche Reaktion/Begeisterung ("Wow!" etc.) (HARD REJECT)
   vagueNextTest: boolean; // nextTest ist vage/generisch statt EIN konkreter Test + zu beobachtende Metrik
   groundedInNumbers: boolean; // Aussagen sind tatsächlich an den gelieferten Zahlen belegt (false = generisch)
+  lengthGrounded: boolean; // lengthRecommendation.reason begründet die Länge an den ECHTEN Nutzerzahlen (bzw. der deterministisch berechneten Retention) statt an einem generischen Default (false = verwerfen)
 }
 
 /** Einzelne zeitgestempelte Szene (Phase 2 — „Vollständiges Konzept"): was zu
@@ -103,19 +104,119 @@ export interface TikTokIdeaResult {
   selfCheck?: TikTokSelfCheck; // todayIdea + concept: Selbsttest-Flags (vom UI ungenutzt)
 }
 
-/** Ergebnis für diagnose. */
+/** Ergebnis für diagnose (volle Diagnose: alle Retentions-Pflichtfelder
+ *  views + length + avgWatch sind angegeben). */
 export interface TikTokDiagnoseResult {
   mode: 'diagnose';
+  /** Phase 3 — ehrlicher „zu wenig Daten"-Zustand: true → stattdessen
+   *  TikTokDiagnoseDataGapResult (keine geratene Länge, keine erfundenen
+   *  Zahlen). Bei voller Diagnose ist dataGap immer undefined. */
+  dataGap?: undefined;
   biggestProblem: string; // wahrscheinlich größtes Problem
   whatWorks: string[]; // was bereits funktioniert
   whatToImprove: string[]; // was verbessert werden sollte
   newHook: string; // neuer Hook
   optimized: string; // konkrete optimierte Video-Version
   nextTest: string; // Empfehlung für den nächsten Test
+  /** Phase 3 — eigenständige Längen-/Aufbau-Empfehlung MIT Zahlenbegründung
+   *  (optional im Typ → alte Outputs ohne das Feld rendern weiterhin korrekt;
+   *  im Prompt als Pflicht gefordert, über selfCheck Q6 lengthGrounded
+   *  abgesichert). */
+  lengthRecommendation?: TikTokLengthRecommendation;
   selfCheck?: TikTokDiagnoseSelfCheck; // Selbsttest-Flags (vom UI ungenutzt)
 }
 
-export type TikTokResult = TikTokIdeaResult | TikTokDiagnoseResult;
+/** Phase 3 — strukturierte Längen- & Aufbau-Empfehlung der Diagnose. */
+export interface TikTokLengthRecommendation {
+  seconds: number; // empfohlene Gesamtlänge in Sekunden (positiv)
+  structure: string; // konkreter Aufbau für diese Länge MIT Zeitangaben: Hook-Phase (0–Xs), Inhalt, Call-to-Action
+  reason: string; // Zahlenbegründung: referenziert NUR die Nutzerwerte + die deterministisch berechnete Retention (z. B. „Basierend auf deinen 2500 Views und 38,1% Watch-Rate bei 42s Länge…")
+}
+
+/** Phase 3 — ehrlicher „zu wenig Daten"-Zustand: Statt zu raten (Länge ohne
+ *  Retention wäre eine erfundene Zahl) liefert Growimo eine ehrliche Teil-
+ *  Diagnose: was ohne die Daten NICHT beurteilt werden kann + welche Felder
+ *  der Nutzer ergänzen soll. Deterministisch erzeugt — KEIN LLM-Call. */
+export interface TikTokDiagnoseDataGapResult {
+  mode: 'diagnose';
+  dataGap: true; // Diskriminator: Teil-Diagnose statt voller Diagnose
+  missingMetrics: TikTokRetentionMetricKey[]; // welche Pflicht-Metriken fehlen ('views' | 'length' | 'avgWatch')
+  note: string; // ehrliche Erklärung, was ohne die Daten nicht beurteilt werden kann (de/en lokalisiert)
+  cta: string; // genau welche Felder der Nutzer ergänzen soll
+}
+
+export type TikTokDiagnoseOutcome = TikTokDiagnoseResult | TikTokDiagnoseDataGapResult;
+
+export type TikTokResult = TikTokIdeaResult | TikTokDiagnoseOutcome;
+
+// ── Phase 3 — deterministische Retention-Rechnung (reine Funktion, kein LLM) ──
+// Aus den vom Nutzer ANGEBERENEN Werten (views + length + avgWatch) wird eine
+// Fakten-Basis für die Prompt-Begründung berechnet — NIE geschätzt/erfunden.
+// avgWatch ist laut UI-Label die durchschnittliche Wiedergabedauer in SEKUNDEN.
+/** Pflicht-Metriken der Diagnose (Retentions-Basis). */
+export type TikTokRetentionMetricKey = 'views' | 'length' | 'avgWatch';
+
+/** Ergebnis der deterministischen Retention-Rechnung (alles aus Nutzerwerten
+ *  abgeleitet — nur reine Arithmetik, keine Schätzung). */
+export interface TikTokRetentionInfo {
+  views: number; // Aufrufe (Nutzerwert)
+  avgWatchSeconds: number; // durchschnittliche Wiedergabedauer in Sekunden (Nutzerwert)
+  lengthSeconds: number; // Videolänge in Sekunden (aus length-String geparst)
+  watchRatePct: number; // avgWatch / length × 100 — Anteil der Videolänge, den Zuschauer im Schnitt sehen (1 Nachkommastelle)
+  totalWatchSeconds: number; // views × avgWatch — gesamte Watch-Sekunden (reine Multiplikation der Nutzerwerte)
+}
+
+/** Parst eine Längenangabe in Sekunden: '42s', '42 Sekunden', '42 sec', '1:05',
+ *  '0:42', '42'. Ungültig/nicht-positiv → undefined („nicht angegeben"). */
+export function parseLengthSeconds(length: string | undefined): number | undefined {
+  if (!length) return undefined;
+  const s = String(length).trim().toLowerCase();
+  if (!s) return undefined;
+  // mm:ss / m:ss
+  if (/^\d+:\d{1,2}$/.test(s)) {
+    const [m, sec] = s.split(':').map(Number);
+    const total = m * 60 + sec;
+    return Number.isFinite(total) && total > 0 ? total : undefined;
+  }
+  const m = s.match(/(\d+(?:[.,]\d+)?)/);
+  if (!m) return undefined;
+  const n = Number(m[1].replace(',', '.'));
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return n;
+}
+
+/** Deterministische Retention-Rechnung aus views + length + avgWatch.
+ *  Division-durch-0-Guard: length muss > 0 sein (sonst null = nicht berechenbar).
+ *  views=0 und avgWatch=0 sind ECHTE Werte (kein „fehlt") und werden korrekt
+ *  durchgereicht (z. B. Watch-Rate 0, totale Watch-Sekunden 0). */
+export function computeRetention(metrics: TikTokMetrics | undefined): TikTokRetentionInfo | null {
+  if (!metrics) return null;
+  if (metrics.views === undefined || !Number.isFinite(metrics.views)) return null;
+  if (metrics.avgWatch === undefined || !Number.isFinite(metrics.avgWatch)) return null;
+  if (metrics.avgWatch < 0) return null;
+  const lengthSeconds = parseLengthSeconds(metrics.length);
+  if (lengthSeconds === undefined || lengthSeconds <= 0) return null; // Division durch 0 vermeiden
+  const watchRatePct = (metrics.avgWatch / lengthSeconds) * 100;
+  return {
+    views: metrics.views,
+    avgWatchSeconds: metrics.avgWatch,
+    lengthSeconds,
+    watchRatePct: Math.round(watchRatePct * 10) / 10,
+    totalWatchSeconds: metrics.views * metrics.avgWatch,
+  };
+}
+
+/** Welche Retentions-Pflichtfelder fehlen (oder ungültig sind) → ehrlicher
+ *  „zu wenig Daten"-Zustand statt raten. length gilt nur als angegeben, wenn
+ *  sie sich zu einer positiven Sekundenzahl parsen lässt. */
+export function diagnoseRetentionGaps(metrics: TikTokMetrics | undefined): TikTokRetentionMetricKey[] {
+  if (!metrics) return ['views', 'length', 'avgWatch'];
+  const missing: TikTokRetentionMetricKey[] = [];
+  if (metrics.views === undefined || !Number.isFinite(metrics.views)) missing.push('views');
+  if (parseLengthSeconds(metrics.length) === undefined) missing.push('length');
+  if (metrics.avgWatch === undefined || !Number.isFinite(metrics.avgWatch)) missing.push('avgWatch');
+  return missing;
+}
 
 // ── Prompts (de/en) ──────────────────────────────────────────────────────────
 // Bewusst detailliert: Die Qualität der drei Modi hängt an klaren Feld- und
@@ -287,7 +388,8 @@ const DIAGNOSE_EN = `You are Growimo's TikTok diagnostician. The user provides r
 Rules:
 - Answer ONLY with valid JSON, no other text, no markdown fences. Output in English.
 - Derive every claim from the numbers given (use them in your wording). Do NOT invent metrics that were not provided.
-- MISSING METRICS = NOT PROVIDED: The user's data lists ONLY the values that are present. If a metric is NOT listed (e.g. no likes, no watch time), it was NOT provided — NEVER invent it, NEVER guess it and NEVER draw conclusions from it. Only the listed values may be referenced.
+- RETENTION FIGURES IN THE USER PROMPT: The user prompt lists the user's own values AND — when Views, video length and average watch time were all provided — a "Calculated retention" block (video length, average watch time, watch rate, total watch seconds). These calculated values are plain arithmetic on the user's own numbers and are the ONLY additional number basis allowed. You may reference the calculated retention values AND the user's own values — nothing else. Never invent any other figure.
+- MISSING METRICS = NOT PROVIDED: The user's data lists ONLY the values that are present. If a metric is NOT listed (e.g. no likes, no watch time), it was NOT provided — NEVER invent it, NEVER guess it and NEVER draw conclusions from it. Only the listed values (and the calculated retention block) may be referenced.
 - NEVER invent users/testimonials/quotes/user feedback or success stories — only the numbers provided may be referenced.
 - No unproven performance promises and no prescribed enthusiasm: never promise concrete outcomes ("in 2 minutes", "more followers") that do not follow from the numbers, and never prescribe reactions like "Wow!" — reference only the real numbers the user provided, keep any reaction genuine or omit it.
 - NO time-based performance promise phrasing in newHook/optimized: never write a "discover X in just N seconds/minutes/days" hook or any unproven time/result promise such as "in nur X Sekunden", "in just X seconds", "+X%", "% more reach/engagement", "doubles your reach", "go viral". Rewrite hooks around the actual diagnosed problem and the real numbers only — never promise a timeframe or a result the data does not prove.
@@ -297,14 +399,19 @@ Rules:
 - newHook: a specific, rewritten first-1-2-second hook that directly targets the diagnosed problem.
 - optimized: ONE concrete optimized video version (retain what works, fix the problem, describe the new scenes/hook/overlay concretely).
 - nextTest: exactly ONE concrete next test (what to change and what metric to watch), so the user can A/B iterate.
+- lengthRecommendation (REQUIRED — explicit length & structure recommendation WITH number-based justification, NEVER a generic default):
+  - seconds: the recommended total video length in SECONDS as a plain number (e.g. 25). Base it on the diagnosed retention problem and the user's real numbers — NOT on a generic rule such as "8–20 seconds".
+  - structure: the concrete structure for THAT length WITH time marks that add up to it — hook phase (e.g. "0–2s: hook line"), main content with the fix ("2–18s: …"), call-to-action ("18–25s: …").
+  - reason: justify the recommended length and structure IN THE NUMBERS — reference the user's real figures and the deterministically calculated retention values from the user prompt, e.g. "Based on your 2500 views and 38.1% watch rate at 42s length (16s average watch time), the attention drops early — shorten to 25 seconds and put the key scene in the first 10 seconds." NEVER justify with a generic default like "short videos perform best" and NEVER invent numbers that are not in the user prompt.
 
 Internal quality self-check BEFORE output (mandatory — answer honestly in the "selfCheck" field):
-- Q1 - inventsMetrics: Does the analysis reference ANY metric, number, percentage, time value or performance figure that is NOT listed in the Existing TikTok data provided above? Any invented/derived metric MUST be reported as true. This is a HARD REJECT: if true, the diagnosis is fabricated and MUST be discarded and regenerated — never output it.
+- Q1 - inventsMetrics: Does the analysis reference ANY metric, number, percentage, time value or performance figure that is NOT listed in the Existing TikTok data provided above (or NOT in the calculated retention block)? Any invented/derived metric MUST be reported as true. This is a HARD REJECT: if true, the diagnosis is fabricated and MUST be discarded and regenerated — never output it.
 - Q2 - unprovenPromise: Do newHook, optimized or nextTest contain an unproven concrete time-/result-promise ("in just X seconds/minutes/days/weeks", "+X%", "% more reach/engagement/followers", "doubles your reach", "more followers/sales", "go viral") that does not follow from the numbers provided? MUST be reported as true. This is a HARD REJECT.
 - Q3 - prescribedEnthusiasm: Does the analysis prescribe an artificial reaction or required enthusiasm ("Wow!", "everyone is amazed", staged surprise) anywhere in its wording? MUST be reported as true. This is a HARD REJECT.
 - Q4 - vagueNextTest: Is nextTest vague or generic ("try different hooks", "keep posting", "test more content") instead of ONE concrete change plus the exact metric to watch? If it cannot be executed and measured exactly as described, report true.
 - Q5 - groundedInNumbers: Are the claims in biggestProblem, whatWorks and whatToImprove actually derived from and grounded in the numbers provided (referencing the actual figures), not generic advice that would apply to any TikTok? If they are generic/unmoored, report false.
-Then judge: if Q1, Q2 or Q3 is true, or Q4 is true, or Q5 is false, internally DISCARD this diagnosis and REGENERATE a different, better one grounded strictly in the numbers provided. Retry internally as many times as needed until it genuinely passes: it references only provided numbers, makes no unproven promise, prescribes no reaction, names one concrete next test and is grounded in the actual figures.
+- Q6 - lengthGrounded: Does lengthRecommendation.reason justify the recommended length with the REAL user-provided numbers and the calculated retention values from the user prompt (referencing actual figures) instead of a generic default such as "8–20 seconds is best for TikTok"? Does it invent NO number that is not in the user prompt? If the field is missing, or the justification is generic/ungrounded, or any uninvented number appears — report false. This is a HARD REJECT criterion: if false, the diagnosis MUST be discarded and regenerated — never output it.
+Then judge: if Q1, Q2 or Q3 is true, or Q4 is true, or Q5 is false, or Q6 is false, internally DISCARD this diagnosis and REGENERATE a different, better one grounded strictly in the numbers provided. Retry internally as many times as needed until it genuinely passes: it references only provided numbers (plus the calculated retention block), makes no unproven promise, prescribes no reaction, names one concrete next test, is grounded in the actual figures and contains a lengthRecommendation justified by real numbers.
 
 JSON schema exactly:
 {
@@ -314,12 +421,14 @@ JSON schema exactly:
   "newHook": "specific rewritten first-1-2-second hook",
   "optimized": "one concrete optimized video version",
   "nextTest": "one concrete next test + the metric to watch",
+  "lengthRecommendation": {"seconds": 25, "structure": "0-2s hook line … 2-18s content … 18-25s CTA", "reason": "Based on your 2500 views and 38.1% watch rate at 42s length (16s average watch time), …"},
   "selfCheck": {
     "inventsMetrics": true or false,
     "unprovenPromise": true or false,
     "prescribedEnthusiasm": true or false,
     "vagueNextTest": true or false,
-    "groundedInNumbers": true or false
+    "groundedInNumbers": true or false,
+    "lengthGrounded": true or false
   }
 }`;
 
@@ -328,7 +437,8 @@ const DIAGNOSE_DE = `Du bist Growimos TikTok-Diagnostiker. Der Nutzer liefert ec
 Regeln:
 - Antworte AUSSCHLIESSLICH mit validem JSON, kein anderer Text, keine Markdown-Fences. Ausgabe auf Deutsch.
 - Leite jede Aussage aus den genannten Zahlen ab (nutze sie wörtlich). Erfinde keine Metriken, die nicht genannt wurden.
-- FEHLENDE METRIKEN = NICHT ANGEGEBEN: Die Nutzerdaten listen ausschließlich die vorhandenen Werte. Wenn eine Metrik NICHT gelistet ist (z. B. keine Likes, keine Wiedergabedauer), wurde sie NICHT angegeben — erfinde sie NIEMALS, rate sie NIEMALS und leite NIEMALS Schlüsse aus ihr ab. Nur die gelisteten Werte dürfen referenziert werden.
+- BERECHNETE RETENTION IM NUTZER-PROMPT: Der Nutzer-Prompt listet die eigenen Werte des Nutzers UND — wenn Aufrufe, Videolänge und durchschnittliche Wiedergabedauer alle angegeben wurden — einen Block „Berechnete Retention" (Videolänge, durchschnittliche Wiedergabedauer, Watch-Rate, gesamte Watch-Sekunden). Diese berechneten Werte sind reine Arithmetik aus den Nutzerwerten und die EINZIGE zusätzlich erlaubte Zahlenbasis. Du darfst die berechneten Retention-Werte UND die Nutzerwerte referenzieren — sonst nichts. Erfinde niemals eine andere Zahl.
+- FEHLENDE METRIKEN = NICHT ANGEGEBEN: Die Nutzerdaten listen ausschließlich die vorhandenen Werte. Wenn eine Metrik NICHT gelistet ist (z. B. keine Likes, keine Wiedergabedauer), wurde sie NICHT angegeben — erfinde sie NIEMALS, rate sie NIEMALS und leite NIEMALS Schlüsse aus ihr ab. Nur die gelisteten Werte (und der berechnete Retention-Block) dürfen referenziert werden.
 - Erfinde NIEMALS Nutzer/Testimonials/Zitate/Nutzerfeedback oder Erfolgsgeschichten — nur die genannten Zahlen dürfen referenziert werden.
 - Keine unbelegten Leistungsversprechen und keine vorgegebene Begeisterung: versprich nie konkrete Ergebnisse („in 2 Minuten", „mehr Follower"), die nicht aus den Zahlen hervorgehen, und verordne nie Reaktionen wie „Wow!" — referenziere ausschließlich die echten, vom Nutzer gelieferten Zahlen und halte Reaktionen echt oder lasse sie ganz weg.
 - KEINE zeitbasierten Leistungsversprechen-Formulierungen in newHook/optimized: schreibe niemals einen „Entdecke X in nur N Sekunden/Minuten/Tagen"-Hook oder ein unbelegtes Zeit-/Ergebnis-Versprechen wie „in nur X Sekunden", „in just X seconds", „+X%", „% mehr Reichweite/Engagement", „verdoppelt deine Reichweite", „viral gehen". Formuliere Hooks ausschließlich um das tatsächlich diagnostizierte Problem und die echten Zahlen — versprich nie einen Zeitrahmen oder ein Ergebnis, das die Daten nicht belegen.
@@ -338,14 +448,19 @@ Regeln:
 - newHook: eine konkret neu geschriebene Hook-Zeile für die ersten 1–2 Sekunden, die direkt das diagnostizierte Problem adressiert.
 - optimized: EINE konkrete optimierte Video-Version (Behalte, was funktioniert, behebe das Problem, beschreibe neue Szenen/Hook/Einblendung konkret).
 - nextTest: GENAU EIN konkreter nächster Test (was zu ändern und welche Metrik zu beobachten), damit der Nutzer iterieren kann.
+- lengthRecommendation (PFLICHT — explizite Längen- & Aufbau-Empfehlung MIT Zahlenbegründung, NIEMALS ein generischer Default):
+  - seconds: die empfohlene Gesamtlänge in SEKUNDEN als reine Zahl (z. B. 25). Begründe sie aus dem diagnostizierten Retentions-Problem und den echten Nutzerzahlen — NICHT aus einer generischen Regel wie „8–20 Sekunden".
+  - structure: der konkrete Aufbau für DIESE Länge MIT Zeitangaben, die sich zur Gesamtlänge summieren — Hook-Phase (z. B. „0–2s: Hook-Zeile"), Inhalt mit dem Fix („2–18s: …"), Call-to-Action („18–25s: …").
+  - reason: begründe die empfohlene Länge und den Aufbau AN DEN ZAHLEN — referenziere die echten Nutzerwerte und die deterministisch berechneten Retention-Werte aus dem Nutzer-Prompt, z. B. „Basierend auf deinen 2500 Views und 38,1% Watch-Rate bei 42s Länge (16s durchschnittliche Wiedergabedauer) bricht die Aufmerksamkeit früh ein — kürze auf 25 Sekunden und setze die Kern-Szene in die ersten 10 Sekunden." Rechtfertige NIEMALS mit einem generischen Default wie „Kurzvideos funktionieren am besten" und erfinde NIEMALS Zahlen, die nicht im Nutzer-Prompt stehen.
 
 Interne Qualitäts-Selbstprüfung VOR der Ausgabe (Pflicht — beantworte ehrlich im Feld „selfCheck"):
-- Q1 - inventsMetrics: Referenziert die Analyse IRGENDEINE Metrik, Zahl, Prozentangabe, Zeitangabe oder Leistungskennzahl, die NICHT in den oben gelieferten „Bestehende TikTok-Daten" gelistet ist? Jede erfundene/abgeleitete Kennzahl MUSS als true gemeldet werden. Das ist ein HARD REJECT: Ist das Flag true, ist die Diagnose erfunden und MUSS verworfen und NEU generiert werden — niemals ausgeben.
+- Q1 - inventsMetrics: Referenziert die Analyse IRGENDEINE Metrik, Zahl, Prozentangabe, Zeitangabe oder Leistungskennzahl, die NICHT in den oben gelieferten „Bestehende TikTok-Daten" gelistet ist (oder NICHT im berechneten Retention-Block)? Jede erfundene/abgeleitete Kennzahl MUSS als true gemeldet werden. Das ist ein HARD REJECT: Ist das Flag true, ist die Diagnose erfunden und MUSS verworfen und NEU generiert werden — niemals ausgeben.
 - Q2 - unprovenPromise: Enthalten newHook, optimized oder nextTest ein unbelegtes konkretes Zeit-/Ergebnis-Versprechen („in nur X Sekunden/Minuten/Tagen/Wochen", „+X%", „% mehr Reichweite/Engagement/Follower", „verdoppelt deine Reichweite", „mehr Follower/Verkäufe", „viral gehen"), das nicht aus den gelieferten Zahlen hervorgeht? MUSS als true gemeldet werden. Das ist ein HARD REJECT.
 - Q3 - prescribedEnthusiasm: Verordnet die Analyse irgendwo eine künstliche Reaktion oder verlangte Begeisterung („Wow!", „Da staunen alle", aufgesetzte Überraschung)? MUSS als true gemeldet werden. Das ist ein HARD REJECT.
 - Q4 - vagueNextTest: Ist nextTest vage oder generisch („probiere andere Hooks", „poste einfach weiter", „teste mehr Inhalte") statt EIN konkreter Test mit der exakt zu beobachtenden Metrik? Wenn er nicht genau so umsetzbar und messbar ist, melde true.
 - Q5 - groundedInNumbers: Sind die Aussagen in biggestProblem, whatWorks und whatToImprove tatsächlich aus den gelieferten Zahlen abgeleitet und an ihnen belegt (mit Bezug auf die konkreten Werte) — nicht generischer Rat, der auf jedes TikTok passen würde? Wenn sie generisch/unverankert sind, melde false.
-Dann urteile: Wenn Q1, Q2 oder Q3 wahr ist, oder Q4 wahr ist, oder Q5 false ist, VERWIRF diese Diagnose intern und generiere eine andere, bessere Diagnose NEU, die ausschließlich an den gelieferten Zahlen belegt ist. Wiederhole intern so oft wie nötig, bis sie wirklich besteht: sie referenziert nur gelieferte Zahlen, macht kein unbelegtes Versprechen, verordnet keine Reaktion, nennt einen konkreten nächsten Test und ist an den tatsächlichen Werten belegt.
+- Q6 - lengthGrounded: Begründet lengthRecommendation.reason die empfohlene Länge mit den ECHTEN Nutzerzahlen und den berechneten Retention-Werten aus dem Nutzer-Prompt (mit Bezug auf konkrete Werte) statt mit einem generischen Default wie „8–20 Sekunden sind am besten für TikTok"? Erfindet sie KEINE Zahl, die nicht im Nutzer-Prompt steht? Wenn das Feld fehlt, die Begründung generisch/unverankert ist oder eine erfundene Zahl auftaucht — melde false. Das ist ein HARD-REJECT-Kriterium: Ist es false, MUSS die Diagnose verworfen und NEU generiert werden — niemals ausgeben.
+Dann urteile: Wenn Q1, Q2 oder Q3 wahr ist, oder Q4 wahr ist, oder Q5 false ist, oder Q6 false ist, VERWIRF diese Diagnose intern und generiere eine andere, bessere Diagnose NEU, die ausschließlich an den gelieferten Zahlen belegt ist. Wiederhole intern so oft wie nötig, bis sie wirklich besteht: sie referenziert nur gelieferte Zahlen (plus den berechneten Retention-Block), macht kein unbelegtes Versprechen, verordnet keine Reaktion, nennt einen konkreten nächsten Test, ist an den tatsächlichen Werten belegt und enthält eine lengthRecommendation, die mit echten Zahlen begründet ist.
 
 JSON-Schema exakt:
 {
@@ -355,14 +470,27 @@ JSON-Schema exakt:
   "newHook": "konkrete neu geschriebene Hook-Zeile für die ersten 1-2 Sekunden",
   "optimized": "eine konkrete optimierte Video-Version",
   "nextTest": "ein konkreter nächster Test + die zu beobachtende Metrik",
+  "lengthRecommendation": {"seconds": 25, "structure": "0-2s Hook-Zeile … 2-18s Inhalt … 18-25s CTA", "reason": "Basierend auf deinen 2500 Views und 38,1% Watch-Rate bei 42s Länge (16s durchschnittliche Wiedergabedauer), …"},
   "selfCheck": {
     "inventsMetrics": true oder false,
     "unprovenPromise": true oder false,
     "prescribedEnthusiasm": true oder false,
     "vagueNextTest": true oder false,
-    "groundedInNumbers": true oder false
+    "groundedInNumbers": true oder false,
+    "lengthGrounded": true oder false
   }
 }`;
+
+// ── Phase 3 — Zahlenformatierung (de/en) für die Retention-Basis im Prompt ───
+function fmtPct(v: number, de: boolean): string {
+  const s = v.toFixed(1);
+  return de ? s.replace('.', ',') + ' %' : s + '%';
+}
+function fmtInt(v: number, de: boolean): string {
+  const s = Math.round(v).toString();
+  const re = new RegExp(String.raw`\B(?=(\d{3})+(?!\d))`, 'g');
+  return de ? s.replace(re, '.') : s.replace(re, ',');
+}
 
 // ── System-/User-Prompt-Auswahl ──────────────────────────────────────────────
 function pickSystemPrompt(mode: TikTokMode, lang: TikTokLang): string {
@@ -419,8 +547,25 @@ function buildUserPrompt(input: TikTokInput, lang: TikTokLang): string {
           : 'Existing TikTok data (ONLY the following values are known — missing metrics were NOT provided and must NOT be invented or inferred):',
       );
       lines.push(...data);
+      const ret = computeRetention(m);
+      if (ret) {
+        lines.push(
+          de
+            ? `Berechnete Retention (deterministisch aus deinen Angaben berechnet — reine Arithmetik, die EINZIGE zusätzlich erlaubte Zahlenbasis; referenziere NUR diese + die obigen Werte):
+- Videolänge: ${ret.lengthSeconds} Sekunden
+- Durchschnittliche Wiedergabedauer: ${ret.avgWatchSeconds} Sekunden
+- Watch-Rate: ${ret.avgWatchSeconds} / ${ret.lengthSeconds} = ${fmtPct(ret.watchRatePct, true)} (Anteil der Videolänge, den Zuschauer im Schnitt sehen)
+- Gesamte Watch-Sekunden: ${fmtInt(ret.views, true)} × ${ret.avgWatchSeconds} = ${fmtInt(ret.totalWatchSeconds, true)}`
+            : `Calculated retention (deterministic from the user's data — plain arithmetic, the ONLY additional number basis allowed; reference ONLY these + the values above):
+- Video length: ${ret.lengthSeconds} seconds
+- Average watch time: ${ret.avgWatchSeconds} seconds
+- Watch rate: ${ret.avgWatchSeconds} / ${ret.lengthSeconds} = ${fmtPct(ret.watchRatePct, false)} (share of the video length viewers watch on average)
+- Total watch seconds: ${fmtInt(ret.views, false)} × ${ret.avgWatchSeconds} = ${fmtInt(ret.totalWatchSeconds, false)}`,
+        );
+      }
     }
   }
+
   if (input.history && input.history.length > 0) {
     lines.push(
       de
@@ -516,7 +661,26 @@ function parseDiagnoseSelfCheck(p: Record<string, unknown>): TikTokDiagnoseSelfC
     prescribedEnthusiasm: o.prescribedEnthusiasm === true,
     vagueNextTest: o.vagueNextTest === true,
     groundedInNumbers: o.groundedInNumbers === true,
+    // Phase 3: fehlendes Flag (alte Outputs/Modelle) = „unbekannt" → NICHT
+    // verwerfen; nur ein explizites false (Länge NICHT an Zahlen belegt) rejected.
+    lengthGrounded: o.lengthGrounded !== false,
   };
+}
+
+/** Phase 3 — Längen-/Aufbau-Empfehlung parsen (optional: bei fehlendem/ungültigem
+ *  Feld → undefined, das UI rendert dann einfach keinen eigenen Block). Nur
+ *  positive, endliche Sekundenwerte werden akzeptiert (auch als String "30"). */
+function parseLengthRecommendation(v: unknown): TikTokLengthRecommendation | undefined {
+  if (!v || typeof v !== 'object') return undefined;
+  const o = v as Record<string, unknown>;
+  const sec =
+    typeof o.seconds === 'number' && Number.isFinite(o.seconds) && o.seconds > 0
+      ? o.seconds
+      : parseLengthSeconds(str(o.seconds));
+  const structure = str(o.structure);
+  const reason = str(o.reason);
+  if (sec === undefined || sec <= 0 || !structure || !reason) return undefined;
+  return { seconds: Math.round(sec), structure, reason };
 }
 
 function parseIdea(mode: 'todayIdea' | 'concept', p: Record<string, unknown>): TikTokIdeaResult | null {
@@ -553,6 +717,8 @@ function parseDiagnose(p: Record<string, unknown>): TikTokDiagnoseResult | null 
     newHook: str(p.newHook),
     optimized: str(p.optimized),
     nextTest: str(p.nextTest),
+    // Phase 3: eigenständige Längen-/Aufbau-Empfehlung (optional geparst).
+    lengthRecommendation: parseLengthRecommendation(p.lengthRecommendation),
     selfCheck: parseDiagnoseSelfCheck(p),
   };
 }
@@ -563,6 +729,12 @@ function parseResult(mode: TikTokMode, text: string): TikTokResult | null {
   const p = raw as Record<string, unknown>;
   if (mode === 'diagnose') return parseDiagnose(p);
   return parseIdea(mode === 'concept' ? 'concept' : 'todayIdea', p);
+}
+
+/** Phase 3 — Typ-Guard: ehrlicher „zu wenig Daten"-Zustand (dataGap) wird VOR
+ *  dem LLM-Call abgefangen; hier nur zur sicheren Typ-Verengung im Retry-Loop. */
+function isDiagnoseDataGap(r: TikTokResult): r is TikTokDiagnoseDataGapResult {
+  return r.mode === 'diagnose' && (r as TikTokDiagnoseResult).dataGap === true;
 }
 
 // ── Qualitäts-Selbsttest & Retry (alle Modi: todayIdea / concept / diagnose) ─
@@ -600,7 +772,36 @@ function diagnoseSelfCheckRejected(sc: TikTokDiagnoseSelfCheck): boolean {
   if (sc.inventsMetrics === true) return true;
   if (sc.unprovenPromise === true) return true;
   if (sc.prescribedEnthusiasm === true) return true;
+  // Phase 3: lengthRecommendation.reason muss an den ECHTEN (Nutzer-)Zahlen
+  // belegt sein — ein generischer Default / erfundene Zahlen werden verworfen.
+  if (sc.lengthGrounded === false) return true;
   return sc.vagueNextTest === true || sc.groundedInNumbers === false;
+}
+
+/** Phase 3 — ehrlicher „zu wenig Daten"-Zustand (deterministisch, KEIN LLM):
+ *  Statt zu raten, nennt Growimo, was ohne die fehlenden Pflicht-Metriken nicht
+ *  beurteilt werden kann, und sagt dem Nutzer genau, welche Felder er ergänzen
+ *  soll. Alles lokalisiert (de/en) — keine erfundenen Zahlen. */
+function buildDiagnoseDataGapResult(
+  missing: TikTokRetentionMetricKey[],
+  lang: TikTokLang,
+): TikTokDiagnoseDataGapResult {
+  const de = lang === 'de';
+  const labels: Record<TikTokRetentionMetricKey, string> = de
+    ? { views: 'Aufrufe (Views)', length: 'Videolänge', avgWatch: 'durchschnittliche Wiedergabedauer' }
+    : { views: 'Views', length: 'video length', avgWatch: 'average watch time' };
+  const list = missing.map((k) => labels[k]).join(', ');
+  return {
+    mode: 'diagnose',
+    dataGap: true,
+    missingMetrics: missing,
+    note: de
+      ? `Für eine fundierte Diagnose fehlen: ${list}. Ohne diese Angaben kann Growimo nicht beurteilen, ob das Problem eher bei der Reichweite oder bei der Bindung (Retention) liegt, und kann keine Längen-/Aufbau-Empfehlung mit Zahlenbegründung geben — Growimo rät hier bewusst nicht, statt eine Zahl zu erfinden.`
+      : `A grounded diagnosis needs: ${list}. Without them Growimo cannot judge whether the problem lies in reach or retention, and cannot give a length/structure recommendation backed by numbers — it deliberately does not guess instead of inventing a figure.`,
+    cta: de
+      ? `Ergänze ${list}, um die vollständige Analyse mit Retention-Rechnung und konkreter Längen-/Aufbau-Empfehlung zu erhalten.`
+      : `Add ${list} to get the full analysis with the retention calculation and a concrete length/structure recommendation.`,
+  };
 }
 
 // ── DETERMINISTISCHE Regel-A+B-Erkennung (Code-Ebene, de+en) ───────────────
@@ -667,6 +868,11 @@ function diagnoseContentBlob(r: TikTokDiagnoseResult): string {
   return [
     r.biggestProblem, r.whatWorks.join(' '), r.whatToImprove.join(' '),
     r.newHook, r.optimized, r.nextTest,
+    // Phase 3: auch die Längen-/Aufbau-Empfehlung wird auf Regel-A-/B-Muster
+    // geprüft (z. B. „in nur X Sekunden" oder erfundene „+X%" in der Begründung).
+    r.lengthRecommendation
+      ? [String(r.lengthRecommendation.seconds), r.lengthRecommendation.structure, r.lengthRecommendation.reason].join(' ')
+      : '',
   ].join(' ').toLowerCase();
 }
 
@@ -687,8 +893,8 @@ function buildRetryHint(lang: TikTokLang, violations: string[] = [], mode: TikTo
           : ` DETECTED RULE VIOLATIONS IN THE REJECTED DIAGNOSIS: ${violations.join(', ')} — remove those words/phrases COMPLETELY and replace them with statements grounded strictly in the numbers the user provided.`
         : '';
     return lang === 'de'
-      ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Diagnose wurde intern verworfen (sie erfand Kennzahlen, die der Nutzer nicht angegeben hat, enthielt ein unbelegtes Leistungs-/Zeit-Versprechen, eine vorgegebene künstliche Reaktion/Begeisterung oder einen zu vagen nächsten Test — oder ihre Aussagen waren nicht an den gelieferten Zahlen belegt).' + rulePart + ' Erzeuge JETZT eine deutlich bessere Diagnose: referenziere AUSSCHLIESSLICH die tatsächlich gelieferten Zahlen (nur die im Prompt gelisteten Metriken), erfinde KEINE zusätzlichen Kennzahlen/Werte/Prozente, mache in newHook/optimized/nextTest KEIN unbelegtes Versprechen (kein „in nur X Sekunden/Minuten/Tagen/Wochen", kein „+X%", kein „mehr Follower", kein „viral gehen"), verordne KEINE Reaktion/Begeisterung und nenne GENAU EINEN konkret umsetzbaren nächsten Test mit der zu beobachtenden Metrik. Setze alle fünf selfCheck-Booleans ehrlich auf bestehen.'
-      : '\n\nQUALITY SELF-CHECK NOTE: The previous diagnosis was internally rejected (it invented metrics the user did not provide, contained an unproven performance/time promise, a prescribed artificial reaction/enthusiasm or a vague next test — or its claims were not grounded in the provided numbers).' + rulePart + ' NOW produce a clearly better diagnosis: reference ONLY the numbers actually provided (the metrics listed in the prompt), invent NO additional metrics/values/percentages, make NO unproven promise in newHook/optimized/nextTest (no "in just X seconds/minutes/days/weeks", no "+X%", no "more followers", no "go viral"), prescribe NO reaction/enthusiasm and name EXACTLY ONE concrete next test with the metric to watch. Set all five selfCheck booleans truthfully to passing.';
+      ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Diagnose wurde intern verworfen (sie erfand Kennzahlen, die der Nutzer nicht angegeben hat, enthielt ein unbelegtes Leistungs-/Zeit-Versprechen, eine vorgegebene künstliche Reaktion/Begeisterung oder einen zu vagen nächsten Test — oder ihre Aussagen waren nicht an den gelieferten Zahlen belegt).' + rulePart + ' Erzeuge JETZT eine deutlich bessere Diagnose: referenziere AUSSCHLIESSLICH die tatsächlich gelieferten Zahlen (nur die im Prompt gelisteten Metriken), erfinde KEINE zusätzlichen Kennzahlen/Werte/Prozente, mache in newHook/optimized/nextTest KEIN unbelegtes Versprechen (kein „in nur X Sekunden/Minuten/Tagen/Wochen", kein „+X%", kein „mehr Follower", kein „viral gehen"), verordne KEINE Reaktion/Begeisterung und nenne GENAU EINEN konkret umsetzbaren nächsten Test mit der zu beobachtenden Metrik. Liefere außerdem lengthRecommendation (seconds als Zahl, structure mit Zeitangaben, reason) MIT einer Begründung, die ausschließlich an den gelieferten und berechneten Zahlen belegt ist — kein generischer Default (z. B. „8–20 Sekunden sind am besten"), keine erfundene Zahl. Setze alle sechs selfCheck-Booleans ehrlich auf bestehen.'
+      : '\n\nQUALITY SELF-CHECK NOTE: The previous diagnosis was internally rejected (it invented metrics the user did not provide, contained an unproven performance/time promise, a prescribed artificial reaction/enthusiasm or a vague next test — or its claims were not grounded in the provided numbers).' + rulePart + ' NOW produce a clearly better diagnosis: reference ONLY the numbers actually provided (the metrics listed in the prompt), invent NO additional metrics/values/percentages, make NO unproven promise in newHook/optimized/nextTest (no "in just X seconds/minutes/days/weeks", no "+X%", no "more followers", no "go viral"), prescribe NO reaction/enthusiasm and name EXACTLY ONE concrete next test with the metric to watch. Also deliver lengthRecommendation (seconds as a number, structure with time marks, reason) justified ONLY by the provided and calculated numbers — no generic default (e.g. "8-20 seconds is best"), no invented figure. Set all six selfCheck booleans truthfully to passing.';
   }
   const rulePart =
     violations.length > 0
@@ -735,6 +941,13 @@ export async function generateTikTok(
   input: TikTokInput,
   lang: TikTokLang = 'de',
 ): Promise<TikTokResult> {
+  // Phase 3 — ehrlicher „zu wenig Daten"-Zustand: fehlen views/length/avgWatch
+  // (oder ist die Länge nicht parsebar), ratet Growimo NICHT und ruft KEIN LLM:
+  // deterministische Teil-Diagnose statt erfundener Länge/Zahlen.
+  if (input.mode === 'diagnose') {
+    const gaps = diagnoseRetentionGaps(input.metrics);
+    if (gaps.length > 0) return buildDiagnoseDataGapResult(gaps, lang);
+  }
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error(
@@ -785,6 +998,10 @@ export async function generateTikTok(
       }
       continue; // Parse-Fehler → erneut versuchen
     }
+
+    // Phase 3 — Typ-Verengung: der dataGap-Zustand wurde bereits VOR dem
+    // LLM-Call abgefangen; ein dataGap-Ergebnis kann hier nicht auftreten.
+    if (isDiagnoseDataGap(result)) return result;
 
     // Qualitäts-Selbsttest + deterministische Regel-A+B-Prüfung auf Code-Ebene
     // (unabhängig davon, ob das Modell die Flags ehrlich gemeldet hat) —

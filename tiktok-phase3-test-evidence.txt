@@ -1,0 +1,105 @@
+TikTok-Modul Phase 3 — „Diagnose-Schärfung" (Owner-freigegeben)
+Evidence-Nachweis — Stand nach Abschluss der Implementation (Basis: Phase 1 = 7f8e44c, Phase 2 = 93868f9)
+
+AUSGEFÜHRT AM: 2026-09-10 (Session engineer)
+BRANCH: master (Commit+Push erfolgt; Deploy erst nach Phase 5 — wie angewiesen)
+
+=======================================================================
+1. UMGESETZT (nur src/ai/tiktok.ts + src/ai/server.ts + src/routes/app/tiktok.tsx + i18n de/en)
+=======================================================================
+- Diagnose-Feld `lengthRecommendation` { seconds, structure, reason } — eigenständiges
+  strukturiertes Feld mit empfohlener Länge (Sekunden) + Aufbau (Hook-Phase/Inhalt/CTA) +
+  Zahlenbegründung (reason referenziert echte Nutzerzahlen + berechnete Retention).
+- Deterministische Retention-Rechnung `computeRetention(metrics)` — reine Funktion, KEINE LLM:
+  avgWatchSeconds, watchRatePct (avgWatch/length), totalWatchSeconds (views×avgWatch);
+  Division-durch-0-Guard (length==0/unparsbar/fehlend → null). Der Prompt erhält einen
+  „Berechnete Retention"-Block NUR aus Nutzerangaben (EINZIGE zusätzlich erlaubte Zahlenbasis).
+- `parseLengthSeconds` — '42s' | '42 Sekunden' | '0:42' | '1:05' | '42'; '0s'/''/undefined/garstig → undefined.
+- Pflichtfelder views+length+avgWatch: UI (missingDiagnoseMetrics in tiktok.tsx) + Server-Validator
+  (server.ts nutzt dieselbe geprüfte diagnoseRetentionGaps-Funktion) + Engine-Short-Circuit.
+- Ehrlicher „zu wenig Daten"-Zustand: fehlen views/length/avgWatch (oder Länge unparsbar),
+  KEIN LLM-Call (deterministisch), Output { dataGap: true, missingMetrics[], note, cta } — note sagt
+  ehrlich, was ohne die Daten nicht beurteilt werden kann, cta nennt die zu ergänzenden Felder.
+  Keine erfundene Zahl/Länge.
+- SelfCheck Q6 `lengthGrounded` (de+en) als HARD-REJECT-Kriterium: Begründet lengthRecommendation.reason
+  die Länge an ECHTEN Nutzerzahlen/berechneter Retention statt generischem Default („8–20s sind am
+  besten")? Nur explizites false rejected; fehlendes Flag (alte Modelle/Outputs) = unbekannt → pass,
+  damit die Regression stabil bleibt.
+- Retry-Hint (de+en) verlangt das neue Feld explizit + „alle sechs selfCheck-Booleans".
+- UI: eigenes Panel „Nicht genug Daten für eine vollständige Diagnose" (note+cta) bzw.
+  „Längen- & Aufbau-Empfehlung" (Sekunden/Struktur/Begründung). Alle Texte in de+en.
+
+=======================================================================
+2. TESTAUSFÜHRUNG (Bun-Mini-Server + Mock, Muster Phase 1/2)
+=======================================================================
+Befehl: bun tiktok-phase3-test.ts            → PASS: 75  FAIL: 0  (EXIT=0)
+Befehl: bun tiktok-phase1-test.ts (Regression) → PASS: 75  FAIL: 0  (EXIT=0)
+Befehl: bun tiktok-phase2-test.ts (Regression) → PASS: 90  FAIL: 0  (EXIT=0)
+
+Abgedeckte Phase-3-Szenarien (tiktok-phase3-test.ts):
+  T1  diagnose mit views+length+avgWatch (de) → lengthRecommendation mit Zahlenbegründung;
+      Prompt enthält Retention-Block (Watch-Rate 16/42 = 38,1 %) + totale Watch-Sekunden (2.500×16=40.000)
+  T2  diagnose OHNE avgWatch → dataGap=true, missingMetrics=["avgWatch"], note „rät bewusst nicht",
+      KEIN LLM-Call (attemptCounter=0), kein lengthRecommendation (keine erfundene Länge)
+  T3  diagnose OHNE length → dataGap (length); unparsbare Länge 'abc' zählt ebenfalls als fehlend
+  T4  diagnose mit echten 0-Werten (views=0, avgWatch=0) → VOLle Diagnose (0 ist echte 0, kein
+      dataGap); „0 / 42 = 0,0 %" und „0 × 0 = 0" im Prompt; computeRetention → 0%/0, kein NaN
+  T5  Unit-Tests parseLengthSeconds / computeRetention / diagnoseRetentionGaps (inkl. Div-by-0-Guard)
+  T6  UI-Validierung missingDiagnoseMetrics (exakte fehlende Felder; echte 0 = angegeben) +
+      Server-Validator (Quell-Nachweis: nutzt diagnoseRetentionGaps + de/en-Fehlermeldung)
+  T7  Regression EN (38.1% + „Calculated retention") + alter Diagnose-Output ohne
+      lengthRecommendation (Parser-Fallback, kein Crash) + concept/todayIdea unverändert
+  T8  Regel-A auf lengthRecommendation.reason („+50 % mehr Engagement") → deterministischer Reject+Retry
+  T9  selfCheck Q6 lengthGrounded=false → HARD REJECT + Retry; Retry-Hint nennt lengthRecommendation
+  T10 dataGap de+en ohne views; i18n-Parität der 6 neuen Keys; System-Prompt-Referenzen
+      (lengthRecommendation PFLICHT + Q6 lengthGrounded) de+en nachgewiesen
+
+=======================================================================
+3. GATES
+=======================================================================
+- npx tsc -p tsconfig.gate.json --noEmit → 60 Fehler = exakt Baseline (0 NEUE; keine tiktok-Fehler)
+- i18n de/en-Parität: 85 tiktok_-Keys in de.ts und en.ts; 6 neue Keys je 1× in beiden Sprachen
+- bash build-vercel.sh → EXIT=0 (build erfolgreich, .vercel/output ready)
+
+=======================================================================
+4. LIVE-NACHWEIS (aufbereiteter Output der Implementierung — generiert via
+   generateTikTok mit OpenAI-Mock, identischer Code-Pfad wie Produktion)
+=======================================================================
+
+Nachweis 1 — Diagnose mit views+length+avgWatch (de):
+Output lengthRecommendation: {"seconds":25,"structure":"0-2s Hook-Frage, 2-18s Kern-Inhalt, 18-25s CTA","reason":"Basierend auf deinen 2500 Views und 38,1% Watch-Rate bei 42s Länge (16s durchschnittliche Wiedergabedauer) kürze auf 25 Sekunden."}
+Prompt-Retention-Block (deterministisch, NUR aus Nutzerangaben):
+  Berechnete Retention (deterministisch aus deinen Angaben berechnet — reine Arithmetik, die EINZIGE zusätzlich erlaubte Zahlenbasis; referenziere NUR diese + die obigen Werte):
+  - Videolänge: 42 Sekunden
+  - Durchschnittliche Wiedergabedauer: 16 Sekunden
+  - Watch-Rate: 16 / 42 = 38,1 % (Anteil der Videolänge, den Zuschauer im Schnitt sehen)
+  - Gesamte Watch-Sekunden: 2.500 × 16 = 40.000
+
+Nachweis 2 — Diagnose OHNE avgWatch (ehrlicher „zu wenig Daten"-Zustand):
+Output: { "mode": "diagnose", "dataGap": true, "missingMetrics": [ "avgWatch" ],
+  "note": "Für eine fundierte Diagnose fehlen: durchschnittliche Wiedergabedauer. Ohne diese
+           Angaben kann Growimo nicht beurteilen, ob das Problem eher bei der Reichweite oder
+           bei der Bindung (Retention) liegt, und kann keine Längen-/Aufbau-Empfehlung mit
+           Zahlenbegründung geben — Growimo rät hier bewusst nicht, statt eine Zahl zu erfinden.",
+  "cta": "Ergänze durchschnittliche Wiedergabedauer, um die vollständige Analyse mit
+          Retention-Rechnung und konkreter Längen-/Aufbau-Empfehlung zu erhalten." }
+→ KEIN LLM-Call, KEINE erfundene Zahl/Länge.
+
+Nachweis 3 — Diagnose mit echten 0-Werten (views=0, avgWatch=0):
+  - Watch-Rate: 0 / 42 = 0,0 % (Anteil der Videolänge, den Zuschauer im Schnitt sehen)
+  - Gesamte Watch-Sekunden: 0 × 0 = 0
+  computeRetention({views:0,length:"42s",avgWatch:0}) → {views:0,avgWatchSeconds:0,lengthSeconds:42,watchRatePct:0,totalWatchSeconds:0}
+  parseLengthSeconds("0s") → undefined (Division durch 0 vermieden)
+  parseLengthSeconds("0:42") → 42, parseLengthSeconds("1:05") → 65
+  diagnoseRetentionGaps({views:0,length:"42s",avgWatch:0}) → []   (0 = angegeben, nicht „fehlt")
+  diagnoseRetentionGaps({views:2500,length:"42s"}) → ["avgWatch"]
+  missingDiagnoseMetrics(UI) bei nur avgWatch fehlend → ["avgWatch"]
+  missingDiagnoseMetrics(UI) bei echten 0 → []
+
+=======================================================================
+5. HINWEIS FÜR PHASE 4/5
+=======================================================================
+- Parser-Fallback: Diagnose-Outputs ohne lengthRecommendation (ältere Modelle) bleiben gültig
+  (Feld fehlt dann im Ergebnis) — bewusst soft, konsistent zur Phase-2-Komplettheits-Entscheidung.
+- Q6 lengthGrounded rejected nur bei explizitem false (Regression-sicher).
+- Nichts deployed — Deploy erst nach Abschluss aller 5 Phasen (Owner-Vorgabe).

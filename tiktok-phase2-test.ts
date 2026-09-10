@@ -281,7 +281,7 @@ await scenario('S7 max_tokens=2400 + Antwort nicht abgeschnitten (volle Antwort)
 
 await scenario('S8 diagnose bleibt funktional (Phase-1-Regression)', async () => {
   currentResponder = () => diagnosePayload();
-  const res = await generateTikTok(baseInput({ mode: 'diagnose', metrics: { views: 1200 } }), 'de');
+  const res = await generateTikTok(baseInput({ mode: 'diagnose', metrics: { views: 1200, length: '42s', avgWatch: 16 } }), 'de');
   check(res.mode === 'diagnose', 'Mode diagnose');
   const r = res as { biggestProblem: string; whatWorks: string[]; whatToImprove: string[]; newHook: string; optimized: string; nextTest: string };
   check(r.biggestProblem && r.newHook && r.optimized && r.nextTest, 'alle Diagnose-Pflichtfelder');

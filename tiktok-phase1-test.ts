@@ -232,20 +232,23 @@ await scenario('S3 concept MIT topic → Regression', async () => {
   check(attemptCounter === 1, '1 Call');
 });
 
-await scenario('S4 diagnose teilweise fehlende Metriken (kein 0 im Prompt)', async () => {
+await scenario('S4 diagnose mit Retention, uebrige Metriken fehlen (kein 0 im Prompt)', async () => {
   currentResponder = () => diagnosePayload();
   const res = await generateTikTok(
-    baseInput({ mode: 'diagnose', metrics: { views: 1200 } }),
+    baseInput({ mode: 'diagnose', metrics: { views: 1200, length: '31s', avgWatch: 8 } }),
     'de',
   );
   check(res.mode === 'diagnose', 'Mode diagnose');
   const p = lastPrompt();
   check(p.includes('Aufrufe (Views): 1200'), 'Views: 1200 wird gesendet');
-  check(!p.includes('Videolänge'), 'fehlende Videolänge NICHT im Prompt');
+  check(p.includes('Videolänge: 31s'), 'Videolänge wird gesendet');
+  check(p.includes('Wiedergabedauer (Sek.): 8'), 'Wiedergabedauer wird gesendet');
+  check(p.includes('Berechnete Retention'), 'Retention-Block im Prompt (Phase 3)');
   check(!p.includes('Likes:'), 'fehlende Likes NICHT im Prompt');
-  check(!p.includes('Wiedergabedauer'), 'fehlende Wiedergabedauer NICHT im Prompt');
+  check(!p.includes('Kommentare:'), 'fehlende Kommentare NICHT im Prompt');
+  check(!p.includes('Shares:'), 'fehlende Shares NICHT im Prompt');
   check(!p.includes('Profilaufrufe'), 'fehlende Profilaufrufe NICHT im Prompt');
-  check(!p.includes('0)') && !p.includes(': 0'), 'kein erfundener 0-Wert im Prompt');
+  check(!p.includes(': 0'), 'kein erfundener 0-Wert im Prompt');
   check(p.includes('NUR die folgenden Werte sind bekannt'), 'Hinweis auf fehlende Metriken im Prompt');
   check(attemptCounter === 1, '1 Call');
 });
@@ -273,7 +276,7 @@ await scenario('S5 diagnose alle Werte', async () => {
 await scenario('S6 diagnose echte 0 wird gesendet (0-vs-fehlend)', async () => {
   currentResponder = () => diagnosePayload();
   const res = await generateTikTok(
-    baseInput({ mode: 'diagnose', metrics: { views: 0, likes: 0 } }),
+    baseInput({ mode: 'diagnose', metrics: { views: 0, length: '31s', avgWatch: 0, likes: 0 } }),
     'de',
   );
   check(res.mode === 'diagnose', 'Mode diagnose');
@@ -281,6 +284,9 @@ await scenario('S6 diagnose echte 0 wird gesendet (0-vs-fehlend)', async () => {
   check(p.includes('Aufrufe (Views): 0'), 'echte 0 Views wird gesendet');
   check(p.includes('Likes: 0'), 'echte 0 Likes wird gesendet');
   check(!p.includes('Kommentare:'), 'fehlende Kommentare weiterhin ausgelassen');
+  check(p.includes('Berechnete Retention'), 'Retention-Block auch mit echten 0-Werten (kein Division-durch-0-Crash)');
+  check(p.includes('0 / 31 = 0,0 %'), 'Watch-Rate 0% korrekt berechnet (avgWatch 0 ist echte 0)');
+  check(attemptCounter === 1, '1 Call');
 });
 
 await scenario('S7 todayIdea Regel-A-Verletzung → Retry (Versuch 2 gewinnt)', async () => {
@@ -328,7 +334,7 @@ await scenario('S9 diagnose selfCheck HARD REJECT (erfundene Kennzahlen) → Ret
     }
     return diagnosePayload();
   };
-  const res = await generateTikTok(baseInput({ mode: 'diagnose', metrics: { views: 1200 } }), 'de');
+  const res = await generateTikTok(baseInput({ mode: 'diagnose', metrics: { views: 1200, length: '31s', avgWatch: 8 } }), 'de');
   check(res.mode === 'diagnose', 'Mode diagnose');
   check(attemptCounter === 2, `Retry auf diagnose (2 Calls, war ${attemptCounter})`);
   const p2 = promptOf(1);
@@ -339,7 +345,7 @@ await scenario('S10 diagnose Regel-A dauerhaft → Fail-closed ehrlicher Fehler'
   currentResponder = () => RULE_A_DIAGNOSE;
   let threw = '';
   try {
-    await generateTikTok(baseInput({ mode: 'diagnose', metrics: { views: 5000 } }), 'de');
+    await generateTikTok(baseInput({ mode: 'diagnose', metrics: { views: 5000, length: '31s', avgWatch: 8 } }), 'de');
   } catch (e) {
     threw = (e as Error).message;
   }
