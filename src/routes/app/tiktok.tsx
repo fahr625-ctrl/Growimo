@@ -7,6 +7,7 @@ import { trackAnalytics } from '~/lib/analytics-client';
 import { track } from '~/lib/tracking-client';
 import type { TikTokDiagnoseResult, TikTokIdeaResult, TikTokMode, TikTokResult } from '~/ai/tiktok';
 import { generateTikTokServer } from '~/ai/server';
+import { pickTodayIdeaDirection } from '~/lib/tiktok-directions';
 import { studioDeepLink } from '~/lib/studio-deeplink';
 import {
   getBrandProfile,
@@ -22,6 +23,9 @@ import { guardTikTokRun } from '~/lib/tiktok-safeguards';
 /** localStorage-Historie der zuletzt generierten TikTok-Ideen (Hooks). Max 10. */
 const TIKTOK_HISTORY_KEY = 'growimo_tiktok_history';
 const TIKTOK_HISTORY_MAX = 10;
+// Diversität (todayIdea): zuletzt verwendete Content-Richtung — wird bei der
+// nächsten Generierung deterministisch ausgeschlossen (Katalog-Rotation).
+const TIKTOK_LAST_DIRECTION_KEY = 'growimo_tiktok_last_direction';
 
 /** Lücken des Markenkontexts für die Minimal-Abfrage (Phase 1): welche der
  * 2–3 Kernfelder (Produkt/Angebot, Zielgruppe, Hauptziel) fehlen, damit der
@@ -486,6 +490,10 @@ function TikTokContent() {
         biz: biz.trim(),
         brandContext,
         history: loadTikTokHistory(),
+        // Diversität (todayIdea): zuletzt genutzte Richtung → Engine rotiert
+        // deterministisch zur NÄCHSTEN Katalog-Richtung (keine Wiederholung).
+        previousDirection:
+          mode === 'todayIdea' ? (localStorage.getItem(TIKTOK_LAST_DIRECTION_KEY) ?? undefined) : undefined,
         goal: goal || (brandProfile?.mainGoal?.trim() || undefined),
         audience: audience.trim() || undefined,
         topic: mode === 'concept' ? topic.trim() : undefined,
@@ -511,6 +519,14 @@ function TikTokContent() {
       const res = await guarded.promise;
       setResult(res);
       if (res.mode !== 'diagnose') pushTikTokHistory(res.hook);
+      if (mode === 'todayIdea') {
+        // Client und Engine nutzen dieselbe deterministische Funktion → die hier
+        // gespeicherte Richtung ist identisch mit der im Prompt verwendeten.
+        const prev = localStorage.getItem(TIKTOK_LAST_DIRECTION_KEY) ?? undefined;
+        try {
+          localStorage.setItem(TIKTOK_LAST_DIRECTION_KEY, pickTodayIdeaDirection(prev));
+        } catch { /* localStorage unavailable */ }
+      }
       if (mode === 'diagnose') track('tiktok_diagnosed', user?.id);
       else track('tiktok_created', user?.id, { mode });
       // Admin-Analytics MVP Phase 1 (additive): tiktok run finished/done.

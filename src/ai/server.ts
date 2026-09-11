@@ -811,6 +811,7 @@ export const generateTikTokServer = createServerFn({ method: 'POST' })
       metrics?: unknown;
       lang?: unknown;
       projectContext?: unknown;
+      previousDirection?: unknown;
     };
     if (!d || typeof d !== 'object') throw new Error('data is required');
     const mode = d.mode as TikTokMode;
@@ -911,6 +912,14 @@ export const generateTikTokServer = createServerFn({ method: 'POST' })
       topic: typeof d.topic === 'string' && d.topic.trim() ? d.topic.trim() : undefined,
       metrics,
       projectContext,
+      // Diversität (todayIdea, optional): zuletzt verwendete Content-Richtung —
+      // von der Engine deterministisch ausgeschlossen, damit die Folge-Idee
+      // eine andere Richtung nimmt. Fehlt der Parameter (Fallback ohne
+      // Client-Änderung), wählt die Engine selbst deterministisch.
+      previousDirection:
+        typeof d.previousDirection === 'string' && d.previousDirection.trim()
+          ? d.previousDirection.trim()
+          : undefined,
       lang: (d.lang === 'en' ? 'en' : 'de') as 'de' | 'en',
     };
   })

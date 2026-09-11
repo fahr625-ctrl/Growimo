@@ -33,6 +33,7 @@ const PHASE_FILES = [
   'tiktok-phase2-test.ts',
   'tiktok-phase3-test.ts',
   'tiktok-phase4-test.ts',
+  'tiktok-phase6-directions-test.ts',
 ];
 
 let passed = 0;

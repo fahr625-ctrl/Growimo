@@ -266,7 +266,7 @@ await scenario('T7 Regression: diagnose mit allen Werten (en) + alter Output ohn
   // concept/todayIdea bleiben unberührt (Regressions-Smoke)
   attemptCounter = 0;
   currentResponder = () => JSON.stringify({
-    idea: 'Wir zeigen Schritt für Schritt, wie ein kompletter Plan aus der App entsteht.',
+    idea: 'Wir zeigen Schritt für Schritt, wie aus einer Idee ein fertiger Marketing-Plan entsteht.',
     hook: 'Eine Idee. Ein kompletter Plan.',
     length: '15 Sekunden',
     format: 'Tutorial/How-to – Schritt für Schritt',
@@ -274,12 +274,12 @@ await scenario('T7 Regression: diagnose mit allen Werten (en) + alter Output ohn
     timedScenes: [{ time: '0-2s', scene: 'App öffnen', text: 'Eine Idee' }, { time: '2-15s', scene: 'Ergebnis zeigen', text: '' }],
     scenes: ['Szene 1', 'Szene 2'],
     overlays: ['Eine Idee'],
-    spokenText: 'Ich teste meine eigene Marketing-App.',
-    caption: 'Ich habe meine eigene Marketing-App getestet.',
+    spokenText: 'Heute zeige ich dir, wie aus einer groben Idee ein fertiger Plan wird.',
+    caption: 'Vom Einfall zum fertigen Marketing-Plan — Schritt für Schritt.',
     hashtags: ['#marketing', '#contentplan'],
-    cta: 'Was würdest du zuerst testen?',
-    why: 'Weil die Szene eine echte Demonstration zeigt.',
-    imageIdeas: [{ description: 'Cover', studioPrompt: 'Smartphone mit Marketing-App, Nahaufnahme, weicher Hintergrund' }],
+    cta: 'Welcher Schritt fällt dir am schwersten?',
+    why: 'Weil die Szene den Ablauf aus Sicht der Zielgruppe zeigt.',
+    imageIdeas: [{ description: 'Cover', studioPrompt: 'Notizbuch mit Marketing-Plan, Nahaufnahme, weicher Hintergrund' }],
     selfCheck: { usesConcreteBrandFact: true, addressesCurrentChallenge: true, interchangeable: false, soundsLikeAd: false, inventsUserOrTestimonial: false, unprovenPerformancePromise: false, prescribedEnthusiasm: false },
   });
   const concept = await generateTikTok(baseInput({ mode: 'concept' }), 'de');

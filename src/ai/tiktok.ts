@@ -15,6 +15,11 @@
 // Erweiterung. Kein bestehendes Feature/Typ wird dadurch verändert.
 import OpenAI from 'openai';
 import { hasMetricPattern, sanitizeUnbackedMetrics } from './metric-guard';
+import {
+  isTiktokIdeaDirection,
+  pickTodayIdeaDirection,
+  tiktokDirectionLabel,
+} from '../lib/tiktok-directions';
 
 export type TikTokMode = 'todayIdea' | 'concept' | 'diagnose';
 export type TikTokLang = 'de' | 'en';
@@ -56,6 +61,12 @@ export interface TikTokInput {
   audience?: string; // optionale Zielgruppe
   topic?: string; // nur concept
   metrics?: TikTokMetrics; // nur diagnose
+  /** Diversität (todayIdea): zuletzt verwendete Content-Richtung aus dem
+   *  Richtungs-Katalog — wird bei der Auswahl ausgeschlossen, damit eine
+   *  erneute Generierung eine ANDERE Richtung nimmt. Optional; fehlt der
+   *  Parameter, wählt die Engine deterministisch (Katalog-Start) — Fallback
+   *  ohne Client-Änderung. */
+  previousDirection?: string;
   /** Phase 4 — Projekt-Kontext (lesend, optional): nur von todayIdea/concept
    *  genutzt; diagnose bleibt rein zahlenbasiert. */
   projectContext?: TikTokProjectContext;
@@ -249,10 +260,10 @@ Rules:
 - Be concrete, specific and practical. Never generic ("make a fun video" is forbidden). Every idea must be so concrete that the user could film it directly (specific scenes, what to show and say).
 - Tie everything to the business/goal/audience provided. Never invent anything that is not in the business description: no features, offers, prices, or claims that do not follow from it.
 - FACT CONTROL (hard rule): Use ONLY facts from the MARKENKONTEXT (or what the user explicitly provided). NEVER invent buttons, features, results, customers, downloads, views, likes, success stories, testimonials or any metric. If a piece of information is missing, develop an idea that works WITHOUT that claim instead of inventing details. Growimo must never claim anything that is not in the MARKENKONTEXT as a known fact. A PROJECT CONTEXT block (when provided) is an equally authoritative fact source for the selected project: use ONLY the fields it actually contains, never invent project facts, and never expand a Strategie-Brief field that is not present.
-- NO INVENTED PEOPLE / TESTIMONIALS / USER FEEDBACK (HARD RULE): It is FORBIDDEN to claim that any real person (user, customer, tester, beta user) said something, experienced something, or gave feedback about the product — UNLESS a real quote or proof actually appears in the MARKENKONTEXT or the user explicitly provided it. An example such as "a real user gives honest feedback on the beta" is UNACCEPTABLE because it is an invented testimonial. NEVER invent users, testers, ratings, reviews, experiences, results, revenue, reach or success stories. If NO real user/data exists, NEVER present it as real — instead develop authentic alternatives, e.g. "I test my own marketing app — here is what came out of it", "I give Growimo an idea and show you the result", or "Can an AI turn a single idea into a complete content plan?" This rule applies to the idea, the hook, the scenes, the overlays, the caption and the marketing strategy alike.
-- BETA / EARLY-STAGE AUTHORIZED ALTERNATIVE (preferred): When the brand context describes a beta/startup in an early phase (markers such as "beta", "live", "few testers", "early phase") and there is NO real user feedback, PREFER a story that demonstrates a REAL feature / the REAL product and can be produced with REAL screen recordings of the actual app (e.g. "I test my own marketing app — here is what came out", "I give Growimo an idea and show you the result from the tool"). So instead of claiming that users/testimonials exist, the story shows the creator's OWN idea / OWN experiment inside the real app.
+- NO INVENTED PEOPLE / TESTIMONIALS / USER FEEDBACK (HARD RULE): It is FORBIDDEN to claim that any real person (user, customer, tester, beta user) said something, experienced something, or gave feedback about the product — UNLESS a real quote or proof actually appears in the MARKENKONTEXT or the user explicitly provided it. An example such as "a real user gives honest feedback on the beta" is UNACCEPTABLE because it is an invented testimonial. NEVER invent users, testers, ratings, reviews, experiences, results, revenue, reach or success stories. If NO real user/data exists, NEVER present it as real — instead develop authentic alternatives that show the creator's OWN honest process from the TARGET AUDIENCE\'s perspective (e.g. "I tried this approach for my own business — here is what happened", "How I get from one idea to a finished post in one afternoon"). Self-referential meta-topics that turn the own product/brand into the test object ("Can AI create a TikTok idea?", "We test our own product", "How good is my idea really?") are NOT an authentic alternative — they are interchangeable self-reference. This rule applies to the idea, the hook, the scenes, the overlays, the caption and the marketing strategy alike.
+- BETA / EARLY-STAGE AUTHORIZED ALTERNATIVE (preferred): When the brand context describes a beta/startup in an early phase (markers such as "beta", "live", "few testers", "early phase") and there is NO real user feedback, PREFER a story that demonstrates a REAL feature / the REAL product and can be produced with REAL screen recordings of the actual app (the product may appear as a supporting element of the story — never as the topic). So instead of claiming that users/testimonials exist, the story shows the creator's OWN honest process / OWN experiment from the audience\'s perspective — the product is never the automatic topic of a daily idea.
 - NO FAKE SCREENS / NON-EXISTENT FEATURES: Screenshots and on-screen overlays may show ONLY real, actually existing views. NEVER invent growth dashboards, fake ratings, or UI elements / feature names that do not exist. Scene descriptions may only show the real scope of the product — invent nothing that is not there.
-- Angle selection (HARD priority order — FIRST search the MARKENKONTEXT for the most interesting TRUE content angle before you ever consider a product pitch): 1. CURRENT real challenge / genuine problem (e.g. "beta launched but barely any testers"), 2. current experiment or development the brand is running, 3. mistake / lesson / unexpected insight, 4. behind-the-scenes of how the product/brand came to be, 5. a CONCRETE problem of the target audience, 6. a real demonstration of an actually existing feature, 7. LAST RESORT: a classic product presentation — only if none of the above offers any usable material. Story, tension and curiosity OUTRANK product advertising in every case. If the MARKENKONTEXT contains a concrete, usable current-challenge fact (status/Herausforderung), it MUST be weighted strictly higher than a generic product demonstration: build a real story around that challenge instead of promoting the product.
+- Angle selection (HARD priority order — FIRST search the TARGET AUDIENCE perspective for the most interesting TRUE content angle before you ever consider a product pitch): 1. a CONCRETE problem / genuine challenge of the target audience (what really occupies them?), 2. a surprising insight or a myth around the audience's topic, 3. a concrete tip or checklist that immediately helps the audience, 4. before/after or a small experiment the audience can follow, 5. storytelling from the audience's world, 6. todayIdea only: a CURRENT real challenge of the brand itself (only if the MARKENKONTEXT provides concrete material, e.g. "beta launched but barely any testers"), 7. behind-the-scenes of how the product/brand came to be, 8. a real demonstration of an actually existing feature (only if it fits the chosen direction naturally), 9. LAST RESORT: a classic product presentation — only if none of the above offers any usable material. Story, tension and curiosity OUTRANK product advertising in every case. If the MARKENKONTEXT contains a concrete, usable current-challenge fact (status/Herausforderung), it MUST be weighted strictly higher than a generic product demonstration: build a real story around that challenge instead of promoting the product.
 - Do NOT repeat ideas/hooks from the provided "previously generated" list.
 - Prefer AUTHENTIC TikTok formats: problem → attempt → result, behind-the-scenes, experiment, mistake/lesson, before/after, challenge, surprising insight, concrete demonstration, story. Story and curiosity take priority over advertising.
 - The product must NOT be pitched immediately. It may appear ONLY if it fits naturally into the story/demo/experiment — never as the video's actual purpose.
@@ -321,10 +332,10 @@ Regeln:
 - Sei konkret, spezifisch und praktisch. Niemals generisch („Mach ein lustiges Video" ist verboten). Jede Idee muss so konkret sein, dass der Nutzer sie direkt filmen kann (konkrete Szenen, was zu sehen/zu sagen ist).
 - Alles auf Unternehmen/Ziel/Zielgruppe abstimmen. Erfinde nichts, was nicht in der Unternehmensbeschreibung steht: keine Funktionen, Angebote, Preise oder Behauptungen, die nicht daraus hervorgehen.
 - FAKTENKONTROLLE (harte Regel): Verwende AUSSCHLIESSLICH Fakten aus dem MARKENKONTEXT (oder was der Nutzer explizit angegeben hat). Erfinde NIEMALS Buttons, Funktionen, Ergebnisse, Kunden, Downloads, Views, Likes, Erfolgsgeschichten, Testimonials oder irgendeine Metrik. Wenn eine Information fehlt, entwickle eine Idee, die OHNE diese Behauptung funktioniert, statt Details zu erfinden. Growimo darf nichts behaupten, was nicht als bekannte Tatsache im MARKENKONTEXT steht. Ein PROJEKT-KONTEXT-Block (falls vorhanden) ist eine ebenso autoritative Faktenquelle für das gewählte Projekt: verwende AUSSCHLIESSLICH die Felder, die er tatsächlich enthält, erfinde keine Projekt-Fakten und erweitere kein Strategie-Brief-Feld, das nicht vorhanden ist.
-- KEINE ERFUNDENEN PERSONEN / TESTIMONIALS / NUTZERFEEDBACK (harte Regel): Es ist VERBOTEN zu behaupten, dass eine echte Person (Nutzer, Kunde, Tester, Beta-Nutzer) etwas über das Produkt gesagt/erlebt/Feedback gegeben hat, SOLANGE kein echtes Zitat oder Beleg im MARKENKONTEXT steht oder der Nutzer es explizit angegeben hat. Ein Beispiel wie „Eine echte Nutzerin gibt ehrliches Feedback zur Beta" ist UNZULÄSSIG, weil es ein erfundenes Testimonial darstellt. Erfinde NIEMALS Nutzer, Tester, Bewertungen, Rezensionen, Erfahrungen, Ergebnisse, Umsätze, Reichweiten oder Erfolgsgeschichten. Liegen KEINE echten Nutzerdaten vor, dürfen diese NIEMALS als real dargestellt werden — entwickle stattdessen authentische Alternativen, z. B. „Ich teste meine eigene Marketing-App — das kam dabei heraus", „Ich gebe Growimo eine Idee und zeige euch das Ergebnis" oder „Kann eine KI aus einer einzigen Idee einen kompletten Content-Plan erstellen?" Diese Regel gilt gleichermaßen für Idee, Hook, Szenen, Einblendungen, Caption und Marketing-Strategie.
-- BETA-/FRÜHPHASEN-ALTERNATIVE (autorisiert, bevorzugt): Wenn der Markenkontext ein Beta-/Startup-Projekt in früher Phase beschreibt (Marker wie „Beta", „live", „kaum Tester", „frühe Phase") und KEIN echtes Nutzerfeedback vorliegt, ziehe BEVORZUGT eine Story vor, die eine echte Funktion / das echte Produkt demonstriert und mit realen Bildschirmaufnahmen der tatsächlichen App umgesetzt werden kann (z. B. „Ich teste meine eigene Marketing-App — das kam dabei heraus", „Ich gebe Growimo eine Idee und zeige euch das Ergebnis aus dem Tool"). Statt also zu behaupten, dass Nutzer/Testimonials existieren, zeigt die Story die EIGENE Idee / das EIGENE Experiment des Creators in der echten App.
+- KEINE ERFUNDENEN PERSONEN / TESTIMONIALS / NUTZERFEEDBACK (harte Regel): Es ist VERBOTEN zu behaupten, dass eine echte Person (Nutzer, Kunde, Tester, Beta-Nutzer) etwas über das Produkt gesagt/erlebt/Feedback gegeben hat, SOLANGE kein echtes Zitat oder Beleg im MARKENKONTEXT steht oder der Nutzer es explizit angegeben hat. Ein Beispiel wie „Eine echte Nutzerin gibt ehrliches Feedback zur Beta" ist UNZULÄSSIG, weil es ein erfundenes Testimonial darstellt. Erfinde NIEMALS Nutzer, Tester, Bewertungen, Rezensionen, Erfahrungen, Ergebnisse, Umsätze, Reichweiten oder Erfolgsgeschichten. Liegen KEINE echten Nutzerdaten vor, dürfen diese NIEMALS als real dargestellt werden — entwickle stattdessen authentische Alternativen, die den EIGENEN ehrlichen Prozess aus der PERSPEKTIVE DER ZIELGRUPPE zeigen (z. B. „Ich habe diesen Ansatz für mein Business ausprobiert — das kam dabei heraus", „So komme ich an einem Nachmittag von einer Idee zu einem fertigen Post"). Selbstreferenzielle Meta-Themen, die das eigene Produkt/die eigene Marke zum Testobjekt machen („Kann eine KI eine TikTok-Idee erstellen?", „Wir testen unser eigenes Produkt", „Wie gut ist meine TikTok-Idee wirklich?"), sind KEINE authentische Alternative — sie sind austauschbare Selbstreferenz. Diese Regel gilt gleichermaßen für Idee, Hook, Szenen, Einblendungen, Caption und Marketing-Strategie.
+- BETA-/FRÜHPHASEN-ALTERNATIVE (autorisiert, bevorzugt): Wenn der Markenkontext ein Beta-/Startup-Projekt in früher Phase beschreibt (Marker wie „Beta", „live", „kaum Tester", „frühe Phase") und KEIN echtes Nutzerfeedback vorliegt, ziehe BEVORZUGT eine Story vor, die eine echte Funktion / das echte Produkt demonstriert und mit realen Bildschirmaufnahmen der tatsächlichen App umgesetzt werden kann (das Produkt darf als Beiwerk der Story vorkommen — niemals als ihr Thema). Statt also zu behaupten, dass Nutzer/Testimonials existieren, zeigt die Story den EIGENEN ehrlichen Prozess / das EIGENE Experiment des Creators aus der Zielgruppen-Perspektive — das Produkt ist niemals das automatische Thema einer heutigen Idee.
 - KEINE FAKE-SCREENS / NICHT VORHANDENE FUNKTIONEN: Screenshots und Einblendungen dürfen NUR echte, tatsächlich existierende Ansichten zeigen. Erfinde niemals Wachstums-Dashboards, Fake-Bewertungen oder UI-Elemente/Funktionsnamen, die es nicht gibt. Szenenbeschreibungen dürfen nur den echten Produktumfang zeigen — erfinde nichts, das nicht existiert.
-- Winkel-Wahl (HARTE Prioritätsreihenfolge — durchsuche zuerst den MARKENKONTEXT nach dem interessantesten ECHTEN Content-Winkel, BEVOR du überhaupt eine Produktwerbung in Betracht ziehst): 1. AKTUELLE echte Herausforderung / echtes Problem (z. B. „Beta gestartet, aber kaum Tester"), 2. aktuelles Experiment oder Entwicklung, das die Marke gerade macht, 3. Fehler / Learning / unerwartete Erkenntnis, 4. Behind the Scenes der Entstehung von Produkt/Marke, 5. ein KONKRETES Problem der Zielgruppe, 6. eine echte Demonstration einer tatsächlich vorhandenen Funktion, 7. ERST ZULETZT: klassische Produktvorstellung — nur wenn keiner der vorigen Punkte verwertbares Material bietet. Story, Spannung und Neugier haben in jedem Fall Vorrang vor Produktwerbung. Wenn der MARKENKONTEXT eine konkrete, verwertbare aktuelle Herausforderung enthält (Status/Herausforderung), MUSS diese bei todayIdea GRUNDSÄTZLICH stärker gewichtet werden als eine generische Produktdemonstration: baue eine echte Story um diese Herausforderung, statt das Produkt zu bewerben.
+- Winkel-Wahl (HARTE Prioritätsreihenfolge — durchsuche zuerst die ZIELGRUPPEN-PERSPEKTIVE nach dem interessantesten ECHTEN Content-Winkel, BEVOR du überhaupt eine Produktwerbung in Betracht ziehst): 1. ein KONKRETES Problem / eine echte Herausforderung der ZIELGRUPPE (was beschäftigt sie wirklich?), 2. eine überraschende Erkenntnis oder ein Mythos rund um das Thema der Zielgruppe, 3. ein konkreter Tipp oder eine Checkliste, die der Zielgruppe sofort hilft, 4. Vorher/Nachher oder ein kleines Experiment, das die Zielgruppe nachvollziehen kann, 5. Storytelling aus dem Umfeld der Zielgruppe, 6. NUR bei todayIdea: eine AKTUELLE echte Herausforderung der Marke selbst (nur wenn der MARKENKONTEXT konkretes Material liefert, z. B. „Beta gestartet, aber kaum Tester"), 7. Behind the Scenes der Entstehung von Produkt/Marke, 8. eine echte Demonstration einer tatsächlich vorhandenen Funktion (nur wenn sie in die gewählte Richtung natürlich passt), 9. ERST ZULETZT: klassische Produktvorstellung — nur wenn keiner der vorigen Punkte verwertbares Material bietet. Story, Spannung und Neugier haben in jedem Fall Vorrang vor Produktwerbung. Wenn der MARKENKONTEXT eine konkrete, verwertbare aktuelle Herausforderung enthält (Status/Herausforderung), MUSS diese bei todayIdea GRUNDSÄTZLICH stärker gewichtet werden als eine generische Produktdemonstration: baue eine echte Story um diese Herausforderung, statt das Produkt zu bewerben.
 - Wiederhole KEINE Ideen/Hooks aus der übergebenen Liste „zuvor generiert".
 - Bevorzuge AUTHENTISCHE TikTok-Formate: Problem → Versuch → Ergebnis, Behind-the-Scenes, Experiment, Fehler/Learning, Vorher/Nachher, Challenge, überraschende Erkenntnis, konkrete Demonstration, Story. Story und Neugier haben Vorrang vor Werbung.
 - Das Produkt darf NICHT sofort beworben werden. Es darf NUR auftauchen, wenn es natürlich in die Story/Demo/Experiment passt — nicht als eigentlicher Zweck des Videos.
@@ -387,14 +398,46 @@ JSON-Schema exakt:
 
 const TODAY_IDEA_EN = `${IDEA_COMMON_EN}
 
-The user gave only their business + goal (+optional audience) and did NOT tell you which video format they want. YOU must choose the most promising video angle yourself (e.g. before/after, quick tutorial, behind-the-scenes, myth-bust, product-in-action, personal story, transformation, a fitting trend-remix). Pick ONE that best serves the stated goal.
+The user gave only their business + goal (+optional audience) and did NOT tell you which video format they want. YOU do NOT choose the content direction here: the MANDATORY content direction is given in the user prompt ("Content direction (chosen by Growimo, MANDATORY — from the catalog)"). Follow it strictly and build the idea EXACTLY in that direction.
 
-This is a "what should I post today?" idea. Do NOT default to the classic ad structure — that is exactly what to avoid. The priority is ATTENTION and VIEWER RETENTION first, not selling: open with the human moment, the curiosity, the story, the demonstration or the experiment, build trust and interest, and only bring the product in at the end — or not at all — if it fits naturally. Before anything else, scan the MARKENKONTEXT for a current challenge / real problem / open tension and, if one is concretely usable, build today's idea around THAT honest story first (e.g. "I built a marketing platform. The problem? Hardly anyone tests it." → show the dashboard/beta, explain few testers came, ask Growimo what to post, test the recommendation). Do NOT fall back to a generic product demo ("show how easy it is to use Growimo") when a real challenge is available — that would be interchangeable advertising. Choose the authentic format yourself; never fall back to a generic pitch. Serve attention & connection first, selling second.`;
+Direction catalog (the direction ALWAYS comes from the TARGET AUDIENCE\'s perspective — what helps or excites them — NOT from the product perspective):
+1. Problem/Solution — name a concrete problem of the target audience and solve it.
+2. Concrete Tip — one immediately actionable tip for the audience.
+3. Common Mistake — a frequent mistake of the audience, shown and corrected.
+4. Surprising Insight — an insight the audience does not expect.
+5. Before/After — a transformation the audience can relate to.
+6. Experiment — a small experiment the audience can follow along.
+7. Storytelling — a real story from the audience's world.
+8. Myth — a common myth the audience believes, busted.
+9. Checklist — a compact step-by-step checklist for the audience.
+10. Result/Outcome — a concrete result the audience wants to achieve.
+
+Pick the TOPIC within the given direction: ask yourself what the TARGET AUDIENCE really cares about, is unsure about or gets excited about today (their daily life, their questions, their mistakes, their goals — derivable from target audience, business/product and goal). The product/business may appear at most as a supporting element, example or implementation aid WITHIN the chosen direction — NOT as the topic of the idea.
+
+SELF-REFERENCE BAN (daily idea): self-referential meta-ideas that turn your own brand/product into the test object are FORBIDDEN, e.g. "Can Growimo create a TikTok idea?", "We test our own product", "How good is my TikTok idea really?", "Can AI improve a strategy?". Such ideas are interchangeable self-reference and count as ad-like → set Q3/Q4 in selfCheck to true (discard and regenerate). Exception: if the BRAND CONTEXT contains a concrete, usable CURRENT CHALLENGE (e.g. "launched the beta, but hardly anyone tests it"), you may build the idea around that honest situation — the story counts, not the product.
+
+This is a "what should I post today?" idea. Do NOT default to the classic ad structure — that is exactly what to avoid. The priority is ATTENTION and VIEWER RETENTION first, not selling: open with the human moment, the curiosity, the story, the demonstration or the experiment from the audience\'s perspective, build trust and interest, and bring the product in only at the end as a supporting element — or not at all — if it fits naturally. Serve attention & connection first, selling second.`;
 const TODAY_IDEA_DE = `${IDEA_COMMON_DE}
 
-Der Nutzer hat nur Unternehmen + Ziel (+ optional Zielgruppe) angegeben und NICHT gesagt, welche Videoart er möchte. DU wählst selbst den vielversprechendsten Video-Winkel (z. B. Vorher/Nachher, schnelles Tutorial, Behind-the-Scenes, Mythos-entkräftung, Produkt in Aktion, persönliche Geschichte, Transformation, passender Trend-Remix). Wähle EINEN, der dem genannten Ziel am besten dient.
+Der Nutzer hat nur Unternehmen + Ziel (+ optional Zielgruppe) angegeben und NICHT gesagt, welche Videoart er möchte. DU wählst die Content-Richtung hier NICHT selbst: Die verbindliche Content-Richtung steht im Nutzer-Prompt („Content-Richtung (von Growimo gewählt, VERBINDLICH — aus dem Katalog)"). Folge ihr strikt und baue die Idee GENAU in dieser Richtung auf.
 
-Das ist eine „Was soll ich heute posten?"-Idee. Greife NICHT zur Standard-Werbe-Struktur — genau das gilt es zu vermeiden. Es zählt zuerst AUFMERKSAMKEIT und ZUSCHAUERBINDUNG, nicht das Verkaufen: beginne mit dem menschlichen Moment, der Neugier, der Story, der Demonstration oder dem Experiment, schaffe Vertrauen und Interesse, und bringe das Produkt erst am Ende ein — oder gar nicht — wenn es natürlich passt. Prüfe ZUERST den MARKENKONTEXT auf eine aktuelle Herausforderung / echtes Problem / offene Spannung und, wenn eine konkret verwertbar ist, baue heute die Idee GRUNDSÄTZLICH um DIESE ehrliche Story (z. B. „Ich habe eine Marketing-Plattform gebaut. Das Problem? Fast niemand testet sie." → Dashboard/Beta zeigen → erklären, dass kaum Tester kommen → Growimo selbst fragen, was gepostet werden soll → Empfehlung testen). Verfalle NICHT in eine generische Produktdemo („Zeig, wie einfach es ist, Growimo zu nutzen"), wenn eine echte Herausforderung vorliegt — das wäre austauschbare Werbung. Wähle das authentische Format selbst; verfalle niemals in einen generischen Verkaufstext. Erst Aufmerksamkeit & Bindung, dann Verkauf.`;
+Richtungs-Katalog (die Richtung kommt IMMER aus der PERSPEKTIVE DER ZIELGRUPPE — was hilft oder begeistert sie? — NICHT aus der Produktperspektive):
+1. Problem/Lösung — ein konkretes Problem der Zielgruppe benennen und lösen.
+2. Konkreter Tipp — ein sofort umsetzbarer Tipp für die Zielgruppe.
+3. Häufiger Fehler — ein häufiger Fehler der Zielgruppe, gezeigt und korrigiert.
+4. Überraschende Erkenntnis — eine Erkenntnis, mit der die Zielgruppe nicht rechnet.
+5. Vorher/Nachher — eine Transformation, die die Zielgruppe nachvollziehen kann.
+6. Experiment — ein kleines Experiment, das die Zielgruppe mitfiebern lässt.
+7. Storytelling — eine echte Geschichte aus dem Umfeld der Zielgruppe.
+8. Mythos — ein verbreiteter Mythos der Zielgruppe, widerlegt.
+9. Checkliste — eine kompakte Schritt-für-Schritt-Checkliste für die Zielgruppe.
+10. Ergebnis — ein konkretes Ergebnis, das die Zielgruppe erreichen möchte.
+
+So wählst du das Thema INNERHALB der vorgegebenen Richtung: Frage dich, was die ZIELGRUPPE heute wirklich interessiert, verunsichert oder begeistert (aus ihrem Alltag, ihren Fragen, ihren Fehlern, ihren Zielen — ableitbar aus Zielgruppe, Unternehmen/Produkt und Ziel). Das Produkt/Unternehmen darf höchstens als Beiwerk, Beispiel oder Umsetzungs-Hilfe INNERHALB der gewählten Richtung auftauchen — NICHT als Thema der Idee.
+
+SELBSTREFERENZ-VERBOT (heute-Idee): VERBOTEN sind selbstreferenzielle Meta-Ideen, die die eigene Marke/das eigene Produkt zum Testobjekt machen, z. B. „Kann Growimo eine TikTok-Idee erstellen?", „Wir testen unser eigenes Produkt", „Wie gut ist meine TikTok-Idee wirklich?", „Kann eine KI eine Strategie verbessern?". Solche Ideen sind austauschbare Selbstreferenz und gelten als werblich → setze Q3/Q4 im selfCheck auf true (verwerfen und NEU generieren). Ausnahme: Wenn der MARKENKONTEXT eine konkrete, verwertbare AKTUELLE Herausforderung enthält (z. B. „Beta gestartet, aber kaum Tester"), darfst du die Idee um diese ehrliche Situation bauen — die Story zählt dann, nicht das Produkt.
+
+Das ist eine „Was soll ich heute posten?"-Idee. Greife NICHT zur Standard-Werbe-Struktur — genau das gilt es zu vermeiden. Es zählt zuerst AUFMERKSAMKEIT und ZUSCHAUERBINDUNG, nicht das Verkaufen: beginne mit dem menschlichen Moment, der Neugier, der Story, der Demonstration oder dem Experiment aus der Zielgruppen-Perspektive, schaffe Vertrauen und Interesse, und bringe das Produkt höchstens am Ende als Beiwerk ein — oder gar nicht — wenn es natürlich passt. Erst Aufmerksamkeit & Bindung, dann Verkauf.`;
 
 const CONCEPT_EN = `${IDEA_COMMON_EN}
 
@@ -584,6 +627,31 @@ function buildUserPrompt(input: TikTokInput, lang: TikTokLang): string {
         de
           ? 'Kein Thema angegeben — wähle selbst ein sinnvolles Thema basierend auf dem Markenkontext / der Unternehmensbeschreibung (z. B. ein konkretes Produkt, eine typische Situation der Zielgruppe oder eine aktuelle Marken-Herausforderung) und baue das komplette Konzept darum. KEINE Rückfragen an den Nutzer.'
           : 'No topic provided — choose a fitting topic yourself based on the BRAND CONTEXT / business description (e.g. a concrete product, a typical target-audience situation or a current brand challenge) and build the complete concept around it. Do NOT ask the user back.',
+      );
+    }
+  }
+  // Diversität todayIdea: die Content-Richtung wird in CODE deterministisch
+  // gewählt (Katalog-Rotation, zuletzt verwendete Richtung ausgeschlossen) und
+  // als VERBINDLICHES Feld in den Prompt gegeben — nicht dem LLM-Zufall
+  // überlassen. Fehlt previousDirection (Fallback ohne Client-Änderung), wählt
+  // die Engine deterministisch den Katalog-Start.
+  if (input.mode === 'todayIdea') {
+    const dir = pickTodayIdeaDirection(input.previousDirection);
+    lines.push(
+      de
+        ? `Content-Richtung (von Growimo gewählt, VERBINDLICH — aus dem Katalog): ${dir}`
+        : `Content direction (chosen by Growimo, MANDATORY — from the catalog): ${tiktokDirectionLabel(dir, false)}`,
+    );
+    lines.push(
+      de
+        ? 'Baue die Idee GENAU in dieser Richtung und aus der PERSPEKTIVE DER ZIELGRUPPE auf (was hilft oder begeistert die Zielgruppe?) — NICHT aus der Produktperspektive. Das Produkt darf höchstens als Beiwerk/Beispiel innerhalb der Richtung vorkommen, NICHT als Thema.'
+        : "Build the idea EXACTLY in this direction, from the TARGET AUDIENCE\'s perspective (what helps or excites them?) — NOT from the product perspective. The product may appear at most as a supporting element/example within the direction, NOT as the topic.",
+    );
+    if (isTiktokIdeaDirection(input.previousDirection)) {
+      lines.push(
+        de
+          ? `Letzte Content-Richtung (nicht wiederholen): ${input.previousDirection}`
+          : `Previous content direction (do not repeat): ${tiktokDirectionLabel(input.previousDirection, false)}`,
       );
     }
   }
@@ -957,6 +1025,41 @@ function ruleABViolations(blob: string): string[] {
   return hits;
 }
 
+// ── Deterministische Selbstreferenz-Erkennung (todayIdea) ───────────────────
+// Produktzentrierte Selbstthematisierung („Kann Growimo eine TikTok-Idee
+// erstellen?", „Wir testen unser eigenes Produkt", „Wie gut ist meine Idee
+// wirklich?") wird auf CODE-Ebene erkannt und wie ein Soft-Reject behandelt:
+// die Idee wird verworfen und neu generiert. Nur für todayIdea — bei concept
+// ist das genannte Thema der Gegenstand des Videos (dort greift die Regel
+// nicht). Muster sind bewusst eng gefasst, um echte Zielgruppen-Themen
+// („Kann die KI beim Texten helfen?") nicht fälschlich abzulehnen.
+const SELF_REFERENCE_PATTERNS: Array<{ name: string; re: RegExp }> = [
+  // DE: „Kann Growimo / unser Produkt / eine KI ...?" (Meta-Frage über das eigene Produkt)
+  { name: 'kann (Growimo|unser X|eine KI)', re: /\bkann\s+(?:growimo|unser(?:\s+eigenes?)?\s+(?:produkt|app|plattform|tool|marke|software)|eine\s+ki|eine\s+ai)\b/i },
+  { name: 'was kann Growimo', re: /\bwas\s+kann\s+(?:growimo|unser\s+produkt)\b/i },
+  // DE: „(Wir) testen unser (eigenes) Produkt / meine eigene App"
+  { name: 'testen wir unser X', re: /\b(?:testen|teste|testet|ausprobieren|austesten)\s+wir\s+(?:unser|das|unsere)/i },
+  { name: 'unser X testen', re: /\bunser(?:\s+eigenes?)?\s+(?:produkt|app|plattform|tool|marke|software)\s+(?:testen|ausprobieren)\b/i },
+  // DE: „Wie gut ist meine ...?" / „Lässt sich unser ...?"
+  { name: 'wie gut ist meine', re: /\bwie\s+gut\s+(?:ist|sind|kann)\s+(?:mein|meine|unser|unsere)\b/i },
+  { name: 'lässt sich unser', re: /\blässt\s+sich\s+(?:growimo|unser\s+produkt|unsere\s+app)\s+(?:verbessern|optimieren|nutzen)\b/i },
+  // EN: „Can Growimo / our product / an AI ...?"
+  { name: 'can (Growimo|our X|an AI)', re: /\bcan\s+(?:growimo|our(?:\s+own\s+)?(?:product|app|platform|tool|brand|software)|an?\s+ai)\b/i },
+  { name: 'what can Growimo', re: /\bwhat\s+can\s+(?:growimo|our\s+product)\b/i },
+  // EN: „(let's) test our (own) product / my own app"
+  { name: "(let's) test our X", re: /\b(?:let's|lets|we)\s+(?:test|try|try\s+out)\s+our\s+(?:own\s+)?(?:product|app|platform|tool|brand|software)\b/i },
+  { name: 'my own app tested', re: /\b(?:my|our)\s+own\s+(?:app|product|platform|tool|brand|software)\s*(?:tested|tried)\b/i },
+  { name: 'test my own app', re: /\b(?:test|try|try\s+out)\s+(?:my|our)\s+own\s+(?:app|product|platform|tool|brand|software)\b/i },
+  // EN: „How good is my ...?"
+  { name: 'how good is my', re: /\bhow\s+good\s+(?:is|are|can)\s+(?:my|our)\b/i },
+];
+/** Liefert die Namen aller zutreffenden Selbstreferenz-Muster (leer = ok).
+ *  Nur für todayIdea (siehe Aufrufer in der Retry-Schleife). */
+function selfReferenceViolations(blob: string): string[] {
+  const hits: string[] = [];
+  for (const { name, re } of SELF_REFERENCE_PATTERNS) if (re.test(blob)) hits.push('SELF-REF:' + name);
+  return hits;
+}
 function buildRetryHint(lang: TikTokLang, violations: string[] = [], mode: TikTokMode = 'todayIdea'): string {
   if (mode === 'diagnose') {
     const rulePart =
@@ -976,8 +1079,8 @@ function buildRetryHint(lang: TikTokLang, violations: string[] = [], mode: TikTo
         : ` DETECTED RULE VIOLATIONS IN THE REJECTED IDEA: ${violations.join(', ')} — remove those words/phrases COMPLETELY and replace them with authentic curiosity/possibility (Rule A: no concrete unproven numbers/times/success promises; Rule B: no prescribed/artificial reaction — do not write any reaction into scenes/overlays unless it genuinely arises from the shown real result).`
       : '';
   return lang === 'de'
-    ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Idee wurde intern verworfen (zu austauschbar / zu werblich / ohne echte Markenfakten oder Challenge-Bezug — oder weil sie ein erfundenes Testimonial / eine zitierte Person / erfundenes Nutzerfeedback enthielt, das nicht im MARKENKONTEXT belegt ist, ODER weil sie ein unbelegtes konkretes Leistungs-/Zeit-Versprechen oder eine vorgegebene künstliche Reaktion/Begeisterung enthielt).' + rulePart + ' Erzeuge JETZT eine deutlich bessere, neue Idee: baue sie um eine reale, konkrete Information aus dem MARKENKONTEXT — am besten um die aktuelle Herausforderung / das echte Problem / das offene Experiment — und NICHT um generische Produktwerbung. Erfinde keinerlei Nutzer/Tester/Testimonials/Zitate; zeige stattdessen die EIGENE Idee / das EIGENE Experiment des Creators in der echten App (echte Bildschirmaufnahme). Mache KEINERLEI unbelegtes konkretes Leistungs-/Zeit-/Ergebnis-Versprechen (kein „in nur X Sekunden/Minuten/Tagen/Wochen", kein „+X%", kein „verdoppelt die Reichweite", kein „viral gehen") und KEINE vorgegebene künstliche Reaktion/Begeisterung (kein „Wow!", kein „Da staunen alle", keine aufgesetzte Überraschung — eine Reaktion nur, wenn sie das gezeigte tatsächliche Ergebnis echt erzeugt, sonst ganz weglassen). Setze alle sieben selfCheck-Booleans ehrlich auf bestehen.'
-    : '\n\nQUALITY SELF-CHECK NOTE: The previous idea was internally rejected (too interchangeable / too ad-like / without real brand facts or challenge tie-in — or because it contained an invented testimonial / quoted person / invented user feedback not backed by the BRAND CONTEXT, OR because it contained an unproven concrete performance/time promise or a prescribed artificial reaction/enthusiasm).' + rulePart + ' NOW produce a clearly better, NEW idea: build it around a real, concrete fact from the BRAND CONTEXT — ideally the current challenge / genuine problem / open experiment — and NOT around generic product advertising. Do not invent any users/testers/testimonials/quotes; instead show the creator\'s OWN idea / OWN experiment inside the real app (real screen recording). Make NO unproven concrete performance/time/result promise (no "in just X seconds/minutes/days/weeks", no "+X%", no "doubles your reach", no "go viral") and NO prescribed artificial reaction/enthusiasm (no "Wow!", no "everyone is amazed", no staged surprise — a reaction only if genuinely produced by the shown real result, otherwise omit it entirely). Set all seven selfCheck booleans truthfully to passing.';
+    ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Idee wurde intern verworfen (zu austauschbar / zu werblich / ohne echte Markenfakten oder Challenge-Bezug — oder weil sie ein erfundenes Testimonial / eine zitierte Person / erfundenes Nutzerfeedback enthielt, das nicht im MARKENKONTEXT belegt ist, ODER weil sie ein unbelegtes konkretes Leistungs-/Zeit-Versprechen oder eine vorgegebene künstliche Reaktion/Begeisterung enthielt).' + rulePart + ' Erzeuge JETZT eine deutlich bessere, neue Idee: bleibe in der vorgegebenen Content-Richtung und baue sie aus der PERSPEKTIVE DER ZIELGRUPPE (was hilft oder begeistert die Zielgruppe?) — NICHT aus der Produktperspektive. Verboten sind produktzentrierte Selbstreferenz-Ideen („Kann Growimo eine TikTok-Idee erstellen?", „Wir testen unser eigenes Produkt", „Wie gut ist meine TikTok-Idee wirklich?"); das Produkt darf höchstens als Beiwerk/Beispiel vorkommen, niemals als Thema. Erfinde keinerlei Nutzer/Tester/Testimonials/Zitate; zeige stattdessen einen echten, ehrlichen Prozess aus der Zielgruppen-Perspektive. Mache KEINERLEI unbelegtes konkretes Leistungs-/Zeit-/Ergebnis-Versprechen (kein „in nur X Sekunden/Minuten/Tagen/Wochen", kein „+X%", kein „verdoppelt die Reichweite", kein „viral gehen") und KEINE vorgegebene künstliche Reaktion/Begeisterung (kein „Wow!", kein „Da staunen alle", keine aufgesetzte Überraschung — eine Reaktion nur, wenn sie das gezeigte tatsächliche Ergebnis echt erzeugt, sonst ganz weglassen). Setze alle sieben selfCheck-Booleans ehrlich auf bestehen.'
+    : '\n\nQUALITY SELF-CHECK NOTE: The previous idea was internally rejected (too interchangeable / too ad-like / without real brand facts or challenge tie-in — or because it contained an invented testimonial / quoted person / invented user feedback not backed by the BRAND CONTEXT, OR because it contained an unproven concrete performance/time promise or a prescribed artificial reaction/enthusiasm).' + rulePart + ' NOW produce a clearly better, NEW idea: stay in the given content direction and build it from the TARGET AUDIENCE\'s perspective (what helps or excites them?) — NOT from the product perspective. Product-centric self-referential ideas are forbidden ("Can Growimo create a TikTok idea?", "We test our own product", "How good is my TikTok idea really?"); the product may appear at most as a supporting element/example, never as the topic. Do not invent any users/testers/testimonials/quotes; instead show a real, honest process from the audience\'s perspective. Make NO unproven concrete performance/time/result promise (no "in just X seconds/minutes/days/weeks", no "+X%", no "doubles your reach", no "go viral") and NO prescribed artificial reaction/enthusiasm (no "Wow!", no "everyone is amazed", no staged surprise — a reaction only if genuinely produced by the shown real result, otherwise omit it entirely). Set all seven selfCheck booleans truthfully to passing.';
 }
 
 // ── Phase 2 — Vollständigkeitsprüfung („Vollständiges Konzept") ─────────────
@@ -1322,7 +1425,7 @@ export async function generateTikTok(
         console.log(
           `[tiktok] diagnose ${reason} REJECTED (attempt ${attempt}) — regenerating` +
             (result.selfCheck ? ` selfCheck=${JSON.stringify(result.selfCheck)}` : '') +
-            (violations.length > 0 ? ` ruleA/B=${violations.join('|')}` : ''),
+            (lastViolations.length > 0 ? ` ruleA/B+selfRef=${lastViolations.join('|')}` : ''),
         );
         if (attempt < MAX_TIKTOK_ATTEMPTS) continue;
         // Fail closed: NIE eine Diagnose ausgeben, die Kennzahlen erfindet,
@@ -1338,14 +1441,20 @@ export async function generateTikTok(
       // eine verbotene/regelwidrige Idee wird auch dann verworfen, wenn sie
       // zudem unvollständig ist — die Ablehnungsgründe gehen nie verloren.
       const violations = ruleABViolations(ideaContentBlob(result));
-      lastViolations = violations;
+      // Diversität/Inhalt (todayIdea): deterministische Selbstreferenz-Erkennung
+      // („Kann Growimo eine TikTok-Idee erstellen?", „Wir testen unser eigenes
+      // Produkt", …) → Soft-Reject + Retry, damit keine produktzentrierte
+      // Selbstthematisierung ausgegeben wird.
+      const selfRefs =
+        input.mode === 'todayIdea' ? selfReferenceViolations(ideaContentBlob(result)) : [];
+      lastViolations = [...violations, ...selfRefs];
       const scRejected = result.selfCheck ? selfCheckRejected(result.selfCheck) : false;
-      if (scRejected || violations.length > 0) {
+      if (scRejected || lastViolations.length > 0) {
         const reason = scRejected ? 'self-check' : 'Rule A/B';
         console.log(
           `[tiktok] ${input.mode} ${reason} REJECTED (attempt ${attempt}) — regenerating` +
             (result.selfCheck ? ` selfCheck=${JSON.stringify(result.selfCheck)}` : '') +
-            (violations.length > 0 ? ` ruleA/B=${violations.join('|')}` : ''),
+            (lastViolations.length > 0 ? ` ruleA/B+selfRef=${lastViolations.join('|')}` : ''),
         );
         if (attempt < MAX_TIKTOK_ATTEMPTS) continue;
         // Fail closed bei Regel-Verletzungen: NIE eine Regel-A-/B-Verletzung ausgeben.
