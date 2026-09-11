@@ -268,6 +268,12 @@ async function main() {
     await runPhaseFile(f);
   }
   await hardeningTests();
+  // [6] Transport-Regressions-Test (Produktions-Regression 2026-09): echtes
+  // ServerFn-Transport mit signal im Payload vs. ohne + Round-Trip durch den
+  // gebauten SSR-Server (dist) + Git-Regression der gemeinsamen AI-/Stream-
+  // Infrastruktur. Läuft offline (ohne .env) UND mit .env grün.
+  console.log('\n[6/6] Transport-Regressions-Test: transport-regression-test.ts');
+  await runPhaseFile('transport-regression-test.ts');
   server.stop(true);
   console.log('\n===== GESAMT =====');
   console.log(`Summe PASS: ${passed}  FAIL: ${failed}`);
