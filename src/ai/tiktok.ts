@@ -14,9 +14,26 @@
 // Constraint erlaubt derzeit kein 'tiktok_idea'); der Owner will primär die
 // Erweiterung. Kein bestehendes Feature/Typ wird dadurch verändert.
 import OpenAI from 'openai';
+import { hasMetricPattern, sanitizeUnbackedMetrics } from './metric-guard';
 
 export type TikTokMode = 'todayIdea' | 'concept' | 'diagnose';
 export type TikTokLang = 'de' | 'en';
+
+/** Phase 4 — Projekt-Kontext (lesend, optional): kompakter Faktenblock aus
+ *  einem vom Nutzer gewählten Projekt (PostgreSQL). Nur vorhandene Felder werden
+ *  übernommen; 'brief' ist der vorgerenderte F6-Strategie-Brief-Extrakt (de/en).
+ *  Die Engine behandelt diesen Block als zusätzliche FAKTENQUELLE (wie den
+ *  MARKENKONTEXT): sie nutzt ausschließlich diese Felder und erfindet nichts. */
+export interface TikTokProjectContext {
+  /** Projekt-ID (nur zur Referenz; wird nicht persistiert). */
+  projectId?: string;
+  /** Projekttitel (existiert immer in der DB). */
+  title?: string;
+  /** productIdea des Projekts. */
+  productIdea?: string;
+  /** Strategie-Brief-Extrakt (vorgerendert, nur vorhandene Felder). */
+  brief?: string;
+}
 
 // Alle Felder optional: Phase 1 trennt „0" von „fehlt" — nur tatsächlich
 // angegebene Werte werden in den Prompt übernommen (fehlende werden weggelassen).
@@ -39,6 +56,9 @@ export interface TikTokInput {
   audience?: string; // optionale Zielgruppe
   topic?: string; // nur concept
   metrics?: TikTokMetrics; // nur diagnose
+  /** Phase 4 — Projekt-Kontext (lesend, optional): nur von todayIdea/concept
+   *  genutzt; diagnose bleibt rein zahlenbasiert. */
+  projectContext?: TikTokProjectContext;
 }
 
 /** Interner Qualitäts-Selbsttest (heute-Idee): ehrliche Antworten des Modells
@@ -228,7 +248,7 @@ Rules:
 - Output must be in English.
 - Be concrete, specific and practical. Never generic ("make a fun video" is forbidden). Every idea must be so concrete that the user could film it directly (specific scenes, what to show and say).
 - Tie everything to the business/goal/audience provided. Never invent anything that is not in the business description: no features, offers, prices, or claims that do not follow from it.
-- FACT CONTROL (hard rule): Use ONLY facts from the MARKENKONTEXT (or what the user explicitly provided). NEVER invent buttons, features, results, customers, downloads, views, likes, success stories, testimonials or any metric. If a piece of information is missing, develop an idea that works WITHOUT that claim instead of inventing details. Growimo must never claim anything that is not in the MARKENKONTEXT as a known fact.
+- FACT CONTROL (hard rule): Use ONLY facts from the MARKENKONTEXT (or what the user explicitly provided). NEVER invent buttons, features, results, customers, downloads, views, likes, success stories, testimonials or any metric. If a piece of information is missing, develop an idea that works WITHOUT that claim instead of inventing details. Growimo must never claim anything that is not in the MARKENKONTEXT as a known fact. A PROJECT CONTEXT block (when provided) is an equally authoritative fact source for the selected project: use ONLY the fields it actually contains, never invent project facts, and never expand a Strategie-Brief field that is not present.
 - NO INVENTED PEOPLE / TESTIMONIALS / USER FEEDBACK (HARD RULE): It is FORBIDDEN to claim that any real person (user, customer, tester, beta user) said something, experienced something, or gave feedback about the product — UNLESS a real quote or proof actually appears in the MARKENKONTEXT or the user explicitly provided it. An example such as "a real user gives honest feedback on the beta" is UNACCEPTABLE because it is an invented testimonial. NEVER invent users, testers, ratings, reviews, experiences, results, revenue, reach or success stories. If NO real user/data exists, NEVER present it as real — instead develop authentic alternatives, e.g. "I test my own marketing app — here is what came out of it", "I give Growimo an idea and show you the result", or "Can an AI turn a single idea into a complete content plan?" This rule applies to the idea, the hook, the scenes, the overlays, the caption and the marketing strategy alike.
 - BETA / EARLY-STAGE AUTHORIZED ALTERNATIVE (preferred): When the brand context describes a beta/startup in an early phase (markers such as "beta", "live", "few testers", "early phase") and there is NO real user feedback, PREFER a story that demonstrates a REAL feature / the REAL product and can be produced with REAL screen recordings of the actual app (e.g. "I test my own marketing app — here is what came out", "I give Growimo an idea and show you the result from the tool"). So instead of claiming that users/testimonials exist, the story shows the creator's OWN idea / OWN experiment inside the real app.
 - NO FAKE SCREENS / NON-EXISTENT FEATURES: Screenshots and on-screen overlays may show ONLY real, actually existing views. NEVER invent growth dashboards, fake ratings, or UI elements / feature names that do not exist. Scene descriptions may only show the real scope of the product — invent nothing that is not there.
@@ -300,7 +320,7 @@ Regeln:
 - Ausgabe vollständig auf Deutsch.
 - Sei konkret, spezifisch und praktisch. Niemals generisch („Mach ein lustiges Video" ist verboten). Jede Idee muss so konkret sein, dass der Nutzer sie direkt filmen kann (konkrete Szenen, was zu sehen/zu sagen ist).
 - Alles auf Unternehmen/Ziel/Zielgruppe abstimmen. Erfinde nichts, was nicht in der Unternehmensbeschreibung steht: keine Funktionen, Angebote, Preise oder Behauptungen, die nicht daraus hervorgehen.
-- FAKTENKONTROLLE (harte Regel): Verwende AUSSCHLIESSLICH Fakten aus dem MARKENKONTEXT (oder was der Nutzer explizit angegeben hat). Erfinde NIEMALS Buttons, Funktionen, Ergebnisse, Kunden, Downloads, Views, Likes, Erfolgsgeschichten, Testimonials oder irgendeine Metrik. Wenn eine Information fehlt, entwickle eine Idee, die OHNE diese Behauptung funktioniert, statt Details zu erfinden. Growimo darf nichts behaupten, was nicht als bekannte Tatsache im MARKENKONTEXT steht.
+- FAKTENKONTROLLE (harte Regel): Verwende AUSSCHLIESSLICH Fakten aus dem MARKENKONTEXT (oder was der Nutzer explizit angegeben hat). Erfinde NIEMALS Buttons, Funktionen, Ergebnisse, Kunden, Downloads, Views, Likes, Erfolgsgeschichten, Testimonials oder irgendeine Metrik. Wenn eine Information fehlt, entwickle eine Idee, die OHNE diese Behauptung funktioniert, statt Details zu erfinden. Growimo darf nichts behaupten, was nicht als bekannte Tatsache im MARKENKONTEXT steht. Ein PROJEKT-KONTEXT-Block (falls vorhanden) ist eine ebenso autoritative Faktenquelle für das gewählte Projekt: verwende AUSSCHLIESSLICH die Felder, die er tatsächlich enthält, erfinde keine Projekt-Fakten und erweitere kein Strategie-Brief-Feld, das nicht vorhanden ist.
 - KEINE ERFUNDENEN PERSONEN / TESTIMONIALS / NUTZERFEEDBACK (harte Regel): Es ist VERBOTEN zu behaupten, dass eine echte Person (Nutzer, Kunde, Tester, Beta-Nutzer) etwas über das Produkt gesagt/erlebt/Feedback gegeben hat, SOLANGE kein echtes Zitat oder Beleg im MARKENKONTEXT steht oder der Nutzer es explizit angegeben hat. Ein Beispiel wie „Eine echte Nutzerin gibt ehrliches Feedback zur Beta" ist UNZULÄSSIG, weil es ein erfundenes Testimonial darstellt. Erfinde NIEMALS Nutzer, Tester, Bewertungen, Rezensionen, Erfahrungen, Ergebnisse, Umsätze, Reichweiten oder Erfolgsgeschichten. Liegen KEINE echten Nutzerdaten vor, dürfen diese NIEMALS als real dargestellt werden — entwickle stattdessen authentische Alternativen, z. B. „Ich teste meine eigene Marketing-App — das kam dabei heraus", „Ich gebe Growimo eine Idee und zeige euch das Ergebnis" oder „Kann eine KI aus einer einzigen Idee einen kompletten Content-Plan erstellen?" Diese Regel gilt gleichermaßen für Idee, Hook, Szenen, Einblendungen, Caption und Marketing-Strategie.
 - BETA-/FRÜHPHASEN-ALTERNATIVE (autorisiert, bevorzugt): Wenn der Markenkontext ein Beta-/Startup-Projekt in früher Phase beschreibt (Marker wie „Beta", „live", „kaum Tester", „frühe Phase") und KEIN echtes Nutzerfeedback vorliegt, ziehe BEVORZUGT eine Story vor, die eine echte Funktion / das echte Produkt demonstriert und mit realen Bildschirmaufnahmen der tatsächlichen App umgesetzt werden kann (z. B. „Ich teste meine eigene Marketing-App — das kam dabei heraus", „Ich gebe Growimo eine Idee und zeige euch das Ergebnis aus dem Tool"). Statt also zu behaupten, dass Nutzer/Testimonials existieren, zeigt die Story die EIGENE Idee / das EIGENE Experiment des Creators in der echten App.
 - KEINE FAKE-SCREENS / NICHT VORHANDENE FUNKTIONEN: Screenshots und Einblendungen dürfen NUR echte, tatsächlich existierende Ansichten zeigen. Erfinde niemals Wachstums-Dashboards, Fake-Bewertungen oder UI-Elemente/Funktionsnamen, die es nicht gibt. Szenenbeschreibungen dürfen nur den echten Produktumfang zeigen — erfinde nichts, das nicht existiert.
@@ -507,6 +527,23 @@ function buildUserPrompt(input: TikTokInput, lang: TikTokLang): string {
     lines.push(de ? 'MARKENKONTEXT (authoritative Faktenbasis — NUR diese Fakten verwenden, NICHTS erfinden):' : 'BRAND CONTEXT (authoritative fact base — use ONLY these facts, invent nothing):');
     lines.push(input.brandContext);
   }
+  // Phase 4 — Projekt-Kontext (lesend, optional, only for the idea modes):
+  // das gewählte Projekt ist eine zusätzliche FAKTENQUELLE (nur vorhandene
+  // Felder; diagnose bleibt rein zahlenbasiert → kein Projekt-Block im Prompt).
+  if (input.projectContext && input.mode !== 'diagnose') {
+    const pc = input.projectContext;
+    const hasAny = Boolean(pc.title?.trim() || pc.productIdea?.trim() || pc.brief?.trim());
+    if (hasAny) {
+      lines.push(
+        de
+          ? 'PROJEKT-KONTEXT (Faktenquelle aus deinem gewählten Projekt — autoritativ für das Projekt; verwende NUR die vorhandenen Felder, erfinde NICHTS darüber hinaus):'
+          : 'PROJECT CONTEXT (fact source from your selected project — authoritative for this project; use ONLY the fields present, invent NOTHING beyond them):',
+      );
+      if (pc.title && pc.title.trim()) lines.push((de ? '- Projekttitel: ' : '- Project title: ') + pc.title.trim());
+      if (pc.productIdea && pc.productIdea.trim()) lines.push((de ? '- Produktidee: ' : '- Product idea: ') + pc.productIdea.trim());
+      if (pc.brief && pc.brief.trim()) lines.push(pc.brief.trim());
+    }
+  }
   if (input.biz) {
     lines.push(de ? 'Unternehmen / Produkt (kurz):' : 'Business / product (short):', input.biz);
   }
@@ -516,11 +553,31 @@ function buildUserPrompt(input: TikTokInput, lang: TikTokLang): string {
   if (input.audience) {
     lines.push(de ? ('Zielgruppe: ' + input.audience) : ('Target audience: ' + input.audience));
   }
+  if (input.mode === 'todayIdea' && input.projectContext) {
+    lines.push(
+      de
+        ? 'Das gewählte PROJEKT ist die Faktenbasis für die heutige Idee — baue die Idee um die konkreten Felder des PROJEKT-KONTEXT (nur vorhandene Werte; nichts zum Projekt erfinden).'
+        : 'The selected PROJECT is the fact base for today\'s idea — build the idea around the concrete fields of the PROJECT CONTEXT (only present values; invent nothing about the project).',
+    );
+  }
   if (input.mode === 'concept') {
     if (input.topic) {
       lines.push(
         de ? 'Thema / Produkt / grobe Idee:' : 'Topic / product / rough idea:',
         input.topic,
+      );
+      if (input.projectContext) {
+        lines.push(
+          de
+            ? 'Das genannte Thema ist der Gegenstand des Videos; nutze den PROJEKT-KONTEXT als Stil-/Faktenanker (nur vorhandene Felder, nichts erfinden).'
+            : 'The topic is the subject of the video; use the PROJECT CONTEXT as style/fact anchor (only present fields, invent nothing).',
+        );
+      }
+    } else if (input.projectContext) {
+      lines.push(
+        de
+          ? 'Kein Thema angegeben — wähle ein passendes Thema basierend auf dem PROJEKT-KONTEXT (Faktenquelle) und baue das komplette Konzept darum. KEINE Rückfragen an den Nutzer.'
+          : 'No topic provided — choose a fitting topic based on the PROJECT CONTEXT (fact source) and build the complete concept around it. Do NOT ask the user back.',
       );
     } else {
       lines.push(
@@ -930,6 +987,222 @@ function buildCompletenessHint(lang: TikTokLang, missing: string[]): string {
     : `\n\nCOMPLETENESS NOTE: The previous answer was INCOMPLETE — these REQUIRED concept fields were missing: ${missing.join(', ')}. NOW deliver the COMPLETE concept with ALL fields (idea, hook, length, format, title, timedScenes with time marks, scenes, overlays, spokenText, caption, hashtags, cta, why, imageIdeas with studioPrompt).`;
 }
 
+// ── Phase 4 — Post-Generation-Guard auf TikTok-Outputs (metric-guard) ────────
+// Entscheidung (dokumentiert): Die vorhandene sanitizeUnbackedMetrics()-Guard
+// (src/ai/metric-guard.ts) ist TEXT-basiert (Signatur: text, userContext →
+// bereinigter Text) und kann nicht direkt auf das strukturierte TikTok-Ergebnis
+// angewendet werden. Deshalb kommt ein TikTok-Pendant sanitizeTikTokResult()
+// zum Einsatz, das die Guard MIT DERSELBEN EHRLICHKEITS-ABSICHT rekursiv auf
+// jedes Textfeld des Ergebnisses anwendet und zwei TikTok-spezifische Lücken
+// schließt: (1) „nackte“ Wachstums-/Erfolgsbehauptungen wie „10k Follower
+// gewachsen“, die KEINE %/×/Raten-Muster enthalten (die Guard-RegEx greift dort
+// nicht) — hier erfolgt eine eigene, gleichartige LLM-Neutralisierung mit
+// identischer Schutzlogik für Nutzerzahlen; (2) alle Nutzerzahlen (metrics,
+// brandContext, projectContext, biz/topic/goal/audience) gelten als belegt und
+// werden nie angetastet. Ein Feld ohne kennzahlenartiges Muster wird per
+// Fast-Path unverändert gelassen (null Latenz, null LLM-Kosten). Zusätzlich
+// zum Pendant wird die Guard in der Retry-Schleife auf dem AKZEPTIERTEN
+// Ergebnis jedes Versuchs angewendet (alle Modi). Wirft nie.
+const NAKED_CLAIM_PATTERNS: RegExp[] = [
+  // „10k Follower gewachsen“ / „1.500 Views“ / „250 Reichweite“ / „10k followers“
+  /\b\d{1,3}(?:[.,]\d+)?\s*[kK]?\s*(followers?|reichweite|aufrufe|views?|klicks?|verkäufe?|sales|downloads?|saves)\b/i,
+  // „50% mehr Engagement“ ohne Nutzerbeleg (Ergänzung zur Guard: nur mit Qualifier,
+  // damit belegte Watch-Raten wie „38,1% Watch-Rate“ nicht als Claim zählen)
+  /\b\d{1,3}(?:[.,]\d+)?\s*%\s*(mehr|öfter|häufiger|schneller|higher|more|often|faster)\b/i,
+];
+/** Frische /g-Instanz (matchAll braucht global UND LastIndex 0 — shared /g-RegEx
+ *  würde durch vorherige test()/exec()-Aufrufe verschmutzt). */
+function cloneGlobal(re: RegExp): RegExp {
+  return new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
+}
+
+function hasNakedClaim(text: string): boolean {
+  if (!text) return false;
+  for (const re of NAKED_CLAIM_PATTERNS) {
+    const r = new RegExp(re.source, re.flags);
+    if (r.test(text)) return true;
+  }
+  return false;
+}
+
+/** Normalisiert eine Zahl für den Beleg-Vergleich (Trenner weg, k/m expandiert). */
+function normalizeNumberToken(raw: string): string {
+  const s = raw.trim().toLowerCase().replace(/\s*%\s*$/, '').trim();
+  const m = s.match(/^(\d+(?:[.,]\d+)?)\s*([km])?$/);
+  if (!m) return s.replace(/[^0-9]/g, '');
+  let num = m[1]!.replace(/[.,]/g, '');
+  if (m[2] === 'k') num = num + '000';
+  if (m[2] === 'm') num = num + '000000';
+  return num;
+}
+
+/** Enthält der Text eine nackte Kennzahl-Behauptung, deren Zahl NICHT in der
+ *  Nutzervorgabe steht (normalisierter Präsenz-Vergleich)? */
+function hasUnbackedNakedNumber(text: string, userContext: string): boolean {
+  const normalizedCtx = userContext.replace(/[^0-9]/g, '');
+  for (const re of NAKED_CLAIM_PATTERNS) {
+    for (const m of text.matchAll(cloneGlobal(re))) {
+      const numStr = m[0].match(/\d{1,3}(?:[.,]\d+)?/)?.[0] ?? '';
+      if (numStr && !normalizedCtx.includes(normalizeNumberToken(numStr))) return true;
+    }
+  }
+  return false;
+}
+
+/** Neutralisiert nackte (nicht-%, nicht-×) Kennzahlen-Claims via einem kompakten
+ *  GPT-4o-Aufruf — gleiche Absicht/Form wie die Guard: NUR die unbelegten Zahlen
+ *  werden entfernt, alles andere bleibt wortgleich. Wirft nie (Original bei Fehler). */
+async function neutralizeNakedClaims(text: string, userContext: string): Promise<string> {
+  const unbackedTokens: string[] = [];
+  const normalizedCtx = userContext.replace(/[^0-9]/g, '');
+  for (const re of NAKED_CLAIM_PATTERNS) {
+    for (const m of text.matchAll(cloneGlobal(re))) {
+      const full = m[0].trim();
+      const numStr = m[0].match(/\d{1,3}(?:[.,]\d+)?/)?.[0] ?? '';
+      if (numStr && !normalizedCtx.includes(normalizeNumberToken(numStr)) && !unbackedTokens.includes(full)) {
+        unbackedTokens.push(full);
+      }
+    }
+  }
+  if (unbackedTokens.length === 0) return text;
+  try {
+    const openai = await import('openai').then((mod) => mod.default);
+    const client = new openai({ apiKey: process.env.OPENAI_API_KEY });
+    const completion = await client.chat.completions.create({
+      model: 'gpt-4o',
+      temperature: 0,
+      messages: [
+        { role: 'system', content: 'Du neutralisierst Aussagen. Entferne NUR unbelegte Kennzahlen-Claims und ändere nichts anderes.' },
+        {
+          role: 'user',
+          content:
+            'Du neutralisierst Aussagen. Entferne NUR unbelegte Kennzahlen-Claims und ändere nichts anderes.\n' +
+            `Entferne bzw. neutralisiere AUSSCHLIESSLICH diese unbelegten Kennzahlen im Text (nimm die Zahl aus dem Satz und formuliere ohne sie weiter): ${unbackedTokens.join(', ')}. ` +
+            'Alle anderen Zahlen bleiben EXAKT unverändert. Wenn ein Satz NUR aus der Kennzahl bestünde, streiche ihn. Gib NUR den bereinigten Text zurück.\n' +
+            `Nutzervorgaben (belegt, NICHT entfernen):\n---\n${userContext.slice(0, 3000)}\n---\n\nZu bereinigender Text, Antworte mit dem bereinigten Text (und nur dem):\n${text}`,
+        },
+      ],
+    });
+    const cleaned = completion.choices[0]?.message?.content ?? text;
+    return cleaned.trim() && cleaned !== text ? cleaned : text;
+  } catch {
+    return text;
+  }
+}
+
+/** Reinigt ein einzelnes Textfeld: erst die vorhandene Guard (%, ×, Raten),
+ *  danach (falls noch nackte Claims übrig sind) die TikTok-spezifische Schicht. */
+async function cleanTikTokTextField(text: string, userContext: string): Promise<string> {
+  if (!text) return text;
+  const hasMetric = hasMetricPattern(text);
+  const hasNaked = hasNakedClaim(text);
+  if (!hasMetric && !hasNaked) return text;
+  let out = text;
+  if (hasMetric) {
+    const guarded = await sanitizeUnbackedMetrics(out, userContext);
+    out = guarded.text;
+  }
+  if (hasNakedClaim(out) && hasUnbackedNakedNumber(out, userContext)) {
+    out = await neutralizeNakedClaims(out, userContext);
+  }
+  return out;
+}
+
+/** Rekursiver Feld-Walk über das strukturierte TikTok-Ergebnis. */
+async function sanitizeTikTokValue(
+  value: unknown,
+  userContext: string,
+  changedRef: { v: boolean },
+): Promise<unknown> {
+  if (typeof value === 'string') {
+    const cleaned = await cleanTikTokTextField(value, userContext);
+    if (cleaned !== value) changedRef.v = true;
+    return cleaned;
+  }
+  if (Array.isArray(value)) {
+    const out: unknown[] = [];
+    for (const item of value) out.push(await sanitizeTikTokValue(item, userContext, changedRef));
+    return out;
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = await sanitizeTikTokValue(v, userContext, changedRef);
+    }
+    return out;
+  }
+  return value;
+}
+
+/** TikTok-Pendant zur metric-guard: wendet die Guard (bzw. die TikTok-Erweiterung)
+ *  auf alle Textfelder eines TikTok-Ergebnisses an (alle Modi). Wirft nie —
+ *  bei jedem Fehler bleibt das Original erhalten. Wird in der Retry-Schleife
+ *  auf dem akzeptierten Ergebnis jedes Versuchs angewendet. */
+export async function sanitizeTikTokResult(
+  result: TikTokResult,
+  userContext: string,
+): Promise<TikTokResult> {
+  try {
+    const changedRef = { v: false };
+    const cleaned = (await sanitizeTikTokValue(result, userContext, changedRef)) as TikTokResult;
+    if (!cleaned || typeof cleaned !== 'object' || !('mode' in cleaned)) return result;
+    return changedRef.v ? cleaned : result;
+  } catch {
+    return result;
+  }
+}
+
+/** Baut die belegte Nutzer-Basis für die Guard: alle Zahlen/Fakten, die der
+ *  Nutzer (oder sein Projekt/Markenprofil) geliefert hat → werden nie entfernt.
+ *  Enthält die Retentions-Werte in beiden Zahlenformaten (38,1 / 38.1, 2.500/2,500). */
+function buildSanitizeUserContext(input: TikTokInput): string {
+  const parts: string[] = [];
+  const push = (v: string | undefined) => {
+    if (v && v.trim()) parts.push(v.trim());
+  };
+  push(input.biz);
+  push(input.brandContext);
+  push(input.topic);
+  push(input.goal);
+  push(input.audience);
+  if (input.projectContext) {
+    push(input.projectContext.title);
+    push(input.projectContext.productIdea);
+    push(input.projectContext.brief);
+  }
+  const m = input.metrics;
+  if (m) {
+    const nums: string[] = ['metrics:'];
+    const maybe = (label: string, v: number | undefined) => {
+      if (v !== undefined && Number.isFinite(v)) {
+        nums.push(label + v, label + fmtInt(v, true), label + fmtInt(v, false));
+      }
+    };
+    maybe('views=', m.views);
+    maybe('likes=', m.likes);
+    maybe('comments=', m.comments);
+    maybe('shares=', m.shares);
+    maybe('avgWatch=', m.avgWatch);
+    maybe('profileVisits=', m.profileVisits);
+    if (m.length) nums.push('length=' + m.length);
+    const ret = computeRetention(m);
+    if (ret) {
+      nums.push(
+        'watchRate=' + fmtPct(ret.watchRatePct, true)
+          + ' ' + fmtPct(ret.watchRatePct, false)
+          + ' ' + String(ret.watchRatePct)
+          + ' ' + String(ret.watchRatePct).replace('.', ','),
+        'lengthS=' + ret.lengthSeconds,
+        'totalWatch=' + ret.totalWatchSeconds
+          + ' ' + fmtInt(ret.totalWatchSeconds, true)
+          + ' ' + fmtInt(ret.totalWatchSeconds, false),
+      );
+    }
+    parts.push(nums.join(' '));
+  }
+  return parts.join('\n');
+}
+
 // ── Hauptfunktion ────────────────────────────────────────────────────────────
 /**
  * Erzeugt ein strukturiertes TikTok-Ergebnis für einen der drei Modi.
@@ -1084,11 +1357,17 @@ export async function generateTikTok(
       }
     }
 
+    // Phase 4 — metric-guard auf TikTok-Outputs: das AKZEPTIERTE Ergebnis
+    // (aller Modi) durchläuft vor der Ausgabe die Guard (Pendant), damit keine
+    // erfundenen Leistungsdaten/Trends den Weg ins UI finden. Nutzerzahlen sind
+    // über buildSanitizeUserContext geschützt; ohne Muster = Fast-Path.
+    const sanitized = await sanitizeTikTokResult(result, buildSanitizeUserContext(input));
     console.log(
       `[tiktok] ${input.mode} OK (${lang}) — idea/analysis generated` +
-        (result.selfCheck ? ` selfCheck=${JSON.stringify(result.selfCheck)}` : ''),
+        (result.selfCheck ? ` selfCheck=${JSON.stringify(result.selfCheck)}` : '') +
+        (sanitized !== result ? ' [metric-guard applied]' : ''),
     );
-    return result;
+    return sanitized;
   }
 
   // Theoretisch unerreichbar (die Schleife wirft bei erschöpften Versuchen) — Sicherheitsnetz.

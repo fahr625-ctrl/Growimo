@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { useTranslation } from '~/i18n';
@@ -14,6 +14,9 @@ import {
   isBrandProfileComplete,
   type BrandProfile,
 } from '~/store/brand';
+import { getRecentProjects, type Project } from '~/store/projects';
+import { buildTikTokProjectContext } from '~/lib/tiktok-project-context';
+import { buildTikTokRecordingPlan } from '~/ai/action-plans/tiktok-recording';
 
 /** localStorage-Historie der zuletzt generierten TikTok-Ideen (Hooks). Max 10. */
 const TIKTOK_HISTORY_KEY = 'growimo_tiktok_history';
@@ -53,13 +56,16 @@ export function computeBrandGaps(
 /** Entscheidet, ob statt der Generierung die gezielte Minimal-Abfrage erscheint
  * (nur todayIdea): wenn weder ein Unternehmensfeld gefüllt ist noch ein
  * VOLLSTÄNDIGES Markenprofil (isBrandProfileComplete) die Fakten liefert —
- * also auch bei unvollständigem Profil, nicht nur ohne Profil. */
+ * also auch bei unvollständigem Profil, nicht nur ohne Profil. Phase 4: ein
+ * gewähltes Projekt (hasProject) liefert ebenfalls Fakten → dann KEINE
+ * Minimal-Abfrage (die Projekt-Fakten ersetzen die Markenangaben, nur lesend). */
 export function shouldShowMinimalQuery(
   mode: TikTokMode,
   biz: string,
   brandReady: boolean,
+  hasProject: boolean = false,
 ): boolean {
-  return mode === 'todayIdea' && biz.trim() === '' && !brandReady;
+  return mode === 'todayIdea' && biz.trim() === '' && !brandReady && !hasProject;
 }
 
 /** Phase 3 — Pflichtfelder der Diagnose (views + length + avgWatch): liefert die
@@ -132,7 +138,16 @@ function FieldBlock({ label, children }: { label: string; children: React.ReactN
 }
 
 function ResultView({ result }: { result: TikTokResult }) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
+  // Phase 4 — Aufnahme-/Umsetzungs-Anleitung (deterministisch, LLM-frei):
+  // wird nur für Idee-Ergebnisse gebaut (Diagnose → null, Abschnitt entfällt).
+  const recPlan = useMemo(
+    () =>
+      result.mode === 'diagnose'
+        ? null
+        : buildTikTokRecordingPlan(result as TikTokIdeaResult, locale),
+    [result, locale],
+  );
   if (result.mode === 'diagnose' && result.dataGap) {
     // Phase 3 — ehrlicher „zu wenig Daten"-Zustand: das Modell wurde nicht
     // gerufen; Growimo erklärt, was ohne die fehlenden Felder nicht beurteilbar
@@ -295,6 +310,32 @@ function ResultView({ result }: { result: TikTokResult }) {
           </div>
         </FieldBlock>
       )}
+      {/* Phase 4 — Aufnahme-/Umsetzungs-Anleitung (deterministischer Builder,
+          siehe src/ai/action-plans/tiktok-recording.ts — nur TikTok nutzt ihn). */}
+      {recPlan && (
+        <FieldBlock label={t.tiktok_result_recording}>
+          <p className="-mt-1 mb-3 text-xs text-gray-500">{t.tiktok_result_recording_hint}</p>
+          <ol className="space-y-3">
+            {recPlan.plan.map((s) => (
+              <li key={s.step} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-fuchsia-600 text-xs font-bold text-white">
+                    {s.step}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-gray-900">{s.action}</p>
+                    <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-gray-700">{s.detail}</p>
+                    <p className="mt-1.5 text-xs text-gray-500">
+                      <span className="font-semibold text-emerald-700">✓ {t.tiktok_result_recording_done}</span>{' '}
+                      {s.doneCriteria}
+                    </p>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </FieldBlock>
+      )}
     </div>
   );
 }
@@ -320,6 +361,11 @@ function TikTokContent() {
   // wirklich fehlenden 2–3 Felder abgefragt (Produkt/Angebot, Zielgruppe, Hauptziel).
   const [minimalQuery, setMinimalQuery] = useState<BrandGaps | null>(null);
   const [minimalError, setMinimalError] = useState<string | null>(null);
+  // Phase 4 — jüngste Projekte (LESEND, via getRecentProjects): kompakte
+  // Projektauswahl „Mein Projekt“ statt Topic-Eingabe. Keine Schreiboperationen.
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   useEffect(() => {
     track('tiktok_area_opened', user?.id);
@@ -340,6 +386,28 @@ function TikTokContent() {
     }
   }, []);
 
+  // Phase 4 — jüngste Projekte LESEND laden (max. 5) für die Projektauswahl.
+  // Bewusst non-blocking: schlägt das Laden fehl, nutzt der TikTok-Flow einfach
+  // die bisherigen Eingaben (keine Verschlechterung des Bestandsverhaltens).
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    setProjectsLoading(true);
+    getRecentProjects(user.id, 5)
+      .then((rows) => {
+        if (!cancelled) setProjects(Array.isArray(rows) ? rows : []);
+      })
+      .catch(() => {
+        /* Projekte sind optional — nie blockieren */
+      })
+      .finally(() => {
+        if (!cancelled) setProjectsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
   const brandReady = isBrandProfileComplete(brandProfile);
 
   // Metrik-Feld: leeres Feld = "nicht angegeben" (undefined, wird NICHT gesendet);
@@ -353,15 +421,24 @@ function TikTokContent() {
 
   const run = async (mode: TikTokMode) => {
     const brandContext = getBrandContext();
-    // concept/diagnose: ohne jegliche Markeninfos generischer Fehler (wie bisher).
-    if (!biz.trim() && !brandContext && mode !== 'todayIdea') {
+    // Phase 4 — gewähltes Projekt als LESENDE Faktenquelle (nur vorhandene
+    // Felder: title/productIdea/brief-Extrakt; nie erfinden, nie schreiben).
+    // Für die Diagnose wird bewusst KEIN Projekt-Kontext gesendet (die
+    // Diagnose bleibt rein zahlenbasiert — die Metriken oben sind die Basis).
+    const projectContextPayload = mode === 'diagnose'
+      ? undefined
+      : buildTikTokProjectContext(selectedProject, locale);
+    // concept/diagnose: ohne jegliche Marken-/Projektinfos generischer Fehler (wie bisher).
+    if (!biz.trim() && !brandContext && !projectContextPayload && mode !== 'todayIdea') {
       setErrorMessage(t.tiktok_error_brand);
       return;
     }
     // todayIdea: GEZIELTE Minimal-Abfrage statt generischer Fehlermeldung —
     // erscheint, wenn Markeninfos fehlen (kein Profil ODER Profil unvollständig
-    // per isBrandProfileComplete); abgeleitet aus den Lücken (max. 2–3 Felder).
-    if (shouldShowMinimalQuery(mode, biz, brandReady)) {
+    // per isBrandProfileComplete) UND kein Projekt gewählt ist; abgeleitet aus
+    // den Lücken (max. 2–3 Felder). Mit gewähltem Projekt liefern dessen Fakten
+    // die Basis (Phase 4).
+    if (shouldShowMinimalQuery(mode, biz, brandReady, Boolean(projectContextPayload))) {
       setMinimalQuery(computeBrandGaps(biz, audience, goal, brandProfile));
       setMinimalError(null);
       setActiveMode(mode);
@@ -403,6 +480,7 @@ function TikTokContent() {
         goal: goal || (brandProfile?.mainGoal?.trim() || undefined),
         audience: audience.trim() || undefined,
         topic: mode === 'concept' ? topic.trim() : undefined,
+        projectContext: projectContextPayload,
         metrics: mode === 'diagnose'
           ? {
               // 0-vs-fehlend: leere Felder → undefined (werden NICHT an die Engine
@@ -555,6 +633,34 @@ function TikTokContent() {
             </Link>
           </div>
         </section>
+      )}
+
+      {/* Phase 4 — Projektauswahl (LESEND): „Mein Projekt“ statt Topic-Eingabe.
+          Titel, Produktidee und Strategie-Brief (F6) werden als Faktenquelle an
+          die Engine geschickt (nur heute-Idee/Konzept; Diagnose bleibt zahlenbasiert). */}
+      {projects.length > 0 && (
+        <section className="rounded-2xl border border-violet-100 bg-white p-6 shadow-sm">
+          <label className="mb-2 block text-sm font-semibold text-gray-900">{t.tiktok_project_label}</label>
+          <select
+            value={selectedProject?.id ?? ''}
+            onChange={(e) => {
+              const id = e.target.value;
+              setSelectedProject(projects.find((p) => p.id === id) ?? null);
+            }}
+            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-violet-400"
+          >
+            <option value="">{t.tiktok_project_none}</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.title?.trim() || (p.productIdea || '').slice(0, 60)}
+              </option>
+            ))}
+          </select>
+          <p className="mt-2 text-xs text-gray-500">{t.tiktok_project_hint}</p>
+        </section>
+      )}
+      {projectsLoading && (
+        <div className="text-xs font-medium text-gray-400">{t.tiktok_project_loading}</div>
       )}
 
       {/* Schritt 1 — Unternehmens-Angaben */}

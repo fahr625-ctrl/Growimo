@@ -74,6 +74,25 @@ function fullDiagnosePayload(sc: TikTokDiagnoseSelfCheck = cleanDiagSelfCheck, r
   });
 }
 
+/** T4-Variante: Diagnose-Payload konsistent zu 0-Views-Eingabe (alle Zahlen sind
+ *  Nutzer-Metriken views=0/length=42s/avgWatch=0 → metric-guard Fast-Path). */
+function zeroDiagnosePayload() {
+  return JSON.stringify({
+    biggestProblem: 'Die Bindung bricht nach dem Hook ein: Durchschnittlich werden nur 0s von 42s gesehen (0,0% Watch-Rate).',
+    whatWorks: ['0 Aufrufe sind die Ausgangsbasis'],
+    whatToImprove: ['Die erste Einblendung kommt zu spät'],
+    newHook: 'So hältst du deine Zuschauer ab Sekunde 1 im Video',
+    optimized: 'Szene 1: Hook, Szene 2: Antwort, Szene 3: CTA',
+    nextTest: 'Setze die erste Einblendung auf Sekunde 1 und beobachte die Watch-Rate.',
+    lengthRecommendation: {
+      seconds: 20,
+      structure: '0-2s: Hook, 2-16s: Inhalt, 16-20s: CTA',
+      reason: 'Basierend auf deinen 0 Views und 0,0% Watch-Rate bei 42s Länge — kürze auf 20 Sekunden.',
+    },
+    selfCheck: cleanDiagSelfCheck,
+  });
+}
+
 /** Alte Diagnose OHNE lengthRecommendation (Parser-Fallback / Regression). */
 function oldDiagnosePayload() {
   return JSON.stringify({
@@ -168,7 +187,7 @@ await scenario('T3 diagnose OHNE length → dataGap (auch bei unparsbarer Länge
 
 // ── T4: diagnose mit echten 0-Werten → volle Diagnose, Retention kommt mit 0 klar
 await scenario('T4 diagnose mit echten 0-Werten (views=0, avgWatch=0) → volle Diagnose, kein Div-by-0', async () => {
-  currentResponder = () => fullDiagnosePayload();
+  currentResponder = () => zeroDiagnosePayload();
   const res = await generateTikTok(
     baseInput({ mode: 'diagnose', metrics: { views: 0, length: '42s', avgWatch: 0 } }),
     'de',

@@ -1,0 +1,34 @@
+TikTok-Modul Phase 4 — Test-Evidence (Kontext-Vertiefung)
+============================================================
+Datum: 2026-09-10  ·  Basis: 9e95eec0-Analyse + f4f5e306/6dfda1ac/bc58268d
+
+Tests (Bun-Mini-Server + Mock + reine Funktionen, KEINE echte DB):
+- tiktok-phase4-test.ts     : 75 PASS, 0 FAIL  (T1-T10)
+- tiktok-phase1-test.ts     : exit 0 (Regression — unverändert grün)
+- tiktok-phase2-test.ts     : exit 0 (Regression — unverändert grün)
+- tiktok-phase3-test.ts     : 75 PASS, 0 FAIL  (Regression; T4-Payload an 0-Views-Eingabe angeglichen, da metric-guard Phase 4 Zahlen schützt)
+
+Gates:
+- npx tsc -p tsconfig.gate.json --noEmit : 60 Fehler (= Baseline, 0 NEUE)
+- i18n de/en-Parität                     : 1423 Keys je Datei, keine Differenz
+
+Umgesetzt (nur TikTok-Scope):
+1. LESENDE Projektanbindung (getRecentProjects + metadata.brief via
+   buildTikTokProjectContext); UI-Projektauswahl „Mein Projekt“; optionaler
+   Server-Validator projectContext (title/productIdea/brief nur vorhandene
+   Felder; leere Blöcke verworfen; Diagnose bleibt zahlenbasiert ohne Projekt).
+2. Deterministischer TikTok-Aufnahme-Builder (LLM-frei, F5-Muster):
+   src/ai/action-plans/tiktok-recording.ts — Zubehör/Set-up, Szenen-Reihenfolge
+   mit Zeitangaben, Text-Einsprüche je Szene, Bild-Assets via Image-Studio,
+   Posting-Liste (Titel/Caption/Hashtags/CTA), Qualitäts-Checkliste; nur TikTok
+   nutzt ihn (eigene Exports, F5 unverändert).
+3. metric-guard auf TikTok-Outputs: sanitizeTikTokResult (TikTok-Pendant,
+   Entscheidung dokumentiert in src/ai/tiktok.ts) — rekursiver Feld-Walk über
+   alle Modi inkl. Retry-Schleife; fast-path ohne Kennzahl-Muster = 0 LLM-Calls.
+4. SelfCheck/Prompts: Projekt-/Brief-Kontext als FAKTENQUELLE (nur vorhandene
+   Felder; brief autoritativ; nie erfinden); heute-Idee/Konzept-Anker je nach
+   topic vorhanden/nicht; ohne Projekt unverändertes Verhalten.
+
+Befund Phase 4-Test (vor Fix): matchAll auf gemeinsam genutztem /g-RegEx mit
+verschmutztem lastIndex (test()/exec() davor) fand keine Treffer → auf frische
+RegExp-Instanzen umgestellt; `follower\b` → `followers?` für en-Plural.

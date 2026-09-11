@@ -810,6 +810,7 @@ export const generateTikTokServer = createServerFn({ method: 'POST' })
       topic?: unknown;
       metrics?: unknown;
       lang?: unknown;
+      projectContext?: unknown;
     };
     if (!d || typeof d !== 'object') throw new Error('data is required');
     const mode = d.mode as TikTokMode;
@@ -818,10 +819,33 @@ export const generateTikTokServer = createServerFn({ method: 'POST' })
     }
     const brandContext =
       typeof d.brandContext === 'string' && d.brandContext.trim() ? d.brandContext.trim() : undefined;
-    // biz ist Pflicht ODER ein (vollständiges) Markenprofil liefert die Fakten via brandContext.
+    // Phase 4 — Projekt-Kontext validieren (optional, LESEND): kompakter
+    // Faktenblock aus dem gewählten Projekt (title/productIdea/brief-Extrakt).
+    // Nur vorhandene String-Felder werden übernommen (nie erfinden); leere
+    // Blöcke werden verworfen (Flow verhält sich wie ohne Projekt).
+    const projectContext =
+      d.projectContext && typeof d.projectContext === 'object' && !Array.isArray(d.projectContext)
+        ? (() => {
+            const pc = d.projectContext as Record<string, unknown>;
+            const str = (v: unknown, max: number): string | undefined => {
+              if (typeof v !== 'string') return undefined;
+              const t = v.trim();
+              return t ? t.slice(0, max) : undefined;
+            };
+            const title = str(pc.title, 200);
+            const productIdea = str(pc.productIdea, 4000);
+            const brief = str(pc.brief, 6000);
+            const projectId = str(pc.projectId, 64);
+            if (!title && !productIdea && !brief) return undefined;
+            return { projectId, title, productIdea, brief };
+          })()
+        : undefined;
+    // biz ist Pflicht ODER ein (vollständiges) Markenprofil liefert die Fakten
+    // via brandContext ODER das gewählte Projekt liefert sie via projectContext
+    // (Phase 4 — „Mein Projekt“ statt Topic-Eingabe, nur lesend).
     if (typeof d.biz !== 'string' || !d.biz.trim()) {
-      if (!brandContext) {
-        throw new Error('biz (Unternehmensbeschreibung) oder ein Markenprofil ist erforderlich');
+      if (!brandContext && !projectContext) {
+        throw new Error('biz (Unternehmensbeschreibung), ein Markenprofil oder ein Projekt ist erforderlich');
       }
     }
     const history = Array.isArray(d.history)
@@ -886,6 +910,7 @@ export const generateTikTokServer = createServerFn({ method: 'POST' })
       audience: typeof d.audience === 'string' && d.audience.trim() ? d.audience.trim() : undefined,
       topic: typeof d.topic === 'string' && d.topic.trim() ? d.topic.trim() : undefined,
       metrics,
+      projectContext,
       lang: (d.lang === 'en' ? 'en' : 'de') as 'de' | 'en',
     };
   })
