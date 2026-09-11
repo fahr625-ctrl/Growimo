@@ -916,6 +916,17 @@ export const generateTikTokServer = createServerFn({ method: 'POST' })
   })
   .handler(async ({ data }): Promise<TikTokResult> => {
     console.log('[server.generateTikTok]', data.mode, 'lang:', data.lang, 'biz:', data.biz.slice(0, 60));
-    const { generateTikTok } = await import('./tiktok');
-    return generateTikTok(data, data.lang);
+    const { generateTikTok, TIKTOK_TIMEOUT_MS } = await import('./tiktok');
+    // Phase 5 — Server-seitiges Timeout: der TikTok-Aufruf (1 blockierender Call
+    // mit bis zu 4 Retries) darf höchstens TIKTOK_TIMEOUT_MS laufen. Bei Ablauf
+    // bricht das Signal die Retry-Schleife ab und die Engine liefert eine
+    // ehrliche Fehlermeldung statt eines Hängers. Bewusst < Client-Timeout
+    // (90 s), damit die saubere Antwort vor dem Client-Timeout ankommt.
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), TIKTOK_TIMEOUT_MS);
+    try {
+      return await generateTikTok(data, data.lang, ctrl.signal);
+    } finally {
+      clearTimeout(timer);
+    }
   });

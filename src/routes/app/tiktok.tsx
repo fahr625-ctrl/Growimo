@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { useTranslation } from '~/i18n';
@@ -17,6 +17,7 @@ import {
 import { getRecentProjects, type Project } from '~/store/projects';
 import { buildTikTokProjectContext } from '~/lib/tiktok-project-context';
 import { buildTikTokRecordingPlan } from '~/ai/action-plans/tiktok-recording';
+import { guardTikTokRun } from '~/lib/tiktok-safeguards';
 
 /** localStorage-Historie der zuletzt generierten TikTok-Ideen (Hooks). Max 10. */
 const TIKTOK_HISTORY_KEY = 'growimo_tiktok_history';
@@ -419,6 +420,14 @@ function TikTokContent() {
     return Number.isFinite(n) ? n : undefined;
   };
 
+  // Phase 5 — Härtung: 1 blockierender Server-Call (serverseitig bis zu 4
+  // Retries) wird clientseitig mit Timeout (~90 s) + Abbruch-Button versehen.
+  // Die Guard nutzt AbortSignal — createServerFn reicht es an den fetch durch,
+  // sodass ein abgebrochener Request wirklich beendet wird (kein Hänger).
+  const runGuardRef = useRef<ReturnType<typeof guardTikTokRun<TikTokResult>> | null>(null);
+  const handleAbortTikTok = () => {
+    runGuardRef.current?.abort('user');
+  };
   const run = async (mode: TikTokMode) => {
     const brandContext = getBrandContext();
     // Phase 4 — gewähltes Projekt als LESENDE Faktenquelle (nur vorhandene
@@ -497,7 +506,9 @@ function TikTokContent() {
         lang: locale,
       };
       console.info('[tiktok] calling generateTikTokServer at', new Date().toISOString());
-      const res = await generateTikTokServer({ data: payload });
+      const guarded = guardTikTokRun((signal) => generateTikTokServer({ data: payload, signal }));
+      runGuardRef.current = guarded;
+      const res = await guarded.promise;
       setResult(res);
       if (res.mode !== 'diagnose') pushTikTokHistory(res.hook);
       if (mode === 'diagnose') track('tiktok_diagnosed', user?.id);
@@ -506,10 +517,14 @@ function TikTokContent() {
       try { trackAnalytics(tiktokEvent, { channel: 'tiktok', status: 'done', durationMs: Date.now() - tiktokStart }); } catch { /* never block */ }
     } catch (error) {
       console.error('[tiktok] generation failed:', error);
-      setErrorMessage(t.tiktok_error);
+      // Phase 5 — ehrliche Meldung: Abbruch (Button) und Timeout werden als
+      // solche benannt statt als generischer Fehler; sonst generische Meldung.
+      const reason = runGuardRef.current?.reason();
+      setErrorMessage(reason === 'user' ? t.tiktok_error_aborted : reason === 'timeout' ? t.tiktok_error_timeout : t.tiktok_error);
       // Admin-Analytics MVP Phase 1 (additive): tiktok run finished/error.
       try { trackAnalytics(tiktokEvent, { channel: 'tiktok', status: 'error', durationMs: Date.now() - tiktokStart }); } catch { /* never block */ }
     } finally {
+      runGuardRef.current = null;
       setLoading(false);
     }
   };
@@ -743,8 +758,20 @@ function TikTokContent() {
 
       {/* Ladezustand */}
       {loading && (
-        <div className="flex items-center gap-3 rounded-2xl border border-cyan-100 bg-cyan-50 p-5 text-sm font-semibold text-cyan-800">
-          <span className="inline-block animate-spin">◌</span>{t.tiktok_loading}
+        <div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-5 text-sm font-semibold text-cyan-800">
+          <div className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-3">
+              <span className="inline-block animate-spin">◌</span>{t.tiktok_loading}
+            </span>
+            <button
+              onClick={handleAbortTikTok}
+              type="button"
+              className="shrink-0 rounded-xl border border-cyan-300 bg-white px-3 py-1.5 text-xs font-bold text-cyan-700 transition hover:bg-cyan-100"
+            >
+              {t.tiktok_abort}
+            </button>
+          </div>
+          <p className="mt-2 text-xs font-normal text-cyan-700">{t.tiktok_loading_hint}</p>
         </div>
       )}
 

@@ -708,6 +708,11 @@ export const de = {
   tiktok_error_brand: 'Bitte gib oben dein Unternehmen/Produkt an – oder speichere dein Markenprofil, damit es automatisch übernommen wird.',
   tiktok_error_topic: 'Optional: Thema, Produkt oder grobe Idee — ein Satz reicht. Ohne Angabe wählt Growimo das Thema selbst.',
   tiktok_error_metrics: 'Für eine fundierte Diagnose fehlen: %s. Bitte ergänze diese Angaben — ohne sie kann Growimo die Länge und den Aufbau nicht mit Zahlen belegen und rät bewusst nicht.',
+  // Phase 5 — Härtung: Abbruch-Button, Timeout, ehrliche Fehlermeldungen
+  tiktok_abort: 'Abbrechen',
+  tiktok_loading_hint: 'Dauert die Generierung länger? Du kannst jederzeit abbrechen und erneut versuchen.',
+  tiktok_error_timeout: 'Die Anfrage hat zu lange gedauert. Bitte erneut versuchen.',
+  tiktok_error_aborted: 'Generierung abgebrochen. Du kannst es jederzeit erneut versuchen.',
   tiktok_minq_title: 'Kurz bevor es losgeht — 2 Angaben reichen',
   tiktok_minq_subtitle: 'Damit Growimo dir eine passende Idee liefern kann, fehlen noch ein paar Infos (dein Markenprofil ist noch nicht vollständig).',
   tiktok_minq_product: 'Was bietest/verkaufst du an? (Pflicht)',

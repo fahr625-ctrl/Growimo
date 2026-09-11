@@ -804,6 +804,22 @@ function isDiagnoseDataGap(r: TikTokResult): r is TikTokDiagnoseDataGapResult {
 // Begeisterung werden ausgegeben, sondern ein ehrlicher Fehler.
 const MAX_TIKTOK_ATTEMPTS = 4;
 
+/** Phase 5 — Server-seitiges Gesamt-Timeout für den TikTok-Aufruf. Der Handler
+ *  in src/ai/server.ts bricht nach dieser Zeit über AbortSignal ab (Retry-
+ *  Schleife endet sauber, ehrliche Fehlermeldung statt Hänger). Bewusst kleiner
+ *  als das Client-Timeout (TIKTOK_CLIENT_TIMEOUT_MS = 90 s), damit die saubere
+ *  Antwort vor dem Client-Timeout ankommt; weit unter maxDuration 300 s. */
+export const TIKTOK_TIMEOUT_MS = 75_000;
+
+/** Einheitliche, ehrliche Timeout-Fehlermeldung (de/en). */
+function tiktokTimeoutError(lang: TikTokLang): Error {
+  return new Error(
+    lang === 'de'
+      ? 'Die Anfrage hat zu lange gedauert. Bitte erneut versuchen.'
+      : 'The request took too long. Please try again.',
+  );
+}
+
 function selfCheckRejected(sc: TikTokSelfCheck): boolean {
   // Erfundenes Testimonial / zitierte Person / Nutzerfeedback ohne Beleg im
   // MARKENKONTEXT → HARD REJECT: solche Ideen dürfen niemals ausgegeben werden.
@@ -1213,7 +1229,11 @@ function buildSanitizeUserContext(input: TikTokInput): string {
 export async function generateTikTok(
   input: TikTokInput,
   lang: TikTokLang = 'de',
+  signal?: AbortSignal,
 ): Promise<TikTokResult> {
+  // Phase 5 — Server-Timeout/Client-Abbruch: bereits abgebrochen? Dann sofort
+  // sauber beenden (kein LLM-Call, kein Retry) — ehrliche Meldung statt Hänger.
+  if (signal?.aborted) throw tiktokTimeoutError(lang);
   // Phase 3 — ehrlicher „zu wenig Daten"-Zustand: fehlen views/length/avgWatch
   // (oder ist die Länge nicht parsebar), ratet Growimo NICHT und ruft KEIN LLM:
   // deterministische Teil-Diagnose statt erfundener Länge/Zahlen.
@@ -1235,6 +1255,7 @@ export async function generateTikTok(
   let lastMissing: string[] = [];
 
   for (let attempt = 1; attempt <= MAX_TIKTOK_ATTEMPTS; attempt++) {
+    if (signal?.aborted) throw tiktokTimeoutError(lang);
     const user =
       attempt === 1
         ? buildUserPrompt(input, lang)
@@ -1242,16 +1263,29 @@ export async function generateTikTok(
           + buildRetryHint(lang, lastViolations, input.mode)
           + buildCompletenessHint(lang, lastMissing);
 
-    const response = await client.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-      temperature: 0.7,
-      max_tokens: 2400, // Phase 2: größeres Schema (format/timedScenes/title/imageIdeas) → Kopfplatz
-      response_format: { type: 'json_object' },
-    });
+    let response;
+    try {
+      response = await client.chat.completions.create(
+        {
+          model: 'gpt-4o',
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: user },
+          ],
+          temperature: 0.7,
+          max_tokens: 2400, // Phase 2: größeres Schema (format/timedScenes/title/imageIdeas) → Kopfplatz
+          response_format: { type: 'json_object' },
+        },
+        // Phase 5 — AbortSignal als RequestOption: Client-Abbruch/Server-Timeout
+        // bricht den laufenden LLM-Call tatsächlich ab (OpenAI SDK ehrt es).
+        { signal },
+      );
+    } catch (err) {
+      // Phase 5 — Abbruch wird in die konsistente, ehrliche Timeout-Meldung
+      // übersetzt (statt kryptischem SDK-Abort-Fehler); alles andere unverändert.
+      if (signal?.aborted) throw tiktokTimeoutError(lang);
+      throw err;
+    }
     const text = response.choices[0]?.message?.content;
     if (!text) {
       if (attempt === MAX_TIKTOK_ATTEMPTS) {

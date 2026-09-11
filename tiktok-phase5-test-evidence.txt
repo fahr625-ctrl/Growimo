@@ -1,0 +1,67 @@
+TikTok-Modul Phase 5 — Test-Evidence (Härtung & Ship)
+=====================================================
+Datum: 2026-09-11  ·  Basis: e5a8397 (Phase 4)  ·  Branch master
+
+Konsolidierte Suite `bun tiktok-test.ts` (NEU, läuft in EINEM Durchlauf):
+- tiktok-phase1-test.ts : exit 0, PASS: 75  FAIL: 0  (Regression grün)
+- tiktok-phase2-test.ts : exit 0, PASS: 90  FAIL: 0  (Regression grün)
+- tiktok-phase3-test.ts : exit 0, PASS: 75  FAIL: 0  (Regression grün)
+- tiktok-phase4-test.ts : exit 0, PASS: 75  FAIL: 0  (Regression grün)
+- Härtung H1-H10 (in-process, OpenAI-Mock, KEINE echte DB):
+  H1  Client-Abbruch (Abbrechen-Button): Mock hängt → abort() bricht ab,
+      TikTokClientAbortError(reason=user), kein Hänger (< 2 s), Grund für UI
+  H2  Client-Timeout (Default 90 s; Test 120 ms): TikTokClientAbortError(timeout),
+      bricht ab, kein Hänger
+  H3  Retry-Budget: Mock liefert 4× unlesbares JSON → GENAU 4 Versuche,
+      danach ehrlicher Fehler („konnte nicht gelesen werden“), kein Endlos-Retry
+  H4  Server-Timeout VOR dem Call (Signal vorgebrochen): ehrliche Meldung
+      „Die Anfrage hat zu lange gedauert…“, 0 LLM-Calls
+  H5  Server-Timeout WÄHREND des Calls (Mock hängt): AbortSignal bricht den
+      OpenAI-SDK-Call ab → saubere Timeout-Meldung, kein Hänger
+  H6  Happy Path MIT Signal: Ergebnis identisch (Signal verschlechtert nichts)
+  H7  i18n de/en-Parität ALLER tiktok_*-Keys: de == en (92 Keys je Datei),
+      Phase-5-Keys tiktok_abort/loading_hint/error_timeout/error_aborted in beiden
+  H8  Server-Wiring: server.ts = AbortController + TIKTOK_TIMEOUT_MS;
+      tiktok.ts = TIKTOK_TIMEOUT_MS=75_000, signal-Param, Abbruch-Checks
+  H9  Client-Wiring: tiktok.tsx = guardTikTokRun + signal am createServerFn,
+      Abbrechen-Button (tiktok_abort), ehrliche Meldungen (timeout/aborted)
+  H10 Client-Timeout-Konfiguration: TIKTOK_CLIENT_TIMEOUT_MS = 90_000 (exportiert)
+Gesamt: Summe PASS: 344  FAIL: 0  → EXIT 0 („ALLE TEST-SÄTZE GRÜN“)
+
+Gates:
+- npx tsc -p tsconfig.gate.json --noEmit : 60 Fehler (= Baseline, 0 NEUE;
+  einziger neuer Kandidat tiktok.ts(1279) war ein Signal-Fehlplatzierungsfehler,
+  behoben: signal als RequestOption, nicht im Body)
+- i18n de/en-Parität                          : 92 tiktok_-Keys je Datei, Set-Gleichheit
+- bash build-vercel.sh                        : EXIT 0 (Deploy-Bundle gebaut)
+- bun tiktok-test.ts                          : EXIT 0 (s. o.)
+
+Umgesetzt (nur TikTok-Scope; F5/Store/Brief unangetastet):
+1. Client-Härtung src/lib/tiktok-safeguards.ts (NEU): guardTikTokRun mit
+   AbortSignal + Timeout 90 s + abort('user'); TikTokClientAbortError mit
+   reason für ehrliche UI-Meldung; reine Funktionen (testbar).
+2. tiktok.tsx: Server-Call „guardTikTokRun((signal) => generateTikTokServer
+   ({ data: payload, signal }))“ — createServerFn reicht signal an den fetch
+   durch (echter Abbruch, kein Zombie-Call). Lade-UI: „Abbrechen“-Button +
+   Hinweis; Fehler: tiktok_error_aborted / tiktok_error_timeout / generisch.
+3. Server src/ai/server.ts: generateTikTokServer-Handler bricht nach
+   TIKTOK_TIMEOUT_MS (75 s) über AbortController ab (Retry-Schleife endet
+   sauber; maxDuration bleibt 300 s unangetastet).
+4. Engine src/ai/tiktok.ts: signal?: AbortSignal am generateTikTok-Signatur;
+   Abbruch-Checks am Eingang + je Retry-Iteration; signal als RequestOption
+   am OpenAI-Call; Abbruch → einheitliche Timeout-Meldung (de/en).
+5. i18n: 4 neue Keys je Sprache (tiktok_abort, tiktok_loading_hint,
+   tiktok_error_timeout, tiktok_error_aborted).
+6. Konsolidierte Suite tiktok-test.ts (NEU, orchestrator: 4 Phasen-Sätze als
+   Subprozesse + Härtung in-process; EXIT 0 nur wenn alles grün).
+
+Lokale Render-Prüfung (Build, kein Clerk-Login nötig):
+- bash build-vercel.sh (vite build + SSR-Bundle) → EXIT 0; Route baut.
+- Laufzeit-Import der Route + reine Exporte (computeBrandGaps, guardTikTokRun,
+  buildTikTokRecordingPlan, buildTikTokProjectContext) bereits in Phase 1–4
+  getestet; Phase 5 ergänzt H1/H2/H9/H10 (Guard-Wiring) in der Suite.
+- Live-Verifikation nach Deploy: curl -sI https://www.growimo.app → 200 +
+  Bundle-Marker (s. Deploy-Notiz unten).
+
+Deploy:
+- Commit: <füllt Report>  ·  Deploy-Alias: <füllt Report>

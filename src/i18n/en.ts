@@ -706,6 +706,11 @@ export const en: EnShape = {
   tiktok_error_brand: 'Please enter your business/product above – or save your brand profile and it will be auto-filled.',
   tiktok_error_topic: 'Optional: topic, product or rough idea — one sentence is enough. If left empty, Growimo picks the topic itself.',
   tiktok_error_metrics: 'A grounded diagnosis needs: %s. Please add them — without them Growimo cannot back the length and structure recommendation with numbers and deliberately does not guess.',
+  // Phase 5 — hardening: cancel button, timeout, honest error messages
+  tiktok_abort: 'Cancel',
+  tiktok_loading_hint: 'Generation taking longer? You can cancel anytime and try again.',
+  tiktok_error_timeout: 'The request took too long. Please try again.',
+  tiktok_error_aborted: 'Generation cancelled. You can try again anytime.',
   tiktok_minq_title: 'Quick heads-up — 2 details are enough',
   tiktok_minq_subtitle: 'For Growimo to craft the right idea for you, a few details are still missing (your brand profile is not complete yet).',
   tiktok_minq_product: 'What do you make / sell? (required)',
