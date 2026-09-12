@@ -14,8 +14,14 @@ import { contentTypeLabel } from '~/lib/content-types';
 import { studioSearchPrefill } from '~/lib/studio-deeplink';
 
 const generateImageServer = createServerFn({ method: 'POST' }).validator((input: unknown) => input as { prompt: string; aspectRatio: string }).handler(async ({ data }) => {
+  // Phase 8.2 — 1 Bild = 1 Generierung (nur bei erfolgreichem Bild); Identität
+  // aus der Session (Cookie), fail-closed ohne gültige Sitzung.
+  const guard = await import('~/lib/usage-guard');
+  const userId = await guard.resolveUserIdFromServerFn();
+  if (!userId) throw new Error('Keine gültige Sitzung — bitte neu anmelden.');
+  await guard.assertRateOk(userId);
   const { generateImage } = await import('~/ai/image-providers/generate');
-  return generateImage(data.prompt, data.aspectRatio);
+  return guard.withGenerationGuard(userId, () => generateImage(data.prompt, data.aspectRatio));
 });
 
 export const Route = createFileRoute('/app/image-studio')({ component: ImageStudioPage });
@@ -89,6 +95,8 @@ function ImageStudioContent() {
   const [loading, setLoading] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState(false);
+  // Phase 8.2 — konkrete Serverseiten-Meldung (z. B. Limit erreicht) im Banner.
+  const [usageError, setUsageError] = useState<string | null>(null);
   const [busy, setBusy] = useState<{ id: string; action: 'variation' | 'regenerate' } | null>(null);
   const [cardError, setCardError] = useState<{ id: string; message: string } | null>(null);
   const [uploads, setUploads] = useState<{ name: string; url: string }[]>([]);
@@ -129,12 +137,12 @@ function ImageStudioContent() {
   }, [loading]);
   const generate = async (text = prompt, selectedRatio = ratio) => {
     if (!text.trim()) return;
-    setLoading(true); setError(false);
+    setLoading(true); setError(false); setUsageError(null);
     // Admin-Analytics MVP Phase 1 (additive): image generation started/finished.
     const imageStart = Date.now();
     try { trackAnalytics('generation_started', { channel: 'image', status: 'started' }); } catch { /* never block */ }
     try { const result = await generateImageServer({ data: { prompt: text, aspectRatio: selectedRatio } }); setImages((prev) => [{ id: crypto.randomUUID(), url: result.url, prompt: text, aspectRatio: selectedRatio, createdAt: new Date() }, ...prev]); track('image_generated', user?.id, { aspectRatio: selectedRatio }); try { trackAnalytics('generation_finished', { channel: 'image', status: 'done', durationMs: Date.now() - imageStart }); } catch { /* never block */ } }
-    catch { setError(true); try { trackAnalytics('generation_finished', { channel: 'image', status: 'error', durationMs: Date.now() - imageStart }); } catch { /* never block */ } } finally { setLoading(false); }
+    catch (e) { setUsageError(friendlyServerError(e)); setError(true); try { trackAnalytics('generation_finished', { channel: 'image', status: 'error', durationMs: Date.now() - imageStart }); } catch { /* never block */ } } finally { setLoading(false); }
   };
   // Per-card gallery action (Variation / Neu generieren): shows immediate
   // feedback on the card itself, keeps the original image, prepends the new
@@ -161,12 +169,24 @@ function ImageStudioContent() {
       setImages((prev) => [{ id: crypto.randomUUID(), url: result.url, prompt: cardPrompt, aspectRatio: image.aspectRatio, createdAt: new Date() }, ...prev]);
       track('image_generated', user?.id, { aspectRatio: image.aspectRatio, action });
       try { trackAnalytics('generation_finished', { channel: 'image', status: 'done', durationMs: Date.now() - cardStart }); } catch { /* never block */ }
-    } catch {
+    } catch (e) {
+      setUsageError(friendlyServerError(e));
       setCardError({ id: image.id, message: t.image_studio_card_error });
       try { trackAnalytics('generation_finished', { channel: 'image', status: 'error', durationMs: Date.now() - cardStart }); } catch { /* never block */ }
     } finally {
       setBusy(null);
     }
+  };
+  // Phase 8.2 — serverseitige Nutzer-Meldungen (Limit/Drossel/Sitzung) direkt
+  // anzeigen; alle anderen Fehler weiterhin mit generischem Text.
+  const friendlyServerError = (e: unknown): string | null => {
+    const m = (e as { message?: string } | null)?.message;
+    if (!m) return null;
+    if (
+      m.includes('Limit') || m.includes('warte') || m.includes('Sitzung') ||
+      m.includes('Too many') || m.includes('session') || m.includes('monthly')
+    ) return m;
+    return null;
   };
   const project = projects.find((p) => p.id === selectedProject);
   const strategyPrompts = project ? templates.map(([, , baseKey]) => `${t[baseKey]} ${project.productIdea}, ${t.image_studio_prompt_optimized_for} ${project.contentTypes.map((ct) => contentTypeLabel(t, ct)).join(', ')}.`) : [];
@@ -193,7 +213,7 @@ function ImageStudioContent() {
     {strategyPrefill && <StrategyStamp t={t} prefill={strategyPrefill} />}
     <section className="rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white shadow-lg"><label className="mb-2 block text-sm font-semibold">{t.image_studio_prompt_label}</label><div className="flex flex-col gap-3 sm:flex-row"><input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={t.image_studio_prompt_placeholder} className="min-w-0 flex-1 rounded-xl border-0 px-4 py-3 text-gray-900 outline-none ring-2 ring-transparent focus:ring-white" /><button onClick={() => void generate()} disabled={loading || !prompt.trim()} className="rounded-xl bg-white px-6 py-3 font-bold text-blue-700 transition hover:bg-blue-50 disabled:opacity-60">{loading ? <span className="inline-block animate-spin">◌</span> : '✨'} {loading ? t.image_studio_generating : t.image_studio_generate_btn}</button></div><p className="mt-5 text-xs font-semibold uppercase tracking-wide text-blue-100">{t.image_studio_templates_label}</p><div className="mt-2 flex flex-wrap gap-2">{templates.map(([r, key, baseKey]) => <button key={r} onClick={() => { setRatio(r); setPrompt(`${t[baseKey]} ${prompt || t.image_studio_prompt_fallback_product}${t.image_studio_prompt_suffix}`); }} className="rounded-full bg-white/15 px-3 py-2 text-xs font-semibold transition hover:bg-white/30">{t[key]} </button>)}</div></section>
     <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"><h2 className="text-lg font-bold text-gray-900">{t.image_studio_from_strategy}</h2><select value={selectedProject} onChange={(e) => setSelectedProject(e.target.value)} className="mt-3 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"><option value="">{t.image_studio_select_project}</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}</select>{strategyPrompts.length > 0 && <><p className="mt-4 text-sm font-semibold text-gray-700">{t.image_studio_prompts_generated}</p><div className="mt-2 flex flex-wrap gap-2">{strategyPrompts.map((p) => <button key={p} onClick={() => setPrompt(p)} className="rounded-full bg-blue-50 px-3 py-2 text-left text-xs text-blue-700 transition hover:bg-blue-100">{p}</button>)}</div></>}</section>
-    {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{t.image_studio_error} <button onClick={() => void generate()} className="ml-3 font-bold underline">{t.analysis_retry}</button></div>}
+    {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{usageError ?? t.image_studio_error} <button onClick={() => void generate()} className="ml-3 font-bold underline">{t.analysis_retry}</button></div>}
     <section><h2 className="mb-4 text-xl font-bold text-gray-900">{t.image_studio_gallery_title}</h2>{images.length === 0 && !loading ? <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center text-sm text-gray-500">{t.image_studio_empty}</div> : <div className="grid grid-cols-1 gap-6 md:grid-cols-2">{loading && <article className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"><div className={`relative ${aspectClass(ratio)} bg-gray-100`}><div className="h-full w-full animate-pulse bg-gray-200" /></div><p className="px-4 py-4 text-sm font-semibold text-gray-500"><span>{t.image_studio_generating}</span> · {elapsed}s</p></article>}{images.map((image) => <article key={image.id} className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md"><div className={`relative ${aspectClass(image.aspectRatio)} bg-gray-100`}><img src={image.url} alt={image.prompt} className="h-full w-full object-cover" /><span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-gray-700">{image.aspectRatio}</span></div>{cardError?.id === image.id && <div className="border-t border-red-200 bg-red-50 px-4 py-2.5 text-xs font-semibold text-red-700">{cardError.message}</div>}<div className="grid grid-cols-2 gap-2 p-4"><button onClick={() => download(image)} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200">⬇ {t.image_studio_download}</button><button onClick={() => void copy(image.prompt)} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200">📋 {t.image_studio_copy_prompt}</button><button onClick={() => void runCardAction(image, 'regenerate')} disabled={busy?.id === image.id} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200 disabled:opacity-60">{busy?.id === image.id && busy.action === 'regenerate' ? <span className="inline-block animate-spin">◌</span> : '🔄'} {busy?.id === image.id && busy.action === 'regenerate' ? t.image_studio_regenerate_generating : t.image_studio_regenerate}</button><button onClick={() => void runCardAction(image, 'variation')} disabled={busy?.id === image.id} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200 disabled:opacity-60">{busy?.id === image.id && busy.action === 'variation' ? <span className="inline-block animate-spin">◌</span> : '✨'} {busy?.id === image.id && busy.action === 'variation' ? t.image_studio_variation_generating : t.image_studio_variation}</button></div></article>)}</div>}</section>
     <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"><h2 className="text-lg font-bold text-gray-900">{t.image_studio_upload_title}</h2><label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/50 p-8 text-center transition hover:bg-blue-50"><span className="text-3xl">⬆️</span><span className="mt-2 text-sm font-semibold text-blue-700">{t.image_studio_upload_dropzone}</span><input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} /></label>{uploads.length > 0 && <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">{uploads.map((file) => <div key={file.url} className="overflow-hidden rounded-xl border"><img src={file.url} className="aspect-square w-full object-cover" alt={file.name} /><p className="truncate p-2 text-xs text-gray-600">{file.name}</p><button onClick={() => void generate(`${t.image_studio_prompt_upload_variation} ${file.name}`, '1:1')} className="m-2 rounded-lg bg-blue-600 px-2 py-1 text-xs font-semibold text-white">✨ {t.image_studio_variation}</button></div>)}</div>}</section>
   </div>;

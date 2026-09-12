@@ -775,6 +775,9 @@ export const en: EnShape = {
   usage_limit_later: 'Maybe later',
   usage_limit_alert: 'Limit reached. Upgrade to Pro for unlimited generations.',
   usage_limit_generation_error: 'Generation error. Please try again.',
+  // Phase 8.2 — server-side monthly limit (Free 5 / Pro 200, since 2026-09-12).
+  usage_limit_exhausted: 'Your monthly limit is used up (5/month on the Free plan). Upgrade for 200 per month.',
+  usage_rate_limit: 'Too many requests. Please wait a moment.',
 
   // ── Billing ──────────────────────────────────────────────────────────────────
   billing_manage: 'Manage billing',

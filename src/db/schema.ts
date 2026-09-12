@@ -170,4 +170,31 @@ CREATE TABLE IF NOT EXISTS analytics_events (
 );
 CREATE INDEX IF NOT EXISTS idx_analytics_event_created ON analytics_events(event, created_at);
 CREATE INDEX IF NOT EXISTS idx_analytics_user_created ON analytics_events(user_pseudonym, created_at);
+
+-- ── Phase 8.2 Usage-/Limit-System (Kostenschutz, Owner-Entscheidung 2026-09-12) ──
+-- usage_monthly: serverseitiger Monatszähler je Nutzer. period = 'YYYY-MM'
+-- (Server-Zeit). 1 Zeile pro Nutzer+Monat — PRIMARY KEY (user_id, period)
+-- verhindert Doppelzählung. Monatswechsel ergibt sich automatisch über den
+-- period-Schlüssel — kein Cleanup-Job nötig, alte Monate bleiben als Historie.
+-- Werte: Free = 5/Monat, Pro = 200/Monat, 1 Bild = 1, Strategie-Kanal = 1,
+-- interne Retries/Scoring/Verbessern = 0.
+CREATE TABLE IF NOT EXISTS usage_monthly (
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  period TEXT NOT NULL,
+  count INTEGER NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (user_id, period)
+);
+CREATE INDEX IF NOT EXISTS idx_usage_monthly_period ON usage_monthly(period);
+
+-- generation_throttle: grobe DB-basierte Drossel zwischen Generierungen
+-- (Standard-Fenster 2 s), damit Free-Nutzer nicht seriell in Sekundenbruchteilen
+-- durchschalten. Eine Zeile je Nutzer (Clerk-id als TEXT wie tracking_events —
+-- bewusst ohne FK: additiv, robust). Atomares Check-and-set über
+-- INSERT ... ON CONFLICT ... WHERE (siehe qTryThrottle in src/db/queries.ts).
+CREATE TABLE IF NOT EXISTS generation_throttle (
+  user_id TEXT PRIMARY KEY,
+  last_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 `;

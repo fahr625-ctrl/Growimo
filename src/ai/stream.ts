@@ -54,6 +54,14 @@ export interface RunStrategyStreamOptions {
   runId?: string;
   /** Injectable runner — defaults to the real generateContent engine. */
   runner?: (req: ContentRequest) => Promise<ContentResult>;
+  /**
+   * Phase 8.2 — Clerk-UserId für das serverseitige Usage-Limit (Kostenschutz).
+   * Wenn gesetzt, verbraucht JEDER erfolgreiche Kanal genau 1 Generierung
+   * (Fehler/Abort/abgebrochene Kanäle = 0); verbleibende Kanäle melden am Limit
+   * sauber „Limit erreicht" statt zu crashen. Fehlt der Wert (Tests, Legacy),
+   * läuft der Stream unverändert ohne Usage-Guard.
+   */
+  userId?: string | null;
 }
 
 /**
@@ -94,7 +102,17 @@ export async function runStrategyStream(
     requests.map(async (req, i): Promise<ContentResult | null> => {
       const stepId = stepIdFor(req.contentType);
       try {
-        const result = await runner(req);
+        // Phase 8.2 — Usage-Guard je Kanal: VOR dem KI-Call reservieren, bei
+        // Erfolg verbraucht (1/Kanal), bei Fehler/Abort kompensiert (0).
+        // UsageLimitError läuft als channel-error durch (kein Crash, andere
+        // Kanäle laufen weiter; erfolgreiche Kanäle bleiben erhalten).
+        let result: ContentResult;
+        if (options.userId) {
+          const { withGenerationGuard } = await import('../lib/usage-guard');
+          result = await withGenerationGuard(options.userId, () => runner(req));
+        } else {
+          result = await runner(req);
+        }
         emit({
           type: "step",
           stepId,

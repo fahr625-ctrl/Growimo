@@ -58,6 +58,13 @@ export async function generateMarketingPackage(
 ): Promise<MarketingPackage> {
   const lang: 'de' | 'en' = opts.lang === 'en' ? 'en' : 'de';
 
+  // Phase 8.2 — Early-Fail bei leerem Kontingent: den Kernel (1 LLM-Call) nicht
+  // verbrennen, wenn ohnehin kein Kanal mehr generiert werden darf.
+  if (opts.userId) {
+    const { assertCanGenerate } = await import('../../lib/usage-guard');
+    await assertCanGenerate(opts.userId);
+  }
+
   // 1. Shared kernel first — everything else builds on it. The F6 brief
   //    (optional) steers the kernel; empty brief behaves exactly like F4.
   const kernel = await determineKernel(productIdea, opts.brief ?? null);
@@ -108,14 +115,35 @@ export async function generateMarketingPackage(
   await Promise.all(
     PACKAGE_CHANNELS.map(async ({ key, contentType }) => {
       try {
-        channels[key as keyof PackageChannelResult] = await generatePackageChannel(
-          kernel,
-          contentType,
-          productIdea,
-          briefContext,
-          perfContext,
-          learnContext,
-        );
+        // Phase 8.2 — je Kanal 1 Generierung (nur bei Erfolg; Fehler werden vom
+        // Kanal-Catch isoliert und verbrauchen 0 — via withGenerationGuard-
+        // Kompensation). Parallel exakt begrenzt (atomares konditionales
+        // Increment), am Limit melden verbleibende Kanäle sauber als Kanal-
+        // Fehler und bestehende erfolgreiche Kanäle bleiben erhalten.
+        if (opts.userId) {
+          const { withGenerationGuard } = await import('../../lib/usage-guard');
+          channels[key as keyof PackageChannelResult] = await withGenerationGuard(
+            opts.userId,
+            () =>
+              generatePackageChannel(
+                kernel,
+                contentType,
+                productIdea,
+                briefContext,
+                perfContext,
+                learnContext,
+              ),
+          );
+        } else {
+          channels[key as keyof PackageChannelResult] = await generatePackageChannel(
+            kernel,
+            contentType,
+            productIdea,
+            briefContext,
+            perfContext,
+            learnContext,
+          );
+        }
       } catch (err) {
         console.error(`[package] channel ${contentType} failed — skipped:`, err);
         channels[key as keyof PackageChannelResult] = null;

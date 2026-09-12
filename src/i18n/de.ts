@@ -777,6 +777,9 @@ export const de = {
   usage_limit_later: 'Vielleicht später',
   usage_limit_alert: 'Limit erreicht. Wechsle zu Pro für unbegrenzte Generierungen.',
   usage_limit_generation_error: 'Fehler beim Generieren. Bitte versuche es erneut.',
+  // Phase 8.2 — serverseitiges Monatslimit (Free 5 / Pro 200, ab 2026-09-12).
+  usage_limit_exhausted: 'Dein monatliches Limit ist aufgebraucht (5/Monat im Free-Plan). Upgrade für 200 pro Monat.',
+  usage_rate_limit: 'Zu viele Anfragen. Bitte einen Moment warten.',
 
   // ── Billing ──────────────────────────────────────────────────────────────────
   billing_manage: 'Abrechnung verwalten',

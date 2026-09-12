@@ -4,6 +4,25 @@ import type { MarketingPackage } from './package/package';
 import type { TikTokInput, TikTokMode, TikTokResult } from './tiktok';
 import { diagnoseRetentionGaps } from './tiktok';
 
+// Phase 8.2 — Usage-/Limit-System (Kostenschutz): LAZY importiert, damit der
+// Client-Bundle nie DB/JWKS-Code zieht (gleiche Strategie wie die dynamischen
+// Engine-Imports in den Handlern unten). Guards: Einzel-Asset, Paket-Kanäle,
+// TikTok todayIdea/concept, Varianten = je 1 Generierung; Verbessern/Scoring/
+// Analyse/Diagnose/Priorisierung = 0 (Owner-Entscheidung 2026-09-12).
+async function usageGuard() {
+  return import('../lib/usage-guard');
+}
+
+/** Phase 8.2 — Nutzer-Identität (Clerk) auflösen; fail-closed bei Generierung. */
+async function guardUserId(payloadFallback?: string): Promise<string> {
+  const g = await usageGuard();
+  const uid = await g.resolveUserIdFromServerFn(payloadFallback);
+  if (!uid) {
+    throw new Error('Keine gültige Sitzung — bitte neu anmelden.');
+  }
+  return uid;
+}
+
 /**
  * Reports whether the OpenAI API key is configured on the server.
  * Never exposes the key value itself — only a boolean status.
@@ -37,10 +56,12 @@ export const generateContentServer = createServerFn({ method: 'POST' })
   })
   .handler(async ({ data }): Promise<ContentResult> => {
     console.log('[server.generateContent] Received:', JSON.stringify(data));
+    const g = await usageGuard();
+    const userId = await guardUserId();
+    // Phase 8.2 — Drossel (2 s) + Guard: Einzel-Asset = 1 Generierung.
+    await g.assertRateOk(userId);
     const { generateContent } = await import('./generate');
-    const result = await generateContent(data);
-    console.log('[server.generateContent] Result:', JSON.stringify(result).slice(0, 200));
-    return result;
+    return g.withGenerationGuard(userId, () => generateContent(data));
   });
 
 /**
@@ -92,6 +113,13 @@ Generiere eine verbesserte Version des ${channelLabel}. Behalte das gleiche Form
     };
 
     const { generateContent } = await import('./generate');
+    // Phase 8.2 — Verbessern zählt 0 Generierungen (Owner-Entscheidung), aber
+    // die Drossel (2 s) gilt auch hier (LLM-Kosten).
+    try {
+      const g = await usageGuard();
+      const uid = await guardUserId();
+      await g.assertRateOk(uid);
+    } catch { /* ohne Sitzung: Verbessern läuft wie bisher (kein harter Guard) */ }
     const result = await generateContent(improvementRequest);
     console.log('[server.improveContent] Result:', result.title);
     return result;
@@ -128,6 +156,12 @@ export const improveByScoreServer = createServerFn({ method: 'POST' })
   })
   .handler(async ({ data }): Promise<ImproveOutcome> => {
     console.log('[server.improveByScore]', data.contentType, 'old score:', data.score.total);
+    // Phase 8.2 — Auto-Verbessern = 0 Generierungen; nur Drossel.
+    try {
+      const g = await usageGuard();
+      const uid = await guardUserId();
+      await g.assertRateOk(uid);
+    } catch { /* ohne Sitzung unverändert laufen lassen */ }
     const { improveByScore } = await import('./improve');
     const outcome = await improveByScore(
       { contentType: data.contentType, productIdea: data.productIdea },
@@ -184,6 +218,12 @@ export const improveToScoreServer = createServerFn({ method: 'POST' })
   })
   .handler(async ({ data }): Promise<ImproveOutcome> => {
     console.log('[server.improveToScore]', data.contentType, 'old:', data.score.total, 'target:', data.target);
+    // Phase 8.2 — Auto-Verbessern = 0 Generierungen; nur Drossel.
+    try {
+      const g = await usageGuard();
+      const uid = await guardUserId();
+      await g.assertRateOk(uid);
+    } catch { /* ohne Sitzung unverändert laufen lassen */ }
     const { improveToScore } = await import('./improve');
     const outcome = await improveToScore(
       { contentType: data.contentType, productIdea: data.productIdea },
@@ -247,6 +287,12 @@ export const autoImproveSectionServer = createServerFn({ method: 'POST' })
   })
   .handler(async ({ data }): Promise<AutoImproveSectionOutcome> => {
     console.log('[server.autoImproveSection]', data.contentType, 'field:', data.field);
+    // Phase 8.2 — bereichsgenaues Auto-Verbessern = 0 Generierungen; nur Drossel.
+    try {
+      const g = await usageGuard();
+      const uid = await guardUserId();
+      await g.assertRateOk(uid, { lang: data.lang });
+    } catch { /* ohne Sitzung unverändert laufen lassen */ }
     const { autoImproveSection } = await import('./auto-improve');
     const original: ContentResult = {
       contentType: data.contentType,
@@ -302,6 +348,10 @@ export const generateVariantsServer = createServerFn({ method: 'POST' })
   })
   .handler(async ({ data }): Promise<VariantsResult | null> => {
     console.log('[server.generateVariants]', data.contentType, 'lang:', data.lang);
+    // Phase 8.2 — Varianten: 1 OpenAI-Aufruf = 1 Generierung (Guard+Drossel).
+    const g = await usageGuard();
+    const userId = await guardUserId();
+    await g.assertRateOk(userId, { lang: data.lang });
     const { generateVariants } = await import('./variants');
     const original: ContentResult = {
       contentType: data.contentType,
@@ -309,14 +359,16 @@ export const generateVariantsServer = createServerFn({ method: 'POST' })
       body: data.currentBody,
       metadata: data.metadata,
     };
-    const result = await generateVariants(
-      {
-        contentType: data.contentType,
-        productIdea: data.productIdea,
-        strategyContext: data.strategyContext,
-      },
-      original,
-      data.lang,
+    const result = await g.withGenerationGuard(userId, () =>
+      generateVariants(
+        {
+          contentType: data.contentType,
+          productIdea: data.productIdea,
+          strategyContext: data.strategyContext,
+        },
+        original,
+        data.lang,
+      ),
     );
     console.log(
       '[server.generateVariants] outcome:',
@@ -353,6 +405,12 @@ export const prioritizeServer = createServerFn({ method: 'POST' })
   })
   .handler(async ({ data }): Promise<PrioritizeOutcome | null> => {
     console.log('[server.prioritize]', data.assets.length, 'assets, lang:', data.lang);
+    // Phase 8.2 — Priorisierung = Analyse = 0 Generierungen; nur Drossel.
+    try {
+      const g = await usageGuard();
+      const uid = await guardUserId();
+      await g.assertRateOk(uid, { lang: data.lang });
+    } catch { /* ohne Sitzung unverändert laufen lassen */ }
     const { prioritizeChannels } = await import('./prioritize');
     const outcome = await prioritizeChannels(data.assets, {
       productIdea: data.productIdea,
@@ -701,11 +759,21 @@ export const generatePackageServer = createServerFn({ method: 'POST' })
   })
   .handler(async ({ data }): Promise<MarketingPackage> => {
     console.log('[server.generatePackage] idea:', data.productIdea.slice(0, 80), 'lang:', data.lang);
+    // Phase 8.2 — Paket zählt pro Kanal (1/Kanal, nur erfolgreiche). Cookie-
+    // Identität gewinnt vor payload-userId (Quota-Diebstahl-Schutz). Drossel +
+    // Early-Fail, wenn das Kontingent komplett leer ist (kein Kernel-Verbrauch).
+    const g = await usageGuard();
+    // guardUserId: Session-Cookie gewinnt; Payload-Fallback für Normalnutzer.
+    // Admin-/Owner-IDs werden NIE aus dem Request-Body akzeptiert (fail-closed,
+    // Override nur über serverseitig verifizierte Session erreichbar).
+    const userId = await guardUserId(data.userId);
+    await g.assertRateOk(userId, { lang: data.lang });
+    await g.assertCanGenerate(userId, data.lang);
     const { generateMarketingPackage } = await import('./package/package');
     const pkg = await generateMarketingPackage(data.productIdea, {
       lang: data.lang,
       brief: data.brief,
-      userId: data.userId,
+      userId,
     });
     const ok = Object.values(pkg.channels).filter(Boolean).length;
     console.log(
@@ -744,11 +812,19 @@ export const fetchPackageKernelServer = createServerFn({ method: 'POST' })
   })
   .handler(async ({ data }) => {
     console.log('[server.fetchPackageKernel] idea:', data.productIdea.slice(0, 80));
+    // Phase 8.2 — Kernel verbraucht KEINE Einheit (kein fertiges Ergebnis),
+    // aber Drossel + Early-Fail bei leerem Kontingent (kein verbranntes LLM).
+    const g = await usageGuard();
+    // guardUserId: Session-Cookie gewinnt; Payload-Fallback für Normalnutzer.
+    // Admin-/Owner-IDs werden NIE aus dem Request-Body akzeptiert (fail-closed).
+    const userId = await guardUserId(data.userId);
+    await g.assertRateOk(userId, { lang: data.lang });
+    await g.assertCanGenerate(userId, data.lang);
     const { preparePackageContext } = await import('./package/package');
     return preparePackageContext(data.productIdea, {
       lang: data.lang,
       brief: data.brief,
-      userId: data.userId,
+      userId,
     });
   });
 export const generatePackageChannelServer = createServerFn({ method: 'POST' })
@@ -767,8 +843,15 @@ export const generatePackageChannelServer = createServerFn({ method: 'POST' })
   })
   .handler(async ({ data }) => {
     console.log('[server.generatePackageChannel] channel:', data.contentType);
+    // Phase 8.2 — Kanal = 1 Generierung (nur bei Erfolg). KEINE Drossel hier:
+    // der progressive Paket-Flow feuert 5 Kanäle parallel (2-s-Fenster würde
+    // die Parallelität fälschlich blockieren — Drossel liegt im Kernel-Start).
+    const g = await usageGuard();
+    const userId = await guardUserId();
     const { generatePackageChannelWithContext } = await import('./package/package');
-    return generatePackageChannelWithContext(data.contentType, data.productIdea, data.context);
+    return g.withGenerationGuard(userId, () =>
+      generatePackageChannelWithContext(data.contentType, data.productIdea, data.context),
+    );
   });
 export const finalizePackagePrioritiesServer = createServerFn({ method: 'POST' })
   .validator((input: unknown) => {
@@ -925,6 +1008,11 @@ export const generateTikTokServer = createServerFn({ method: 'POST' })
   })
   .handler(async ({ data }): Promise<TikTokResult> => {
     console.log('[server.generateTikTok]', data.mode, 'lang:', data.lang, 'biz:', data.biz.slice(0, 60));
+    // Phase 8.2 — todayIdea/concept = je 1 Generierung (nur bei Erfolg);
+    // diagnose = 0 Generierungen (Owner-Entscheidung). Drossel gilt für alle.
+    const g = await usageGuard();
+    const userId = await guardUserId();
+    await g.assertRateOk(userId, { lang: data.lang });
     const { generateTikTok, TIKTOK_TIMEOUT_MS } = await import('./tiktok');
     // Phase 5 — Server-seitiges Timeout: der TikTok-Aufruf (1 blockierender Call
     // mit bis zu 4 Retries) darf höchstens TIKTOK_TIMEOUT_MS laufen. Bei Ablauf
@@ -934,7 +1022,15 @@ export const generateTikTokServer = createServerFn({ method: 'POST' })
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), TIKTOK_TIMEOUT_MS);
     try {
-      return await generateTikTok(data, data.lang, ctrl.signal);
+      if (data.mode === 'diagnose') {
+        // Diagnose zählt 0 Generierungen — kein Quota-Verbrauch.
+        return await generateTikTok(data, data.lang, ctrl.signal);
+      }
+      return await g.withGenerationGuard(
+        userId,
+        () => generateTikTok(data, data.lang, ctrl.signal),
+        data.lang,
+      );
     } finally {
       clearTimeout(timer);
     }

@@ -1025,3 +1025,105 @@ export async function qGetTrackingReport(
     funnel,
   };
 }
+
+// ── Phase 8.2 Usage-/Limit-System (usage_monthly + generation_throttle) ──────
+// Owner-Entscheidung 2026-09-12: Free = 5 Generierungen/Monat, Pro = 200/Monat.
+// Der Zähler ist pro (user_id, period 'YYYY-MM') — der Monatswechsel ergibt
+// sich automatisch über den period-Schlüssel (kein Cleanup nötig).
+
+/** Monatszähler eines Nutzers lesen (clerk_id). Fehlende Zeile → 0. */
+export async function qGetUsage(userId: string, period: string): Promise<number> {
+  const uid = await resolveUserId(userId);
+  if (!uid) return 0;
+  const sql = getDb();
+  const rows = await sql`
+    SELECT count FROM usage_monthly WHERE user_id = ${uid} AND period = ${period} LIMIT 1
+  `;
+  return rows.length > 0 ? Number(rows[0].count) : 0;
+}
+
+/**
+ * Zähler ATOMAR erhöhen, aber nur solange das Limit nicht erreicht ist
+ * (konditionales ON CONFLICT DO UPDATE ... WHERE count < limit). Gibt die NEUE
+ * Zählung zurück oder null, wenn das Limit bereits erreicht ist (Aufrufer wirft
+ * dann UsageLimitError). Die konditionale Form macht auch PARALLELE
+ * Generierungen (Strategie-/Paket-Kanäle) exakt begrenzt — das Limit kann nie
+ * überschritten werden.
+ */
+export async function qIncrementUsage(
+  userId: string,
+  period: string,
+  limit: number,
+): Promise<number | null> {
+  const uid = await ensureUserRow(userId);
+  const sql = getDb();
+  const rows = await sql`
+    INSERT INTO usage_monthly (user_id, period, count)
+    VALUES (${uid}, ${period}, 1)
+    ON CONFLICT (user_id, period) DO UPDATE
+      SET count = usage_monthly.count + 1, updated_at = NOW()
+      WHERE usage_monthly.count < ${limit}
+    RETURNING count
+  `;
+  return rows.length > 0 ? Number(rows[0].count) : null;
+}
+
+/** Fehlgeschlagene Generierung kompensieren: Zähler -1, mindestens 0. */
+export async function qReleaseUsage(userId: string, period: string): Promise<void> {
+  const uid = await resolveUserId(userId);
+  if (!uid) return;
+  const sql = getDb();
+  await sql`
+    UPDATE usage_monthly
+    SET count = GREATEST(count - 1, 0), updated_at = NOW()
+    WHERE user_id = ${uid} AND period = ${period} AND count > 0
+  `;
+}
+
+/**
+ * Aktiver Plan eines Nutzers: neuester aktiver subscriptions-Eintrag
+ * (plan_tier 'free'/'pro'), sonst Default 'free'. Das ist die spätere
+ * Anbindung an Stripe (Phase 8.1/8.3 schreibt hier 'pro' bei aktiver Zahlung).
+ */
+export async function qGetPlanTier(userId: string): Promise<'free' | 'pro'> {
+  const uid = await resolveUserId(userId);
+  if (!uid) return 'free';
+  const sql = getDb();
+  const rows = await sql`
+    SELECT plan_tier FROM subscriptions
+    WHERE user_id = ${uid} AND status = 'active'
+    ORDER BY created_at DESC LIMIT 1
+  `;
+  return rows.length > 0 && rows[0].plan_tier === 'pro' ? 'pro' : 'free';
+}
+
+/** Restkontingent = Limit − Verbrauch (nie negativ). */
+export async function qGetRemaining(
+  userId: string,
+  planTier: 'free' | 'pro',
+  period: string,
+): Promise<number> {
+  const limit = planTier === 'pro' ? 200 : 5;
+  const used = await qGetUsage(userId, period);
+  return Math.max(limit - used, 0);
+}
+
+/**
+ * Drossel-Check-and-set (atomar): erlaubt, wenn der letzte Eintrag älter als
+ * minIntervalMs ist (oder kein Eintrag existiert). Gibt true (erlaubt) bzw.
+ * false (zu früh — der letzte Aufruf liegt innerhalb des Fensters) zurück.
+ * minIntervalMs <= 0 → immer erlaubt (Tests/Drossel deaktiviert).
+ */
+export async function qTryThrottle(userId: string, minIntervalMs: number): Promise<boolean> {
+  if (minIntervalMs <= 0) return true;
+  const sql = getDb();
+  const rows = await sql`
+    INSERT INTO generation_throttle (user_id, last_at)
+    VALUES (${userId}, NOW())
+    ON CONFLICT (user_id) DO UPDATE
+      SET last_at = NOW(), updated_at = NOW()
+      WHERE generation_throttle.last_at <= NOW() - make_interval(secs => ${minIntervalMs / 1000})
+    RETURNING user_id
+  `;
+  return rows.length > 0;
+}

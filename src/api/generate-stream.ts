@@ -116,6 +116,18 @@ export async function handleGenerateStreamApi(
   if (activeStreams.has(subject)) {
     return Response.json({ error: "Stream already running" }, { status: 429 });
   }
+  // Phase 8.2 — grobe Rate-Drossel: min. 2 s zwischen zwei Generierungs-
+  // Aktionen desselben Nutzers (DB-basiert, atomar). Verhindert Serien-Klicks;
+  // der eigentliche harte Schutz ist das Monatslimit (Free 5 / Pro 200).
+  try {
+    const { assertRateOk } = await import("../lib/usage-guard");
+    await assertRateOk(subject);
+  } catch (err) {
+    return Response.json(
+      { error: err instanceof Error ? err.message : "Zu viele Anfragen. Bitte einen Moment warten." },
+      { status: 429 },
+    );
+  }
   activeStreams.add(subject);
 
   const stream = new ReadableStream({
@@ -163,7 +175,9 @@ export async function handleGenerateStreamApi(
           }
           send({ type: "done", runId });
         } else {
-          await runStrategyStream(parsed.requests, send);
+          // Phase 8.2 — userId an den Kanal-Runner: jeder erfolgreiche Kanal
+          // verbraucht 1 Generierung (Guard liegt in src/ai/stream.ts).
+          await runStrategyStream(parsed.requests, send, { userId: subject });
         }
       } catch (err) {
         try {
