@@ -88,6 +88,49 @@ export function missingDiagnoseMetrics(m: {
   return out;
 }
 
+/** Phase 3 UX-Fix — Feld-genaue Validierung der Diagnose-Pflichtfelder: liefert
+ *  je Feld den Grund (missing = leer, invalid = keine gültige Zahl). Komma wird
+ *  als Dezimaltrenner akzeptiert („12,5“ ≡ „12.5“). Die Videolänge akzeptiert
+ *  bewusst dieselben Formate wie der Server-Parser parseLengthSeconds („31“,
+ *  „31s“, „42 Sekunden“, „0:42“ — Wert muss > 0 sein, 0s lehnt auch der Server
+ *  als „fehlt“ ab). Reine Funktion (exportiert für Tests). */
+export type DiagnoseFieldKey = 'views' | 'length' | 'avgWatch';
+export type DiagnoseFieldIssue = 'missing' | 'invalid';
+export function diagnoseMetricIssues(m: {
+  views: string;
+  length: string;
+  avgWatch: string;
+}): Partial<Record<DiagnoseFieldKey, DiagnoseFieldIssue>> {
+  const out: Partial<Record<DiagnoseFieldKey, DiagnoseFieldIssue>> = {};
+  // nicht-negative Zahl (0 ist eine echte 0, daher gültig)
+  const numberIssue = (raw: string): DiagnoseFieldIssue | undefined => {
+    const v = raw.trim().replace(',', '.');
+    if (v === '') return 'missing';
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? undefined : 'invalid';
+  };
+  // Videolänge: Spiegel des Server-Parsers parseLengthSeconds — mm:ss (z. B.
+  // „0:42“) wird als 42 s gerechnet, sonst erste Zahl im Text („31s“, „42
+  // Sekunden“); Wert muss > 0 sein (0s lehnt auch der Server als „fehlt“ ab).
+  const lengthIssue = (raw: string): DiagnoseFieldIssue | undefined => {
+    const s = raw.trim();
+    if (!s) return 'missing';
+    if (/^\d+:\d{1,2}$/.test(s)) {
+      const [m, sec] = s.split(':').map(Number);
+      const total = m * 60 + sec;
+      return Number.isFinite(total) && total > 0 ? undefined : 'invalid';
+    }
+    const m = s.match(/(\d+(?:[.,]\d+)?)/);
+    if (!m) return 'invalid';
+    const n = Number(m[1].replace(',', '.'));
+    return Number.isFinite(n) && n > 0 ? undefined : 'invalid';
+  };
+  const v = numberIssue(m.views); if (v) out.views = v;
+  const l = lengthIssue(m.length); if (l) out.length = l;
+  const a = numberIssue(m.avgWatch); if (a) out.avgWatch = a;
+  return out;
+}
+
 function loadTikTokHistory(): string[] {
   try {
     const raw = JSON.parse(localStorage.getItem(TIKTOK_HISTORY_KEY) || '[]');
@@ -357,6 +400,11 @@ function TikTokContent() {
   const [audience, setAudience] = useState('');
   const [topic, setTopic] = useState('');
   const [metrics, setMetrics] = useState({ views: '', length: '', avgWatch: '', likes: '', comments: '', shares: '', profile: '' });
+  // Phase 3 UX-Fix — Feld-genaue Fehlerzustände der Diagnose-Pflichtfelder:
+  // Key = Feld, Wert = Grund (missing/invalid). Leere Felder werden beim Klick
+  // auf „TikTok analysieren“ direkt am jeweiligen Feld markiert (rot + Meldung),
+  // NICHT als allgemeine Fehlermeldung unterhalb der Karten.
+  const [metricErrors, setMetricErrors] = useState<Partial<Record<DiagnoseFieldKey, DiagnoseFieldIssue>>>({});
   const [activeMode, setActiveMode] = useState<TikTokMode | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -417,8 +465,10 @@ function TikTokContent() {
 
   // Metrik-Feld: leeres Feld = "nicht angegeben" (undefined, wird NICHT gesendet);
   // eine echte 0 wird als 0 gesendet. So kann das Modell "fehlt" von "0" trennen.
+  // Komma wird als Dezimaltrenner normalisiert („12,5“ → 12.5), damit auch die
+  // deutsche Eingabeform an den Server geht (avgWatch etc.).
   const metricNumber = (raw: string): number | undefined => {
-    const v = raw.trim();
+    const v = raw.trim().replace(',', '.');
     if (v === '') return undefined;
     const n = Number(v);
     return Number.isFinite(n) ? n : undefined;
@@ -565,18 +615,65 @@ function TikTokContent() {
     void run('todayIdea');
   };
 
-  const metricInput = (k: keyof typeof metrics, label: string, placeholder?: string) => (
-    <div>
-      <label className="mb-1 block text-xs font-semibold text-gray-600">{label}</label>
-      <input
-        value={metrics[k]}
-        onChange={(e) => setMetrics((m) => ({ ...m, [k]: e.target.value }))}
-        placeholder={placeholder}
-        inputMode={k === 'length' ? 'text' : 'numeric'}
-        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-400"
-      />
-    </div>
-  );
+  /** Phase 3 UX-Fix — Diagnose-Karte wählt nur den Modus an (Felder erscheinen
+   *  sofort); die Diagnose startet ausschließlich über den „TikTok analysieren“-
+   *  Button (handleDiagnoseSubmit) — kein Auto-Start beim Karten-Klick. */
+  const startDiagnose = () => {
+    setResult(null);
+    setErrorMessage(null);
+    setMinimalQuery(null);
+    setMinimalError(null);
+    setMetricErrors({});
+    setActiveMode('diagnose');
+  };
+
+  const metricLabelOf = (k: DiagnoseFieldKey) =>
+    k === 'views' ? t.tiktok_metrics_views : k === 'length' ? t.tiktok_metrics_length : t.tiktok_metrics_avgwatch;
+
+  const metricFieldError = (k: DiagnoseFieldKey, issue: DiagnoseFieldIssue) =>
+    issue === 'missing' ? t.tiktok_field_required.replace('%s', metricLabelOf(k)) : t.tiktok_value_invalid;
+
+  /** Diagnose-Button: prüft zuerst feld-genau (leer → Meldung am Feld, keine
+   *  generische Fehlermeldung), erst bei vollständigen/gültigen Werten startet
+   *  der Server-Call über run('diagnose') wie bisher. */
+  const handleDiagnoseSubmit = () => {
+    const issues = diagnoseMetricIssues(metrics);
+    const next: Partial<Record<DiagnoseFieldKey, DiagnoseFieldIssue>> = {};
+    let hasIssue = false;
+    (['views', 'length', 'avgWatch'] as const).forEach((k) => {
+      const i = issues[k];
+      if (i) { next[k] = i; hasIssue = true; }
+    });
+    setMetricErrors(next);
+    if (hasIssue) return;
+    void run('diagnose');
+  };
+
+  const metricInput = (k: keyof typeof metrics, label: string, placeholder?: string, required?: boolean) => {
+    const issue = k === 'views' || k === 'length' || k === 'avgWatch' ? metricErrors[k] : undefined;
+    return (
+      <div>
+        <label className="mb-1 block text-xs font-semibold text-gray-600">
+          {label}
+          {required && <span className="ml-1 font-bold text-red-500">*</span>}
+        </label>
+        <input
+          value={metrics[k]}
+          onChange={(e) => {
+            setMetrics((m) => ({ ...m, [k]: e.target.value }));
+            if (issue) setMetricErrors((prev) => ({ ...prev, [k]: undefined }));
+          }}
+          placeholder={placeholder}
+          inputMode="numeric"
+          aria-invalid={issue ? true : undefined}
+          className={`w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 ${
+            issue ? 'border-red-400 bg-red-50 focus:ring-red-300' : 'border-gray-200 focus:ring-cyan-400'
+          }`}
+        />
+        {issue && <p className="mt-1 text-xs font-semibold text-red-600">{metricFieldError(k as DiagnoseFieldKey, issue)}</p>}
+      </div>
+    );
+  };
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -740,7 +837,7 @@ function TikTokContent() {
             <h3 className="mt-2 font-bold text-gray-900">{t.tiktok_card_concept_title}</h3>
             <p className="mt-1 text-sm text-gray-500">{t.tiktok_card_concept_desc}</p>
           </button>
-          <button onClick={() => void run('diagnose')} disabled={loading} className="rounded-2xl border border-teal-100 bg-gradient-to-br from-teal-50 to-white p-5 text-left shadow-sm transition hover:shadow-md disabled:opacity-60">
+          <button onClick={startDiagnose} disabled={loading} className="rounded-2xl border border-teal-100 bg-gradient-to-br from-teal-50 to-white p-5 text-left shadow-sm transition hover:shadow-md disabled:opacity-60">
             <div className="text-2xl">📊</div>
             <h3 className="mt-2 font-bold text-gray-900">{t.tiktok_card_diagnose_title}</h3>
             <p className="mt-1 text-sm text-gray-500">{t.tiktok_card_diagnose_desc}</p>
@@ -758,17 +855,30 @@ function TikTokContent() {
       )}
       {activeMode === 'diagnose' && (
         <section className="rounded-2xl border border-teal-100 bg-white p-6 shadow-sm">
-          <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-gray-500">{t.tiktok_metrics_label}</h3>
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="text-sm font-bold uppercase tracking-wide text-gray-500">{t.tiktok_metrics_label}</h3>
+            <span className="text-xs text-gray-400">* {t.tiktok_metrics_required_hint}</span>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            {metricInput('views', t.tiktok_metrics_views, '–')}
-            {metricInput('length', t.tiktok_metrics_length, '31s')}
-            {metricInput('avgWatch', t.tiktok_metrics_avgwatch, '–')}
+            {metricInput('views', t.tiktok_metrics_views, t.tiktok_metrics_views_ph, true)}
+            {metricInput('length', t.tiktok_metrics_length, t.tiktok_metrics_length_ph, true)}
+            {metricInput('avgWatch', t.tiktok_metrics_avgwatch, t.tiktok_metrics_avgwatch_ph, true)}
             {metricInput('likes', t.tiktok_metrics_likes, '–')}
             {metricInput('comments', t.tiktok_metrics_comments, '–')}
             {metricInput('shares', t.tiktok_metrics_shares, '–')}
             {metricInput('profile', t.tiktok_metrics_profile, '–')}
           </div>
           <p className="mt-3 text-xs text-gray-500">{t.tiktok_metrics_hint}</p>
+          {/* Phase 3 UX-Fix — die Diagnose startet NUR über diesen Button:
+              feld-genaue Pflichtfeld-Prüfung, KEIN Auto-Start. */}
+          <button
+            onClick={handleDiagnoseSubmit}
+            type="button"
+            disabled={loading}
+            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-teal-700 disabled:opacity-60 sm:w-auto"
+          >
+            📊 {t.tiktok_analyze_button}
+          </button>
         </section>
       )}
 

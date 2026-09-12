@@ -11,7 +11,7 @@ import {
   type TikTokInput,
   type TikTokDiagnoseSelfCheck,
 } from './src/ai/tiktok';
-import { missingDiagnoseMetrics } from './src/routes/app/tiktok.tsx';
+import { missingDiagnoseMetrics, diagnoseMetricIssues } from './src/routes/app/tiktok.tsx';
 
 // ── OpenAI-Mock-Server (wie Phase 1/2) ────────────────────────────────────────
 type Responder = (attempt: number, userPrompt: string) => string;
@@ -245,6 +245,31 @@ await scenario('T6 Pflichtfeld-Validierung: UI-Helfer + Server-Validator', async
   // UI bindet den Helfer in die run()-Validierung ein (Quell-Nachweis):
   const uiSrc = await Bun.file('./src/routes/app/tiktok.tsx').text();
   check(uiSrc.includes('missingDiagnoseMetrics(metrics)') && uiSrc.includes('tiktok_error_metrics.replace'), 'UI: run()-Validierung nutzt den Helfer + i18n-Join der fehlenden Felder');
+});
+
+// ── T6b: UX-Fix — feld-genaue Validierung (diagnoseMetricIssues): leere Pflichtfelder
+//     → missing am jeweiligen Feld; ungültige Werte → invalid; Komma/Dezimal akzeptiert;
+//     Videolänge akzeptiert dieselben Formate wie der Server-Parser (31s, 0:42, > 0).
+await scenario('T6b Feld-genaue Validierung: diagnoseMetricIssues (missing/invalid, Komma, Längen-Formate)', async () => {
+  check(JSON.stringify(diagnoseMetricIssues({ views: '', length: '', avgWatch: '' })) === '{"views":"missing","length":"missing","avgWatch":"missing"}', 'alle drei leer → missing je Feld');
+  check(JSON.stringify(diagnoseMetricIssues({ views: '1200', length: '42s', avgWatch: '' })) === '{"avgWatch":"missing"}', 'nur avgWatch leer → nur dort missing');
+  check(JSON.stringify(diagnoseMetricIssues({ views: '1200', length: '42s', avgWatch: '16' })) === '{}', 'vollständig → keine Fehler');
+  check(JSON.stringify(diagnoseMetricIssues({ views: '0', length: '42', avgWatch: '0' })) === '{}', 'echte 0-Werte (views/avgWatch) gelten als angegeben');
+  check(JSON.stringify(diagnoseMetricIssues({ views: '0', length: '0', avgWatch: '16' })) === '{"length":"invalid"}', 'Länge 0 → invalid (Server lehnt 0s als fehlt ab)');
+  check(JSON.stringify(diagnoseMetricIssues({ views: 'abc', length: '42', avgWatch: '16' })) === '{"views":"invalid"}', 'views "abc" → invalid am Feld');
+  check(JSON.stringify(diagnoseMetricIssues({ views: '1200', length: '42', avgWatch: 'abc' })) === '{"avgWatch":"invalid"}', 'avgWatch "abc" → invalid am Feld');
+  check(JSON.stringify(diagnoseMetricIssues({ views: '-5', length: '42', avgWatch: '16' })) === '{"views":"invalid"}', 'negative views → invalid');
+  check(JSON.stringify(diagnoseMetricIssues({ views: '1200', length: '31s', avgWatch: '16' })) === '{}', 'Länge "31s" (Server-Format) akzeptiert');
+  check(JSON.stringify(diagnoseMetricIssues({ views: '1200', length: '0:42', avgWatch: '16' })) === '{}', 'Länge "0:42" (Server-Format) akzeptiert');
+  check(JSON.stringify(diagnoseMetricIssues({ views: '1200', length: '42 Sekunden', avgWatch: '16' })) === '{}', 'Länge "42 Sekunden" (Server-Format) akzeptiert');
+  check(JSON.stringify(diagnoseMetricIssues({ views: '1200', length: '42', avgWatch: '12,5' })) === '{}', 'avgWatch "12,5" (Komma) akzeptiert');
+  check(JSON.stringify(diagnoseMetricIssues({ views: '1.200', length: '42', avgWatch: '16' })) === '{}', 'views "1.200" → Zahl 1.2 (Punkt-Dezimal wie Server) akzeptiert');
+  // UI-Verdrahtung: Karten-Klick startet die Diagnose NICHT automatisch, sondern
+  // zeigt die Felder (startDiagnose) — Diagnose startet nur über den Button.
+  const uiSrc = await Bun.file('./src/routes/app/tiktok.tsx').text();
+  check(uiSrc.includes('onClick={startDiagnose}'), 'UI: Diagnose-Karte wählt Modus an (startDiagnose), kein Auto-Start');
+  check(uiSrc.includes('tiktok_analyze_button') && uiSrc.includes('handleDiagnoseSubmit'), 'UI: „TikTok analysieren“-Button startet die Diagnose');
+  check(uiSrc.includes('tiktok_field_required') && uiSrc.includes('tiktok_value_invalid'), 'UI: feld-genaue Meldungen (Pflicht/ungültig)');
 });
 
 // ── T7: Regression — diagnose mit allen Werten weiterhin voll funktional (en) + alte Outputs
