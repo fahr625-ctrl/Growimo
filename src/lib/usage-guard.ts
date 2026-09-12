@@ -255,10 +255,18 @@ export async function assertRateOk(
  *   3. null → Aufrufer entscheidet (fail-closed bei Generierung).
  * getRequest wird LAZY importiert, damit dieses Modul auch in Nicht-h3-Kontexten
  * (Unit-Tests, Bun-Skripte) importierbar bleibt.
+ *
+ * Import-Quelle: '@tanstack/start-server-core/request-response' statt des
+ * '@tanstack/react-start/server'-Barrels. Grund (Build-Fix Phase 8.2 Abschluss):
+ * der Barrel re-exportiert `* from "@tanstack/start-server-core"` und zieht damit
+ * createStartHandler.js in den vercel-bundle (bun build vercel-entry.ts), dessen
+ * dynamische Importe `#tanstack-router-entry` / `#tanstack-start-entry` nur das
+ * TanStack-Vite-Plugin auflöst — rohes `bun build` scheitert daran. Das Submodul
+ * importiert nur node:async_hooks + h3-v2 und exportiert dieselbe getRequest-Funktion.
  */
 export async function resolveUserIdFromServerFn(payloadFallback?: string): Promise<string | null> {
   try {
-    const { getRequest } = await import('@tanstack/react-start/server');
+    const { getRequest } = await import('@tanstack/start-server-core/request-response');
     const req = getRequest() as unknown as Request;
     const cookie = req.headers?.get?.('cookie') ?? '';
     if (cookie.includes('__session=')) {
