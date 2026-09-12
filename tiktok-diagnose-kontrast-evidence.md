@@ -71,10 +71,12 @@ andere Layouts, Phase-8.2-/Owner-Override-Code.
 
 ## 4. Commit & Deploy
 
-- Commit: `fix(tiktok): Diagnose-Eingabe-Textfarbe kontrastreich (heller Placeholder bleibt, Fokus unverändert)`
-- Evidence-Commit: `chore(evidence): tiktok-diagnose-kontrast-evidence`
-- gepusht nach `origin/master`
-- Deploy: `bunx vercel deploy --prebuilt --prod --yes` → URL siehe unten
+- Commit: `fix(tiktok): Diagnose-Eingabe-Textfarbe kontrastreich (heller Placeholder bleibt, Fokus unverändert)` → `a2da53a`
+- Evidence-Commit: `chore(evidence): tiktok-diagnose-kontrast-evidence` → `59aa73f`
+- gepusht nach `origin/master` (`d75eb67..59aa73f`)
+- Deploy: `bunx vercel deploy --prebuilt --prod --yes` → **Ready**
+- **Deploy-URL:** https://site-ijxsreti3-growimo.vercel.app
+- **www.growimo.app → HTTP 200** (curl -L, nach Deploy)
 
 ## 5. Bundle-Beleg (Production-Artifakt, Build aus diesem Commit)
 
@@ -119,4 +121,7 @@ andere Layouts, Phase-8.2-/Owner-Override-Code.
 
 ## 8. HTTP-Check Production
 
-- `https://www.growimo.app` → HTTP 200 nach Deploy (siehe Deploy-URL).
+- `https://www.growimo.app` → **HTTP 200** (nach Deploy verifiziert)
+- Live-Chunk-Check (Deployment): `/assets/tiktok-D_gA20tX.js` enthält `placeholder:text-gray-400` (grep=1) ✅
+- Live-CSS-Check (Deployment): `/assets/app-BIe7_lx7.css` enthält die Regel
+  `placeholder\:text-gray-400::placeholder{color:var(--color-gray-400)}` ✅
