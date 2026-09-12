@@ -40,7 +40,8 @@ In `src/routes/app/tiktok.tsx` startete die Diagnose-Karte die Diagnose **sofort
 ## 4. Deploy
 
 - Commit + Push: `fix(tiktok): Diagnose-Eingabefelder sichtbar + Feld-Validierung + 'TikTok analysieren'-Button`
-- `bash build-vercel.sh && bunx vercel deploy --prebuilt --prod --yes` → Ready (Deployment-URL: siehe Deploy-Output / Verlauf; transient „Not authorized“ → sofortiger Retry).
+- `bash build-vercel.sh && bunx vercel deploy --prebuilt --prod --yes` → **Ready** (transient „Not authorized“ → sofortiger Retry).
+- Deployment: https://site-1zjm8fsaf-growimo.vercel.app (target production, Status Ready — verifiziert via `vercel inspect`).
 - www.growimo.app: **HTTP 200 verifiziert** (curl, nach Deploy).
 
 ## 5. Bundle-Beleg (render.func / Client-Assets)
