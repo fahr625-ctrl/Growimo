@@ -17,6 +17,7 @@ import { handleTrackingApi } from "./src/api/tracking";
 import { handleAnalyticsApi } from "./src/api/analytics";
 import { handleAdminAnalyticsApi } from "./src/api/admin-analytics";
 import { handleGenerateStreamApi } from "./src/api/generate-stream";
+import { handleStripeWebhookApi } from "./src/api/stripe-webhook";
 
 // Initialise the database once at cold start
 try { await initDb(); } catch (err) { console.error("[vercel] Database init failed:", err); }
@@ -54,6 +55,23 @@ export default async function vercelHandler(
     const webReq = toWebRequest(req);
     const url = new URL(webReq.url);
     
+    // Stripe-Webhook (Phase 8.3): Signaturprüfung mit rohem Body, 200/400/500.
+    // Muss VOR dem SSR-FetchHandler laufen, damit der Body unangetastet bleibt.
+    const stripeWebhookResponse = await handleStripeWebhookApi(webReq, url.pathname);
+    if (stripeWebhookResponse) {
+      res.statusCode = stripeWebhookResponse.status;
+      stripeWebhookResponse.headers.forEach((value, key) => res.setHeader(key, value));
+      if (stripeWebhookResponse.body) {
+        const reader = stripeWebhookResponse.body.getReader();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          res.write(value);
+        }
+      }
+      res.end();
+      return;
+    }
     // Handle beta API routes before passing to SSR handler
     const apiResponse = await handleBetaApi(webReq, url.pathname);
     if (apiResponse) {

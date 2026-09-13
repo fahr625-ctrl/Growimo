@@ -3,20 +3,33 @@ import { createServerFn } from '@tanstack/react-start';
 /**
  * Creates a Stripe Checkout Session for upgrading to Pro.
  *
- * Returns the session URL to redirect the user to.
- * When STRIPE_SECRET_KEY is not configured, throws a helpful error.
+ * Valid lookup_keys (Preise kommen AUS Stripe via lookup_key — die Zahlen
+ * 19 €/Monat bzw. 190 €/Jahr werden im Dashboard mit diesen Keys angelegt):
+ *   - pro_monthly  → 19 €/Monat, 200 Generierungen
+ *   - pro_yearly   → 190 €/Jahr  (= 12 × 19, Rabatt als Jahrespreis)
+ *
+ * Beta-Berechtigte (vor-Public-Launch registrierte Beta-Nutzer, approved=true)
+ * erhalten automatisch den lebenslangen 50-%-Rabatt über den Promotion-Code
+ * (STRIPE_BETA_PROMO_CODE, Default 'BETA50' — im Stripe-Dashboard anzulegen).
+ *
+ * Fail-closed: ohne STRIPE_SECRET_KEY wird eine saubere Fehlermeldung geworfen
+ * (nie ein erfundener Preis/Redirect). Die Nutzer-Identität wird serverseitig
+ * aus der Session verifiziert (Fallback auf die mitgeschickte userId nur ohne
+ * __session-Cookie, identisch zum Usage-Guard).
  */
 export const createCheckoutSession = createServerFn({ method: 'POST' })
   .validator((data: unknown) => {
-    const d = data as { userId?: string; priceLookupKey?: string; successUrl?: string; cancelUrl?: string };
+    const d = data as { userId?: string; priceLookupKey?: string };
     if (!d.userId || typeof d.userId !== 'string') {
       throw new Error('userId is required');
     }
+    const lookupKey = d.priceLookupKey ?? 'pro_monthly';
+    if (lookupKey !== 'pro_monthly' && lookupKey !== 'pro_yearly') {
+      throw new Error(`Unknown price lookup key: ${lookupKey}`);
+    }
     return {
       userId: d.userId,
-      priceLookupKey: d.priceLookupKey ?? 'pro_monthly',
-      successUrl: d.successUrl ?? `${getOrigin()}/app/billing?session_id={CHECKOUT_SESSION_ID}`,
-      cancelUrl: d.cancelUrl ?? `${getOrigin()}/app/pricing`,
+      priceLookupKey: lookupKey,
     };
   })
   .handler(async ({ data }) => {
@@ -24,6 +37,15 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
     if (!secretKey) {
       throw new Error(
         'Stripe is not configured. Set STRIPE_SECRET_KEY to enable payments.',
+      );
+    }
+
+    // Identität serverseitig auflösen (Session-Cookie bevorzugt, Payload-Fallback).
+    const { resolveUserIdFromServerFn } = await import('../lib/usage-guard');
+    const userId = (await resolveUserIdFromServerFn(data.userId)) ?? data.userId;
+    if (!userId || userId === 'anonymous') {
+      throw new Error(
+        'No valid session — please sign in again before starting the checkout.',
       );
     }
 
@@ -40,9 +62,17 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
     if (prices.data.length === 0) {
       throw new Error(
         `No Stripe price found with lookup_key "${data.priceLookupKey}". ` +
-        'Create one in the Stripe Dashboard with that lookup_key.',
+          'Create one in the Stripe Dashboard with that lookup_key (19 €/month or 190 €/year).',
       );
     }
+
+    // Beta-50-%-Rabatt: serverseitig über die echte Nutzer-E-Mail (users-Tabelle →
+    // beta_signups approved=true). Nie vom Client behauptet (fail-closed).
+    const { isBetaUserEmail } = await import('../api/beta');
+    const { qGetUserEmailByClerkId } = await import('../db/queries');
+    const email = await qGetUserEmailByClerkId(userId);
+    const isBeta = email ? await isBetaUserEmail(email) : false;
+    const promoCode = process.env.STRIPE_BETA_PROMO_CODE || 'BETA50';
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
@@ -52,15 +82,16 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
           quantity: 1,
         },
       ],
-      client_reference_id: data.userId,
-      success_url: data.successUrl,
-      cancel_url: data.cancelUrl,
+      client_reference_id: userId,
+      success_url: `${getOrigin()}/app/billing?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${getOrigin()}/app/pricing`,
+      ...(isBeta && promoCode ? { discounts: [{ promotion_code: promoCode }] } : {}),
       metadata: {
-        userId: data.userId,
+        userId,
       },
     });
 
-    return { url: session.url };
+    return { url: session.url, isBeta };
   });
 
 function getOrigin(): string {

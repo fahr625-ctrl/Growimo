@@ -1,8 +1,13 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { getUserSubscription, isStripeConfigured } from '~/store/subscriptions';
+import {
+  getUserSubscription,
+  setUserSubscription,
+  isStripeConfigured,
+} from '~/store/subscriptions';
 import { createCheckoutSession } from '~/stripe/checkout';
+import { getSubscriptionStatus } from '~/stripe/subscription';
 import { useTranslation } from '~/i18n';
 import { track } from '~/lib/tracking-client';
 
@@ -17,18 +22,57 @@ function PricingPage() {
   const [error, setError] = useState<string | null>(null);
 
   let userId = 'anonymous';
-  let userTier: 'free' | 'pro' = 'free';
-
   try {
     const { user } = useUser();
     userId = user?.id ?? 'anonymous';
-    const sub = getUserSubscription(userId);
-    userTier = sub.tier;
   } catch {
     // useUser may fail if Clerk is not configured
   }
 
-  const stripeReady = isStripeConfigured();
+  // Server-verifizierter Abo-/Beta-/Stripe-Status (Phase 8.3). Start vom
+  // Client-Store (bisheriges Verhalten), dann Refresh aus der DB.
+  const initialSub = (() => {
+    try {
+      return getUserSubscription(userId);
+    } catch {
+      return { tier: 'free' as const, status: 'active' as const, userId };
+    }
+  })();
+  const [userTier, setUserTier] = useState<'free' | 'pro'>(initialSub.tier);
+  const [isBeta, setIsBeta] = useState(false);
+  const [stripeConfigured, setStripeConfigured] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSubscriptionStatus()
+      .then((status) => {
+        if (cancelled) return;
+        if (status.signedIn && userId !== 'anonymous') {
+          setUserSubscription(userId, {
+            userId,
+            tier: status.tier,
+            status: status.status,
+            stripeCustomerId: status.stripeCustomerId,
+            stripeSubscriptionId: status.stripeSubscriptionId,
+            currentPeriodEnd: status.currentPeriodEnd
+              ? new Date(status.currentPeriodEnd)
+              : undefined,
+          });
+          setUserTier(status.tier);
+        }
+        setIsBeta(status.isBeta);
+        if (status.stripeConfigured !== undefined) setStripeConfigured(status.stripeConfigured);
+      })
+      .catch(() => {
+        // kein Key/Session → bisheriges Verhalten (Store-Fallback), Hinweis unten
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  const stripeReady = stripeConfigured ?? isStripeConfigured();
 
   const monthlyPrice = 19;
   const annualPrice = 190;
@@ -46,7 +90,7 @@ function PricingPage() {
       const result = await createCheckoutSession({
         data: {
           userId,
-          priceLookupKey: isAnnual ? 'pro_annual' : 'pro_monthly',
+          priceLookupKey: isAnnual ? 'pro_yearly' : 'pro_monthly',
         },
       });
       if (result.url) {
@@ -140,6 +184,7 @@ function PricingPage() {
               ? t.pricing_pro_monthly_note.replace('%d', String(annualMonthlyEquivalent))
               : undefined
           }
+          betaBadge={isBeta ? t.pricing_beta_badge : undefined}
           cta={
             userTier === 'pro' ? (
               <Link
@@ -198,17 +243,7 @@ function PricingPage() {
         <div className="mx-auto mt-8 max-w-2xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-center">
           <span className="inline-flex items-center gap-2 text-sm text-amber-800">
             <span>⚡</span>
-            <span>
-              {t.pricing_stripe_pending.split('VITE_STRIPE_PUBLISHABLE_KEY')[0]}
-              <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-medium">
-                VITE_STRIPE_PUBLISHABLE_KEY
-              </code>
-              {t.pricing_stripe_pending.split('VITE_STRIPE_PUBLISHABLE_KEY')[1]?.split('STRIPE_SECRET_KEY')[0] || ' '}
-              <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-medium">
-                STRIPE_SECRET_KEY
-              </code>
-              {t.pricing_stripe_pending.split('STRIPE_SECRET_KEY')[1] || ''}
-            </span>
+            <span>{t.pricing_stripe_pending}</span>
           </span>
         </div>
       )}
@@ -235,6 +270,7 @@ function PlanCard({
   highlighted,
   badge,
   monthlyNote,
+  betaBadge,
 }: {
   name: string;
   price: number;
@@ -245,6 +281,7 @@ function PlanCard({
   highlighted: boolean;
   badge?: string;
   monthlyNote?: string;
+  betaBadge?: string;
 }) {
   return (
     <div
@@ -271,6 +308,11 @@ function PlanCard({
         </span>
         <span className="text-sm text-gray-500">{period}</span>
       </div>
+      {betaBadge && (
+        <p className="mt-2 inline-flex w-fit items-center rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-semibold text-purple-700 ring-1 ring-purple-200">
+          {betaBadge}
+        </p>
+      )}
       {monthlyNote && (
         <p className="mt-1 text-xs text-gray-400">{monthlyNote}</p>
       )}

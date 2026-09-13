@@ -64,8 +64,8 @@ export async function handleBetaApi(req: Request, pathname: string): Promise<Res
     try { body = await req.json(); } catch { return Response.json({ error: "Invalid JSON" }, { status: 400 }); }
     const email = String(body.email || "").trim().toLowerCase();
     if (!email) return Response.json({ error: "Email is required" }, { status: 400 });
-    const rows = await sql`SELECT id FROM beta_signups WHERE LOWER(email) = ${email} AND approved = true LIMIT 1`;
-    return Response.json({ approved: rows.length > 0 });
+    const approved = await isBetaUserEmail(email);
+    return Response.json({ approved });
   }
 
   if (req.method !== "POST") return Response.json({ error: "Method not allowed" }, { status: 405 });
@@ -99,4 +99,19 @@ export async function handleBetaApi(req: Request, pathname: string): Promise<Res
   try { const fd = await import("fs"); fd.appendFileSync("/home/team/shared/beta-notifications.jsonl", JSON.stringify({first_name:first,email,created_at:rows[0].created_at,ts:new Date().toISOString()})+"\n"); } catch {}
 
   return Response.json({ success: true, signup: rows[0], already: false });
+}
+
+/**
+ * Phase 8.3: Beta-Berechtigung („lebenslange 50 % auf Pro" für vor-Public-Launch
+ * registrierte Beta-Nutzer). Matcht die (SIGNED-IN) E-Mail gegen beta_signups
+ * (approved=true) — identische Semantik wie der /api/beta-access-Endpunkt.
+ * Server-seitig resolviert (Checkout/UI), damit der Rabatt nie vom Client
+ * behauptet werden kann (fail-closed: ohne Treffer → false).
+ */
+export async function isBetaUserEmail(email: string | null | undefined): Promise<boolean> {
+  const normalized = String(email || "").trim().toLowerCase();
+  if (!normalized) return false;
+  const sql = getDb();
+  const rows = await sql`SELECT id FROM beta_signups WHERE LOWER(email) = ${normalized} AND approved = true LIMIT 1`;
+  return rows.length > 0;
 }

@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { useState } from 'react';
+import { createFileRoute, Link, useSearch } from '@tanstack/react-router';
+import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { useTranslation } from '~/i18n';
@@ -7,11 +7,12 @@ import { formatDate } from '~/lib/date';
 import { track } from '~/lib/tracking-client';
 import {
   getUserSubscription,
+  setUserSubscription,
   getGenerationLimit,
-  getUsageThisMonth,
   getRemainingGenerations,
   isStripeConfigured,
 } from '~/store/subscriptions';
+import { getSubscriptionStatus } from '~/stripe/subscription';
 import { createPortalSession } from '~/stripe/portal';
 import { createCheckoutSession } from '~/stripe/checkout';
 
@@ -31,27 +32,76 @@ function BillingContent() {
   const { user } = useUser();
   const { t, locale } = useTranslation();
   const userId = user?.id ?? 'anonymous';
-  const sub = getUserSubscription(userId);
-  const usage = getUsageThisMonth(userId);
-  const limit = getGenerationLimit(sub.tier);
-  const remaining = getRemainingGenerations(userId);
 
+  const search = useSearch({ strict: false }) as { session_id?: string };
+  const sessionId = typeof search?.session_id === 'string' ? search.session_id : undefined;
+
+  const initialSub = getUserSubscription(userId);
+  const [sub, setSub] = useState(initialSub);
+  const [usage, setUsage] = useState<{
+    used: number;
+    remaining: number;
+    limit: number;
+    planTier: 'free' | 'pro';
+  } | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stripeConfigured, setStripeConfigured] = useState<boolean | null>(null);
 
-  const stripeReady = isStripeConfigured();
+  // Server-Status laden (Phase 8.3): initial + wenn ein session_id zurückkommt
+  // (Checkout abgeschlossen → Webhook ggf. noch unterwegs → manuell refreshen).
+  const refreshFromServer = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const status = await getSubscriptionStatus();
+      if (status.signedIn && userId !== 'anonymous') {
+        const next = {
+          userId,
+          tier: status.tier,
+          status: status.status,
+          stripeCustomerId: status.stripeCustomerId,
+          stripeSubscriptionId: status.stripeSubscriptionId,
+          currentPeriodEnd: status.currentPeriodEnd
+            ? new Date(status.currentPeriodEnd)
+            : undefined,
+        };
+        setUserSubscription(userId, next);
+        setSub(next);
+      }
+      setUsage(
+        status.usage
+          ? {
+              used: status.usage.used,
+              remaining: status.usage.remaining,
+              limit: status.usage.limit,
+              planTier: status.usage.planTier,
+            }
+          : null,
+      );
+      if (status.stripeConfigured !== undefined) setStripeConfigured(status.stripeConfigured);
+    } catch {
+      // kein Key/Session → Store-Fallback (bisheriges Verhalten)
+    } finally {
+      setRefreshing(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  useEffect(() => {
+    refreshFromServer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const stripeReady = stripeConfigured ?? isStripeConfigured();
 
   const handleManageBilling = async () => {
-    if (!sub.stripeCustomerId) {
-      setError(t.billing_no_stripe_customer);
-      return;
-    }
     setPortalLoading(true);
     setError(null);
     try {
       const result = await createPortalSession({
-        data: { customerId: sub.stripeCustomerId },
+        data: { userId },
       });
       if (result.url) {
         window.location.href = result.url;
@@ -66,7 +116,6 @@ function BillingContent() {
   };
 
   const handleUpgrade = async () => {
-
     track('upgrade_clicked', user?.id, { source: 'billing' });
     setCheckoutLoading(true);
     setError(null);
@@ -90,8 +139,13 @@ function BillingContent() {
   };
 
   const isPro = sub.tier === 'pro';
+  // Server-Zähler bevorzugt (echte Free-5/Pro-200); Fallback Client-Store.
+  const used = usage?.used ?? 0;
+  const limit = usage?.limit ?? getGenerationLimit(sub.tier);
+  const remaining = usage?.remaining ?? getRemainingGenerations(userId);
   const usagePercent =
-    limit === Infinity ? 0 : Math.min(100, Math.round((usage / limit) * 100));
+    limit <= 0 || !isFinite(limit) ? 0 : Math.min(100, Math.round((used / limit) * 100));
+  const isProLimit = usage?.planTier === 'pro' || (!usage && sub.tier === 'pro');
 
   return (
     <div>
@@ -105,10 +159,39 @@ function BillingContent() {
         </p>
       </div>
 
+      {/* Payment pending after checkout (session_id present, but webhook not there yet) */}
+      {sessionId && !isPro && (
+        <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+          <p className="text-sm font-medium text-blue-800">{t.billing_session_pending}</p>
+          <p className="mt-1 text-xs text-blue-600">{t.billing_session_pending_desc}</p>
+          <button
+            type="button"
+            onClick={refreshFromServer}
+            disabled={refreshing}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 transition-all hover:bg-blue-100 disabled:opacity-60"
+          >
+            {refreshing ? t.common_loading : t.billing_refresh_status}
+          </button>
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Current Plan */}
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-gray-900">{t.billing_current_plan}</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-900">{t.billing_current_plan}</h2>
+            <button
+              type="button"
+              onClick={refreshFromServer}
+              disabled={refreshing}
+              className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-600 transition-all hover:bg-gray-100 disabled:opacity-60"
+            >
+              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M20 20v-5h-5M4.5 9A8 8 0 0119 7.5M19.5 15A8 8 0 015 16.5" />
+              </svg>
+              {refreshing ? t.common_loading : t.billing_refresh_status}
+            </button>
+          </div>
 
           <div className="mt-4 flex items-center gap-3">
             <span
@@ -294,7 +377,7 @@ function BillingContent() {
                 {t.billing_generations}
               </span>
               <span className="text-sm font-semibold text-gray-900">
-                {limit === Infinity ? `${usage} / ∞` : t.billing_usage_of.replace('%s', String(usage)).replace('%s', String(limit))}
+                {t.billing_usage_of.replace('%s', String(used)).replace('%s', String(limit))}
               </span>
             </div>
 
@@ -308,21 +391,19 @@ function BillingContent() {
                       ? 'bg-amber-500'
                       : 'bg-gradient-to-r from-blue-500 to-purple-600'
                 }`}
-                style={{ width: `${limit === Infinity ? 50 : usagePercent}%` }}
+                style={{ width: `${usagePercent}%` }}
               />
             </div>
 
-            {limit !== Infinity && (
-              <p className="mt-2 text-xs text-gray-400">
-                {remaining === 0
-                  ? t.billing_limit_used_up
-                  : remaining === 1
-                    ? t.billing_remaining_singular.replace('%d', String(remaining))
-                    : t.billing_remaining_plural.replace('%d', String(remaining))}
-              </p>
-            )}
+            <p className="mt-2 text-xs text-gray-400">
+              {remaining === 0
+                ? t.billing_limit_used_up
+                : remaining === 1
+                  ? t.billing_remaining_singular.replace('%d', String(remaining))
+                  : t.billing_remaining_plural.replace('%d', String(remaining))}
+            </p>
 
-            {isPro && (
+            {isProLimit && (
               <p className="mt-2 text-xs text-blue-600 font-medium">
                 {t.billing_unlimited}
               </p>

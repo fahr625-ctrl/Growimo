@@ -15,6 +15,7 @@ import { handleTrackingApi } from "./src/api/tracking";
 import { handleAnalyticsApi } from "./src/api/analytics";
 import { handleAdminAnalyticsApi } from "./src/api/admin-analytics";
 import { handleGenerateStreamApi } from "./src/api/generate-stream";
+import { handleStripeWebhookApi } from "./src/api/stripe-webhook";
 
 // Initialise the Neon PostgreSQL schema before serving. Wrapped in try/catch so
 // the server still starts (landing page, sign-in, etc.) if the database is
@@ -59,6 +60,10 @@ for (let attempt = 1; ; attempt++) {
       hostname: HOST,
       async fetch(req) {
         const { pathname } = new URL(req.url);
+        // Stripe-Webhook (Phase 8.3): Signaturprüfung mit rohem Body, 200/400/500.
+        // Muss VOR allen anderen Handlern laufen, damit der Body unangetastet bleibt.
+        const stripeWebhookResponse = await handleStripeWebhookApi(req, pathname);
+        if (stripeWebhookResponse) return stripeWebhookResponse;
         const apiResponse = await handleBetaApi(req, pathname);
         if (apiResponse) return apiResponse;
         const trackingResponse = await handleTrackingApi(req, pathname);

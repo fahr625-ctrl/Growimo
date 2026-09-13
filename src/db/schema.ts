@@ -58,6 +58,12 @@ CREATE INDEX IF NOT EXISTS idx_generated_content_project_id ON generated_content
 CREATE INDEX IF NOT EXISTS idx_generated_content_user_id ON generated_content(user_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe_customer_id ON subscriptions(stripe_customer_id);
+-- Phase 8.3 Stripe-Webhook: unique index über stripe_subscription_id macht die
+-- Upsert-Semantik atomar (Stripe liefert Events idempotent + mit Retries — ein
+-- wiederholtes Event darf nie eine zweite Zeile erzeugen). NULL-Werte (noch
+-- keine Stripe-Subscription) kollidieren in Postgres nie (Distinct) — bestehende
+-- Zeilen mit NULL (z. B. aus Phase 8.2-Tests) bleiben unberührt.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_stripe_subscription_id ON subscriptions(stripe_subscription_id);
 -- F8 Veröffentlichungs-Kalender: automatischer Publish-Plan je Nutzer/Asset
 CREATE TABLE IF NOT EXISTS publish_plan (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -132,6 +138,8 @@ ALTER TABLE generated_content ADD CONSTRAINT generated_content_content_type_chec
 
 -- approved on beta_signups (beta access gate: every signup is auto-approved)
 ALTER TABLE beta_signups ADD COLUMN IF NOT EXISTS approved BOOLEAN DEFAULT TRUE;
+-- Phase 8.3: updated_at auf subscriptions (Webhook-Upsert setzt es bei jedem Sync)
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 -- ── Serverseitiges Beta-Tracking (additiv) ────────────────────────────────────
 -- Zweck: Owner sieht im Admin-Bereich eindeutig, ob echte Nutzer die App
 -- verwenden. Speichert NUR user_id (Clerk-id als TEXT), event, created_at und

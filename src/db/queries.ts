@@ -1127,3 +1127,116 @@ export async function qTryThrottle(userId: string, minIntervalMs: number): Promi
   `;
   return rows.length > 0;
 }
+// ── Phase 8.3 Stripe-Subscription-Sync (Webhook → subscriptions-Tabelle) ───────
+// Owner-Entscheidung 2026-09-12: Pro = 19 €/Monat (200 Generierungen) bzw.
+// 190 €/Jahr; kein „unbegrenzt"-Tarif. qGetPlanTier (oben, Phase 8.2) liest
+// exakt diese Tabelle (neuester active-Eintrag) — der Webhook schreibt hier und
+// der Usage-Guard schaltet damit automatisch Free-5/Pro-200 frei.
+export interface SubscriptionRow {
+  /** users-Tabelle UUID (FK der subscriptions-Zeile). */
+  userId: string;
+  /** Clerk-ID des Nutzers (JOIN über users.clerk_id). */
+  clerkUserId: string | null;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  planTier: 'free' | 'pro';
+  status: 'active' | 'cancelled' | 'expired';
+  currentPeriodEnd: Date | null;
+}
+export interface UpsertSubscriptionInput {
+  /** Clerk-ID des Nutzers (client_reference_id/metadata.userId aus Stripe). */
+  clerkUserId: string;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  planTier: 'free' | 'pro';
+  status: 'active' | 'cancelled' | 'expired';
+  /** Unix-Sekunden (Stripe-Zeitstempel) — wird zu TIMESTAMPTZ konvertiert. */
+  currentPeriodEnd: number | null;
+}
+function mapSubscriptionRow(row: Record<string, unknown>): SubscriptionRow {
+  return {
+    userId: String(row.user_id),
+    clerkUserId: row.clerk_id == null ? null : String(row.clerk_id),
+    stripeCustomerId: row.stripe_customer_id == null ? null : String(row.stripe_customer_id),
+    stripeSubscriptionId: row.stripe_subscription_id == null ? null : String(row.stripe_subscription_id),
+    planTier: row.plan_tier === 'pro' ? 'pro' : 'free',
+    status:
+      row.status === 'cancelled' || row.status === 'expired'
+        ? row.status
+        : 'active',
+    currentPeriodEnd:
+      row.current_period_end == null ? null : new Date(String(row.current_period_end)),
+  };
+}
+/**
+ * Upsert einer Subscription aus einem Stripe-Event. Idempotent über den UNIQUE
+ * Index stripe_subscription_id (Phase 8.3): wiederholte/Retry-Events aktualisieren
+ * dieselbe Zeile statt eine zweite anzulegen. `clerkUserId` ist die Clerk-ID des
+ * Nutzers (Stripe client_reference_id/metadata.userId); die users-Zeile wird bei
+ * Bedarf angelegt (Neon-Konvention, identisch zu ensureUserRow überall).
+ */
+export async function qUpsertSubscription(input: UpsertSubscriptionInput): Promise<void> {
+  if (!input.clerkUserId || !input.stripeSubscriptionId) {
+    throw new Error('qUpsertSubscription requires clerkUserId and stripeSubscriptionId');
+  }
+  const uid = await ensureUserRow(input.clerkUserId);
+  const sql = getDb();
+  const periodEnd = input.currentPeriodEnd
+    ? new Date(input.currentPeriodEnd * 1000)
+    : null;
+  await sql`
+    INSERT INTO subscriptions (
+      user_id, stripe_customer_id, stripe_subscription_id, plan_tier, status, current_period_end
+    )
+    VALUES (
+      ${uid}, ${input.stripeCustomerId}, ${input.stripeSubscriptionId},
+      ${input.planTier}, ${input.status}, ${periodEnd}
+    )
+    ON CONFLICT (stripe_subscription_id) DO UPDATE SET
+      user_id = EXCLUDED.user_id,
+      stripe_customer_id = COALESCE(EXCLUDED.stripe_customer_id, subscriptions.stripe_customer_id),
+      plan_tier = EXCLUDED.plan_tier,
+      status = EXCLUDED.status,
+      current_period_end = COALESCE(EXCLUDED.current_period_end, subscriptions.current_period_end),
+      updated_at = NOW()
+  `;
+}
+/** Subscription per Stripe-Subscription-ID (für Event-Verarbeitung + Webhook-Retry). */
+export async function qGetSubscriptionByStripeId(
+  stripeSubscriptionId: string,
+): Promise<SubscriptionRow | null> {
+  const sql = getDb();
+  const rows = await sql`
+    SELECT s.*, u.clerk_id
+    FROM subscriptions s
+    JOIN users u ON u.id = s.user_id
+    WHERE s.stripe_subscription_id = ${stripeSubscriptionId}
+    ORDER BY s.created_at DESC LIMIT 1
+  `;
+  return rows.length > 0 ? mapSubscriptionRow(rows[0]) : null;
+}
+/** Neuester Abo-Zustand eines Nutzers (für Billing-UI/Status-Refresh). */
+export async function qGetSubscriptionForUser(
+  clerkUserId: string,
+): Promise<SubscriptionRow | null> {
+  const sql = getDb();
+  const rows = await sql`
+    SELECT s.*, u.clerk_id
+    FROM subscriptions s
+    JOIN users u ON u.id = s.user_id
+    WHERE u.clerk_id = ${clerkUserId}
+    ORDER BY s.created_at DESC LIMIT 1
+  `;
+  return rows.length > 0 ? mapSubscriptionRow(rows[0]) : null;
+}
+/** Stripe-Customer-ID eines Nutzers (Portal-Session; fail-closed → null). */
+export async function qGetCustomerIdForUser(clerkUserId: string): Promise<string | null> {
+  const row = await qGetSubscriptionForUser(clerkUserId);
+  return row && row.stripeCustomerId ? row.stripeCustomerId : null;
+}
+/** Echte E-Mail eines Nutzers (Beta-Berechtigung wird über die E-Mail gematcht). */
+export async function qGetUserEmailByClerkId(clerkUserId: string): Promise<string | null> {
+  const sql = getDb();
+  const rows = await sql`SELECT email FROM users WHERE clerk_id = ${clerkUserId} LIMIT 1`;
+  return rows.length > 0 && rows[0].email ? String(rows[0].email) : null;
+}

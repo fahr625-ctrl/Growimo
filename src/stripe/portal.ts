@@ -3,18 +3,21 @@ import { createServerFn } from '@tanstack/react-start';
 /**
  * Creates a Stripe Customer Portal session for managing billing.
  *
- * Returns the portal URL to redirect the user to.
- * When STRIPE_SECRET_KEY is not configured, throws a helpful error.
+ * The Stripe-Customer-ID wird SERVERSETTIG anhand der (Session-verifizierten)
+ * userId aufgelöst (subscriptions-Tabelle) — die ID kommt nie vertrauenswürdig
+ * vom Client. Fail-closed: ohne STRIPE_SECRET_KEY oder ohne verknüpften
+ * Kunden wird eine saubere Fehlermeldung geworfen (nie ein Fallback-Portal).
  */
 export const createPortalSession = createServerFn({ method: 'POST' })
   .validator((data: unknown) => {
-    const d = data as { customerId?: string; returnUrl?: string };
-    if (!d.customerId || typeof d.customerId !== 'string') {
-      throw new Error('customerId is required');
+    const d = data as { userId?: string; customerId?: string };
+    if ((!d.userId || typeof d.userId !== 'string') && (!d.customerId || typeof d.customerId !== 'string')) {
+      throw new Error('userId (or customerId) is required');
     }
     return {
+      userId: d.userId,
       customerId: d.customerId,
-      returnUrl: d.returnUrl ?? `${getOrigin()}/app/billing`,
+      returnUrl: `${getOrigin()}/app/billing`,
     };
   })
   .handler(async ({ data }) => {
@@ -25,11 +28,25 @@ export const createPortalSession = createServerFn({ method: 'POST' })
       );
     }
 
+    let customerId = data.customerId;
+    if (!customerId && data.userId) {
+      // Bevorzugt: serverseitig aufgelöste Identität + DB-Lookup (fail-closed).
+      const { resolveUserIdFromServerFn } = await import('../lib/usage-guard');
+      const { qGetCustomerIdForUser } = await import('../db/queries');
+      const userId = (await resolveUserIdFromServerFn(data.userId)) ?? data.userId;
+      if (userId && userId !== 'anonymous') {
+        customerId = (await qGetCustomerIdForUser(userId)) ?? undefined;
+      }
+    }
+    if (!customerId) {
+      throw new Error('No Stripe customer is linked to this account.');
+    }
+
     const { default: Stripe } = await import('stripe');
     const stripe = new Stripe(secretKey);
 
     const session = await stripe.billingPortal.sessions.create({
-      customer: data.customerId,
+      customer: customerId,
       return_url: data.returnUrl,
     });
 

@@ -36,7 +36,10 @@ export function setUserSubscription(userId: string, sub: UserSubscription): void
 }
 
 export function getGenerationLimit(tier: SubscriptionTier): number {
-  if (tier === 'pro') return Infinity;
+  // Owner-Entscheidung 2026-09-12: Pro = 200 Generierungen/Monat — es gibt
+  // KEINEN „unbegrenzt"-Tarif. Der Server (usage-guard) ist die Autorität;
+  // dieser Store ist nur der Client-Anzeige-Fallback bis zum Server-Refresh.
+  if (tier === 'pro') return 200;
   return 5; // free tier: 5 generations per month
 }
 
