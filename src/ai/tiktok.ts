@@ -61,6 +61,16 @@ export interface TikTokInput {
   audience?: string; // optionale Zielgruppe
   topic?: string; // nur concept
   metrics?: TikTokMetrics; // nur diagnose
+  /** Diagnose v2 — Worum geht es in deinem Video? (Thema/Beschreibung des
+   *  analysierten Videos; OPTIONAL). Wird der Analyse als FAKTENQUELLE gegeben:
+   *  Empfehlungen/neue Video-Version gehen dann konkret auf dieses Thema ein.
+   *  Fehlt das Feld, darf das LLM KEIN Thema erfinden und sagt explizit, dass
+   *  die Empfehlungen ohne Themenangabe allgemeiner bleiben. */
+  videoTopic?: string;
+  /** Diagnose v2 — Aktueller Hook/Titel des Videos (falls bekannt; OPTIONAL).
+   *  Zusätzliche Faktenquelle für die Analyse; fehlt er, bleibt die Analyse
+   *  auf Zahlen + videoTopic (falls vorhanden) gestützt. */
+  videoHook?: string;
   /** Diversität (todayIdea): zuletzt verwendete Content-Richtung aus dem
    *  Richtungs-Katalog — wird bei der Auswahl ausgeschlossen, damit eine
    *  erneute Generierung eine ANDERE Richtung nimmt. Optional; fehlt der
@@ -135,6 +145,18 @@ export interface TikTokIdeaResult {
   selfCheck?: TikTokSelfCheck; // todayIdea + concept: Selbsttest-Flags (vom UI ungenutzt)
 }
 
+/** Diagnose v2 — Neue, direkt umsetzbare Video-Version: konkreter neuer
+ *  Hook, lückenloser Szenenplan MIT Sekunden, Text/Voice-over, CTA und
+ *  empfohlene Länge — alles passend zum eingegebenen Video-Thema. Optional im
+ *  Typ → alte Diagnose-Outputs ohne das Feld rendern weiterhin korrekt. */
+export interface TikTokRebuiltVersion {
+  hook: string; // konkreter neuer Hook (erste 1–2 Sek., passend zum Thema)
+  timedScenes: TikTokTimedScene[]; // Szenenplan mit Zeitmarken (lückenlos, 0s bis Ende)
+  voiceover: string; // kompletter Text/Voice-over-Skript (natürlich formuliert)
+  cta: string; // ein natürlicher Call-to-Action passend zum Thema
+  seconds: number; // empfohlene Gesamtlänge in Sekunden (positiv)
+}
+
 /** Ergebnis für diagnose (volle Diagnose: alle Retentions-Pflichtfelder
  *  views + length + avgWatch sind angegeben). */
 export interface TikTokDiagnoseResult {
@@ -143,6 +165,13 @@ export interface TikTokDiagnoseResult {
    *  TikTokDiagnoseDataGapResult (keine geratene Länge, keine erfundenen
    *  Zahlen). Bei voller Diagnose ist dataGap immer undefined. */
   dataGap?: undefined;
+  /** Diagnose v2 — Echo des eingegebenen Video-Themas (optional; fehlt bei
+   *  alten Outputs/Nutzern ohne Themenangabe → UI-Rendering unverändert). */
+  videoTopic?: string;
+  /** Diagnose v2 — Neue, direkt umsetzbare Video-Version (Hook/Szenenplan mit
+   *  Sekunden/Voice-over/CTA/Länge), konkret auf videoTopic/videoHook bezogen.
+   *  Optional im Typ → alte Outputs ohne das Feld rendern weiterhin korrekt. */
+  rebuilt?: TikTokRebuiltVersion;
   biggestProblem: string; // wahrscheinlich größtes Problem
   whatWorks: string[]; // was bereits funktioniert
   whatToImprove: string[]; // was verbessert werden sollte
@@ -451,6 +480,8 @@ const DIAGNOSE_EN = `You are Growimo's TikTok diagnostician. The user provides r
 Rules:
 - Answer ONLY with valid JSON, no other text, no markdown fences. Output in English.
 - Derive every claim from the numbers given (use them in your wording). Do NOT invent metrics that were not provided.
+- VIDEO TOPIC & CURRENT HOOK (fact source when provided, OPTIONAL): The user may describe what the video is about ("What the video is about") and/or its current hook/title ("Current hook/title") — treat them as FACTS about the analyzed video. When present, EVERY part of the diagnosis (biggestProblem, whatToImprove, newHook, optimized, the rebuilt version, nextTest) AND every scene/text/voice-over of the rebuilt version MUST concretely address THIS topic — e.g. topic "baking a layer cake" → the new hook, scenes and spoken text talk about the cake/baking, never generically. When NO topic/hook was provided: state explicitly that the recommendations stay more general because no video topic was given, and NEVER invent a topic or pretend to know what the video shows.
+- PROBABILISTIC CAUSAL LANGUAGE (HARD RULE): The numbers can NEVER be presented as PROVEN causes. A low average watch time can INDICATE a weak opening — it does not PROVE one. Always phrase causes as likely/possible: "a weak opening is a likely cause", "this may point to …", "a possible reason is …". NEVER "the reason is", "the cause is", "this proves", "clearly shows that … is the cause". This applies to the whole diagnosis, every recommendation and every data/error note.
 - RETENTION FIGURES IN THE USER PROMPT: The user prompt lists the user's own values AND — when Views, video length and average watch time were all provided — a "Calculated retention" block (video length, average watch time, watch rate, total watch seconds). These calculated values are plain arithmetic on the user's own numbers and are the ONLY additional number basis allowed. You may reference the calculated retention values AND the user's own values — nothing else. Never invent any other figure.
 - MISSING METRICS = NOT PROVIDED: The user's data lists ONLY the values that are present. If a metric is NOT listed (e.g. no likes, no watch time), it was NOT provided — NEVER invent it, NEVER guess it and NEVER draw conclusions from it. Only the listed values (and the calculated retention block) may be referenced.
 - NEVER invent users/testimonials/quotes/user feedback or success stories — only the numbers provided may be referenced.
@@ -462,6 +493,12 @@ Rules:
 - newHook: a specific, rewritten first-1-2-second hook that directly targets the diagnosed problem.
 - optimized: ONE concrete optimized video version (retain what works, fix the problem, describe the new scenes/hook/overlay concretely).
 - nextTest: exactly ONE concrete next test (what to change and what metric to watch), so the user can A/B iterate.
+- rebuilt — NEW, DIRECTLY FILMABLE VIDEO VERSION (REQUIRED, concretely tied to the given topic when one was provided): deliver the object {hook, timedScenes, voiceover, cta, seconds}:
+  - hook: the concrete new first-1-2-second hook for THIS topic (spoken + on-screen), directly fixing the diagnosed problem.
+  - timedScenes: the complete scene plan WITH time marks covering the entire video from second 0 to its end without gaps. Array of {time, scene, text}: time is the exact mark (e.g. "0-2s", "2-8s", "8-20s"), scene describes what is shown/happens, text is EXACTLY what is spoken or displayed in that moment (empty string if nothing). Every scene matches the given topic.
+  - voiceover: the full voice-over / on-screen text script for the new version — naturally worded, ready to read aloud.
+  - cta: one natural call-to-action fitting the topic.
+  - seconds: the recommended total length of the new version in SECONDS as a plain number (e.g. 25), consistent with lengthRecommendation.seconds.
 - lengthRecommendation (REQUIRED — explicit length & structure recommendation WITH number-based justification, NEVER a generic default):
   - seconds: the recommended total video length in SECONDS as a plain number (e.g. 25). Base it on the diagnosed retention problem and the user's real numbers — NOT on a generic rule such as "8–20 seconds".
   - structure: the concrete structure for THAT length WITH time marks that add up to it — hook phase (e.g. "0–2s: hook line"), main content with the fix ("2–18s: …"), call-to-action ("18–25s: …").
@@ -474,7 +511,11 @@ Internal quality self-check BEFORE output (mandatory — answer honestly in the 
 - Q4 - vagueNextTest: Is nextTest vague or generic ("try different hooks", "keep posting", "test more content") instead of ONE concrete change plus the exact metric to watch? If it cannot be executed and measured exactly as described, report true.
 - Q5 - groundedInNumbers: Are the claims in biggestProblem, whatWorks and whatToImprove actually derived from and grounded in the numbers provided (referencing the actual figures), not generic advice that would apply to any TikTok? If they are generic/unmoored, report false.
 - Q6 - lengthGrounded: Does lengthRecommendation.reason justify the recommended length with the REAL user-provided numbers and the calculated retention values from the user prompt (referencing actual figures) instead of a generic default such as "8–20 seconds is best for TikTok"? Does it invent NO number that is not in the user prompt? If the field is missing, or the justification is generic/ungrounded, or any uninvented number appears — report false. This is a HARD REJECT criterion: if false, the diagnosis MUST be discarded and regenerated — never output it.
-Then judge: if Q1, Q2 or Q3 is true, or Q4 is true, or Q5 is false, or Q6 is false, internally DISCARD this diagnosis and REGENERATE a different, better one grounded strictly in the numbers provided. Retry internally as many times as needed until it genuinely passes: it references only provided numbers (plus the calculated retention block), makes no unproven promise, prescribes no reaction, names one concrete next test, is grounded in the actual figures and contains a lengthRecommendation justified by real numbers.
+Also verify BEFORE output (probabilistic causality + topic grounding):
+- When a video topic/hook was provided: does EVERY part of the diagnosis — especially the rebuilt version (hook/scenes/voice-over) — concretely reference that topic (does it mention the cake/baking when the topic is baking a cake)? If the rebuilt version would fit any other video unchanged, it is ungrounded → discard and regenerate so it names the topic literally.
+- When NO topic was provided: is it stated honestly that the recommendations stay more general, and is NO topic invented?
+- Is every cause phrased as likely/possible ("a weak opening is a likely cause", "may point to", "a possible reason is") and NO cause as proven fact ("the reason is", "the cause is", "this proves")?
+Then judge: if Q1, Q2 or Q3 is true, or Q4 is true, or Q5 is false, or Q6 is false, or a cause is stated as proven fact, or the rebuilt version ignores a provided topic, internally DISCARD this diagnosis and REGENERATE a different, better one grounded strictly in the numbers provided. Retry internally as many times as needed until it genuinely passes: it references only provided numbers (plus the calculated retention block), makes no unproven promise, prescribes no reaction, names one concrete next test, is grounded in the actual figures, phrases every cause probabilistically, ties the rebuilt version concretely to a provided topic (or honestly says recommendations stay more general when no topic was given) and contains a lengthRecommendation justified by real numbers.
 
 JSON schema exactly:
 {
@@ -484,6 +525,7 @@ JSON schema exactly:
   "newHook": "specific rewritten first-1-2-second hook",
   "optimized": "one concrete optimized video version",
   "nextTest": "one concrete next test + the metric to watch",
+  "rebuilt": {"hook": "new concrete first-1-2-second hook for THIS topic", "timedScenes": [{"time": "0-2s", "scene": "what is shown/happens", "text": "spoken or on-screen text (empty string if none)"}, {"time": "2-8s", "scene": "…", "text": "…"}], "voiceover": "full voice-over / on-screen text script", "cta": "one natural call-to-action", "seconds": 25},
   "lengthRecommendation": {"seconds": 25, "structure": "0-2s hook line … 2-18s content … 18-25s CTA", "reason": "Based on your 2500 views and 38.1% watch rate at 42s length (16s average watch time), …"},
   "selfCheck": {
     "inventsMetrics": true or false,
@@ -500,6 +542,8 @@ const DIAGNOSE_DE = `Du bist Growimos TikTok-Diagnostiker. Der Nutzer liefert ec
 Regeln:
 - Antworte AUSSCHLIESSLICH mit validem JSON, kein anderer Text, keine Markdown-Fences. Ausgabe auf Deutsch.
 - Leite jede Aussage aus den genannten Zahlen ab (nutze sie wörtlich). Erfinde keine Metriken, die nicht genannt wurden.
+- VIDEO-THEMA & AKTUELLER HOOK (Faktenquelle, wenn angegeben — OPTIONAL): Der Nutzer kann beschreiben, worum es in seinem Video geht („Worum geht es in deinem Video?“) und/oder den aktuellen Hook/Titel („Aktueller Hook/Titel“) nennen — behandle sie als FAKTEN über das analysierte Video. Wenn vorhanden, MÜSSEN ALLE Teile der Diagnose (biggestProblem, whatToImprove, newHook, optimized, die neue Video-Version, nextTest) UND jede Szene/jeder Text/das Voice-over der neuen Video-Version KONKRET auf dieses Thema eingehen — z. B. Thema „Kuchentorte backen“ → neuer Hook, Szenen und Sprechtext drehen sich um die Torte/das Backen, niemals generisch. Wenn KEIN Thema/Hook angegeben wurde: sage explizit, dass die Empfehlungen ohne Themenangabe allgemeiner bleiben, und erfinde NIEMALS ein Thema oder tu so, als wüsstest du, was das Video zeigt.
+- PROBABILISTISCHE KAUSAL-SPRACHE (HARTE REGEL): Zahlen dürfen NIEMALS als bewiesene Ursachen dargestellt werden. Eine niedrige Wiedergabedauer KANN auf einen schwachen Einstieg HINDEUTEN — sie beweist ihn nicht. Formuliere Ursachen IMMER als wahrscheinlich/möglich: „Ein schwacher Einstieg ist eine wahrscheinliche Ursache“, „Das kann darauf hindeuten …“, „Ein möglicher Grund wäre …“. NIEMALS „der Grund ist“, „die Ursache ist“, „das beweist“, „liegt daran“. Das gilt für die gesamte Diagnose, jede Empfehlung und jede Daten-/Fehlermeldung.
 - BERECHNETE RETENTION IM NUTZER-PROMPT: Der Nutzer-Prompt listet die eigenen Werte des Nutzers UND — wenn Aufrufe, Videolänge und durchschnittliche Wiedergabedauer alle angegeben wurden — einen Block „Berechnete Retention" (Videolänge, durchschnittliche Wiedergabedauer, Watch-Rate, gesamte Watch-Sekunden). Diese berechneten Werte sind reine Arithmetik aus den Nutzerwerten und die EINZIGE zusätzlich erlaubte Zahlenbasis. Du darfst die berechneten Retention-Werte UND die Nutzerwerte referenzieren — sonst nichts. Erfinde niemals eine andere Zahl.
 - FEHLENDE METRIKEN = NICHT ANGEGEBEN: Die Nutzerdaten listen ausschließlich die vorhandenen Werte. Wenn eine Metrik NICHT gelistet ist (z. B. keine Likes, keine Wiedergabedauer), wurde sie NICHT angegeben — erfinde sie NIEMALS, rate sie NIEMALS und leite NIEMALS Schlüsse aus ihr ab. Nur die gelisteten Werte (und der berechnete Retention-Block) dürfen referenziert werden.
 - Erfinde NIEMALS Nutzer/Testimonials/Zitate/Nutzerfeedback oder Erfolgsgeschichten — nur die genannten Zahlen dürfen referenziert werden.
@@ -511,6 +555,12 @@ Regeln:
 - newHook: eine konkret neu geschriebene Hook-Zeile für die ersten 1–2 Sekunden, die direkt das diagnostizierte Problem adressiert.
 - optimized: EINE konkrete optimierte Video-Version (Behalte, was funktioniert, behebe das Problem, beschreibe neue Szenen/Hook/Einblendung konkret).
 - nextTest: GENAU EIN konkreter nächster Test (was zu ändern und welche Metrik zu beobachten), damit der Nutzer iterieren kann.
+- rebuilt — NEUE, DIREKT UMSETZBARE VIDEO-VERSION (PFLICHT, konkret auf das angegebene Thema bezogen, wenn eines genannt wurde): liefere das Objekt {hook, timedScenes, voiceover, cta, seconds}:
+  - hook: der konkrete neue Hook für die ersten 1–2 Sekunden ZU DIESEM Thema (gesprochen + eingeblendet), der direkt das diagnostizierte Problem behebt.
+  - timedScenes: der komplette Szenenplan MIT ZEITANGABEN, der das gesamte Video von Sekunde 0 bis zum Ende lückenlos abdeckt. Array aus {time, scene, text}: time ist die exakte Zeitmarke (z. B. „0-2s“, „2-8s“, „8-20s“), scene beschreibt, was zu sehen ist/passiert, text ist EXAKT das, was in diesem Moment gesprochen oder eingeblendet wird (leere Zeichenkette, wenn nichts). Jede Szene passt zum angegebenen Thema.
+  - voiceover: das komplette Text-/Voice-over-Skript der neuen Version — natürlich formuliert, direkt ablesbar.
+  - cta: ein natürlicher Call-to-Action passend zum Thema.
+  - seconds: die empfohlene Gesamtlänge der neuen Version in SEKUNDEN als reine Zahl (z. B. 25), konsistent zu lengthRecommendation.seconds.
 - lengthRecommendation (PFLICHT — explizite Längen- & Aufbau-Empfehlung MIT Zahlenbegründung, NIEMALS ein generischer Default):
   - seconds: die empfohlene Gesamtlänge in SEKUNDEN als reine Zahl (z. B. 25). Begründe sie aus dem diagnostizierten Retentions-Problem und den echten Nutzerzahlen — NICHT aus einer generischen Regel wie „8–20 Sekunden".
   - structure: der konkrete Aufbau für DIESE Länge MIT Zeitangaben, die sich zur Gesamtlänge summieren — Hook-Phase (z. B. „0–2s: Hook-Zeile"), Inhalt mit dem Fix („2–18s: …"), Call-to-Action („18–25s: …").
@@ -523,7 +573,11 @@ Interne Qualitäts-Selbstprüfung VOR der Ausgabe (Pflicht — beantworte ehrlic
 - Q4 - vagueNextTest: Ist nextTest vage oder generisch („probiere andere Hooks", „poste einfach weiter", „teste mehr Inhalte") statt EIN konkreter Test mit der exakt zu beobachtenden Metrik? Wenn er nicht genau so umsetzbar und messbar ist, melde true.
 - Q5 - groundedInNumbers: Sind die Aussagen in biggestProblem, whatWorks und whatToImprove tatsächlich aus den gelieferten Zahlen abgeleitet und an ihnen belegt (mit Bezug auf die konkreten Werte) — nicht generischer Rat, der auf jedes TikTok passen würde? Wenn sie generisch/unverankert sind, melde false.
 - Q6 - lengthGrounded: Begründet lengthRecommendation.reason die empfohlene Länge mit den ECHTEN Nutzerzahlen und den berechneten Retention-Werten aus dem Nutzer-Prompt (mit Bezug auf konkrete Werte) statt mit einem generischen Default wie „8–20 Sekunden sind am besten für TikTok"? Erfindet sie KEINE Zahl, die nicht im Nutzer-Prompt steht? Wenn das Feld fehlt, die Begründung generisch/unverankert ist oder eine erfundene Zahl auftaucht — melde false. Das ist ein HARD-REJECT-Kriterium: Ist es false, MUSS die Diagnose verworfen und NEU generiert werden — niemals ausgeben.
-Dann urteile: Wenn Q1, Q2 oder Q3 wahr ist, oder Q4 wahr ist, oder Q5 false ist, oder Q6 false ist, VERWIRF diese Diagnose intern und generiere eine andere, bessere Diagnose NEU, die ausschließlich an den gelieferten Zahlen belegt ist. Wiederhole intern so oft wie nötig, bis sie wirklich besteht: sie referenziert nur gelieferte Zahlen (plus den berechneten Retention-Block), macht kein unbelegtes Versprechen, verordnet keine Reaktion, nennt einen konkreten nächsten Test, ist an den tatsächlichen Werten belegt und enthält eine lengthRecommendation, die mit echten Zahlen begründet ist.
+Prüfe außerdem VOR der Ausgabe (probabilistische Kausal-Sprache + Themen-Bezug):
+- Wenn ein Video-Thema/Hook angegeben wurde: Geht JEDER Teil der Diagnose — vor allem die neue Video-Version (hook/Szenen/Voice-over) — konkret auf dieses Thema ein (nennt sie die Torte/das Backen, wenn das Thema „Kuchentorte backen“ ist)? Wenn die neue Video-Version auch zu jedem anderen Video passen würde, ist sie nicht themengebunden → verwerfen und NEU generieren, sodass sie das Thema wörtlich nennt.
+- Wenn KEIN Thema angegeben wurde: Wird ehrlich gesagt, dass die Empfehlungen allgemeiner bleiben, und wird KEIN Thema erfunden?
+- Ist jede Ursache als wahrscheinlich/möglich formuliert („Ein schwacher Einstieg ist eine wahrscheinliche Ursache“, „kann darauf hindeuten“, „ein möglicher Grund“) und KEINE als bewiesene Tatsache („der Grund ist“, „die Ursache ist“, „das beweist“)?
+Dann urteile: Wenn Q1, Q2 oder Q3 wahr ist, oder Q4 wahr ist, oder Q5 false ist, oder Q6 false ist, oder eine Ursache als bewiesene Tatsache formuliert ist, oder die neue Video-Version ein angegebenes Thema ignoriert, VERWIRF diese Diagnose intern und generiere eine andere, bessere Diagnose NEU, die ausschließlich an den gelieferten Zahlen belegt ist. Wiederhole intern so oft wie nötig, bis sie wirklich besteht: sie referenziert nur gelieferte Zahlen (plus den berechneten Retention-Block), macht kein unbelegtes Versprechen, verordnet keine Reaktion, nennt einen konkreten nächsten Test, ist an den tatsächlichen Werten belegt, formuliert jede Ursache nur probabilistisch, bindet die neue Video-Version konkret an ein angegebenes Thema (oder sagt ehrlich, dass die Empfehlungen ohne Thema allgemeiner bleiben) und enthält eine lengthRecommendation, die mit echten Zahlen begründet ist.
 
 JSON-Schema exakt:
 {
@@ -533,6 +587,7 @@ JSON-Schema exakt:
   "newHook": "konkrete neu geschriebene Hook-Zeile für die ersten 1-2 Sekunden",
   "optimized": "eine konkrete optimierte Video-Version",
   "nextTest": "ein konkreter nächster Test + die zu beobachtende Metrik",
+  "rebuilt": {"hook": "neuer konkreter First-1-2-Sekunden-Hook ZU DIESEM Thema", "timedScenes": [{"time": "0-2s", "scene": "was zu sehen ist/passiert", "text": "gesprochener oder eingeblendeter Text (leer, wenn keiner)"}, {"time": "2-8s", "scene": "…", "text": "…"}], "voiceover": "komplettes Text-/Voice-over-Skript", "cta": "ein natürlicher Call-to-Action", "seconds": 25},
   "lengthRecommendation": {"seconds": 25, "structure": "0-2s Hook-Zeile … 2-18s Inhalt … 18-25s CTA", "reason": "Basierend auf deinen 2500 Views und 38,1% Watch-Rate bei 42s Länge (16s durchschnittliche Wiedergabedauer), …"},
   "selfCheck": {
     "inventsMetrics": true oder false,
@@ -653,6 +708,19 @@ function buildUserPrompt(input: TikTokInput, lang: TikTokLang): string {
           ? `Letzte Content-Richtung (nicht wiederholen): ${input.previousDirection}`
           : `Previous content direction (do not repeat): ${tiktokDirectionLabel(input.previousDirection, false)}`,
       );
+    }
+  }
+  if (input.mode === 'diagnose' && (input.videoTopic?.trim() || input.videoHook?.trim())) {
+    const vt = input.videoTopic?.trim();
+    const vh = input.videoHook?.trim();
+    if (vt || vh) {
+      lines.push(
+        de
+          ? 'VIDEO-THEMA & AKTUELLER HOOK (vom Nutzer angegeben — FAKTENQUELLE für dieses Video; verwende sie als Gegenstand der Analyse):'
+          : 'VIDEO TOPIC & CURRENT HOOK (provided by the user — fact source for this video; use them as the subject of the analysis):',
+      );
+      if (vt) lines.push(de ? '- Worum geht es in deinem Video?: ' : '- What the video is about: ', vt);
+      if (vh) lines.push(de ? '- Aktueller Hook/Titel: ' : '- Current hook/title: ', vh);
     }
   }
   if (input.mode === 'diagnose' && input.metrics) {
@@ -808,6 +876,24 @@ function parseLengthRecommendation(v: unknown): TikTokLengthRecommendation | und
   return { seconds: Math.round(sec), structure, reason };
 }
 
+/** Diagnose v2 — Neue Video-Version parsen (optional; Fallbacks für alte
+ *  Outputs): braucht hook + cta + positive seconds + mind. 1 Szene mit
+ *  Zeitmarke; sonst undefined (UI rendert dann einfach keinen eigenen Block). */
+function parseRebuilt(v: unknown): TikTokRebuiltVersion | undefined {
+  if (!v || typeof v !== 'object') return undefined;
+  const o = v as Record<string, unknown>;
+  const hook = str(o.hook);
+  const cta = str(o.cta);
+  const voiceover = str(o.voiceover);
+  const scenes = parseTimedScenes(o.timedScenes);
+  const sec =
+    typeof o.seconds === 'number' && Number.isFinite(o.seconds) && o.seconds > 0
+      ? o.seconds
+      : parseLengthSeconds(str(o.seconds));
+  if (!hook || !cta || !scenes || sec === undefined || sec <= 0) return undefined;
+  return { hook, timedScenes: scenes, voiceover, cta, seconds: Math.round(sec) };
+}
+
 function parseIdea(mode: 'todayIdea' | 'concept', p: Record<string, unknown>): TikTokIdeaResult | null {
   if (!str(p.idea) || !str(p.hook) || !str(p.length)) return null;
   return {
@@ -836,6 +922,10 @@ function parseDiagnose(p: Record<string, unknown>): TikTokDiagnoseResult | null 
   if (!str(p.biggestProblem) || !str(p.newHook) || !str(p.optimized) || !str(p.nextTest)) return null;
   return {
     mode: 'diagnose',
+    // Diagnose v2 — Video-Thema (Echo, optional) + neue, direkt umsetzbare
+    // Video-Version (optional geparst; alte Outputs ohne die Felder bleiben gültig).
+    videoTopic: str(p.videoTopic) || undefined,
+    rebuilt: parseRebuilt(p.rebuilt),
     biggestProblem: str(p.biggestProblem),
     whatWorks: strArr(p.whatWorks),
     whatToImprove: strArr(p.whatToImprove),
@@ -993,6 +1083,74 @@ const RULE_B_PATTERNS: Array<{ name: string; re: RegExp }> = [
   { name: 'staunt überrascht', re: /(staunt|staunen)\s+überrascht/i },
 ];
 
+/** Diagnose v2 — deterministische Erkennung BEWIESENER Kausal-Behauptungen
+ *  (probabilistische Sprachregel, Owner-Vorgabe): Formulierungen wie „der
+ *  Grund ist" / „das beweist" / „liegt daran" stellen Ursachen als Tatsache
+ *  dar, obwohl Kennzahlen nur WAHRSCHEINLICHE Ursachen belegen. Wird ein
+ *  Muster erkannt, wird die Diagnose WEICH verworfen und mit Hinweis neu
+ *  generiert (auf dem letzten Versuch wird ohnehin geliefert — der Prompt
+ *  fordert die Sprachregel hart ein). Bewusst eng gefasst, um legitime
+ *  Formulierungen („Das Problem ist die niedrige Wiedergabedauer" als reine
+ *  Kennzahlen-Aussage) nicht fälschlich abzulehnen. */
+const PROVEN_CAUSE_PATTERNS: Array<{ name: string; re: RegExp }> = [
+  { name: 'der Grund ist', re: /\bder\s+grund\s+(dafür\s+)?ist\b/i },
+  { name: 'die Ursache ist', re: /\bdie\s+ursache\s+(dafür\s+)?(ist|sind|war|waren)\b/i },
+  { name: 'das Problem ist, dass', re: /\bdas\s+problem\s+ist[,\s]+dass\b/i },
+  { name: 'liegt daran', re: /\bliegt\s+(es\s+)?daran\b/i },
+  { name: 'beweist, dass', re: /\bd(as|ies|er)\s+beweist(?:,\s+)?(?:dass|es)?\b/i },
+  { name: 'the reason is', re: /\bthe\s+reason\s+(?:for\s+this\s+)?is\b/i },
+  { name: 'the cause is', re: /\bthe\s+cause\s+(?:of\s+this\s+)?is\b/i },
+  { name: 'proves that', re: /\bproves?\s+that\b/i },
+  { name: 'clearly shows that', re: /\bclearly\s+shows?\s+that\b/i },
+];
+
+/** Liefert die Namen aller zutreffenden Beweis-Sprach-Muster (leer = ok). */
+function provenCauseViolations(blob: string): string[] {
+  const hits: string[] = [];
+  for (const { name, re } of PROVEN_CAUSE_PATTERNS) if (re.test(blob)) hits.push('CAUSE:' + name);
+  return hits;
+}
+
+/** Diagnose v2 — Themen-Tokens (deterministisch): zerlegt das Video-Thema in
+ *  Inhalts-Tokens (Stoppwörter entfernt) + das ganze Thema als Teilstring. */
+const TOPIC_STOPWORDS = new Set([
+  'dein', 'deine', 'deinem', 'deiner', 'mein', 'meine', 'meinem', 'meiner',
+  'der', 'die', 'das', 'den', 'dem', 'ein', 'eine', 'einen', 'einer', 'einem',
+  'und', 'oder', 'aber', 'wie', 'was', 'wenn', 'für', 'fuer', 'mit', 'auf',
+  'von', 'zum', 'zur', 'im', 'in', 'ist', 'sind', 'nicht', 'auch', 'the', 'a',
+  'an', 'and', 'or', 'for', 'with', 'about', 'of', 'to', 'in', 'on', 'is',
+]);
+export function topicTokens(topic: string | undefined): string[] {
+  if (!topic) return [];
+  const t = topic.toLowerCase().trim();
+  if (!t) return [];
+  const words = t.split(/[^a-zäöüß0-9]+/).filter((w) => w.length >= 3 && !TOPIC_STOPWORDS.has(w));
+  const out = [...new Set(words)];
+  if (t.length >= 8) out.push(t); // zusätzlich das ganze Thema (Teilstring-Check)
+  return out;
+}
+
+/** Diagnose v2 — Themen-Bezug (deterministisch, weich): Wurde ein Video-Thema
+ *  angegeben, muss die Diagnose das Thema WÖRTLICH widerspiegeln (mind. ein
+ *  Inhalts-Token als Teilstring in newHook/optimized/rebuilt). Ohne Themen-
+ *  angabe oder ohne rebuilt-Feld → true (kein Verwerfungsgrund). */
+export function topicGroundedInRebuilt(topic: string | undefined, r: TikTokDiagnoseResult): boolean {
+  if (!topic?.trim()) return true; // ohne Thema keine Pflicht
+  const tokens = topicTokens(topic);
+  if (tokens.length === 0) return true;
+  const fields = [r.newHook, r.optimized];
+  if (r.rebuilt) {
+    fields.push(
+      r.rebuilt.hook,
+      r.rebuilt.voiceover,
+      r.rebuilt.cta,
+      r.rebuilt.timedScenes.map((s) => s.time + ' ' + s.scene + ' ' + s.text).join(' '),
+    );
+  }
+  const blob = fields.join(' ').toLowerCase();
+  return tokens.some((tok) => blob.includes(tok));
+}
+
 /** Sammelt alle relevanten Textfelder einer Idee zu einem Blob für die
  * deterministische Regel-Prüfung (kontextfrei, gilt für Idee/Hook/Szenen/
  * Einblendungen/Sprechtext/Caption/why). */
@@ -1013,6 +1171,13 @@ function diagnoseContentBlob(r: TikTokDiagnoseResult): string {
     // geprüft (z. B. „in nur X Sekunden" oder erfundene „+X%" in der Begründung).
     r.lengthRecommendation
       ? [String(r.lengthRecommendation.seconds), r.lengthRecommendation.structure, r.lengthRecommendation.reason].join(' ')
+      : '',
+    // Diagnose v2: die neue Video-Version wird ebenso auf Regel-A-/B-Muster
+    // geprüft (Hook/Szenen/Voice-over/CTA dürfen keine verbotenen Versprechen
+    // oder verordneten Reaktionen enthalten).
+    r.rebuilt
+      ? [r.rebuilt.hook, r.rebuilt.timedScenes.map((s) => s.time + ' ' + s.scene + ' ' + s.text).join(' '),
+         r.rebuilt.voiceover, r.rebuilt.cta, String(r.rebuilt.seconds)].join(' ')
       : '',
   ].join(' ').toLowerCase();
 }
@@ -1069,8 +1234,8 @@ function buildRetryHint(lang: TikTokLang, violations: string[] = [], mode: TikTo
           : ` DETECTED RULE VIOLATIONS IN THE REJECTED DIAGNOSIS: ${violations.join(', ')} — remove those words/phrases COMPLETELY and replace them with statements grounded strictly in the numbers the user provided.`
         : '';
     return lang === 'de'
-      ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Diagnose wurde intern verworfen (sie erfand Kennzahlen, die der Nutzer nicht angegeben hat, enthielt ein unbelegtes Leistungs-/Zeit-Versprechen, eine vorgegebene künstliche Reaktion/Begeisterung oder einen zu vagen nächsten Test — oder ihre Aussagen waren nicht an den gelieferten Zahlen belegt).' + rulePart + ' Erzeuge JETZT eine deutlich bessere Diagnose: referenziere AUSSCHLIESSLICH die tatsächlich gelieferten Zahlen (nur die im Prompt gelisteten Metriken), erfinde KEINE zusätzlichen Kennzahlen/Werte/Prozente, mache in newHook/optimized/nextTest KEIN unbelegtes Versprechen (kein „in nur X Sekunden/Minuten/Tagen/Wochen", kein „+X%", kein „mehr Follower", kein „viral gehen"), verordne KEINE Reaktion/Begeisterung und nenne GENAU EINEN konkret umsetzbaren nächsten Test mit der zu beobachtenden Metrik. Liefere außerdem lengthRecommendation (seconds als Zahl, structure mit Zeitangaben, reason) MIT einer Begründung, die ausschließlich an den gelieferten und berechneten Zahlen belegt ist — kein generischer Default (z. B. „8–20 Sekunden sind am besten"), keine erfundene Zahl. Setze alle sechs selfCheck-Booleans ehrlich auf bestehen.'
-      : '\n\nQUALITY SELF-CHECK NOTE: The previous diagnosis was internally rejected (it invented metrics the user did not provide, contained an unproven performance/time promise, a prescribed artificial reaction/enthusiasm or a vague next test — or its claims were not grounded in the provided numbers).' + rulePart + ' NOW produce a clearly better diagnosis: reference ONLY the numbers actually provided (the metrics listed in the prompt), invent NO additional metrics/values/percentages, make NO unproven promise in newHook/optimized/nextTest (no "in just X seconds/minutes/days/weeks", no "+X%", no "more followers", no "go viral"), prescribe NO reaction/enthusiasm and name EXACTLY ONE concrete next test with the metric to watch. Also deliver lengthRecommendation (seconds as a number, structure with time marks, reason) justified ONLY by the provided and calculated numbers — no generic default (e.g. "8-20 seconds is best"), no invented figure. Set all six selfCheck booleans truthfully to passing.';
+      ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Diagnose wurde intern verworfen (sie erfand Kennzahlen, die der Nutzer nicht angegeben hat, enthielt ein unbelegtes Leistungs-/Zeit-Versprechen, eine vorgegebene künstliche Reaktion/Begeisterung oder einen zu vagen nächsten Test — oder ihre Aussagen waren nicht an den gelieferten Zahlen belegt).' + rulePart + ' Erzeuge JETZT eine deutlich bessere Diagnose: referenziere AUSSCHLIESSLICH die tatsächlich gelieferten Zahlen (nur die im Prompt gelisteten Metriken), erfinde KEINE zusätzlichen Kennzahlen/Werte/Prozente, mache in newHook/optimized/nextTest KEIN unbelegtes Versprechen (kein „in nur X Sekunden/Minuten/Tagen/Wochen", kein „+X%", kein „mehr Follower", kein „viral gehen"), verordne KEINE Reaktion/Begeisterung und nenne GENAU EINEN konkret umsetzbaren nächsten Test mit der zu beobachtenden Metrik. Liefere außerdem lengthRecommendation (seconds als Zahl, structure mit Zeitangaben, reason) MIT einer Begründung, die ausschließlich an den gelieferten und berechneten Zahlen belegt ist — kein generischer Default (z. B. „8–20 Sekunden sind am besten"), keine erfundene Zahl. Setze alle sechs selfCheck-Booleans ehrlich auf bestehen. Beziehe jede Empfehlung und die neue Video-Version (rebuilt mit hook, timedScenes MIT Zeitangaben, voiceover, cta, seconds) konkret auf das angegebene VIDEO-THEMA (falls vorhanden — nenne das Thema wörtlich; fehlt ein Thema, sage ehrlich, dass die Empfehlungen allgemeiner bleiben, und erfinde KEIN Thema). Formuliere Ursachen NUR probabilistisch („wahrscheinlich“, „kann darauf hindeuten“, „ein möglicher Grund“) — niemals als bewiesene Tatsache (nie „der Grund ist“, „das beweist“, „liegt daran“).'
+      : '\n\nQUALITY SELF-CHECK NOTE: The previous diagnosis was internally rejected (it invented metrics the user did not provide, contained an unproven performance/time promise, a prescribed artificial reaction/enthusiasm or a vague next test — or its claims were not grounded in the provided numbers).' + rulePart + ' NOW produce a clearly better diagnosis: reference ONLY the numbers actually provided (the metrics listed in the prompt), invent NO additional metrics/values/percentages, make NO unproven promise in newHook/optimized/nextTest (no "in just X seconds/minutes/days/weeks", no "+X%", no "more followers", no "go viral"), prescribe NO reaction/enthusiasm and name EXACTLY ONE concrete next test with the metric to watch. Also deliver lengthRecommendation (seconds as a number, structure with time marks, reason) justified ONLY by the provided and calculated numbers — no generic default (e.g. "8-20 seconds is best"), no invented figure. Set all six selfCheck booleans truthfully to passing. Tie every recommendation and the rebuilt version (hook, timedScenes WITH time marks, voiceover, cta, seconds) concretely to the provided VIDEO TOPIC (if present — mention the topic literally; if no topic was given, say honestly that the recommendations stay more general and invent NO topic). Phrase causes ONLY probabilistically ("likely", "may point to", "a possible reason") — never as proven fact (never "the reason is", "this proves", "lies daran").';
   }
   const rulePart =
     violations.length > 0
@@ -1282,6 +1447,9 @@ function buildSanitizeUserContext(input: TikTokInput): string {
   push(input.biz);
   push(input.brandContext);
   push(input.topic);
+  // Diagnose v2: Video-Thema/-Hook sind Nutzerfakten → Zahlen darin gelten als belegt.
+  push(input.videoTopic);
+  push(input.videoHook);
   push(input.goal);
   push(input.audience);
   if (input.projectContext) {
@@ -1412,13 +1580,32 @@ export async function generateTikTok(
     // Phase 3 — Typ-Verengung: der dataGap-Zustand wurde bereits VOR dem
     // LLM-Call abgefangen; ein dataGap-Ergebnis kann hier nicht auftreten.
     if (isDiagnoseDataGap(result)) return result;
+    if (result.mode === 'diagnose') {
+      // Diagnose v2 — Video-Thema-Echo-Fallback: gibt das LLM das eingegebene
+      // Thema nicht wörtlich zurück (alte Outputs/Modell-Nachlässigkeit), setzt
+      // die Engine es deterministisch aus dem Input — das UI zeigt dadurch
+      // immer den echten Themen-Bezug und nie ein erfundenes Thema.
+      if (!result.videoTopic && input.videoTopic?.trim()) {
+        result.videoTopic = input.videoTopic.trim();
+      }
+    }
 
     // Qualitäts-Selbsttest + deterministische Regel-A+B-Prüfung auf Code-Ebene
     // (unabhängig davon, ob das Modell die Flags ehrlich gemeldet hat) —
     // angewendet auf ALLE drei Modi (todayIdea / concept / diagnose).
     if (result.mode === 'diagnose') {
-      const violations = ruleABViolations(diagnoseContentBlob(result));
-      lastViolations = violations;
+      const blob = diagnoseContentBlob(result);
+      const violations = ruleABViolations(blob);
+      // Diagnose v2 — probabilistische Sprachregel + Themen-Bezug: weiche
+      // Verstöße (Ursache als bewiesene Tatsache formuliert / angegebenes
+      // Video-Thema ignoriert) werden separat behandelt → Retry mit Hinweis;
+      // auf dem letzten Versuch wird trotzdem geliefert (kein Fehler statt
+      // Diagnose — der Prompt fordert beide Regeln bereits hart ein).
+      const softV = [
+        ...provenCauseViolations(blob),
+        ...(topicGroundedInRebuilt(input.videoTopic, result) ? [] : ['topic-not-grounded']),
+      ];
+      lastViolations = [...violations, ...softV];
       const scRejected = result.selfCheck ? diagnoseSelfCheckRejected(result.selfCheck) : false;
       if (scRejected || violations.length > 0) {
         const reason = scRejected ? 'self-check' : 'Rule A/B';
@@ -1435,6 +1622,13 @@ export async function generateTikTok(
             ? 'Die TikTok-Diagnose konnte nach mehrmaligem Versuch nicht ohne erfundene Kennzahlen, verbotene Leistungs-/Zeit-Versprechen oder künstliche Reaktionen erzeugt werden. Bitte erneut versuchen.'
             : 'Could not produce a TikTok diagnosis without invented metrics, forbidden performance/time promises or prescribed reactions after several attempts. Please try again.',
         );
+      }
+      if (softV.length > 0) {
+        console.log(
+          `[tiktok] diagnose soft REJECTED (${softV.join('|')}) (attempt ${attempt}) — regenerating`,
+        );
+        if (attempt < MAX_TIKTOK_ATTEMPTS) continue;
+        console.log('[tiktok] diagnose last attempt still soft-violated — delivering result (soft)');
       }
     } else {
       // Qualitäts-Prüfung ERST (Regel-A/B + selfCheck), dann Vollständigkeit:

@@ -895,6 +895,8 @@ export const generateTikTokServer = createServerFn({ method: 'POST' })
       lang?: unknown;
       projectContext?: unknown;
       previousDirection?: unknown;
+      videoTopic?: unknown;
+      videoHook?: unknown;
     };
     if (!d || typeof d !== 'object') throw new Error('data is required');
     const mode = d.mode as TikTokMode;
@@ -1002,6 +1004,17 @@ export const generateTikTokServer = createServerFn({ method: 'POST' })
       previousDirection:
         typeof d.previousDirection === 'string' && d.previousDirection.trim()
           ? d.previousDirection.trim()
+          : undefined,
+      // Diagnose v2 — Video-Thema/Hook optional durchreichen (nur present
+      // values, getrimmt, max. 500 Zeichen; KEIN Pflichtfeld — leere/fehlende
+      // Eingaben bleiben undefined, die Engine erfindet dann kein Thema).
+      videoTopic:
+        typeof d.videoTopic === 'string' && d.videoTopic.trim()
+          ? d.videoTopic.trim().slice(0, 500)
+          : undefined,
+      videoHook:
+        typeof d.videoHook === 'string' && d.videoHook.trim()
+          ? d.videoHook.trim().slice(0, 500)
           : undefined,
       lang: (d.lang === 'en' ? 'en' : 'de') as 'de' | 'en',
     };

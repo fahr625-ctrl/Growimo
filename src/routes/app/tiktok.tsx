@@ -131,6 +131,15 @@ export function diagnoseMetricIssues(m: {
   return out;
 }
 
+export function diagnoseVideoContext(videoTopic: string, videoHook: string): {
+  videoTopic?: string;
+  videoHook?: string;
+} {
+  return {
+    videoTopic: videoTopic.trim() ? videoTopic.trim() : undefined,
+    videoHook: videoHook.trim() ? videoHook.trim() : undefined,
+  };
+}
 function loadTikTokHistory(): string[] {
   try {
     const raw = JSON.parse(localStorage.getItem(TIKTOK_HISTORY_KEY) || '[]');
@@ -240,6 +249,52 @@ function ResultView({ result }: { result: TikTokResult }) {
         <FieldBlock label={t.tiktok_result_optimized}>
           <p className="whitespace-pre-line">{r.optimized}<CopyButton text={r.optimized} label={t.tiktok_copy} /></p>
         </FieldBlock>
+        {/* Diagnose v2 — neue, direkt umsetzbare Video-Version (rebuilt):
+            nur rendern, wenn vorhanden; alte Outputs ohne das Feld zeigen
+            KEINE leeren Panels. */}
+        {r.rebuilt && (
+          <div className="mb-5 rounded-xl border border-teal-200 bg-teal-50/60 p-4">
+            <h4 className="mb-3 text-sm font-bold uppercase tracking-wide text-teal-800">{t.tiktok_result_rebuilt}</h4>
+            <div className="space-y-4">
+              <div>
+                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-500">{t.tiktok_result_newhook}</p>
+                <p className="text-sm text-gray-800">{r.rebuilt.hook}<CopyButton text={r.rebuilt.hook} label={t.tiktok_copy} /></p>
+              </div>
+              {r.rebuilt.timedScenes.length > 0 && (
+                <div>
+                  <p className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-500">{t.tiktok_result_timed_scenes}</p>
+                  <div className="space-y-1.5">
+                    {r.rebuilt.timedScenes.map((s, i) => (
+                      <div key={i} className="flex flex-col gap-1 rounded-lg border border-teal-100 bg-white px-3 py-2 sm:flex-row sm:gap-3">
+                        <span className="shrink-0 self-start rounded-full bg-teal-600 px-2 py-0.5 text-xs font-bold text-white">{s.time}</span>
+                        <div className="min-w-0 text-sm text-gray-800">
+                          <p>{s.scene}</p>
+                          {s.text.trim() !== '' && <p className="mt-0.5 text-xs italic text-gray-500">„{s.text}“</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {r.rebuilt.voiceover && (
+                <div>
+                  <p className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-500">{t.tiktok_result_rebuilt_voiceover}</p>
+                  <p className="whitespace-pre-line rounded-lg bg-white/80 px-3 py-2 text-sm leading-relaxed text-gray-800">
+                    {r.rebuilt.voiceover}<CopyButton text={r.rebuilt.voiceover} label={t.tiktok_copy} />
+                  </p>
+                </div>
+              )}
+              <div>
+                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-500">{t.tiktok_result_cta}</p>
+                <p className="text-sm text-gray-800">{r.rebuilt.cta}<CopyButton text={r.rebuilt.cta} label={t.tiktok_copy} /></p>
+              </div>
+              <div>
+                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-500">{t.tiktok_result_length_recommendation}</p>
+                <p className="font-semibold text-teal-900">{t.tiktok_result_rebuilt_seconds.replace('%s', String(r.rebuilt.seconds))}</p>
+              </div>
+            </div>
+          </div>
+        )}
         {r.lengthRecommendation && (
           <FieldBlock label={t.tiktok_result_length_recommendation}>
             <div className="space-y-2">
@@ -400,6 +455,11 @@ function TikTokContent() {
   const [audience, setAudience] = useState('');
   const [topic, setTopic] = useState('');
   const [metrics, setMetrics] = useState({ views: '', length: '', avgWatch: '', likes: '', comments: '', shares: '', profile: '' });
+  // Diagnose v2 — optionaler Video-Kontext: „Worum geht es in deinem Video?"
+  // (Thema/Beschreibung) + „Aktueller Hook/Titel". Beide OPTIONAL; leere
+  // Eingaben werden NICHT gesendet (Engine erfindet dann kein Thema).
+  const [videoTopic, setVideoTopic] = useState('');
+  const [videoHook, setVideoHook] = useState('');
   // Phase 3 UX-Fix — Feld-genaue Fehlerzustände der Diagnose-Pflichtfelder:
   // Key = Feld, Wert = Grund (missing/invalid). Leere Felder werden beim Klick
   // auf „TikTok analysieren“ direkt am jeweiligen Feld markiert (rot + Meldung),
@@ -561,6 +621,9 @@ function TikTokContent() {
               profileVisits: metricNumber(metrics.profile),
             }
           : undefined,
+        // Diagnose v2 — optionaler Video-Kontext (Thema/Hook): nur present
+        // values; leere Eingaben werden NICHT gesendet (keine Erfindung).
+        ...(mode === 'diagnose' ? diagnoseVideoContext(videoTopic, videoHook) : {}),
         lang: locale,
       };
       console.info('[tiktok] calling generateTikTokServer at', new Date().toISOString());
@@ -855,6 +918,37 @@ function TikTokContent() {
       )}
       {activeMode === 'diagnose' && (
         <section className="rounded-2xl border border-teal-100 bg-white p-6 shadow-sm">
+          {/* Diagnose v2 — optionaler Video-Kontext: Thema/Beschreibung + aktueller
+              Hook/Titel. Beide optional — leer lassen, wenn unbekannt (Growimo
+              erfindet dann kein Thema und sagt ehrlich, dass die Empfehlungen
+              allgemeiner bleiben). */}
+          <div className="mb-5 grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="tiktok-video-topic" className="mb-1 block text-xs font-semibold text-gray-600">
+                {t.tiktok_diag_video_topic}
+              </label>
+              <textarea
+                id="tiktok-video-topic"
+                value={videoTopic}
+                onChange={(e) => setVideoTopic(e.target.value)}
+                rows={2}
+                placeholder={t.tiktok_diag_video_topic_ph}
+                className="w-full resize-y rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-cyan-400"
+              />
+            </div>
+            <div>
+              <label htmlFor="tiktok-video-hook" className="mb-1 block text-xs font-semibold text-gray-600">
+                {t.tiktok_diag_video_hook}
+              </label>
+              <input
+                id="tiktok-video-hook"
+                value={videoHook}
+                onChange={(e) => setVideoHook(e.target.value)}
+                placeholder={t.tiktok_diag_video_hook_ph}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-cyan-400"
+              />
+            </div>
+          </div>
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
             <h3 className="text-sm font-bold uppercase tracking-wide text-gray-500">{t.tiktok_metrics_label}</h3>
             <span className="text-xs text-gray-400">* {t.tiktok_metrics_required_hint}</span>
