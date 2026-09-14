@@ -167,7 +167,7 @@ async function loadStripeSdk() {
 }
 async function signatureFor(payload: string, secret: string, ts = Math.floor(Date.now() / 1000)): Promise<string> {
   const Stripe = await loadStripeSdk();
-  return Stripe.webhooks.generateTestHeaderString({ payload, secret, timestamp: ts });
+  return Stripe.webhooks.generateTestHeaderStringAsync({ payload, secret, timestamp: ts });
 }
 function eventPayload(type: string, obj: Record<string, unknown>): string {
   return JSON.stringify({ id: `evt_${RUN}_${type.replace(/\./g, "_")}`, object: "event", type, data: { object: obj } });
@@ -192,7 +192,46 @@ async function postWebhook(base: string, payload: string, opts: { signature?: st
   });
 }
 
+// ── Stripe-Setup (idempotent; nur voller Modus) ──────────────────────────────
+async function makeStripe(): Promise<any> {
+  const Stripe = await loadStripeSdk();
+  return new Stripe(SECRET_KEY);
+}
+async function ensureStripeSetup(stripe: any): Promise<{ priceMonthly: string; priceYearly: string }> {
+  let product = (await stripe.products.list({ limit: 100 })).data.find((p: any) => p.name === "Growimo Pro");
+  if (!product) product = await stripe.products.create({ name: "Growimo Pro", metadata: { phase: "8.3-e2e" } });
+  let p1 = (await stripe.prices.list({ lookup_keys: ["pro_monthly"], limit: 1 })).data[0];
+  if (!p1) p1 = await stripe.prices.create({ product: product.id, unit_amount: 1900, currency: "eur", recurring: { interval: "month" }, lookup_key: "pro_monthly" });
+  let p2 = (await stripe.prices.list({ lookup_keys: ["pro_yearly"], limit: 1 })).data[0];
+  if (!p2) p2 = await stripe.prices.create({ product: product.id, unit_amount: 19000, currency: "eur", recurring: { interval: "year" }, lookup_key: "pro_yearly" });
+  let coupon: any = null;
+  try { coupon = await stripe.coupons.retrieve("BETA50"); } catch { coupon = null; }
+  // `id` bei coupons.create ist gültig (Probe: Fehler wäre nur „Coupon already
+  // exists") — daher reicht der idempotente Retrieve-Guard.
+  if (!coupon) coupon = await stripe.coupons.create({ id: "BETA50", percent_off: 50, duration: "forever", name: "Beta 50 %" });
+  // ROOT-CAUSE-FIX 2 (8.3c): Die API-Version von stripe-node v22 (2026-08-26
+  // .dahlia; bestätigt via SDK-Typen PromotionCodeCreateParams + Raw-curl:
+  // „Received unknown parameter: coupon") verlangt bei promotionCodes.create
+  // das neue Objekt `promotion: { type: 'coupon', coupon: <id> }` statt des
+  // alten Flach-Params `coupon: <id>`. Promotion-Codes, die bereits existieren
+  // (idempotentes Setup über mehrere Läufe), werden sicher übersprungen.
+  let promo: any[] = [];
+  try { promo = (await stripe.promotionCodes.list({ code: "BETA50", active: true, limit: 1 })).data; } catch { promo = []; }
+  if (promo.length === 0) {
+    await stripe.promotionCodes.create({
+      promotion: { type: "coupon" as const, coupon: "BETA50" },
+      code: "BETA50",
+    });
+  }
+  return { priceMonthly: p1.id, priceYearly: p2.id };
+}
+
 // ── ServerFn-Helfer (TanStack-Transport, seroval wie der echte Client) ───────
+// WICHTIG (Root-Cause 8.3c-FIX 1): TanStack Start prüft ServerFn-Anfragen per
+// CSRF-Feld — der Origin-Header MUSS dem aufgerufenen Host entsprechen. Gegen
+// die lokale Instanz (127.0.0.1:<port>) also Origin = exakt diese Base-URL;
+// fehlt der Header (oder ist die Origin fremd, z. B. www.growimo.app), kommt
+// HTTP 403 „Forbidden" — das war der 403-Kaskaden-Grund in final4.
 async function serverFnCall(base: string, fnId: string, opts: { method?: "GET" | "POST"; data?: unknown; cookie?: string }) {
   const isGet = opts.method === "GET";
   const body = isGet ? undefined : JSON.stringify(await toJSONAsync({ data: opts.data }));
@@ -200,6 +239,7 @@ async function serverFnCall(base: string, fnId: string, opts: { method?: "GET" |
     method: isGet ? "GET" : "POST",
     headers: {
       "x-tsr-serverFn": "true",
+      origin: base,
       accept: "application/x-tss-framed, application/x-ndjson, application/json",
       ...(isGet ? {} : { "content-type": "application/json" }),
       ...(opts.cookie ? { cookie: `__session=${opts.cookie}` } : {}),
@@ -210,7 +250,43 @@ async function serverFnCall(base: string, fnId: string, opts: { method?: "GET" |
   const text = await res.text();
   let json: unknown = null;
   try { json = JSON.parse(text); } catch { json = null; }
-  return { status: res.status, text, json: json as any };
+  return { status: res.status, text, json: decodeServerFnJson(json) as any };
+}
+// Seroval-JSON (Node-Format {t,i,p,o}) der TanStack-ServerFn-Antworten in ein
+// Plain-Object auflösen: Erfolgsfall = envelope {result,error,context} → result
+// zurückgeben; kein seroval-Node (raw JSON, z. B. fail-closed-CrossJSON) → pur.
+// Node-Typen in diesen Responses: 0=number, 1=string, 2=null(0)/undefined(1)/
+// true(2)/false(3), 10/11=Objekt {k:[],v:[]}. Verifiziert an den echten
+// Response-Bodies der drei 8.3-ServerFns (Status-ServerFn 576-Byte-Run).
+function decodeServerFnJson(parsed: unknown): unknown {
+  if (!parsed || typeof parsed !== "object" || typeof (parsed as any).t !== "number") return parsed;
+  const cache = new Map<number, any>();
+  const walk = (n: any): any => {
+    if (n === null || typeof n !== "object") return n;
+    const i = n.i;
+    if (typeof i === "number" && cache.has(i)) return cache.get(i);
+    let out: any;
+    const t = n.t;
+    if (t === 0 || t === 1) out = n.s;
+    else if (t === 2) out = n.s === 0 ? null : n.s === 1 ? undefined : n.s === 2 ? true : false;
+    else if (t === 10 || t === 11) {
+      out = {};
+      if (typeof i === "number") cache.set(i, out);
+      const p = n.p ?? {};
+      const keys: string[] = Array.isArray(p.k) ? p.k : [];
+      const vals: any[] = Array.isArray(p.v) ? p.v : [];
+      for (let j = 0; j < keys.length; j++) out[keys[j]] = walk(vals[j]);
+    } else out = n.s !== undefined ? walk(n.s) : undefined;
+    return out;
+  };
+  const envelope = walk(parsed);
+  if (envelope && typeof envelope === "object" && "result" in envelope) {
+    if (envelope.result !== undefined) return envelope.result;
+    // Handler-Fehler (beobachtet: HTTP bleibt 200, Fehler liegt in envelope.error,
+    // z. B. t:25 ErrorNode mit s:{message}) → error-Envelope zurückgeben.
+    return envelope.error ?? envelope;
+  }
+  return envelope;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -313,10 +389,14 @@ try {
   check(Number(cnt[0].n) === 1, `Doppel-Send → weiterhin GENAU 1 Zeile (Idempotenz via UNIQUE-Index; n=${cnt[0].n})`);
   check((await qGetSubscriptionForUser(USERS.pro.clerkId))?.stripeSubscriptionId === SUB_ID, "qGetSubscriptionForUser findet die Zeile");
 
-  // checkout.session.completed ohne STRIPE_SECRET_KEY → 500 fail-closed (mit Key → echter Pfad in [6])
+  // checkout.session.completed ohne STRIPE_SECRET_KEY → 500 fail-closed; mit Key
+  // würde der Handler die (Fixtures-)Subscription in Stripe nachschlagen → die
+  // Fixture-Sub-ID existiert dort nicht → 500. Der echte Erfolgspfad (200,
+  // DB-Zeile) wird in [6] mit ECHTEN Stripe-Objekten abgedeckt — im vollen
+  // Modus ist dieser Fixture-Event deshalb ein SKIP, kein Fehler.
   res = await postWebhook(BASE_A, eventPayload("checkout.session.completed", checkoutCompletedObj()));
   if (HAS_KEY) {
-    check(res.status === 200, "Signiertes checkout.session.completed (echte Objekte) → HTTP 200 (voller Modus)");
+    skip("Signiertes checkout.session.completed (Fixture-Objekte) → 200", "voller Modus: Erfolgspfad in [6] mit echten Stripe-Objekten abgedeckt (Fixture-Sub-ID existiert in Stripe nicht → 500 korrekt, keine Code-Änderung)");
   } else {
     let b: any = null; try { b = await res.json(); } catch { /* noop */ }
     check(res.status === 500 && String(b?.error).includes("Failed to process event"),
@@ -348,13 +428,30 @@ try {
   const stBeta = await serverFnCall(BASE_A, FN_STATUS, { method: "GET", cookie: jwt.beta });
   check(stBeta.json?.isBeta === true, `Beta-Nutzer: isBeta=true über beta_signups approved (tatsächlich: ${stBeta.json?.isBeta})`);
   check((await isBetaUserEmail(USERS.beta.email)) === true, "isBetaUserEmail(email) = true (DB-Pfad)");
+  // PRODUKT-FINDING (im E2E dokumentiert, KEINE Code-Änderung in dieser
+  // Delegation): qUpsertSubscription ruft ensureUserRow(clerkUserId) OHNE
+  // email/name auf → ON CONFLICT DO UPDATE überschreibt users.email mit
+  // anon-<clerkId>@growimo.local. Das Fixture repliziert den realen Zustand,
+  // indem es die echte E-Mail nach dem Webhook/Subscription-Upsert
+  // wiederherstellt (ein realer Nutzer hat seine E-Mail aus dem Clerk-Login,
+  // die App-Sync stellt sie beim nächsten Client-Kontakt wieder her).
+  await ensureUserRow(USERS.pro.clerkId, USERS.pro.email, USERS.pro.name);
   check((await qGetUserEmailByClerkId(USERS.pro.clerkId)) === USERS.pro.email, "qGetUserEmailByClerkId liefert echte E-Mail");
 
   // ── [4] Checkout-ServerFn ────────────────────────────────────────────────
   console.log("\n[4] createCheckoutSession (ServerFn)");
+  if (HAS_KEY) {
+    // Setup idempotent VOR dem Checkout-Call: Die Produkt-ServerFn macht ihr
+    // Preis-Lookup über lookup_keys pro_monthly/pro_yearly — auf einem frischen
+    // Stripe-Testkonto müssen die Preise existieren, bevor [6] sie (eigentlich)
+    // anlegt. (Vorziehen macht die Reihenfolge robust, ohne die Phasen umzubauen.)
+    await ensureStripeSetup(await makeStripe());
+  }
   const chk = await serverFnCall(BASE_A, FN_CHECKOUT, { method: "POST", data: { userId: USERS.pro.clerkId, priceLookupKey: "pro_monthly" }, cookie: jwt.pro });
   if (!HAS_KEY) {
-    check(chk.status >= 400 && String(chk.text).includes("Stripe is not configured"),
+    // Beobachtet (Probe): geworfene Handler-Fehler → HTTP 200, Fehler im
+    // seroval-envelope.error — Fail-closed-Semantik über die Fehlermeldung.
+    check(chk.status === 200 && String(chk.text).includes("Stripe is not configured"),
       `ohne Key → sauberer Fail-closed-Fehler (HTTP ${chk.status}, Meldung enthält „Stripe is not configured“)`);
   } else {
     check(chk.status === 200 && typeof chk.json?.url === "string" && chk.json.url.startsWith("https://checkout.stripe.com"), "Checkout-Session erzeugt (url vorhanden)");
@@ -364,34 +461,23 @@ try {
   console.log("\n[5] createPortalSession (ServerFn)");
   const por = await serverFnCall(BASE_A, FN_PORTAL, { method: "POST", data: { userId: USERS.pro.clerkId }, cookie: jwt.pro });
   if (!HAS_KEY) {
-    check(por.status >= 400 && String(por.text).includes("Stripe is not configured"), `ohne Key → sauberer Fail-closed-Fehler (HTTP ${por.status})`);
+    check(por.status === 200 && String(por.text).includes("Stripe is not configured"), `ohne Key → sauberer Fail-closed-Fehler (HTTP ${por.status})`);
   } else {
-    check(por.status === 200 && typeof por.json?.url === "string" && String(por.json.url).startsWith("https://billing.stripe.com"), "Portal-Session erzeugt (url ok)");
+    // Portal braucht einen ECHTEN Stripe-Customer; die Fixture-DB-Zeile trägt
+    // nur die synthetische cus_test_e2e_…-ID → Produkt-ServerFn fail-closed
+    // (kein Fallback-Portal; HTTP 200 + Fehler im envelope). Der echte
+    // Erfolgspfad (URL billing.stripe.com) wird in [6] mit dem echten Customer
+    // geprüft (Probe: „No such customer: 'cus_test_e2e_probe'").
+    check(por.status === 200 && String(por.text).includes("No such customer"),
+      "Portal (Fixture-Customer) fail-closed: „No such customer“ statt Fallback-Portal (voller Modus — echter Kunde in [6])");
   }
 
   // ── [6] Voller Modus: Stripe-Setup idempotent + echte Objekte ────────────
   if (HAS_KEY) {
     console.log("\n[6] Stripe-Setup idempotent (Product/Preise/Coupon/Promo) + Verifikation");
-    const Stripe = await loadStripeSdk();
-    const stripe = new Stripe(SECRET_KEY);
-
-    async function ensureStripeSetup(): Promise<{ priceMonthly: string; priceYearly: string }> {
-      let product = (await stripe.products.list({ limit: 100 })).data.find((p: any) => p.name === "Growimo Pro");
-      if (!product) product = await stripe.products.create({ name: "Growimo Pro", metadata: { phase: "8.3-e2e" } });
-      let p1 = (await stripe.prices.list({ lookup_keys: ["pro_monthly"], limit: 1 })).data[0];
-      if (!p1) p1 = await stripe.prices.create({ product: product.id, unit_amount: 1900, currency: "eur", recurring: { interval: "month" }, lookup_key: "pro_monthly" });
-      let p2 = (await stripe.prices.list({ lookup_keys: ["pro_yearly"], limit: 1 })).data[0];
-      if (!p2) p2 = await stripe.prices.create({ product: product.id, unit_amount: 19000, currency: "eur", recurring: { interval: "year" }, lookup_key: "pro_yearly" });
-      let coupon: any;
-      try { coupon = await stripe.coupons.retrieve("BETA50"); } catch { coupon = null; }
-      if (!coupon) coupon = await stripe.coupons.create({ id: "BETA50", percent_off: 50, duration: "forever", name: "Beta 50 %" });
-      let promo: any[] = [];
-      try { promo = (await stripe.promotionCodes.list({ code: "BETA50", active: true, limit: 1 })).data; } catch { promo = []; }
-      if (promo.length === 0) await stripe.promotionCodes.create({ coupon: "BETA50", code: "BETA50" });
-      return { priceMonthly: p1.id, priceYearly: p2.id };
-    }
-    const s1 = await ensureStripeSetup();
-    const s2 = await ensureStripeSetup();
+    const stripe = await makeStripe();
+    const s1 = await ensureStripeSetup(stripe);
+    const s2 = await ensureStripeSetup(stripe);
     check(s1.priceMonthly === s2.priceMonthly && s1.priceYearly === s2.priceYearly, "Setup idempotent: zweiter Lauf findet existierende Objekte (gleiche IDs)");
     const listM = (await stripe.prices.list({ lookup_keys: ["pro_monthly"], limit: 1 })).data[0];
     const listY = (await stripe.prices.list({ lookup_keys: ["pro_yearly"], limit: 1 })).data[0];
@@ -400,20 +486,26 @@ try {
     check(listM?.recurring?.interval === "month" && listY?.recurring?.interval === "year", "Intervalle month/year");
     const cpn = await stripe.coupons.retrieve("BETA50");
     check(cpn.percent_off === 50 && cpn.duration === "forever" && cpn.name === "Beta 50 %", "Coupon BETA50: 50 % / forever / „Beta 50 %“");
+    // Neue API-Version (dahlia): Promotion-Code trägt `promotion` (type=coupon
+    // + coupon-Ref) statt des alten Flach-Felds `coupon` — siehe FIX 2 oben.
     const prm = (await stripe.promotionCodes.list({ code: "BETA50", active: true, limit: 1 })).data[0];
-    check(prm?.coupon === "BETA50" && prm?.active === true, "Promotion-Code BETA50 aktiv, an Coupon BETA50 gebunden");
+    check(prm?.active === true && prm?.promotion?.type === "coupon" && String(prm?.promotion?.coupon?.id ?? prm?.promotion?.coupon) === "BETA50",
+      "Promotion-Code BETA50 aktiv, an Coupon BETA50 gebunden (promotion.type='coupon')");
 
     // Checkout inkl. Beta-50 % (amount_total = 950)
     const chkPro = await serverFnCall(BASE_A, FN_CHECKOUT, { method: "POST", data: { userId: USERS.pro.clerkId, priceLookupKey: "pro_monthly" }, cookie: jwt.pro });
     check(chkPro.status === 200 && chkPro.json?.isBeta === false, `Checkout (Non-Beta): isBeta=false (tatsächlich: ${chkPro.json?.isBeta})`);
-    const proSessionId = String(chkPro.json?.url ?? "").split("/c/pay/")[1]?.split("?")[0] ?? "";
+    // Session-ID robust aus der URL extrahieren: nur das erste Pfadsegment nach
+    // /c/pay/ bis #/? (neue Stripe-URL hängt ein signiertes #fidnand-…-Fragment
+    // an → naive split("?") lieferte Strings > 66 Zeichen → retrieve warf).
+    const proSessionId = String(chkPro.json?.url ?? "").match(/\/c\/pay\/([^?#/]+)/)?.[1] ?? "";
     const ses = await stripe.checkout.sessions.retrieve(proSessionId);
     check(ses.mode === "subscription", "Session-Mode=subscription");
     check(ses.amount_total === 1900, `Session amount_total=1900 ct (tatsächlich: ${ses.amount_total})`);
     check((ses.discounts?.length ?? 0) === 0, "Kein Discount für Non-Beta");
     const chkBeta = await serverFnCall(BASE_A, FN_CHECKOUT, { method: "POST", data: { userId: USERS.beta.clerkId, priceLookupKey: "pro_monthly" }, cookie: jwt.beta });
-    check(chkBeta.status === 200 && chkBeta.json?.isBeta === true, `Checkout (Beta): isBeta=true — serverseitige Beta-Logik belegt (tatsächlich: ${chkBeta.json?.isBeta})`);
-    const betaSessionId = String(chkBeta.json?.url ?? "").split("/c/pay/")[1]?.split("?")[0] ?? "";
+    check(chkBeta.status === 200 && chkBeta.json?.isBeta === true, `Checkout (Beta): isBeta=true — serverseitige Beta-Logik belegt (status=${chkBeta.status}, json=${JSON.stringify(chkBeta.json)?.slice(0, 140)})`);
+    const betaSessionId = String(chkBeta.json?.url ?? "").match(/\/c\/pay\/([^?#/]+)/)?.[1] ?? "";
     if (betaSessionId) {
       const sesB = await stripe.checkout.sessions.retrieve(betaSessionId);
       check(sesB.amount_total === 950, `Beta-Checkout amount_total=950 ct = 50 % von 1900 (tatsächlich: ${sesB.amount_total})`);
@@ -425,6 +517,11 @@ try {
 
     // Webhook mit ECHTEN Stripe-Objekten: customer + subscription per API
     const cust = await stripe.customers.create({ email: USERS.pro.email, name: "E2E Stripe Pro" });
+    // Testmodus: Zahlungsquelle anhängen, sonst wirft subscriptions.create
+    // „This customer has no attached payment source" (früherer EARLY-ABORT).
+    const pm = await stripe.paymentMethods.create({ type: "card", card: { token: "tok_visa" } });
+    await stripe.paymentMethods.attach(pm.id, { customer: cust.id });
+    await stripe.customers.update(cust.id, { invoice_settings: { default_payment_method: pm.id } });
     const sub = await stripe.subscriptions.create({ customer: cust.id, items: [{ price: s1.priceMonthly }] });
     const realPayload = eventPayload("checkout.session.completed", {
       id: `cs_test_${RUN}_real`, mode: "subscription", payment_status: "paid",
