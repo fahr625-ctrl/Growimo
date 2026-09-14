@@ -60,7 +60,7 @@ const expectThrow = async (fn: () => Promise<unknown>, label: string) => {
 };
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
-const retrieveFixture = async (subscriptionId: string, lookupKey = PRO_MONTHLY_LOOKUP_KEY) => ({
+const retrieveFixture = async (_subscriptionId: string, lookupKey = PRO_MONTHLY_LOOKUP_KEY) => ({
   current_period_end: 1_893_456_000, // 2030-01-15
   items: { data: [{ price: { lookup_key: lookupKey } }] },
 });

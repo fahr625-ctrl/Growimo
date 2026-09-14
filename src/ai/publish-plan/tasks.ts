@@ -44,7 +44,10 @@ function shortTitle(title: string): string {
 }
 
 /** Localized dictionary access + placeholder replacement. */
-function dict(lang: Lang): typeof de {
+// `en` ist als EnShape typisiert (von de abgeleitete, verbreiterte Form);
+// der Union-Rückgabetyp erlaubt beide Wörterbücher, ohne `typeof de` zu
+// schwächen (beide haben exakt dieselben Keys).
+function dict(lang: Lang): typeof de | typeof en {
   return lang === 'en' ? en : de;
 }
 function label(lang: Lang, key: keyof typeof de, vars?: Record<string, string>): string {

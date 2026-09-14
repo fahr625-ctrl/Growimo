@@ -1058,7 +1058,6 @@ export const de = {
   analytics_events_per_day: 'Ereignisse pro Tag',
   analytics_top_channels: 'Meistgenutzte Kanäle',
   analytics_recent: 'Letzte Ereignisse',
-  analytics_empty: 'Noch keine Daten. Analytics werden automatisch erfasst, sobald du Growimo nutzt.',
   analytics_optout: '📊 Analytics aktiviert',
   analytics_gdpr: 'Alle Daten werden ausschließlich lokal in deinem Browser gespeichert. Keine Server-Übertragung, keine persönlichen Daten.',
   analytics_nav: '📊 Analytics',

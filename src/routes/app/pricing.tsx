@@ -276,7 +276,7 @@ function PlanCard({
   price: number;
   period: string;
   description: string;
-  features: string[];
+  features: readonly string[];
   cta: React.ReactNode;
   highlighted: boolean;
   badge?: string;

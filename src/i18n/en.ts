@@ -1056,7 +1056,6 @@ export const en: EnShape = {
   analytics_events_per_day: 'Events per Day',
   analytics_top_channels: 'Most Used Channels',
   analytics_recent: 'Recent Events',
-  analytics_empty: 'No data yet. Analytics are automatically collected as you use Growimo.',
   analytics_optout: '📊 Analytics Enabled',
   analytics_gdpr: 'All data is stored exclusively locally in your browser. No server transmission, no personal data.',
   analytics_nav: '📊 Analytics',

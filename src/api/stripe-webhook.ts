@@ -63,11 +63,18 @@ export interface StripeWebhookDeps {
   }>;
 }
 
-function subscriptionIdOf(
-  id: string | { id?: string } | null | undefined,
-): string | null {
+function subscriptionIdOf(id: unknown): string | null {
   if (!id) return null;
-  return typeof id === "string" ? id : (id.id ?? null);
+  // Stripe-Event-Objekte liefern die Subscription-ID entweder als String
+  // (checkout.session.subscription, invoice.subscription) oder als Objekt
+  // mit `id` (customer.subscription.* → sub.id). Unknown-narrowing statt Cast:
+  // nur String-/Objekt-Fälle mit echtem `id`-Feld akzeptieren.
+  if (typeof id === "string") return id || null;
+  if (typeof id === "object" && id !== null) {
+    const inner = (id as { id?: unknown }).id;
+    return typeof inner === "string" && inner.length > 0 ? inner : null;
+  }
+  return null;
 }
 
 /**
@@ -225,9 +232,14 @@ async function retrieveSubscriptionForEvent(
   const sub = await stripe.subscriptions.retrieve(subscriptionId, {
     expand: ["items.data.price"],
   });
+  // Die Stripe-v22-Typen führen `current_period_end` nicht auf dem
+  // Subscription-Response (obwohl die API es als Unix-Timestamp liefert —
+  // siehe Fixture in stripe-webhook-test.ts). Das dokumentierte Feld explizit
+  // am SDK-Ergebnis ergänzen statt den übrigen Typ zu schwächen.
+  const raw = sub as typeof sub & { current_period_end?: number | null };
   return {
-    current_period_end: sub.current_period_end ?? null,
-    items: sub.items as {
+    current_period_end: raw.current_period_end ?? null,
+    items: raw.items as {
       data?: { price?: { lookup_key?: string | null } | null }[];
     },
   };
