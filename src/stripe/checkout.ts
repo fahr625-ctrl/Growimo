@@ -72,7 +72,21 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
     const { qGetUserEmailByClerkId } = await import('../db/queries');
     const email = await qGetUserEmailByClerkId(userId);
     const isBeta = email ? await isBetaUserEmail(email) : false;
-    const promoCode = process.env.STRIPE_BETA_PROMO_CODE || 'BETA50';
+
+    // Promotion-Code-ID auflösen: discounts[].promotion_code erwartet die
+    // promo_…-ID, NICHT den Code-String („BETA50" wäre ein API-Fehler).
+    // Fehlt die ID (Code nicht angelegt/inaktiv) → kein Discount statt Fehler
+    // (fail-closed: Beta-Nutzer zahlt dann den Normalpreis, kein Absturz).
+    let promoId: string | undefined;
+    if (isBeta) {
+      const promoCode = process.env.STRIPE_BETA_PROMO_CODE || 'BETA50';
+      const promos = await stripe.promotionCodes.list({
+        code: promoCode,
+        active: true,
+        limit: 1,
+      });
+      promoId = promos.data[0]?.id;
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
@@ -85,7 +99,7 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
       client_reference_id: userId,
       success_url: `${getOrigin()}/app/billing?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${getOrigin()}/app/pricing`,
-      ...(isBeta && promoCode ? { discounts: [{ promotion_code: promoCode }] } : {}),
+      ...(isBeta && promoId ? { discounts: [{ promotion_code: promoId }] } : {}),
       metadata: {
         userId,
       },

@@ -1,33 +1,41 @@
-# Phase 8.3c — Stripe-Testmodus-E2E: Stand & Befund
+# Phase 8.3c — Stripe-Testmodus-E2E: FINAL GRÜN
 
-**Datum:** 2026-09-13 · **Delegation:** Phase 8.3c · **KEIN Production-Deploy (Auflage eingehalten — kein `--prod`, kein `publish_site`)**
+**Datum:** 2026-09-14 · **Status: 64 PASS / 0 FAIL / 1 SKIP (EXIT=0)** · **KEIN Production-Deploy (Auflage eingehalten — kein `--prod`, kein `publish_site`)**
 
-## Was gebaut wurde (Evidence-Commit)
+## Endergebnis (Lead-verifizierter Lauf, 2026-09-14 ~18:56, Log: /tmp/e2e-lead-final.log)
+
+```
+=== ERGEBNIS: 64 PASS / 0 FAIL / 1 SKIP ===
+EXIT=0
+```
+
+**Alle Phasen grün**, inklusive der zuvor fehlgeschlagenen Prüfungen:
+- Beta-Checkout: `amount_total=950 ct` (= 50 % von 1900) ✓ · `amount_discount=950` ✓ · genau 1 Discount (Promotion-Code BETA50) ✓
+- Webhook mit ECHTEN Stripe-Objekten (customer + subscription per API) → HTTP 200 ✓ · DB-Zeile pro/active ✓ · `stripe_customer_id` = echter Customer ✓ · Doppel-Send → genau 1 Zeile (Idempotenz) ✓
+- Portal-URL ok ✓ · `customer.subscription.deleted` → status expired ✓
+- Cleanup (DB + Clerk + Stripe-Testobjekte) vollständig ✓
+
+## Der letzte Produkt-Fix (Commit f34b56d-Folge, checkout.ts)
+
+Root-Cause des letzten FAIL: `src/stripe/checkout.ts` setzte `discounts: [{ promotion_code: promoCode }]` mit dem **Code-String** (`BETA50`) — Stripe erwartet hier aber die **Promotion-Code-ID** (`promo_…`). Fix (committet, s. Git-Log): Promotion-Code-ID vor `sessions.create` per `stripe.promotionCodes.list({code, active:true})` auflösen; fehlt die ID → kein Discount statt Absturz (fail-closed). Damit kommt die Checkout-Session für Beta-Nutzer sauber mit 50 %-Rabatt zustande.
+
+## Vorherige Root-Causes (behoben)
+
+1. **`.env.local`-Vergiftung** durch `vercel env pull` (`[SENSITIVE]`-Platzhalter) → Datei entfernt; Kind-Prozess bekommt minimale deterministische Env (`cwd=/tmp`, echte Werte nur aus `/tmp/e2e-child.env` aus der gitignored `.env`).
+2. **dist-Build mit `[SENSITIVE]`-Inline** (Vite inlined `VITE_`-Werte zur Build-Zeit aus der vergifteten `.env.local`) → dist neu gebaut, Bundle sauber (0 Treffer).
+3. **`generateTestHeaderString` (sync) → SubtleCrypto-Fehler in Bun** → `generateTestHeaderStringAsync` verwendet.
+4. **ServerFn-CSRF/Origin** bei lokaler Instanz → Origin-Header korrekt gesetzt (f34b56d).
+
+## Was gebaut wurde
 
 | Datei | Zweck |
 |---|---|
-| `stripe83-local-server.ts` | Lokale Instanz: Fork von serve.ts, bindet `127.0.0.1:<PORT>` (Default 3188, frei wählbar), exakt die Produktions-Wiring-Reihenfolge (Webhook → Beta → Tracking → Analytics → Stream → dist-SSR). Berührt `:3000` der Plattform nie. |
-| `stripe83-e2e.ts` | Vollständige E2E-Suite (2 Modi, Exit≠0 bei FAIL): Fixtures (echte Clerk-User + Sessions + JWTs + DB-Zeilen + beta_signups), Webhook-HTTP-Matrix (405/400/200/400-Tamper/400-Stale/500-fail-closed ohne Secret), Webhook-Erfolgspfad → DB (tier pro, status active, period_end, Idempotenz via Doppel-Send, UNIQUE-Index), Abo-Status/Guard-ServerFn (tier pro/200, free/5, beta via E-Mail, qGetPlanTier-DB-Prüfung), Checkout/Portal-ServerFns (Fail-closed ohne Key; voller Modus mit Key: echtes Setup Product/Preise 1900/19000 ct mit lookup_keys pro_monthly/pro_yearly, Coupon BETA50 50 % forever, Promo-Code BETA50 — idempotent; Checkout inkl. Beta amount_total=950; Webhook mit echten customer+subscription; Portal-URL), deleted→expired, Cleanup (DB + Clerk + Stripe-Testobjekte) |
-
-## Erreichte Testergebnisse (mehrere Läufe)
-
-**Läufe 1–3 (identical):** `7 PASS / 1 FAIL` — der 1 FAIL war ausschließlich der Server-Spawn-Fix‑debugging-Zyklus, NICHT der Produktcode:
-- PASS: Clerk-JWT-Minting (3 User), beta_signups-Zeile, simulierte Checkout-Zeile in DB, Cleanup vollständig.
-- FAIL-Spur über alle Läufe: „server on :3188 did not start“.
-
-## Root-Cause des Spawn-Fehlers (vollständig diagnostiziert, Fix committet)
-
-1. **`.env.local`-Vergiftung:** `bunx vercel env pull` hat `.env.local` mit `"[SENSITIVE]"`-Platzhaltern überschrieben (`DATABASE_URL`, `VITE_CLERK_PUBLISHABLE_KEY`, …). Ein nacktes `bun stripe83-local-server.ts` lädt `.env.local` auto → DB-URL `[SENSITIVE]` → initDb wirft, `/` rendert `500 {"status":500,"unhandled":true,…}`.
-2. **Shell-Env-Leck:** In der Sandbox-Shell-Umgebung liegt `VITE_CLERK_PUBLISHABLE_KEY="[SENSITIVE]"` (Platzhalter-Poisoning), das via `Bun.spawn({env: {...process.env}})` samt Vererbung in den Kind-Prozess gelangte — die SSR (ClerkProvider) brach mit `key=[SENSITIVE]` → auch mit `--env-file=.env` und DB-Fix blieb `/` = 500.
-3. **Fix (committet in `stripe83-e2e.ts`):** Kind-Prozess bekommt eine **minimale, deterministische Umgebung** (PATH/HOME/PORT/Webhook-Secret/Stripe-Key NUR), `cwd=/tmp` (kein .env.local-Auto-Load am Repo-Root), und echte Werte ausschließlich aus `/tmp/e2e-child.env` (im Skript aus der gitignored `.env` für DATABASE_URL/VITE_CLERK_PUBLISHABLE_KEY/CLERK_SECRET_KEY erzeugt).
-
-**Wichtig für Produktion:** Die Vercel-Production-Env selbst enthält die echten Secrets (kein Handlungsbedarf). Das `[SENSITIVE]`-Risiko betrifft nur lokale Läufe nach `vercel env pull` — die lokalen E2E-Skripte sind jetzt dagegen immun.
-
-## Weiterer Lauf (final, nach Fix)
-
-Der finale Lauf mit voller Stripe-Testmodus-API (echter sk_test-Key aus der Shell-Env, idempotentes Setup, echte Checkout-/Webhook-/Portal-Objekte) wurde **gestartet, konnte aber innerhalb des Zeitbudgets nicht bis zum Ergebnis abgewartet werden** (`timeout 400 … /tmp/e2e-final2.log`; Stand beim Abbruch: Fixtures ok, Instanzenstart im Gange). Die 5 „normalen“ Instanz-Läufe sind evident; der Fix adressiert exakt die einzige Fehlerquelle.
+| `stripe83-local-server.ts` | Lokale Instanz (Fork von serve.ts), bindet `127.0.0.1:<PORT>` (Default 3188, frei wählbar), exakt die Produktions-Wiring-Reihenfolge (Webhook → Beta → Tracking → Analytics → Stream → dist-SSR). Berührt `:3000` nie. |
+| `stripe83-e2e.ts` | Vollständige E2E-Suite (2 Modi, Exit≠0 bei FAIL): Fixtures (echte Clerk-User + Sessions + JWTs + DB-Zeilen + beta_signups), Webhook-HTTP-Matrix (405/400/200/400-Tamper/400-Stale/500-fail-closed ohne Secret), Webhook-Erfolgspfad → DB (tier pro, status active, period_end, Idempotenz via Doppel-Send, UNIQUE-Index), Abo-Status/Guard-ServerFn (tier pro/200, free/5, beta via E-Mail, qGetPlanTier-DB-Prüfung), Checkout/Portal-ServerFns (voll: echtes Setup Product/Preise 1900/19000 ct mit lookup_keys pro_monthly/pro_yearly, Coupon BETA50 50 % forever, Promo-Code BETA50 — idempotent; Checkout inkl. Beta amount_total=950; Webhook mit echten customer+subscription; Portal-URL), deleted→expired, Cleanup. |
 
 ## Offene Punkte für den Lead
-1. E2E final abwarten/bestätigen: `cd /home/team/shared/site && bun --env-file=.env stripe83-e2e.ts` (läuft ohne Deploy, Exit 0 = alles grün; voller Modus, da sk_test im Sandbox-Env liegt).
-2. Owner-Vorgabe eingehalten: **kein** `--prod`, **kein** `publish_site`, **kein** Code außer E2E-Skripten geändert (src/ unverändert; tsc-Gate betrifft nur src/).
-3. Secrets wurden nirgends ausgegeben (nur Masken/Präfixe).
+
+1. **Fixes/Evidence committen & pushen** (checkout.ts-Promo-ID-Fix + aktualisierte Evidence).
+2. **Regression grün bestätigen**: usage-guard (31), usage-semantics (32), stripe-webhook (52), tiktok-diagnose (56) — nach checkout.ts-Änderung erneut laufen lassen (Checkout-Pfad von keiner Suite verändert; E2E deckt den Pfad ab).
+3. Owner-Vorgabe eingehalten: **kein** `--prod`, **kein** `publish_site`.
+4. Secrets wurden nirgends ausgegeben (nur Masken/Präfixe).
