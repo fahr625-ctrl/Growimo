@@ -531,7 +531,7 @@ export const en: EnShape = {
   pricing_error_generic: 'Something went wrong. Please try again.',
   // ── Billing ───────────────────────────────────────────────────────────────────
   billing_title: 'Billing & Plan', billing_subtitle: 'Manage your subscription and monitor your usage.',
-  billing_current_plan: 'Current Plan', billing_status_active: 'Active', billing_status_cancelled: 'Cancelled',
+  billing_current_plan: 'Current Plan', billing_status_active: 'Active', billing_status_cancelled: 'Cancelled', billing_status_expired: 'Expired',
   billing_pro_desc: 'Pro plan: 200 AI generations per month.',
   billing_free_desc: 'You are on the Free plan with limited generations (5/month).',
   billing_period_ends: 'Current period ends:', billing_manage_subscription: 'Manage subscription', billing_redirecting: 'Redirecting...',
@@ -545,12 +545,16 @@ export const en: EnShape = {
   billing_session_pending_desc: 'Your subscription is not activated yet (the Stripe webhook can take a few seconds). Refresh the status in a moment.',
   billing_warning_low: 'Only a few generations left.', billing_warning_low_suffix: 'for more generations.',
   billing_warning_limit: 'You have reached your limit.', billing_warning_limit_suffix: 'to keep generating.',
-  billing_history_title: 'Billing History', billing_history_empty: 'Billing history will appear here',
+  billing_history_title: 'Billing History', billing_history_empty: 'No invoices yet',
   billing_history_empty_desc: 'Invoices and receipts will become available once you have an active subscription.',
   billing_stripe_pending: 'Stripe integration pending — payment features become available once configuration is complete.',
   billing_no_stripe_customer: 'No Stripe customer is linked to this account.',
   billing_portal_error: 'Error opening the billing portal.',
   billing_checkout_error: 'Error starting checkout.',
+  billing_invoice_date: 'Date', billing_invoice_number: 'Invoice', billing_invoice_period: 'Period',
+  billing_invoice_amount: 'Amount', billing_invoice_status: 'Status', billing_invoice_pdf: 'Invoice (PDF)',
+  billing_invoice_paid: 'Paid', billing_invoice_open: 'Open', billing_invoice_void: 'Void',
+  billing_invoices_error: 'Invoices could not be loaded right now. Please try again later.',
 
   // ── Dashboard scoring ─────────────────────────────────────────────────────────
   dashboard_scores_title: 'Performance Scores',

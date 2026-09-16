@@ -528,7 +528,7 @@ export const de = {
   pricing_error_generic: 'Etwas ist schiefgelaufen. Bitte versuche es erneut.',
   // ── Billing ───────────────────────────────────────────────────────────────────
   billing_title: 'Abrechnung & Plan', billing_subtitle: 'Verwalte dein Abonnement und überwache deine Nutzung.',
-  billing_current_plan: 'Aktueller Plan', billing_status_active: 'Aktiv', billing_status_cancelled: 'Gekündigt',
+  billing_current_plan: 'Aktueller Plan', billing_status_active: 'Aktiv', billing_status_cancelled: 'Gekündigt', billing_status_expired: 'Abgelaufen',
   billing_pro_desc: 'Pro-Tarif: 200 KI-Generierungen pro Monat.',
   billing_free_desc: 'Du bist im Free-Tarif mit begrenzten Generierungen (5/Monat).',
   billing_period_ends: 'Aktueller Zeitraum endet:', billing_manage_subscription: 'Abonnement verwalten', billing_redirecting: 'Wird weitergeleitet...',
@@ -542,12 +542,16 @@ export const de = {
   billing_session_pending_desc: 'Dein Abo ist noch nicht aktiviert (der Stripe-Webhook kann ein paar Sekunden brauchen). Aktualisiere den Status gleich noch einmal.',
   billing_warning_low: 'Nur noch wenige Generierungen übrig.', billing_warning_low_suffix: 'für mehr Generierungen.',
   billing_warning_limit: 'Du hast dein Limit erreicht.', billing_warning_limit_suffix: 'um weiter zu generieren.',
-  billing_history_title: 'Abrechnungsverlauf', billing_history_empty: 'Abrechnungsverlauf erscheint hier',
+  billing_history_title: 'Abrechnungsverlauf', billing_history_empty: 'Noch keine Rechnungen',
   billing_history_empty_desc: 'Rechnungen und Belege werden verfügbar, sobald du ein aktives Abonnement hast.',
   billing_stripe_pending: 'Stripe-Integration ausstehend — Zahlungsfunktionen sind verfügbar, sobald die Konfiguration abgeschlossen ist.',
   billing_no_stripe_customer: 'Kein Stripe-Kunde mit diesem Konto verknüpft.',
   billing_portal_error: 'Fehler beim Öffnen des Abrechnungsportals.',
   billing_checkout_error: 'Fehler beim Starten des Checkouts.',
+  billing_invoice_date: 'Datum', billing_invoice_number: 'Rechnung', billing_invoice_period: 'Zeitraum',
+  billing_invoice_amount: 'Betrag', billing_invoice_status: 'Status', billing_invoice_pdf: 'Rechnung (PDF)',
+  billing_invoice_paid: 'Bezahlt', billing_invoice_open: 'Offen', billing_invoice_void: 'Storniert',
+  billing_invoices_error: 'Rechnungen konnten gerade nicht geladen werden. Bitte später erneut versuchen.',
 
   // ── Dashboard scoring ─────────────────────────────────────────────────────────
   dashboard_scores_title: 'Performance Scores',

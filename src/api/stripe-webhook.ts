@@ -20,6 +20,7 @@ import {
   qGetSubscriptionByStripeId,
   qUpsertSubscription,
 } from "../db/queries";
+import { periodEndOfSubscription } from "../stripe/invoices";
 
 export const STRIPE_WEBHOOK_PATH = "/api/stripe-webhook";
 
@@ -58,8 +59,17 @@ export interface StripeWebhookDeps {
    * period_end nicht enthält). Produktion: strikte API-Calls; Tests: Fixture.
    */
   retrieveSubscription?: (subscriptionId: string) => Promise<{
-    current_period_end: number | null;
-    items?: { data?: { price?: { lookup_key?: string | null } | null }[] };
+    current_period_end?: number | null;
+    items?: {
+      data?: Array<
+        | {
+            current_period_end?: number | null;
+            price?: { lookup_key?: string | null } | null;
+          }
+        | null
+        | undefined
+      >;
+    };
   }>;
 }
 
@@ -135,7 +145,9 @@ export async function processStripeEvent(
       stripeSubscriptionId: subscriptionId,
       planTier: tier,
       status: "active",
-      currentPeriodEnd: sub.current_period_end,
+      // Item-Pfad zuerst (API-Version 2026-08-26.dahlia führt current_period_end
+      // am Subscription-ITEM), Top-Level-Fallback für ältere API-Versionen.
+      currentPeriodEnd: periodEndOfSubscription(sub),
     });
     return;
   }
@@ -183,8 +195,11 @@ export async function processStripeEvent(
       stripeSubscriptionId: subscriptionId,
       planTier: planTierForLookupKey(lookupKey) ?? existing.planTier,
       status: mapSubscriptionStatus(sub.status as string | null | undefined),
-      currentPeriodEnd:
-        typeof sub.current_period_end === "number" ? sub.current_period_end : null,
+      // Item-Pfad zuerst (dahlia: current_period_end am Subscription-ITEM),
+      // Top-Level-Fallback für ältere API-Versionen (dokumentierter 8.3d-Befund).
+      currentPeriodEnd: periodEndOfSubscription(
+        sub as unknown as Parameters<typeof periodEndOfSubscription>[0],
+      ),
     });
     return;
   }
@@ -222,7 +237,19 @@ async function existingTierBySubscription(
 /** Produktions-Retrieve: echte Subscription inkl. Preis (per expand). */
 async function retrieveSubscriptionForEvent(
   subscriptionId: string,
-): Promise<{ current_period_end: number | null; items?: { data?: { price?: { lookup_key?: string | null } | null }[] } }> {
+): Promise<{
+  current_period_end?: number | null;
+  items?: {
+    data?: Array<
+      | {
+          current_period_end?: number | null;
+          price?: { lookup_key?: string | null } | null;
+        }
+      | null
+      | undefined
+    >;
+  };
+}> {
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) {
     throw new Error("Stripe is not configured. Set STRIPE_SECRET_KEY to enable payments.");
@@ -232,16 +259,27 @@ async function retrieveSubscriptionForEvent(
   const sub = await stripe.subscriptions.retrieve(subscriptionId, {
     expand: ["items.data.price"],
   });
-  // Die Stripe-v22-Typen führen `current_period_end` nicht auf dem
-  // Subscription-Response (obwohl die API es als Unix-Timestamp liefert —
-  // siehe Fixture in stripe-webhook-test.ts). Das dokumentierte Feld explizit
+  // Die Stripe-v22-Typen führen `current_period_end` nicht auf der
+  // Subscription-Response (obwohl die API es liefert — siehe Fixture in
+  // stripe-webhook-test.ts). API-Version 2026-08-26.dahlia führt den Wert am
+  // Subscription-ITEM (`items.data[].current_period_end`) — beides explizit
   // am SDK-Ergebnis ergänzen statt den übrigen Typ zu schwächen.
-  const raw = sub as typeof sub & { current_period_end?: number | null };
+  const raw = sub as typeof sub & {
+    current_period_end?: number | null;
+    items?: {
+      data?: Array<
+        | {
+            current_period_end?: number | null;
+            price?: { lookup_key?: string | null } | null;
+          }
+        | null
+        | undefined
+      >;
+    };
+  };
   return {
     current_period_end: raw.current_period_end ?? null,
-    items: raw.items as {
-      data?: { price?: { lookup_key?: string | null } | null }[];
-    },
+    items: raw.items,
   };
 }
 

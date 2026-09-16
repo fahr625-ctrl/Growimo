@@ -64,6 +64,12 @@ const retrieveFixture = async (_subscriptionId: string, lookupKey = PRO_MONTHLY_
   current_period_end: 1_893_456_000, // 2030-01-15
   items: { data: [{ price: { lookup_key: lookupKey } }] },
 });
+// dahlia-Variante (8.3d-Befund, API-Version 2026-08-26.dahlia): current_period_end
+// NUR am Subscription-ITEM — kein Top-Level-Feld. periodEndOfSubscription muss
+// den Item-Pfad lesen.
+const dahliaRetrieveFixture = async (_subscriptionId: string, lookupKey = PRO_MONTHLY_LOOKUP_KEY) => ({
+  items: { data: [{ price: { lookup_key: lookupKey }, current_period_end: 1_893_999_600 }] },
+});
 const sessionCompletedEvent = (
   clerkId: string,
   sub: string,
@@ -110,6 +116,24 @@ const subscriptionUpdatedEvent = (
       status,
       current_period_end: periodEnd,
       items: { data: [{ price: { lookup_key: lookupKey } }] },
+    },
+  },
+});
+// dahlia-Variante: current_period_end NUR am Subscription-ITEM (kein Top-Level).
+const subscriptionUpdatedDahliaEvent = (
+  sub: string,
+  cust: string,
+  status: string,
+  itemPeriodEnd = 1_893_700_000,
+  lookupKey = PRO_MONTHLY_LOOKUP_KEY,
+) => ({
+  type: 'customer.subscription.updated',
+  data: {
+    object: {
+      id: sub,
+      customer: cust,
+      status,
+      items: { data: [{ price: { lookup_key: lookupKey }, current_period_end: itemPeriodEnd }] },
     },
   },
 });
@@ -221,6 +245,23 @@ async function main() {
     await processStripeEvent(invoicePaidEvent(SUB_A, CUS_A, nextPeriod));
     row = await qGetSubscriptionByStripeId(SUB_A);
     check(row !== null && row.currentPeriodEnd?.getTime() === nextPeriod * 1000, 'invoice.paid verlängert current_period_end');
+    // dahlia (8.3d-Befund): subscription.updated mit period_end NUR am Item →
+    // Item-Pfad lesen (periodEndOfSubscription), DB-Zeile bekommt den Wert.
+    const dahliaPeriod = 1_893_700_000;
+    await processStripeEvent(subscriptionUpdatedDahliaEvent(SUB_A, CUS_A, 'active', dahliaPeriod));
+    row = await qGetSubscriptionByStripeId(SUB_A);
+    check(row !== null && row.currentPeriodEnd?.getTime() === dahliaPeriod * 1000, 'subscription.updated (dahlia, period_end am Item) → current_period_end gespeichert');
+    // dahlia-checkout: retrieve liefert period_end NUR am Item → gleicher Effekt
+    await processStripeEvent(sessionCompletedEvent(TEST_USERS[1], `sub_dahlia_${RUN}`, CUS_A), {
+      retrieveSubscription: dahliaRetrieveFixture,
+    });
+    const dahliaRow = await qGetSubscriptionByStripeId(`sub_dahlia_${RUN}`);
+    check(dahliaRow !== null && dahliaRow.currentPeriodEnd?.getTime() === 1_893_999_600 * 1000, 'checkout mit retrieve (period_end am Item) → current_period_end gespeichert');
+    // dahlia-Testabonnements beenden, damit die Guard-Prüfungen in [3] wieder
+    // von „kein aktives Abo → free" ausgehen können.
+    await processStripeEvent(subscriptionDeletedEvent(`sub_dahlia_${RUN}`, CUS_A));
+    const dahliaGone = await qGetSubscriptionByStripeId(`sub_dahlia_${RUN}`);
+    check(dahliaGone?.status === 'expired', 'dahlia-Testabo nach deleted → expired (Guard-Unabhängigkeit)');
 
     // subscription.updated canceled → cancelled
     await processStripeEvent(subscriptionUpdatedEvent(SUB_A, CUS_A, 'canceled'));
