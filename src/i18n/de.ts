@@ -799,6 +799,15 @@ export const de = {
   // Phase 8.2 — serverseitiges Monatslimit (Free 5 / Pro 200, ab 2026-09-12).
   usage_limit_exhausted: 'Dein monatliches Limit ist aufgebraucht (5/Monat im Free-Plan). Upgrade für 200 pro Monat.',
   usage_rate_limit: 'Zu viele Anfragen. Bitte einen Moment warten.',
+  // Phase 8.4a — Rest-Anzeige + Limit-Banner im Dashboard (ab 2026-09-16).
+  usage_remaining_singular: '%d von %d Generierung verbleibend',
+  usage_remaining_plural: '%d von %d Generierungen verbleibend',
+  usage_banner_title: 'Monatslimit erreicht',
+  usage_banner_count: '(%d/%d)',
+  usage_banner_free: 'Dein Free-Kontingent ist aufgebraucht. Mit Pro erhältst du 200 Generierungen pro Monat.',
+  usage_banner_pro: 'Dein Pro-Kontingent ist aufgebraucht. Neue Generierungen sind ab dem nächsten Monat wieder möglich.',
+  usage_banner_upgrade: 'Zu Pro upgraden',
+  usage_banner_plans: 'Pläne ansehen',
 
   // ── Billing ──────────────────────────────────────────────────────────────────
   billing_manage: 'Abrechnung verwalten',

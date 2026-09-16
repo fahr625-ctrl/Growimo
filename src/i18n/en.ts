@@ -797,6 +797,15 @@ export const en: EnShape = {
   // Phase 8.2 — server-side monthly limit (Free 5 / Pro 200, since 2026-09-12).
   usage_limit_exhausted: 'Your monthly limit is used up (5/month on the Free plan). Upgrade for 200 per month.',
   usage_rate_limit: 'Too many requests. Please wait a moment.',
+  // Phase 8.4a — remaining counter + limit banner in the dashboard (since 2026-09-16).
+  usage_remaining_singular: '%d of %d generation remaining',
+  usage_remaining_plural: '%d of %d generations remaining',
+  usage_banner_title: 'Monthly limit reached',
+  usage_banner_count: '(%d/%d)',
+  usage_banner_free: 'Your free quota is used up. With Pro you get 200 generations per month.',
+  usage_banner_pro: 'Your Pro quota is used up. New generations become available again next month.',
+  usage_banner_upgrade: 'Upgrade to Pro',
+  usage_banner_plans: 'View plans',
 
   // ── Billing ──────────────────────────────────────────────────────────────────
   billing_manage: 'Manage billing',

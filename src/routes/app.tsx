@@ -7,6 +7,7 @@ import LanguageSwitcher from "~/components/LanguageSwitcher";
 import FeedbackButton from "~/components/FeedbackButton";
 import { ensureUser } from "~/store/projects";
 import { OWNER_USER_ID } from "~/lib/tracking";
+import { UsageStatus } from "~/components/UsageStatus";
 
 export const Route = createFileRoute("/app")({
   component: AppLayout,
@@ -163,6 +164,7 @@ function AppLayout() {
       {/* Main content */}
       <main className="flex-1 overflow-auto">
         <div className="mx-auto max-w-5xl px-6 py-8">
+          {isSignedIn && clerkUser?.id ? <UsageStatus userId={clerkUser.id} /> : null}
           <Outlet />
         </div>
       </main>
