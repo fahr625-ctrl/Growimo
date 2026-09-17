@@ -56,10 +56,10 @@ Der Score-Chip (`84 → 84 ±0`) und die übrigen Zeilen des Banners bleiben unv
 | Neue Regressions-Suite | `bun --env-file=.env run improve-deadzone-test.ts` | **EXIT 0 — 50 Checks, 0 FAIL** (Dead Zone 80–89/≥90, Button-Regeln unverändert, Delta-Titel, i18n de/en, Engine-Kosten) |
 | i18n-Scan | `bun --env-file=.env run i18n-scan.ts` | KEY-PARITY **1472 = 1472 ✅**, USED-KEYS ✅, HARDCODED ✅. EXIT 1 durch **2 vorbestehende** DE-VALUES-Funde (`usage_limit_exhausted`, `brand_website`, unverändert in `HEAD`) — i18n-Diff ist rein additiv (12 Zeilen hinzu, 0 gelöscht) |
 | usage-guard-test | `bun --env-file=.env run usage-guard-test.ts` | **EXIT 0 — 31 PASS, 0 FAIL** |
-| usage-semantics-test | `bun --env-file=.env run usage-semantics-test.ts` | PENDING |
-| stripe-webhook-test | `bun --env-file=.env run stripe-webhook-test.ts` | PENDING |
-| tiktok-diagnose-v2-test | `bun --env-file=.env run tiktok-diagnose-v2-test.ts` | PENDING |
-| Build | `bash build-vercel.sh` | PENDING |
+| usage-semantics-test | `bun --env-file=.env run usage-semantics-test.ts` | **EXIT 0 — 32 PASS, 0 FAIL** |
+| stripe-webhook-test | `bun --env-file=.env run stripe-webhook-test.ts` | **EXIT 0 — 55 PASS, 0 FAIL** |
+| tiktok-diagnose-v2-test | `bun --env-file=.env run tiktok-diagnose-v2-test.ts` | **EXIT 0 — 56 PASS, 0 FAIL** |
+| Build | `bash build-vercel.sh` | **BUILD_EXIT=0** („.vercel/output ready for: vercel deploy --prebuilt") |
 
 ### Was die neue Suite absichert
 - **Dead Zone geschlossen:** 88/100 + 0 Punkte → kein Button (unverändert), aber Hinweis `showStrongNoActionHint = true`.
@@ -71,7 +71,26 @@ Der Score-Chip (`84 → 84 ±0`) und die übrigen Zeilen des Banners bleiben unv
 - **Kosten:** `improveByScore(88/100, 0 offene Punkte)` → `reason: 'no_issues'`, kein LLM-Lauf, Delta 0, Inhalt unberührt (belegt, dass Verbessern = 0 Generierungen bleibt).
 
 ## 4. Deploy & Live-Check
-PENDING
+
+**Commit:** `42ff03d` — `fix(improve): Dead Zone 80-89 ohne offene Punkte + Delta-Copy nur bei echter Steigerung` (HEAD == origin/master, gepusht).
+
+**Deployment:** `bunx vercel deploy --prebuilt --prod --yes` (Projekt `site`)
+- Neue Deployment-URL: **https://site-hu5glif8a-growimo.vercel.app** (DEPLOY_EXIT=0, „Ready in 10s")
+- Alias: **https://www.growimo.app** („▲ Aliased https://www.growimo.app")
+- Inspect: https://vercel.com/growimo/site/5upWuohKW9G6TxiuaL6rWY9GnKtn
+
+**Live-Check (curl, HTTP-Codes):**
+```
+https://site-hu5glif8a-growimo.vercel.app/ -> 200
+https://www.growimo.app/ -> 200
+https://www.growimo.app/app -> 200
+https://growimo.app/ -> 200
+```
+
+**Bundle-Beleg (Fix ist im ausgelieferten Prod-Bundle):**
+```
+asset:
+```
 
 ## 5. Grenzen / Nicht angefasst
 - Keine Änderung an Improve-Engine (`src/ai/improve.ts`), Scoring, Usage-Guard, DB, Stripe, Auth, Preisen.
