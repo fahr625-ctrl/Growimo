@@ -6,6 +6,7 @@ import { isAutoImproveFieldSupported } from '~/ai/auto-improve/support';
 import { useTranslation } from '~/i18n';
 import { ScoreBadge, TONE_CLASSES, scoreTone } from './ScoreBadge';
 import { AssetFeedback } from './AssetFeedback';
+import { improveDeltaTitleKey, resolveScoreCardActions } from './scoreCardActions';
 
 const DIM_KEY: Record<string, string> = {
   title: 'score_dim_title',
@@ -141,18 +142,24 @@ export function ScoreCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content?.body, lastOutcome]);
 
-  const canImprove =
-    content != null &&
-    score != null &&
-    score.issues.length > 0 &&
-    score.total < 90 &&
-    !isImproving &&
-    !isImprovingTarget;
-
-  // F2 "Auf 80+ verbessern" — offer whenever the asset is clearly below target
-  // (independent of issue count; the engine decides what to fix).
-  const canImproveToTarget =
-    content != null && score != null && score.total < IMPROVE_TARGET_DEFAULT && !isImproving && !isImprovingTarget;
+  // F2 + F2-UX (8.4d): the button/hint rules live in a pure module so they are
+  // unit-testable. `canImprove` = fix the listed issues; `canImproveToTarget` =
+  // "Auf 80+ verbessern" whenever the asset is clearly below target (independent
+  // of issue count — the engine decides what to fix). The two *hint* flags close
+  // the "dead zone" (an 88/100 card with zero open issues used to show no action
+  // at all) by stating the result honestly. No scoring/engine/usage change.
+  const actions = resolveScoreCardActions(
+    score,
+    {
+      hasContent: content != null,
+      busy: isImproving || isImprovingTarget,
+      hasOutcome: lastOutcome != null,
+      hasError: improveError,
+    },
+    IMPROVE_TARGET_DEFAULT,
+  );
+  const canImprove = actions.canImprove;
+  const canImproveToTarget = actions.canImproveToTarget;
 
   const handleImprove = useCallback(async () => {
     if (!content || !score || isImproving) return;
@@ -379,6 +386,36 @@ export function ScoreCard({
         {score.summary}
       </p>
 
+      {/* F2-UX (8.4d): honest "no action available" note. Closes the dead zone —
+          an asset at/above the 80 target with zero open issues used to show
+          NEITHER "⚡ Verbessern" NOR "✨ Auf 80+ verbessern", i.e. an 88/100 card
+          with no next step whatsoever. There is nothing the engine could fix, so
+          we say so instead of offering a button that cannot do anything. */}
+      {actions.showStrongNoActionHint && (
+        <div className="border-t border-emerald-100 bg-emerald-50/60 px-4 py-3">
+          <p className="text-xs font-semibold text-emerald-700">
+            {(tLookup.score_strong_no_actions ?? '').replace('%d', String(score.total))}
+          </p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-emerald-700/80">
+            {tLookup.score_strong_no_actions_desc}
+          </p>
+        </div>
+      )}
+
+      {/* F2-UX (8.4d): same class of dead zone above 90 — the improver refuses to
+          rework an already-strong asset (ALREADY_STRONG_TOTAL), so the card must
+          explain why no automatic fix is offered for the listed points. */}
+      {actions.showTopRangeNoActionHint && (
+        <div className="border-t border-emerald-100 bg-emerald-50/60 px-4 py-3">
+          <p className="text-xs font-semibold text-emerald-700">
+            {(tLookup.score_top_range_no_actions ?? '').replace('%d', String(score.total))}
+          </p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-emerald-700/80">
+            {tLookup.score_top_range_no_actions_desc}
+          </p>
+        </div>
+      )}
+
       {/* F10: Like/Dislike learning feedback — steuert Ton & Format künftiger
           Generierungen (nur wenn eine Asset-Id bekannt ist). */}
       {assetId && content && (
@@ -445,7 +482,11 @@ export function ScoreCard({
         <div className="border-t border-emerald-100 bg-emerald-50/70 px-4 py-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">
-              {tLookup.improve_delta_title}
+              {/* F2-UX (8.4d): "Qualität gesteigert" was shown even at ±0
+                  (84 → 84). Only claim an improvement when the score actually
+                  rose; at a tie the run still re-checked the asset, and a
+                  negative delta must not be dressed up as a win. */}
+              {tLookup[improveDeltaTitleKey(lastOutcome.delta)]}
             </span>
             <span className="ml-auto inline-flex items-center gap-2">
               <ScoreBadge total={lastOutcome.oldScore.total} />
