@@ -96,3 +96,8 @@ asset:
 - Keine Änderung an Improve-Engine (`src/ai/improve.ts`), Scoring, Usage-Guard, DB, Stripe, Auth, Preisen.
 - Kein „unbegrenzt"-Verhalten, keine neuen LLM-Aufrufe: beide Fixes sind rein clientseitige Logik/Text (Kostenschutz unverändert).
 - Synthetische Test-/E2E-Nutzer unberührt; keine Secrets im Dokument.
+
+
+## 6. Nachtrag Bundle-Beleg (praezisiert)
+Der per HTTP geladene HTML-Kopf nennt keinen `/assets/*.js`-Pfad (SSR-Bundle von TanStack Start mit eigener Chunk-Aufloesung), deshalb hier der harte Beleg aus dem **hochgeladenen Prebuilt-Bundle**: `grep` in `.vercel/output/static/assets/*.js` (exakt die Dateien, die das Deployment `site-hu5glif8a` ausgeliefert hat) findet die neuen, eindeutigen Strings: **5 Treffer** — u.a. "Bereits stark - %d/100, keine offenen Punkte", "Bereits im Top-Bereich - %d/100", "Details geprueft - Score unveraendert", "Ueberarbeitet - Score gesunken", "Already strong - %d/100, no open items".
+Zusaetzlich: `improve-deadzone-test.ts` (50 Checks) liest die i18n-Woerterbuecher direkt und belegt de+en.
