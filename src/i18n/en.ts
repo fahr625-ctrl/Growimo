@@ -221,6 +221,8 @@ export const en: EnShape = {
   common_next: 'Next',
   common_generate: 'Generate',
   common_loading: 'Loading...',
+  // Phase 3 (Stabilisierung): way out of a load state that takes too long.
+  common_reload: 'Reload page',
   common_generating: 'Generating...',
   common_error: 'Error',
   common_retry: 'Retry',
@@ -663,7 +665,15 @@ export const en: EnShape = {
   // ── AI Image Studio ─────────────────────────────────────────────────────────
   image_studio_title: '🎨 AI Image Studio',
   image_studio_subtitle: 'Visual assets for your marketing strategy',
-  sidebar_image_studio: '🎨 Image Studio', image_studio_page_title: 'AI Image Studio', image_studio_page_subtitle: 'Generate images, Pinterest pins and Etsy mockups with AI', image_studio_prompt_label: 'What would you like to generate?', image_studio_prompt_placeholder: 'Describe the image you want…', image_studio_generate_btn: 'Generate', image_studio_templates_label: 'Quick templates', image_studio_template_pinterest: 'Pinterest Pin (2:3)', image_studio_template_etsy: 'Etsy Mockup (4:3)', image_studio_template_instagram: 'Instagram Post (1:1)', image_studio_template_blog: 'Blog Hero (16:9)', image_studio_from_strategy: 'Generate from Strategy', image_studio_select_project: 'Select a project…', image_studio_prompts_generated: 'Generated Prompts', image_studio_upload_title: 'Edit your own image', image_studio_upload_dropzone: 'Drop an image here or click to upload', image_studio_gallery_title: 'Generated Images', image_studio_empty: 'No images yet. Enter a prompt and click Generate.', image_studio_generating: 'Generating image…', image_studio_error: 'Image generation failed', image_studio_download: 'Download', image_studio_copy_prompt: 'Copy Prompt', image_studio_regenerate: 'Regenerate', image_studio_variation: 'Variation', image_studio_regenerate_generating: 'Regenerating…', image_studio_variation_generating: 'Creating variation…', image_studio_card_error: 'Failed to create the variation. Please try again.', dashboard_tools_image_studio: '🎨 Image Studio', dashboard_tools_image_studio_desc: 'Generate AI images, Pinterest pins & Etsy mockups', image_studio_open_full: 'Open in Image Studio',
+  sidebar_image_studio: '🎨 Image Studio', image_studio_page_title: 'AI Image Studio', image_studio_page_subtitle: 'Generate images, Pinterest pins and Etsy mockups with AI', image_studio_prompt_label: 'What would you like to generate?', image_studio_prompt_placeholder: 'Describe the image you want…', image_studio_generate_btn: 'Generate', image_studio_templates_label: 'Quick templates', image_studio_template_pinterest: 'Pinterest Pin (2:3)', image_studio_template_etsy: 'Etsy Mockup (4:3)', image_studio_template_instagram: 'Instagram Post (1:1)', image_studio_template_blog: 'Blog Hero (16:9)', image_studio_from_strategy: 'Generate from Strategy', image_studio_select_project: 'Select a project…', image_studio_prompts_generated: 'Generated Prompts', image_studio_upload_title: 'Edit your own image', image_studio_upload_dropzone: 'Drop an image here or click to upload', image_studio_gallery_title: 'Generated Images', image_studio_empty: 'No images yet. Enter a prompt and click Generate.', image_studio_generating: 'Generating image…', image_studio_error: 'Image generation failed', image_studio_download: 'Download', image_studio_copy_prompt: 'Copy Prompt', image_studio_regenerate: 'Regenerate', image_studio_variation: 'Variation', image_studio_regenerate_generating: 'Regenerating…', image_studio_variation_generating: 'Creating variation…', image_studio_card_error: 'Failed to create the variation. Please try again.',
+  // Phase 3.1 — timeout/cancel instead of endless loading (%s = timeout in seconds).
+  image_studio_error_timeout: 'Timeout: image generation was cancelled after %s seconds. Please try again.',
+  image_studio_error_aborted: 'Generation cancelled. You can start it again.',
+  image_studio_abort: 'Cancel',
+  // Phase 3.3d — way back to the TikTok idea (result stays).
+  image_studio_back_to_tiktok: 'Back to the TikTok idea',
+  // Phase 3.4 — gallery cap (%s = number of visible images).
+  image_studio_gallery_cap_hint: 'To keep memory free, the gallery only shows the last %s images. Please download finished images beforehand.', dashboard_tools_image_studio: '🎨 Image Studio', dashboard_tools_image_studio_desc: 'Generate AI images, Pinterest pins & Etsy mockups', image_studio_open_full: 'Open in Image Studio',
   image_studio_format_pinterest: 'Pinterest Pin', image_studio_format_etsy: 'Etsy Product Mockup', image_studio_format_instagram: 'Instagram Post', image_studio_format_blog: 'Blog Hero Image',
   image_studio_alt_placeholder: '%s placeholder', image_studio_download_svg: 'Download SVG', image_studio_copy_prompt_title: 'Copy generation prompt', image_studio_copied: 'Copied!', image_studio_api_required: 'Connect an image API to enable',
   image_studio_create_from_strategy: '🎨 Create in Image Studio',
@@ -1281,6 +1291,9 @@ export const en: EnShape = {
   beta_access_error_title: 'Couldn’t verify access',
   beta_access_error_text: 'Please try again.',
   beta_access_retry: 'Try again',
+  // Phase 3.2 — no endless "Loading...": hint + reload after timeout.
+  gate_slow_title: 'This is taking longer than expected',
+  gate_slow_text: 'Sign-in and loading could not complete. Reload the page and try again.',
   beta_admin_status: 'Status',
   beta_admin_approved: 'Approved',
   beta_admin_pending: 'Pending',

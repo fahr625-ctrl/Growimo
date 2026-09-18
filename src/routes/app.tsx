@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth, useUser, UserButton, SignOutButton } from "@clerk/clerk-react";
 import { isClerkConfigured } from "~/auth/middleware";
 import { useTranslation } from "~/i18n";
@@ -12,6 +12,13 @@ import { UsageStatus } from "~/components/UsageStatus";
 export const Route = createFileRoute("/app")({
   component: AppLayout,
 });
+
+// Phase 3.2 (C6) — der Beta-Access-Gate darf nie dauerhaft „Lädt...“ zeigen.
+// Schonfrist, in der Clerk die E-Mail nachliefert (isSignedIn, E-Mail noch leer),
+// danach Fehlerzustand mit Retry. Timeout des Zugriffs-Checks selbst: danach
+// ebenfalls Fehler + Retry statt Endlos-Spinner.
+export const BETA_EMAIL_GRACE_MS = 5_000;
+export const BETA_ACCESS_TIMEOUT_MS = 10_000;
 
 function AppLayout() {
   const routerState = useRouterState();
@@ -36,16 +43,34 @@ function AppLayout() {
   // email against the approved list before showing the app.
   const [beta, setBeta] = useState<'checking' | 'approved' | 'denied' | 'error'>('checking');
   const [checkVersion, setCheckVersion] = useState(0);
-  const checkedEmailRef = useRef<string | null>(null);
 
   const email = clerkUser?.primaryEmailAddress?.emailAddress ?? "";
 
   useEffect(() => {
-    if (!isLoaded || isAuthPage || isBetaWelcome || !isSignedIn || !email) return;
-    // Avoid re-checking the same email on every render/navigation
-    if (checkedEmailRef.current === email) return;
-    checkedEmailRef.current = email;
+    if (!isLoaded || isAuthPage || isBetaWelcome || !isSignedIn) return;
+    // Erfolgs-/Fehlerzustand ist terminal: er wird nur über retryAccessCheck()
+    // (setzt beta zurück auf 'checking') wieder geöffnet. Dadurch kann der
+    // Effekt nie in einer Schleife neu laden.
+    if (beta !== 'checking') return;
+    // Nur setzen, solange wir noch im 'checking'-Zustand sind — ein später
+    // gesetztes Ergebnis (z. B. verspätete Antwort nach Cleanup) darf einen
+    // bereits erreichten Zustand nicht überschreiben.
+    const settle = (v: 'approved' | 'denied' | 'error') =>
+      setBeta((prev) => (prev === 'checking' ? v : prev));
+    // Phase 3.2 (C6) — kein Dauer-„Lädt...“ mehr:
+    // (i) `email` ist bei isSignedIn kurzzeitig leer (Clerk-Session noch nicht
+    //     vollständig). Statt für immer in 'checking' zu hängen, gibt es eine
+    //     kurze Schonfrist und danach den Fehlerzustand MIT Retry-Button.
+    //     Kommt die E-Mail vorher, läuft der Effekt erneut und prüft normal.
+    if (!email) {
+      const grace = setTimeout(() => settle('error'), BETA_EMAIL_GRACE_MS);
+      return () => clearTimeout(grace);
+    }
     let cancelled = false;
+    // (ii) Der Fetch selbst hat ein Timeout: antwortet /api/beta-access nie
+    //      (hängender Request, abgerissene Verbindung), wechselt das Gate nach
+    //      BETA_ACCESS_TIMEOUT_MS in 'error' mit Retry-Button.
+    const timer = setTimeout(() => { if (!cancelled) settle('error'); }, BETA_ACCESS_TIMEOUT_MS);
     (async () => {
       try {
         const res = await fetch("/api/beta-access", {
@@ -55,17 +80,19 @@ function AppLayout() {
         });
         const d = await res.json().catch(() => null);
         if (cancelled) return;
-        if (d && typeof d.approved === "boolean") setBeta(d.approved ? "approved" : "denied");
-        else setBeta("error");
+        if (d && typeof d.approved === "boolean") settle(d.approved ? "approved" : "denied");
+        else settle("error");
       } catch {
-        if (!cancelled) setBeta("error");
+        if (!cancelled) settle("error");
+      } finally {
+        clearTimeout(timer);
       }
     })();
-    return () => { cancelled = true; };
-  }, [isLoaded, isAuthPage, isBetaWelcome, isSignedIn, email, checkVersion]);
+    return () => { cancelled = true; clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, isAuthPage, isBetaWelcome, isSignedIn, email, beta, checkVersion]);
 
   const retryAccessCheck = () => {
-    checkedEmailRef.current = null;
     setBeta("checking");
     setCheckVersion(v => v + 1);
   };

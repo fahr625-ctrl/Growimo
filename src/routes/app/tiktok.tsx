@@ -9,7 +9,8 @@ import { track } from '~/lib/tracking-client';
 import type { TikTokDiagnoseResult, TikTokIdeaResult, TikTokMode, TikTokResult } from '~/ai/tiktok';
 import { generateTikTokServer } from '~/ai/server';
 import { pickTodayIdeaDirection } from '~/lib/tiktok-directions';
-import { studioDeepLink } from '~/lib/studio-deeplink';
+import { studioSearch } from '~/lib/studio-deeplink';
+import { clearTikTokResult, readTikTokResult, saveTikTokResult } from '~/lib/last-result';
 import {
   getBrandProfile,
   getBrandContext,
@@ -419,12 +420,13 @@ function ResultView({ result }: { result: TikTokResult }) {
                 <p className="mt-1 break-words whitespace-pre-line text-xs text-gray-700">
                   {img.studioPrompt}<CopyButton text={img.studioPrompt} label={t.tiktok_copy} />
                 </p>
-                <a
-                  href={studioDeepLink(img.studioPrompt)}
+                <Link
+                  to="/app/image-studio"
+                  search={studioSearch(img.studioPrompt)}
                   className="mt-3 inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-blue-700"
                 >
                   🎨 {t.tiktok_result_image_studio}
-                </a>
+                </Link>
               </div>
             ))}
           </div>
@@ -508,6 +510,15 @@ function TikTokContent() {
   // nur noch explizit über den Button „Aus Markenprofil übernehmen".
   useEffect(() => {
     setBrandProfile(getBrandProfile());
+    // Phase 3.3b (C5) — das zuletzt erzeugte Ergebnis aus dem sessionStorage
+    // wiederherstellen: Bereichswechsel (TikTok → Bild-Studio → zurück),
+    // Browser-„Zurück“ und Reload zeigen das Ergebnis wieder, statt eine neue
+    // (kostenpflichtige) Generierung zu verlangen. Kein DB-/Schema-Eingriff.
+    const restored = readTikTokResult();
+    if (restored) {
+      setResult(restored.result);
+      setActiveMode(restored.mode);
+    }
   }, []);
 
   /** Phase 1 — explizite Übernahme der Markenprofil-Fakten in die Formularfelder. */
@@ -662,6 +673,10 @@ function TikTokContent() {
       runGuardRef.current = guarded;
       const res = await guarded.promise;
       setResult(res);
+      // Phase 3.3b (C5) — Ergebnis zusätzlich in den sessionStorage spiegeln,
+      // damit es Bereichswechsel/Zurück/Reload überlebt (keine erneute,
+      // kostenpflichtige Generierung nötig).
+      saveTikTokResult(res.mode, res);
       if (res.mode !== 'diagnose') pushTikTokHistory(res.hook);
       if (mode === 'todayIdea' || (mode === 'concept' && !topic.trim())) {
         // Client und Engine nutzen dieselbe deterministische Funktion → die hier
@@ -695,6 +710,8 @@ function TikTokContent() {
     setErrorMessage(null);
     setMinimalQuery(null);
     setMinimalError(null);
+    // Phase 3.3b — bewusster „Neue Session“-Klick räumt auch die Persistenz.
+    clearTikTokResult();
   };
 
   /** Minimal-Abfrage absenden: fehlendes Pflichtfeld (Produkt/Angebot) muss

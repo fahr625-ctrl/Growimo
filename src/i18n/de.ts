@@ -218,6 +218,8 @@ export const de = {
   common_next: 'Weiter',
   common_generate: 'Generieren',
   common_loading: 'Lädt...',
+  // Phase 3 (Stabilisierung): Ausweg aus einem zu langen Ladezustand.
+  common_reload: 'Seite neu laden',
   common_generating: 'Generiere...',
   common_error: 'Fehler',
   common_retry: 'Erneut versuchen',
@@ -665,6 +667,14 @@ export const de = {
   image_studio_prompt_label: 'Was möchtest du generieren?', image_studio_prompt_placeholder: 'Beschreibe das gewünschte Bild…', image_studio_generate_btn: 'Generieren', image_studio_templates_label: 'Schnellvorlagen',
   image_studio_template_pinterest: 'Pinterest Pin (2:3)', image_studio_template_etsy: 'Etsy Mockup (4:3)', image_studio_template_instagram: 'Instagram-Beitrag (1:1)', image_studio_template_blog: 'Blog-Hero (16:9)',
   image_studio_from_strategy: 'Aus Marketing-Strategie generieren', image_studio_select_project: 'Projekt auswählen…', image_studio_prompts_generated: 'Generierte Prompts', image_studio_upload_title: 'Eigenes Bild bearbeiten', image_studio_upload_dropzone: 'Bild hier ablegen oder klicken zum Hochladen', image_studio_gallery_title: 'Generierte Bilder', image_studio_empty: 'Noch keine Bilder generiert. Gib einen Prompt ein und klicke auf Generieren.', image_studio_generating: 'Generiere Bild…', image_studio_error: 'Fehler bei der Bildgenerierung', image_studio_download: 'Herunterladen', image_studio_copy_prompt: 'Prompt kopieren', image_studio_regenerate: 'Neu generieren', image_studio_variation: 'Variation', image_studio_regenerate_generating: 'Wird neu generiert…', image_studio_variation_generating: 'Variation wird erstellt…', image_studio_card_error: 'Fehler bei der Erstellung der Variante. Bitte erneut versuchen.',
+  // Phase 3.1 — Timeout/Abbrechen statt unendlichem Laden (%s = Timeout in Sekunden).
+  image_studio_error_timeout: 'Zeitüberschreitung: Die Bildgenerierung wurde nach %s Sekunden abgebrochen. Bitte erneut versuchen.',
+  image_studio_error_aborted: 'Generierung abgebrochen. Du kannst sie erneut starten.',
+  image_studio_abort: 'Abbrechen',
+  // Phase 3.3d — Rückweg zur TikTok-Idee (Ergebnis bleibt erhalten).
+  image_studio_back_to_tiktok: 'Zurück zur TikTok-Idee',
+  // Phase 3.4 — Galerie-Begrenzung (%s = Anzahl sichtbarer Bilder).
+  image_studio_gallery_cap_hint: 'Damit der Speicher frei bleibt, zeigt die Galerie nur die letzten %s Bilder. Bitte lade fertige Bilder vorher herunter.',
   dashboard_tools_image_studio: '🎨 Image Studio', dashboard_tools_image_studio_desc: 'KI-Bilder, Pinterest Pins & Etsy Mockups generieren', image_studio_open_full: 'Im Image Studio öffnen',
   image_studio_format_pinterest: 'Pinterest Pin', image_studio_format_etsy: 'Etsy Produkt-Mockup', image_studio_format_instagram: 'Instagram-Beitrag', image_studio_format_blog: 'Blog-Hero-Bild',
   image_studio_alt_placeholder: '%s Platzhalter', image_studio_download_svg: 'SVG herunterladen', image_studio_copy_prompt_title: 'Generierungsprompt kopieren', image_studio_copied: 'Kopiert!', image_studio_api_required: 'Verbinde eine Bild-API, um dies zu aktivieren',
@@ -1283,6 +1293,9 @@ export const de = {
   beta_access_error_title: 'Zugriff konnte nicht geprüft werden',
   beta_access_error_text: 'Bitte versuche es erneut.',
   beta_access_retry: 'Erneut versuchen',
+  // Phase 3.2 — kein dauerhaftes „Lädt...“: Hinweis + Neuladen nach Timeout.
+  gate_slow_title: 'Das dauert länger als erwartet',
+  gate_slow_text: 'Anmeldung und Laden konnten nicht abgeschlossen werden. Lade die Seite neu und versuche es noch einmal.',
   beta_admin_status: 'Status',
   beta_admin_approved: 'Freigeschaltet',
   beta_admin_pending: 'Ausstehend',

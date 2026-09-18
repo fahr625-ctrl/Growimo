@@ -129,23 +129,42 @@ export function extractStrategyImage(
   };
 }
 
-/** Writes the payload to sessionStorage so the studio can prefill. */
-export function saveStrategyPrefill(payload: StrategyImagePayload): void {
+/** TTL des Strategie-Prefills (Phase 3.3c). */
+export const STRATEGY_PREFILL_TTL_MS = 24 * 60 * 60 * 1000;
+
+/** Writes the payload to sessionStorage so the studio can prefill.
+ *  Phase 3.3c: zusätzlich `savedAt` (TTL). Alt-Einträge ohne Feld bleiben gültig. */
+export function saveStrategyPrefill(payload: StrategyImagePayload, now: number = Date.now()): void {
   try {
-    sessionStorage.setItem(STRATEGY_PREFILL_KEY, JSON.stringify(payload));
+    sessionStorage.setItem(STRATEGY_PREFILL_KEY, JSON.stringify({ ...payload, savedAt: now }));
   } catch {
     // sessionStorage may be unavailable — prefill simply won't happen.
   }
 }
 
-/** Reads + clears the pending strategy prefill (one-shot). */
-export function consumeStrategyPrefill(): StrategyImagePayload | null {
+/**
+ * Reads the pending strategy prefill — NICHT mehr zerstörend (Phase 3.3c).
+ *
+ * Vorher wurde der Eintrag beim ersten Lesen gelöscht (Einmal-Prefill). Kam der
+ * Nutzer per Browser-„Zurück“, Reload oder Forward erneut auf
+ * `/app/image-studio?fromStrategy=1`, war der Prefill verbraucht → leeres
+ * Promptfeld ohne Hinweis (Cluster C7). Jetzt bleibt der Eintrag erhalten, bis
+ * die nächste Strategie ihn überschreibt (oder die TTL greift).
+ * Name bewusst beibehalten: bestehende Aufrufer/Tests nutzen ihn weiter.
+ */
+export function consumeStrategyPrefill(now: number = Date.now()): StrategyImagePayload | null {
   try {
     const raw = sessionStorage.getItem(STRATEGY_PREFILL_KEY);
-    sessionStorage.removeItem(STRATEGY_PREFILL_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<StrategyImagePayload>;
+    const parsed = JSON.parse(raw) as Partial<StrategyImagePayload> & { savedAt?: number };
     if (!parsed.prompt) return null;
+    if (
+      typeof parsed.savedAt === 'number' &&
+      Number.isFinite(parsed.savedAt) &&
+      now - parsed.savedAt > STRATEGY_PREFILL_TTL_MS
+    ) {
+      return null;
+    }
     const ratio: GeneratedImage['aspectRatio'] = ['2:3', '4:3', '1:1', '16:9'].includes(
       parsed.ratio as string,
     )
@@ -161,5 +180,17 @@ export function consumeStrategyPrefill(): StrategyImagePayload | null {
     };
   } catch {
     return null;
+  }
+}
+
+/** Alias mit ehrlichem Namen: nicht-zerstörendes Lesen (Phase 3.3c). */
+export const readStrategyPrefill = consumeStrategyPrefill;
+
+/** Explizites Aufräumen des Prefills (z. B. bewusstes Zurücksetzen). */
+export function clearStrategyPrefill(): void {
+  try {
+    sessionStorage.removeItem(STRATEGY_PREFILL_KEY);
+  } catch {
+    // sessionStorage may be unavailable
   }
 }
