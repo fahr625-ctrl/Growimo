@@ -406,6 +406,9 @@ export const de = {
   gen_save_project: 'In Projekt speichern',
   gen_open_strategy: 'In voller Strategie öffnen',
   gen_idea_label: 'Produktidee',
+  // Phase 1 (C3) — Hinweis, wenn eine frische Nutzereingabe den Entwurf verdrängt hat
+  draft_overridden_hint: 'Deine frische Idee wurde übernommen — der gespeicherte Entwurf wurde dabei nicht geladen.',
+  draft_restore: 'Entwurf wiederherstellen',
   gen_idea_placeholder: 'Beschreibe dein Produkt oder deine Produktidee...',
 
   // ── Loading Messages ─────────────────────────────────────────────────────────
@@ -682,6 +685,9 @@ export const de = {
   tiktok_page_subtitle: 'Growimo entwickelt für dich konkrete Video-Ideen, Hooks, Skripte und Optimierungen — du brauchst keinen leeren Chat.',
   tiktok_brand_hint: '🏷️ %s – Markenprofil wird für deine Empfehlungen verwendet.',
   tiktok_brand_edit: 'Marke bearbeiten',
+  // Phase 1 — keine stille Profil-Vorbefüllung, explizite Übernahme + AUS-Hinweis
+  tiktok_brand_apply: 'Aus Markenprofil übernehmen',
+  tiktok_brand_off_hint: 'Markenprofil ist AUS — es wird ausschließlich deine eigene Eingabe verwendet. Das Profil bleibt gespeichert.',
   tiktok_biz_label: 'Was machst/verkaufst du? (kurze Beschreibung)',
   tiktok_biz_placeholder: 'z. B. Handgemachte Keramiktassen mit Duftkerzen',
   tiktok_goal_label: 'Ziel',
@@ -853,6 +859,13 @@ export const de = {
   brand_saved: '✅ Markenprofil gespeichert — wird ab sofort in allen neuen Projekten verwendet.',
   brand_active: '🏷️ Markenprofil aktiv',
   brand_nav: '🏷️ Marke',
+  // Phase 1 — EIN/AUS-Schalter des Markenprofils
+  brand_toggle_label: 'Markenprofil verwenden',
+  brand_toggle_on: 'EIN',
+  brand_toggle_off: 'AUS',
+  brand_toggle_on_hint: 'Markenprofil liefert Kontext (Ton, Fakten) — deine Eingabe hat trotzdem Vorrang.',
+  brand_toggle_off_hint: 'Markenprofil wird komplett ignoriert. Es bleibt gespeichert und lässt sich jederzeit wieder einschalten.',
+  brand_badge_off: '🏷️ Markenprofil aus',
   brand_section_basics: '📋 Grundlegende Informationen', brand_section_tone: '🎯 Tonalität & Zielgruppe', brand_section_details: '✨ Markendetails', brand_section_voice: '🗣️ Stimme & Einschränkungen',
   // NEU: Felder für das zentrale Markenprofil
   brand_website: 'Website',
@@ -1075,6 +1088,9 @@ export const de = {
   analytics_gdpr: 'Alle Daten werden ausschließlich lokal in deinem Browser gespeichert. Keine Server-Übertragung, keine persönlichen Daten.',
   analytics_nav: '📊 Analytics',
   analytics_event_signup: 'Registrierung', analytics_event_signin: 'Anmeldung', analytics_event_strategy_created: 'Strategie erstellt', analytics_event_strategy_regenerated: 'Strategie neu generiert', analytics_event_content_exported: 'Export', analytics_event_project_saved: 'Projekt gespeichert', analytics_event_feedback_submitted: 'Feedback', analytics_event_onboarding_completed: 'Onboarding abgeschlossen', analytics_event_onboarding_skipped: 'Onboarding übersprungen', analytics_event_brand_profile_saved: 'Markenprofil gespeichert',
+  // Phase 1 (C4) — EIN/AUS-Schalter
+  analytics_event_brand_profile_enabled: 'Markenprofil eingeschaltet',
+  analytics_event_brand_profile_disabled: 'Markenprofil ausgeschaltet',
   analytics_events_count: '%d Ereignis', analytics_events_count_plural: '%d Ereignisse', analytics_types_suffix: '%d Typen', analytics_disabled: 'Analytics deaktiviert. Es werden keine Daten erfasst.',
 
   // ── Beta Welcome ──────────────────────────────────────────────────────────────

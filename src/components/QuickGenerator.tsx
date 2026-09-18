@@ -16,6 +16,8 @@ import { VariantPicker } from '~/components/VariantPicker';
 import { useTranslation } from '~/i18n';
 import { saveProject, updateChannel } from '~/store/projects';
 import { getBrandContext } from '~/store/brand';
+import { resolveInitialIdea } from '~/lib/idea-priority';
+import BrandProfileToggle from '~/components/BrandProfileToggle';
 import { canGenerate, recordGeneration } from '~/store/subscriptions';
 import { trackEvent } from '~/store/analytics';
 import { analyticsChannelForContentType } from '~/lib/analytics';
@@ -114,6 +116,10 @@ function QuickGeneratorContent({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
   const [showUpsell, setShowUpsell] = useState(false);
+  // Phase 1 (C3): Wenn die mitgegebene Nutzeridee (?idea=) einen gespeicherten
+  // Entwurf verdrängt hat, merken wir uns den Entwurf → sichtbarer Hinweis +
+  // „Entwurf wiederherstellen".
+  const [draftOverridden, setDraftOverridden] = useState<string | null>(null);
   const loadingIndexRef = useRef(0);
   // F2.1: Strategie-Kontext (F6-Brief) für die bereichsgenaue Auto-Verbesserung.
   const strategyContext = useMemo(() => {
@@ -139,12 +145,12 @@ function QuickGeneratorContent({
     } catch {
       // ignore storage errors
     }
-    // ?idea= pre-fill wins only when there is no saved draft
-    if (!restoredIdea && initialIdea && initialIdea.trim()) {
-      setProductIdea(initialIdea);
-    } else if (restoredIdea) {
-      setProductIdea(restoredIdea);
-    }
+    // Phase 1 (C3): Eine frische, explizit mitgegebene Nutzeridee (?idea=, z. B.
+    // von einer Dashboard-Karte) hat IMMER Vorrang vor einem alten Entwurf.
+    // Der Entwurf greift nur, wenn keine ?idea= vorliegt (src/lib/idea-priority.ts).
+    const resolved = resolveInitialIdea(initialIdea, restoredIdea);
+    if (resolved.idea) setProductIdea(resolved.idea);
+    if (resolved.overriddenDraft) setDraftOverridden(resolved.overriddenDraft);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -196,8 +202,13 @@ function QuickGeneratorContent({
     }
 
     try {
-      const brandCtx = getBrandContext();
-      const enhancedIdea = brandCtx ? `${brandCtx}\n\nProdukt: ${productIdea}` : productIdea;
+      // Phase 1 (C1/C2): Der Markenblock wird NICHT mehr in die Produktidee
+      // geklebt (das machte die Nutzereingabe zum Anhängsel). Die Produktidee
+      // bleibt roh und ist der Gegenstand des Prompts; der Markenkontext geht
+      // als eigener Abschnitt in `additionalContext` — inklusive Vorrang-Regel,
+      // dass die Nutzereingabe das Thema bestimmt (store/brand.ts).
+      // AUSgeschaltetes Profil ⇒ getBrandContext() liefert '' (keine Wirkung).
+      const brandContext = getBrandContext();
 
       // F6: Strategie-Brief fließt als additionalContext in die Generierung ein
       // (wie F4 den Strategie-Kern voranstellt). Ohne Brief → exakt wie vorher.
@@ -230,9 +241,10 @@ function QuickGeneratorContent({
       const generated = (await generateContentServer({
         data: {
           contentType,
-          productIdea: enhancedIdea,
+          // Roh — der Markenkontext wird NICHT mehr vorangestellt (Phase 1/C1).
+          productIdea,
           tone: tone || undefined,
-          additionalContext: [briefContext, perfContext, learnContext].filter(Boolean).join('\n\n') || undefined,
+          additionalContext: [brandContext, briefContext, perfContext, learnContext].filter(Boolean).join('\n\n') || undefined,
         },
       })) as ContentResult;
 
@@ -427,6 +439,10 @@ function QuickGeneratorContent({
           {t.gen_idea_label}
         </label>
         <BrandBadge />
+        {/* Phase 1 — EIN/AUS-Schalter des Markenprofils (sichtbar, wenn eins existiert) */}
+        <div className="mb-2 mt-2">
+          <BrandProfileToggle compact />
+        </div>
         <textarea
           id="quick-idea"
           value={productIdea}
@@ -435,6 +451,25 @@ function QuickGeneratorContent({
           rows={4}
           className="mt-2 w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
         />
+        {/* Phase 1 (C3): frische Nutzereingabe hat den Entwurf verdrängt */}
+        {draftOverridden && (
+          <div
+            data-testid="draft-overridden-hint"
+            className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
+          >
+            <span>{t.draft_overridden_hint}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setProductIdea(draftOverridden);
+                setDraftOverridden(null);
+              }}
+              className="font-semibold underline underline-offset-2 hover:text-amber-900"
+            >
+              {t.draft_restore}
+            </button>
+          </div>
+        )}
 
         {/* Tone selector (optional) */}
         <div className="mt-5">

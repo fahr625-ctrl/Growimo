@@ -2,6 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
+import BrandProfileToggle from '~/components/BrandProfileToggle';
 import { useTranslation } from '~/i18n';
 import { trackAnalytics } from '~/lib/analytics-client';
 import { track } from '~/lib/tracking-client';
@@ -485,19 +486,24 @@ function TikTokContent() {
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [user?.id]);
 
-  // Markenprofil laden und das Formular (biz/audience) automatisch vorausfüllen.
+  // Markenprofil laden. Phase 1 (C2/C4): KEINE stille Vorbefüllung der Pflicht-
+  // felder mehr — der Nutzer sieht in „Unternehmen/Produkt" und „Zielgruppe"
+  // ausschließlich seine eigene Eingabe. Die Übernahme der Profil-Fakten passiert
+  // nur noch explizit über den Button „Aus Markenprofil übernehmen".
   useEffect(() => {
-    const profile = getBrandProfile();
-    if (profile) {
-      setBrandProfile(profile);
-      setBiz((prev) => {
-        if (prev.trim()) return prev;
-        const src = profile.offerings?.trim() || profile.tagline?.trim();
-        return src || profile.uniqueSellingPoint?.trim() || '';
-      });
-      setAudience((prev) => (prev.trim() ? prev : profile.targetAudience?.trim() || ''));
-    }
+    setBrandProfile(getBrandProfile());
   }, []);
+
+  /** Phase 1 — explizite Übernahme der Markenprofil-Fakten in die Formularfelder. */
+  const applyProfileToForm = () => {
+    const profile = brandProfile;
+    if (!profile) return;
+    const src =
+      profile.offerings?.trim() || profile.tagline?.trim() || profile.uniqueSellingPoint?.trim() || '';
+    if (src) setBiz(src);
+    if (profile.targetAudience?.trim()) setAudience(profile.targetAudience.trim());
+    if (profile.mainGoal?.trim()) setGoal(profile.mainGoal.trim());
+  };
 
   // Phase 4 — jüngste Projekte LESEND laden (max. 5) für die Projektauswahl.
   // Bewusst non-blocking: schlägt das Laden fehl, nutzt der TikTok-Flow einfach
@@ -521,7 +527,11 @@ function TikTokContent() {
     };
   }, [user?.id]);
 
-  const brandReady = isBrandProfileComplete(brandProfile);
+  // Phase 1 — EIN/AUS-Schalter: ein AUSgeschaltetes Profil ist für die Engine
+  // komplett unsichtbar (kein brandContext, keine Empfehlungen, keine Gaps).
+  const brandEnabled = brandProfile !== null && brandProfile.enabled !== false;
+  const usableBrandProfile = brandEnabled ? brandProfile : null;
+  const brandReady = isBrandProfileComplete(usableBrandProfile);
 
   // Metrik-Feld: leeres Feld = "nicht angegeben" (undefined, wird NICHT gesendet);
   // eine echte 0 wird als 0 gesendet. So kann das Modell "fehlt" von "0" trennen.
@@ -562,7 +572,7 @@ function TikTokContent() {
     // den Lücken (max. 2–3 Felder). Mit gewähltem Projekt liefern dessen Fakten
     // die Basis (Phase 4).
     if (shouldShowMinimalQuery(mode, biz, brandReady, Boolean(projectContextPayload))) {
-      setMinimalQuery(computeBrandGaps(biz, audience, goal, brandProfile));
+      setMinimalQuery(computeBrandGaps(biz, audience, goal, usableBrandProfile));
       setMinimalError(null);
       setActiveMode(mode);
       setErrorMessage(null);
@@ -604,7 +614,7 @@ function TikTokContent() {
         // deterministisch zur NÄCHSTEN Katalog-Richtung (keine Wiederholung).
         previousDirection:
           mode === 'todayIdea' ? (localStorage.getItem(TIKTOK_LAST_DIRECTION_KEY) ?? undefined) : undefined,
-        goal: goal || (brandProfile?.mainGoal?.trim() || undefined),
+        goal: goal || (usableBrandProfile?.mainGoal?.trim() || undefined),
         audience: audience.trim() || undefined,
         topic: mode === 'concept' ? topic.trim() : undefined,
         projectContext: projectContextPayload,
@@ -748,13 +758,37 @@ function TikTokContent() {
         <p className="mt-2 text-gray-500">{t.tiktok_page_subtitle}</p>
       </header>
 
+      {/* Phase 1 — sichtbarer EIN/AUS-Schalter des Markenprofils (vor allem hier
+          in der TikTok-Werkstatt). Rendert nichts, wenn kein Profil existiert. */}
+      <BrandProfileToggle
+        onChange={(enabled) => setBrandProfile((prev) => (prev ? { ...prev, enabled } : prev))}
+      />
+      {/* Hinweis, wenn das Profil per Schalter AUS ist: es wird nichts verwendet. */}
+      {brandProfile && !brandEnabled && (
+        <div
+          data-testid="tiktok-brand-off-hint"
+          className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700"
+        >
+          {t.tiktok_brand_off_hint}
+        </div>
+      )}
       {/* Hinweis, wenn ein (vollständiges) Markenprofil aktiv ist */}
       {brandReady && brandProfile && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
           <span>{t.tiktok_brand_hint.replace('%s', brandProfile.brandName)}</span>
-          <Link to="/app/brand" className="shrink-0 font-bold text-blue-700 underline hover:text-blue-900">
-            {t.tiktok_brand_edit}
-          </Link>
+          <span className="flex shrink-0 items-center gap-3">
+            <button
+              type="button"
+              data-testid="tiktok-apply-brand"
+              onClick={applyProfileToForm}
+              className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white transition-colors hover:bg-blue-700"
+            >
+              {t.tiktok_brand_apply}
+            </button>
+            <Link to="/app/brand" className="font-bold text-blue-700 underline hover:text-blue-900">
+              {t.tiktok_brand_edit}
+            </Link>
+          </span>
         </div>
       )}
 

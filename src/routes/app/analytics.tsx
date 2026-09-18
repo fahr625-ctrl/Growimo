@@ -29,6 +29,9 @@ const EVENT_CONFIG: Record<AnalyticsEvent, { icon: string; labelKey: keyof Trans
   onboarding_completed: { icon: '✅', labelKey: 'analytics_event_onboarding_completed' },
   onboarding_skipped: { icon: '⏭️', labelKey: 'analytics_event_onboarding_skipped' },
   brand_profile_saved: { icon: '🏷️', labelKey: 'analytics_event_brand_profile_saved' },
+  // Phase 1 (C4) — EIN/AUS-Schalter des Markenprofils
+  brand_profile_enabled: { icon: '🏷️', labelKey: 'analytics_event_brand_profile_enabled' },
+  brand_profile_disabled: { icon: '🏷️', labelKey: 'analytics_event_brand_profile_disabled' },
 };
 
 function AnalyticsPage() {

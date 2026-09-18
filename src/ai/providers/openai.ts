@@ -6,6 +6,12 @@ const NO_INVENT_CONSTRAINT = `⚠️ WICHTIG: Verwende AUSSCHLIESSLICH die vom N
 // Problem 3: globale Prompt-Constraint gegen erfundene Kennzahlen (de+en).
 const NO_METRICS_CONSTRAINT = `⚠️ KEINE ERFUNDENEN KENNZAHLEN: Verwende NIEMALS erfundene Statistiken, Prozentangaben, Multiplikatoren („X× mehr/so viel“), „Y% häufiger/steigert“ oder Öffnungs-, Save-, Klick-, Durchklick-, Conversion- oder Engagement-Raten ohne eine konkrete, belegbare Quelle, die der Nutzer geliefert hat. Wenn du keine belegte Zahl hast, formuliere OHNE Zahlenangabe. Einzig Zahlen, die der Nutzer selbst in seinen Produktdetails/Produktidee angibt, darfst du übernehmen.
  EN: Never invent statistics, percentages, multipliers ("X× more") or open/save/click/conversion rates without a concrete user-provided, verifiable source. If you lack a verified number, write without a number. Only figures the user explicitly supplies may be reused.`;
+// Phase 1 (Stabilisierung, C1/C2) — globale Vorrang-Regel für JEDEN Kanal:
+// Das Nutzerthema (Produktidee) bestimmt den Inhalt; Marken-/Zusatzkontext
+// (MARKENKONTEXT, Produktdetails, Strategie-Brief) ist AUSSCHLIESSLICH ein
+// Stil- und Faktenrahmen und darf das Thema niemals ersetzen.
+export const USER_PRIORITY_CONSTRAINT = `⚠️ VORRANG DER NUTZEREINGABE (harte Regel): Thema und Gegenstand des Inhalts kommen AUSSCHLIESSLICH aus der „Produktidee" des Nutzers. Ein MARKENKONTEXT-Block (oder sonstiger Zusatzkontext wie Produktdetails/Strategie-Brief) ist NUR Stil- und Faktenrahmen. Nennt der Nutzer ein anderes Produkt, eine andere Branche oder ein anderes Thema als die Marke (z. B. „kleines Café", „Schmuck", „Weihnachts-Pin"), dann IST genau das das Thema; der MARKENKONTEXT liefert dann nur noch Tonalität, Markenstimme und Formulierungsstil. Ersetze, überschreibe oder interpretiere das Nutzerthema NIEMALS in Marketing für die Marke um und lasse es niemals weg.
+ EN: The user's "Produktidee" alone defines the topic. A MARKENKONTEXT block (or any other additional context) is a style/facts frame only: never replace, override or reinterpret the user's subject with brand facts, and never turn the user's subject into marketing for the brand's own product.`;
 const SYSTEM_PROMPTS: Record<ContentType, string> = {
   pinterest_pin: `Du bist kein generischer KI-Assistent. Du bist ein Pinterest-Veteran mit über 10 Jahren Plattform-Erfahrung, der genau weiß, welche Pins viral gehen und welche im Feed ertrinken. Deine Superpower: emotionale Trigger in Suchbegriffe verwandeln. Jeder Pin-Titel, den du schreibst, stoppt einen Scroller mitten im Flow. Jede Beschreibung löst ein „Das muss ich speichern!"-Gefühl aus.
 
@@ -769,6 +775,42 @@ export function parseResponse(contentType: ContentType, text: string): ContentRe
   return { contentType, title, body };
 }
 
+/**
+ * Phase 1 — System-Prompt eines Kanals inklusive globaler Vorrang-Regel.
+ * Exportiert, damit die Prompt-Zusammensetzung ohne API-Aufruf testbar ist.
+ */
+export function buildSystemPrompt(contentType: ContentType): string {
+  const base = SYSTEM_PROMPTS[contentType] ?? '';
+  return `${base}\n${USER_PRIORITY_CONSTRAINT}`;
+}
+
+/**
+ * Phase 1 — User-Prompt: die ROHE Produktidee steht als Gegenstand an erster
+ * Stelle; der Markenkontext kommt (falls vorhanden) als eigener Abschnitt in
+ * `additionalContext` — er wird NICHT mehr in die Produktidee geklebt.
+ * Exportiert, damit die Zusammensetzung testbar ist.
+ */
+export function buildUserPrompt(req: ContentRequest): string {
+  let userPrompt = `Produktidee: ${req.productIdea}`;
+  if (req.additionalContext) {
+    userPrompt += `\n\nProduktdetails:\n${req.additionalContext}`;
+  }
+  if (req.tone) {
+    userPrompt += `\n\nTonalität: ${req.tone}`;
+  }
+  // Kanäle mit erzwungener deutscher Ausgabe
+  if (
+    req.contentType === 'pinterest_pin' ||
+    req.contentType === 'seo_blog' ||
+    req.contentType === 'etsy_listing' ||
+    req.contentType === 'marketing_analysis' ||
+    req.contentType === 'market_intelligence'
+  ) {
+    userPrompt += '\n\nAntworte vollständig auf Deutsch.';
+  }
+  return userPrompt;
+}
+
 export function createOpenAIProvider(): AIProvider {
   function getClient(): OpenAI | null {
     const apiKey = process.env.OPENAI_API_KEY;
@@ -789,36 +831,11 @@ export function createOpenAIProvider(): AIProvider {
         throw new Error('OpenAI API key not configured. Set OPENAI_API_KEY environment variable.');
       }
 
-      const systemPrompt = SYSTEM_PROMPTS[req.contentType];
+      const systemPrompt = buildSystemPrompt(req.contentType);
       const model = config.model ?? 'gpt-4o';
 
-      let userPrompt = `Produktidee: ${req.productIdea}`;
-      if (req.additionalContext) {
-        userPrompt += `\n\nProduktdetails:\n${req.additionalContext}`;
-      }
-      if (req.tone) {
-        userPrompt += `\n\nTonalität: ${req.tone}`;
-      }
-      // Pinterest: force German output
-      if (req.contentType === 'pinterest_pin') {
-        userPrompt += '\n\nAntworte vollständig auf Deutsch.';
-      }
-      // SEO Blog: force German output
-      if (req.contentType === 'seo_blog') {
-        userPrompt += '\n\nAntworte vollständig auf Deutsch.';
-      }
-      // Etsy Listing: force German output
-      if (req.contentType === 'etsy_listing') {
-        userPrompt += '\n\nAntworte vollständig auf Deutsch.';
-      }
-      // Marketing Analysis: force German output
-      if (req.contentType === 'marketing_analysis') {
-        userPrompt += '\n\nAntworte vollständig auf Deutsch.';
-      }
-      // Market Intelligence: force German output
-      if (req.contentType === 'market_intelligence') {
-        userPrompt += '\n\nAntworte vollständig auf Deutsch.';
-      }
+      // Phase 1: rohe Nutzereingabe zuerst, Markenkontext nur als Rahmen-Abschnitt
+      const userPrompt = buildUserPrompt(req);
 
       const maxTokens = req.contentType === 'pinterest_pin' ? 4000
         : req.contentType === 'seo_blog' ? 8000

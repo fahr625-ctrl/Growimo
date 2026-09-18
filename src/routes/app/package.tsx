@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { generatePackageChannelServer, fetchPackageKernelServer, finalizePackagePrioritiesServer } from '~/ai/server';
@@ -21,8 +21,15 @@ import { canGenerate, recordGeneration } from '~/store/subscriptions';
 import { trackEvent } from '~/store/analytics';
 import { trackAnalytics } from '~/lib/analytics-client';
 import { track } from '~/lib/tracking-client';
+import { resolveInitialIdea } from '~/lib/idea-priority';
 
-export const Route = createFileRoute('/app/package')({ component: PackagePage });
+export const Route = createFileRoute('/app/package')({
+  // Phase 1 (C3): optionales ?idea= (frische Nutzeridee) — schlägt den Entwurf.
+  validateSearch: (search: Record<string, unknown>): { idea?: string } => ({
+    idea: typeof search.idea === 'string' ? search.idea : undefined,
+  }),
+  component: PackagePage,
+});
 
 const CHANNEL_META: Array<{
   key: keyof MarketingPackage['channels'];
@@ -89,6 +96,8 @@ function PackageContent() {
   const { user } = useUser();
   const { t, locale } = useTranslation();
   const navigate = useNavigate();
+  // Phase 1 (C3): explizit mitgegebene Nutzeridee (?idea=) — hat Vorrang.
+  const { idea: initialIdea } = useSearch({ from: '/app/package' });
 
   const [productIdea, setProductIdea] = useState('');
   const [brief, setBrief] = useState<Record<string, string>>({});
@@ -117,16 +126,23 @@ function PackageContent() {
 
   // Restore draft
   useEffect(() => {
+    // Phase 1 (C3): Eine frische, explizit mitgegebene Nutzeridee (?idea=) hat
+    // IMMER Vorrang vor dem gespeicherten Entwurf. Der Entwurf greift nur, wenn
+    // keine ?idea= vorliegt (gemeinsame Logik: src/lib/idea-priority.ts).
+    let draftIdea: string | null = null;
     try {
       const raw = localStorage.getItem('growimo_package_draft');
       if (raw) {
         const draft = JSON.parse(raw);
-        if (typeof draft.productIdea === 'string') setProductIdea(draft.productIdea);
+        if (typeof draft.productIdea === 'string') draftIdea = draft.productIdea;
         if (draft.brief && typeof draft.brief === 'object') setBrief(draft.brief);
       }
     } catch {
       // ignore storage errors
     }
+    const resolved = resolveInitialIdea(initialIdea, draftIdea);
+    if (resolved.idea) setProductIdea(resolved.idea);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

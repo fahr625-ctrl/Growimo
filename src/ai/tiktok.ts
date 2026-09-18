@@ -289,6 +289,7 @@ Rules:
 - Be concrete, specific and practical. Never generic ("make a fun video" is forbidden). Every idea must be so concrete that the user could film it directly (specific scenes, what to show and say).
 - Tie everything to the business/goal/audience provided. Never invent anything that is not in the business description: no features, offers, prices, or claims that do not follow from it.
 - FACT CONTROL (hard rule): Use ONLY facts from the MARKENKONTEXT (or what the user explicitly provided). NEVER invent buttons, features, results, customers, downloads, views, likes, success stories, testimonials or any metric. If a piece of information is missing, develop an idea that works WITHOUT that claim instead of inventing details. Growimo must never claim anything that is not in the MARKENKONTEXT as a known fact. A PROJECT CONTEXT block (when provided) is an equally authoritative fact source for the selected project: use ONLY the fields it actually contains, never invent project facts, and never expand a Strategie-Brief field that is not present.
+- PRIORITY OF THE USER'S OWN INPUT (HARD RULE): The "Topic" and "Business / product" entries in the user prompt ALWAYS outrank the MARKENKONTEXT. If the user names a different product, industry or subject than the brand (e.g. "small café", "jewelry", "Christmas pin"), THAT is the subject of the video — the MARKENKONTEXT then only supplies tone, brand voice and wording style and must NOT be applied to the user's subject. NEVER replace, override or reinterpret the user's subject into marketing for the brand's own product, and never quietly drop the user's subject.
 - NO INVENTED PEOPLE / TESTIMONIALS / USER FEEDBACK (HARD RULE): It is FORBIDDEN to claim that any real person (user, customer, tester, beta user) said something, experienced something, or gave feedback about the product — UNLESS a real quote or proof actually appears in the MARKENKONTEXT or the user explicitly provided it. An example such as "a real user gives honest feedback on the beta" is UNACCEPTABLE because it is an invented testimonial. NEVER invent users, testers, ratings, reviews, experiences, results, revenue, reach or success stories. If NO real user/data exists, NEVER present it as real — instead develop authentic alternatives that show the creator's OWN honest process from the TARGET AUDIENCE\'s perspective (e.g. "I tried this approach for my own business — here is what happened", "How I get from one idea to a finished post in one afternoon"). Self-referential meta-topics that turn the own product/brand into the test object ("Can AI create a TikTok idea?", "We test our own product", "How good is my idea really?") are NOT an authentic alternative — they are interchangeable self-reference. This rule applies to the idea, the hook, the scenes, the overlays, the caption and the marketing strategy alike.
 - BETA / EARLY-STAGE AUTHORIZED ALTERNATIVE (preferred): When the brand context describes a beta/startup in an early phase (markers such as "beta", "live", "few testers", "early phase") and there is NO real user feedback, PREFER a story that demonstrates a REAL feature / the REAL product and can be produced with REAL screen recordings of the actual app (the product may appear as a supporting element of the story — never as the topic). So instead of claiming that users/testimonials exist, the story shows the creator's OWN honest process / OWN experiment from the audience\'s perspective — the product is never the automatic topic of a daily idea.
 - NO FAKE SCREENS / NON-EXISTENT FEATURES: Screenshots and on-screen overlays may show ONLY real, actually existing views. NEVER invent growth dashboards, fake ratings, or UI elements / feature names that do not exist. Scene descriptions may only show the real scope of the product — invent nothing that is not there.
@@ -361,6 +362,7 @@ Regeln:
 - Sei konkret, spezifisch und praktisch. Niemals generisch („Mach ein lustiges Video" ist verboten). Jede Idee muss so konkret sein, dass der Nutzer sie direkt filmen kann (konkrete Szenen, was zu sehen/zu sagen ist).
 - Alles auf Unternehmen/Ziel/Zielgruppe abstimmen. Erfinde nichts, was nicht in der Unternehmensbeschreibung steht: keine Funktionen, Angebote, Preise oder Behauptungen, die nicht daraus hervorgehen.
 - FAKTENKONTROLLE (harte Regel): Verwende AUSSCHLIESSLICH Fakten aus dem MARKENKONTEXT (oder was der Nutzer explizit angegeben hat). Erfinde NIEMALS Buttons, Funktionen, Ergebnisse, Kunden, Downloads, Views, Likes, Erfolgsgeschichten, Testimonials oder irgendeine Metrik. Wenn eine Information fehlt, entwickle eine Idee, die OHNE diese Behauptung funktioniert, statt Details zu erfinden. Growimo darf nichts behaupten, was nicht als bekannte Tatsache im MARKENKONTEXT steht. Ein PROJEKT-KONTEXT-Block (falls vorhanden) ist eine ebenso autoritative Faktenquelle für das gewählte Projekt: verwende AUSSCHLIESSLICH die Felder, die er tatsächlich enthält, erfinde keine Projekt-Fakten und erweitere kein Strategie-Brief-Feld, das nicht vorhanden ist.
+- VORRANG DER NUTZEREINGABE (harte Regel): Die Angaben „Thema" und „Unternehmen / Produkt" aus dem Nutzer-Prompt haben IMMER Vorrang vor dem MARKENKONTEXT. Nennt der Nutzer ein anderes Produkt, eine andere Branche oder ein anderes Thema als die Marke (z. B. „kleines Café", „Schmuck", „Weihnachts-Pin"), dann IST das der Gegenstand des Videos — der MARKENKONTEXT liefert dann nur noch Tonalität, Markenstimme und Formulierungsstil und darf NICHT auf das Nutzerthema angewendet werden. Ersetze, überschreibe oder interpretiere das Nutzerthema NIEMALS in Marketing für das eigene Produkt um und lasse das Nutzerthema niemals stillschweigend weg.
 - KEINE ERFUNDENEN PERSONEN / TESTIMONIALS / NUTZERFEEDBACK (harte Regel): Es ist VERBOTEN zu behaupten, dass eine echte Person (Nutzer, Kunde, Tester, Beta-Nutzer) etwas über das Produkt gesagt/erlebt/Feedback gegeben hat, SOLANGE kein echtes Zitat oder Beleg im MARKENKONTEXT steht oder der Nutzer es explizit angegeben hat. Ein Beispiel wie „Eine echte Nutzerin gibt ehrliches Feedback zur Beta" ist UNZULÄSSIG, weil es ein erfundenes Testimonial darstellt. Erfinde NIEMALS Nutzer, Tester, Bewertungen, Rezensionen, Erfahrungen, Ergebnisse, Umsätze, Reichweiten oder Erfolgsgeschichten. Liegen KEINE echten Nutzerdaten vor, dürfen diese NIEMALS als real dargestellt werden — entwickle stattdessen authentische Alternativen, die den EIGENEN ehrlichen Prozess aus der PERSPEKTIVE DER ZIELGRUPPE zeigen (z. B. „Ich habe diesen Ansatz für mein Business ausprobiert — das kam dabei heraus", „So komme ich an einem Nachmittag von einer Idee zu einem fertigen Post"). Selbstreferenzielle Meta-Themen, die das eigene Produkt/die eigene Marke zum Testobjekt machen („Kann eine KI eine TikTok-Idee erstellen?", „Wir testen unser eigenes Produkt", „Wie gut ist meine TikTok-Idee wirklich?"), sind KEINE authentische Alternative — sie sind austauschbare Selbstreferenz. Diese Regel gilt gleichermaßen für Idee, Hook, Szenen, Einblendungen, Caption und Marketing-Strategie.
 - BETA-/FRÜHPHASEN-ALTERNATIVE (autorisiert, bevorzugt): Wenn der Markenkontext ein Beta-/Startup-Projekt in früher Phase beschreibt (Marker wie „Beta", „live", „kaum Tester", „frühe Phase") und KEIN echtes Nutzerfeedback vorliegt, ziehe BEVORZUGT eine Story vor, die eine echte Funktion / das echte Produkt demonstriert und mit realen Bildschirmaufnahmen der tatsächlichen App umgesetzt werden kann (das Produkt darf als Beiwerk der Story vorkommen — niemals als ihr Thema). Statt also zu behaupten, dass Nutzer/Testimonials existieren, zeigt die Story den EIGENEN ehrlichen Prozess / das EIGENE Experiment des Creators aus der Zielgruppen-Perspektive — das Produkt ist niemals das automatische Thema einer heutigen Idee.
 - KEINE FAKE-SCREENS / NICHT VORHANDENE FUNKTIONEN: Screenshots und Einblendungen dürfen NUR echte, tatsächlich existierende Ansichten zeigen. Erfinde niemals Wachstums-Dashboards, Fake-Bewertungen oder UI-Elemente/Funktionsnamen, die es nicht gibt. Szenenbeschreibungen dürfen nur den echten Produktumfang zeigen — erfinde nichts, das nicht existiert.
@@ -611,18 +613,26 @@ function fmtInt(v: number, de: boolean): string {
 }
 
 // ── System-/User-Prompt-Auswahl ──────────────────────────────────────────────
-function pickSystemPrompt(mode: TikTokMode, lang: TikTokLang): string {
+// Exportiert (Phase 1), damit die Vorrang-Regel in den System-Prompts testbar ist.
+export function pickSystemPrompt(mode: TikTokMode, lang: TikTokLang): string {
   const de = lang === 'de';
   if (mode === 'diagnose') return de ? DIAGNOSE_DE : DIAGNOSE_EN;
   if (mode === 'concept') return de ? CONCEPT_DE : CONCEPT_EN;
   return de ? TODAY_IDEA_DE : TODAY_IDEA_EN;
 }
 
-function buildUserPrompt(input: TikTokInput, lang: TikTokLang): string {
+// Exportiert (Phase 1), damit die Prompt-Zusammensetzung ohne LLM-Aufruf testbar ist.
+export function buildUserPrompt(input: TikTokInput, lang: TikTokLang): string {
   const de = lang === 'de';
   const lines: string[] = [];
   if (input.brandContext) {
-    lines.push(de ? 'MARKENKONTEXT (authoritative Faktenbasis — NUR diese Fakten verwenden, NICHTS erfinden):' : 'BRAND CONTEXT (authoritative fact base — use ONLY these facts, invent nothing):');
+    // Phase 1 (C1/C2): Der Markenblock ist Stil-/Faktenrahmen — die Nutzereingabe
+    // bestimmt das Thema (harte Vorrang-Regel in den System-Prompts).
+    lines.push(
+      de
+        ? 'MARKENKONTEXT (Stil- und Faktenrahmen — NUR diese Fakten verwenden, NICHTS erfinden; die Nutzereingabe hat Vorrang und bestimmt das Thema):'
+        : 'BRAND CONTEXT (style and fact frame — use ONLY these facts, invent nothing; the user input takes priority and defines the subject):',
+    );
     lines.push(input.brandContext);
   }
   // Phase 4 — Projekt-Kontext (lesend, optional, only for the idea modes):
@@ -978,7 +988,29 @@ function tiktokTimeoutError(lang: TikTokLang): Error {
   );
 }
 
-function selfCheckRejected(sc: TikTokSelfCheck): boolean {
+/**
+ * Phase 1 — Anzahl der „verdächtigen" Selbsttest-Kriterien. Ausgelagert und
+ * exportiert, damit die Vorrang-Logik (`userSubjectProvided`) deterministisch
+ * testbar ist: gibt der Nutzer das Thema selbst vor, zählt „keine Markenfakt
+ * genutzt" NICHT als Mangel — sonst würde der Retry die Idee gegen das
+ * Nutzerthema treiben.
+ */
+export function selfCheckSuspiciousCount(
+  sc: TikTokSelfCheck,
+  opts: { userSubjectProvided?: boolean } = {},
+): number {
+  return [
+    !sc.usesConcreteBrandFact && !opts.userSubjectProvided,
+    !sc.addressesCurrentChallenge,
+    sc.interchangeable,
+    sc.soundsLikeAd,
+  ].filter(Boolean).length;
+}
+// Exportiert (Phase 1), damit die Retry-/Vorrang-Logik testbar ist.
+export function selfCheckRejected(
+  sc: TikTokSelfCheck,
+  opts: { userSubjectProvided?: boolean } = {},
+): boolean {
   // Erfundenes Testimonial / zitierte Person / Nutzerfeedback ohne Beleg im
   // MARKENKONTEXT → HARD REJECT: solche Ideen dürfen niemals ausgegeben werden.
   // Ebenso: unbelegtes konkretes Leistungs-/Zeit-Versprechen und vorgegebene
@@ -986,12 +1018,7 @@ function selfCheckRejected(sc: TikTokSelfCheck): boolean {
   if (sc.inventsUserOrTestimonial === true) return true;
   if (sc.unprovenPerformancePromise === true) return true;
   if (sc.prescribedEnthusiasm === true) return true;
-  const suspicious = [
-    !sc.usesConcreteBrandFact,
-    !sc.addressesCurrentChallenge,
-    sc.interchangeable,
-    sc.soundsLikeAd,
-  ].filter(Boolean).length;
+  const suspicious = selfCheckSuspiciousCount(sc, opts);
   // insbesondere austauschbar-oder-werbung → sofort verwerfen; sonst ab 3 verdächtigen Kriterien.
   return sc.interchangeable === true || sc.soundsLikeAd === true || suspicious >= 3;
 }
@@ -1642,7 +1669,12 @@ export async function generateTikTok(
       const selfRefs =
         input.mode === 'todayIdea' ? selfReferenceViolations(ideaContentBlob(result)) : [];
       lastViolations = [...violations, ...selfRefs];
-      const scRejected = result.selfCheck ? selfCheckRejected(result.selfCheck) : false;
+      // Phase 1: eigenes Nutzerthema (oder gar kein Markenkontext) ⇒ das Fehlen
+      // eines Markenfakts darf die Idee NICHT verwerfen.
+      const userSubjectProvided = Boolean(input.topic?.trim()) || !input.brandContext;
+      const scRejected = result.selfCheck
+        ? selfCheckRejected(result.selfCheck, { userSubjectProvided })
+        : false;
       if (scRejected || lastViolations.length > 0) {
         const reason = scRejected ? 'self-check' : 'Rule A/B';
         console.log(

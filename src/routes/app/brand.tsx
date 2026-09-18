@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
+import BrandProfileToggle from '~/components/BrandProfileToggle';
 import { useTranslation } from '~/i18n';
 import { trackEvent } from '~/store/analytics';
 import { toneLabel } from '~/lib/tones';
@@ -47,6 +48,7 @@ const EMPTY_PROFILE: BrandProfile = {
   avoidTopics: '',
   neverClaim: '',
   brandVoice: '',
+  enabled: true,
   lastUpdated: '',
 };
 
@@ -90,6 +92,17 @@ function BrandContent() {
         <h1 className="text-2xl font-extrabold text-gray-900">{t.brand_title}</h1>
         <p className="mt-1 text-sm text-gray-500">{t.brand_subtitle}</p>
       </div>
+
+      {/* Phase 1 — EIN/AUS-Schalter: sichtbarer Zustand, ohne das Profil zu löschen */}
+      {hasExisting && (
+        <div className="mb-6">
+          <BrandProfileToggle
+            onChange={(enabled) => {
+              setProfile((p) => ({ ...p, enabled }));
+            }}
+          />
+        </div>
+      )}
 
       {/* Success toast */}
       {saved && (

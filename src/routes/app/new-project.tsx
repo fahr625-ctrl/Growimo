@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate, useSearch } from '@tanstack/react-router';
+import { resolveInitialIdea } from '~/lib/idea-priority';
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { generateContentServer } from '~/ai/server';
@@ -207,26 +208,25 @@ function NewProjectContent() {
 
   // Restore draft on mount
   useEffect(() => {
+    let draftIdea: string | null = null;
     try {
       const raw = localStorage.getItem(draftKey);
-      if (!raw) return;
-      const draft = JSON.parse(raw);
-      if (draft.productIdea) setProductIdea(draft.productIdea);
-      if (draft.tone) setTone(draft.tone);
-      if (draft.selectedTypes?.length) setSelectedTypes(draft.selectedTypes);
-      if (draft.productDetails) setProductDetails(draft.productDetails);
-      if (draft.showDetails) setShowDetails(draft.showDetails);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (draft.productIdea) draftIdea = draft.productIdea;
+        if (draft.tone) setTone(draft.tone);
+        if (draft.selectedTypes?.length) setSelectedTypes(draft.selectedTypes);
+        if (draft.productDetails) setProductDetails(draft.productDetails);
+        if (draft.showDetails) setShowDetails(draft.showDetails);
+      }
     } catch {
       // Ignore parse errors
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Pre-fill product idea from URL ?idea= param (only on mount, only if not already set)
-  useEffect(() => {
-    if (ideaParam && ideaParam.trim()) {
-      setProductIdea((prev) => prev || decodeURIComponent(ideaParam));
-    }
+    // Phase 1 (C3): Eine frisch mitgegebene Nutzeridee (?idea=, z. B. von einer
+    // Dashboard-Karte) schlägt IMMER den gespeicherten Entwurf — der Entwurf
+    // greift nur, wenn keine ?idea= vorliegt (src/lib/idea-priority.ts).
+    const resolved = resolveInitialIdea(ideaParam, draftIdea);
+    if (resolved.idea) setProductIdea(resolved.idea);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -342,15 +342,19 @@ function NewProjectContent() {
     }
 
     try {
-      // Inject brand context into product idea
-      const brandCtx = getBrandContext();
-      const enhancedIdea = brandCtx ? `${brandCtx}\n\nProdukt: ${productIdea}` : productIdea;
+      // Phase 1 (C1/C2): Der Markenblock wird NICHT mehr in die Produktidee
+      // geklebt. Die Nutzereingabe bleibt der Gegenstand des Prompts; der
+      // Markenkontext geht als eigener Abschnitt in `additionalContext` (mit
+      // Vorrang-Regel für das Nutzerthema, siehe store/brand.ts).
+      // AUSgeschaltetes Profil ⇒ getBrandContext() liefert '' (keine Wirkung).
+      const brandContext = getBrandContext();
 
       const requests: ContentRequest[] = selectedTypes.map((contentType) => ({
         contentType,
-        productIdea: enhancedIdea,
+        // Roh — kein vorangestellter Markenblock mehr (Phase 1/C1).
+        productIdea,
         tone: tone || undefined,
-        additionalContext: buildAdditionalContext() || undefined,
+        additionalContext: [brandContext, buildAdditionalContext()].filter(Boolean).join('\n\n') || undefined,
       }));
 
       let generated: ContentResult[];
@@ -462,11 +466,11 @@ function NewProjectContent() {
           data: {
             contentType: 'marketing_analysis',
             productIdea:
-              enhancedIdea +
+              productIdea +
               '\n\n--- GENERIERTE INHALTE ZUR ANALYSE ---\n\n' +
               contentSummary,
             tone: tone || undefined,
-            additionalContext: buildAdditionalContext() || undefined,
+            additionalContext: [brandContext, buildAdditionalContext()].filter(Boolean).join('\n\n') || undefined,
           },
         })) as ContentResult;
         setResults((prev) => [...prev, analysisResult]);
@@ -476,9 +480,9 @@ function NewProjectContent() {
           const miResult = (await generateContentServer({
             data: {
               contentType: 'market_intelligence',
-              productIdea: enhancedIdea,
+              productIdea,
               tone: tone || undefined,
-              additionalContext: buildAdditionalContext() || undefined,
+              additionalContext: [brandContext, buildAdditionalContext()].filter(Boolean).join('\n\n') || undefined,
             },
           })) as ContentResult;
           setResults((prev) => [...prev, miResult]);

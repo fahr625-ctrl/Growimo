@@ -409,6 +409,9 @@ export const en: EnShape = {
   gen_save_project: 'Save to Project',
   gen_open_strategy: 'Open in Full Strategy',
   gen_idea_label: 'Product Idea',
+  // Phase 1 (C3) — notice when a fresh user idea overrode the saved draft
+  draft_overridden_hint: 'Your fresh idea was used — the saved draft was not loaded.',
+  draft_restore: 'Restore draft',
   gen_idea_placeholder: 'Describe your product or product idea...',
 
   // ── Loading Messages ─────────────────────────────────────────────────────────
@@ -680,6 +683,9 @@ export const en: EnShape = {
   tiktok_page_subtitle: 'Growimo develops concrete video ideas, hooks, scripts and optimizations for you — no blank chat needed.',
   tiktok_brand_hint: '🏷️ %s – your brand profile is used for your recommendations.',
   tiktok_brand_edit: 'Edit brand',
+  // Phase 1 — no silent profile prefill, explicit apply + OFF notice
+  tiktok_brand_apply: 'Apply from brand profile',
+  tiktok_brand_off_hint: 'Brand profile is OFF — only your own input is used. The profile stays saved.',
   tiktok_biz_label: 'What do you make / sell? (short description)',
   tiktok_biz_placeholder: 'e.g. handmade ceramic mugs with scented candles',
   tiktok_goal_label: 'Goal',
@@ -851,6 +857,13 @@ export const en: EnShape = {
   brand_saved: '✅ Brand profile saved — will be used in all new projects from now on.',
   brand_active: '🏷️ Brand Profile Active',
   brand_nav: '🏷️ Brand',
+  // Phase 1 — ON/OFF switch for the brand profile
+  brand_toggle_label: 'Use brand profile',
+  brand_toggle_on: 'ON',
+  brand_toggle_off: 'OFF',
+  brand_toggle_on_hint: 'Brand profile provides context (tone, facts) — your input still takes priority.',
+  brand_toggle_off_hint: 'Brand profile is completely ignored. It stays saved and can be switched back on at any time.',
+  brand_badge_off: '🏷️ Brand profile off',
   brand_section_basics: '📋 Basic Information', brand_section_tone: '🎯 Tone & Audience', brand_section_details: '✨ Brand Details', brand_section_voice: '🗣️ Voice & Restrictions',
   // Fields for the central brand profile
   brand_website: 'Website',
@@ -1073,6 +1086,9 @@ export const en: EnShape = {
   analytics_gdpr: 'All data is stored exclusively locally in your browser. No server transmission, no personal data.',
   analytics_nav: '📊 Analytics',
   analytics_event_signup: 'Signup', analytics_event_signin: 'Sign in', analytics_event_strategy_created: 'Strategy created', analytics_event_strategy_regenerated: 'Strategy regenerated', analytics_event_content_exported: 'Export', analytics_event_project_saved: 'Project saved', analytics_event_feedback_submitted: 'Feedback', analytics_event_onboarding_completed: 'Onboarding completed', analytics_event_onboarding_skipped: 'Onboarding skipped', analytics_event_brand_profile_saved: 'Brand profile saved',
+  // Phase 1 (C4) — ON/OFF switch
+  analytics_event_brand_profile_enabled: 'Brand profile enabled',
+  analytics_event_brand_profile_disabled: 'Brand profile disabled',
   analytics_events_count: '%d event', analytics_events_count_plural: '%d events', analytics_types_suffix: '%d types', analytics_disabled: 'Analytics disabled. No data is being collected.',
 
   // ── Beta Welcome ──────────────────────────────────────────────────────────────

@@ -13,7 +13,10 @@ export type AnalyticsEvent =
   | 'feedback_submitted'
   | 'onboarding_completed'
   | 'onboarding_skipped'
-  | 'brand_profile_saved';
+  | 'brand_profile_saved'
+  // Phase 1 (C4) — EIN/AUS-Schalter des Markenprofils
+  | 'brand_profile_enabled'
+  | 'brand_profile_disabled';
 
 export interface AnalyticsEntry {
   event: AnalyticsEvent;

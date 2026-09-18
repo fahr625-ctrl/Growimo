@@ -23,6 +23,13 @@ export interface BrandProfile {
   // NEU: Dinge, die Growimo NIEMALS behaupten darf (optional)
   neverClaim: string;
   brandVoice: string;
+  /**
+   * Phase 1 (Stabilisierung, C4) — EIN/AUS-Schalter des Markenprofils.
+   * `false` = das Profil bleibt gespeichert, wird aber NIRGENDS verwendet
+   * (kein Markenkontext in Prompts, keine Vorbefüllung, keine Empfehlungen).
+   * Fehlende Werte in Alt-Profilen gelten als `true` (Bestandsverhalten).
+   */
+  enabled: boolean;
   lastUpdated: string; // ISO date
 }
 
@@ -67,8 +74,26 @@ export function normalizeBrandProfile(profile: Partial<BrandProfile>): BrandProf
     avoidTopics: profile.avoidTopics ?? '',
     neverClaim: profile.neverClaim ?? '',
     brandVoice: profile.brandVoice ?? '',
+    // Alt-Profile ohne das Feld bleiben aktiv (keine Verhaltensänderung).
+    enabled: profile.enabled !== false,
     lastUpdated: (profile as BrandProfile).lastUpdated ?? '',
   };
+}
+
+/** Phase 1 — ist das Markenprofil eingeschaltet? (kein Profil ⇒ false) */
+export function isBrandProfileEnabled(): boolean {
+  const profile = getBrandProfile();
+  return profile !== null && profile.enabled !== false;
+}
+
+/**
+ * Phase 1 — EIN/AUS schalten, ohne das Profil zu löschen. Fehlt ein Profil,
+ * passiert nichts (es gibt nichts zu schalten).
+ */
+export function setBrandProfileEnabled(enabled: boolean): void {
+  const profile = getBrandProfile();
+  if (!profile) return;
+  saveBrandProfile({ ...profile, enabled });
 }
 
 /**
@@ -78,6 +103,8 @@ export function normalizeBrandProfile(profile: Partial<BrandProfile>): BrandProf
  */
 export function isBrandProfileComplete(profile: BrandProfile | null): boolean {
   if (!profile) return false;
+  // Phase 1: ein AUSgeschaltetes Profil ist keine nutzbare Faktenbasis.
+  if (profile.enabled === false) return false;
   const hasName = !!profile.brandName?.trim();
   const hasOfferings =
     !!profile.offerings?.trim() ||
@@ -109,11 +136,15 @@ export function clearBrandProfile(): void {
 
 /**
  * Returns a concise text summary of the brand profile for AI prompts.
- * Returns empty string if no profile is stored.
+ * Returns empty string if no profile is stored — und (Phase 1) auch dann,
+ * wenn das Profil per Schalter AUSgeschaltet ist: dann wird nichts geliefert.
  */
 export function getBrandContext(): string {
   const profile = getBrandProfile();
   if (!profile) return '';
+  // C4/Phase 1: AUS ⇒ das Profil liefert NIRGENDS Kontext (eine Stelle, alle
+  // Konsumenten erben das Verhalten: QuickGenerator, new-project, TikTok).
+  if (profile.enabled === false) return '';
 
   const parts: string[] = [];
 
@@ -133,7 +164,14 @@ export function getBrandContext(): string {
 
   if (parts.length === 0) return '';
 
-  return `MARKENKONTEXT (authoritative Faktenbasis, bei allen Inhalten berücksichtigen — NUR diese Fakten verwenden, NICHTS erfinden):\n${parts.join('\n')}`;
+  // Phase 1 (C1/C2): Der Block ist ein Stil-/Faktenrahmen — NICHT das Thema.
+  // Die Vorrang-Regel steht direkt im Block, damit sie in JEDEM Generator greift,
+  // der diesen Text einbindet (QuickGenerator, new-project, TikTok).
+  return [
+    'MARKENKONTEXT (Stil- und Faktenrahmen — NUR diese Fakten verwenden, NICHTS erfinden):',
+    parts.join('\n'),
+    'VORRANG-REGEL (verbindlich): Inhalt und Gegenstand kommen AUS DER NUTZEREINGABE (Produktidee/Thema/Beschreibung). Nennt der Nutzer ein anderes Produkt, eine andere Branche oder ein anderes Thema als die Marke (z. B. „kleines Café", „Schmuck", „Weihnachts-Pin"), dann IST genau das das Thema — der Markenkontext liefert dann nur noch Tonalität, Markenstimme und Formulierungsstil. Ersetze oder überschreibe das Nutzerthema NIEMALS durch Markenfakten und baue das Nutzerthema nicht in ein Marketing für die Marke um. Passt der Markenkontext nicht zum Nutzerthema, ignoriere seine Fakten vollständig.',
+  ].join('\n');
 }
 
 /**
