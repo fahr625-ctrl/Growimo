@@ -139,6 +139,13 @@ export interface TikTokIdeaResult {
   // ── Phase 2 — Vollständiges Konzept (optional im Typ → alte Outputs ohne die
   //    neuen Felder rendern weiterhin korrekt; der Parser nutzt Fallbacks).
   format?: string; // explizites Videoformat (z.B. "Tutorial/How-to") + kurze Begründung
+  /** Phase 2 — Scroll-Stop-Moment: was in der ersten Sekunde konkret den Scroll
+   *  stoppt (Auslöser + Begründung). Optional im Typ → alte Outputs ohne das
+   *  Feld rendern weiterhin korrekt. */
+  scrollStop?: string;
+  /** Phase 2 — Spannungsbogen: wie Neugier/Spannung von Sekunde 0 bis zum
+   *  Payoff aufgebaut und gehalten wird. Optional im Typ (s. scrollStop). */
+  tension?: string;
   timedScenes?: TikTokTimedScene[]; // Szenenplan MIT Zeitangaben (Zeit + Szene + Text)
   title?: string; // eigenständiger TikTok-Titel (Suche/Profil-Anziehungskraft)
   imageIdeas?: TikTokImageIdea[]; // 2–4 konkrete Bild-/Videoideen mit studioPrompt
@@ -299,6 +306,10 @@ Rules:
 - The product must NOT be pitched immediately. It may appear ONLY if it fits naturally into the story/demo/experiment — never as the video's actual purpose.
 - For simple concepts default to SHORT videos of about 8–20 seconds. Only go longer if the story genuinely justifies the extra content — set the length field accordingly.
 - The hook MUST be a specific spoken + on-screen line for the first 1-2 seconds that stops the scroll. Hooks must be concrete to THIS business and must not be interchangeable/generic. Do not use empty teasers like "You won't believe…" unless a genuinely surprising payoff follows.
+- SCROLL-STOP MOMENT (MANDATORY FIELD "scrollStop"): name the EXACT trigger in the first second that stops the scroll (the concrete visual, object, gesture, question or line the viewer sees/hears) AND why it works for this audience — a generic justification ("because it is interesting") is NOT acceptable.
+- TENSION ARC (MANDATORY FIELD "tension"): describe how the video builds and holds curiosity from second 0 to the payoff (open loop → development/escalation → payoff) and name the second in which the payoff lands. Never leave the tension unexplained.
+- SCENE PLAN WITH SECONDS (MANDATORY): timedScenes must be gap-free from 0s to the end of the video (e.g. "0-2s", "2-6s", "6-12s" …) and every step must name its seconds AND the on-screen/spoken text of that moment (empty string if nothing is shown or said).
+- SPOKEN TEXT: fill "spokenText" whenever a spoken script/voice-over makes sense for the format (talking head, tutorial, story, demo) — leave it empty ONLY if the video genuinely works without words.
 - NO unproven promises: "go viral", "become a hit", "guaranteed reach" and anything like that is forbidden.
 - NO invented proof of success: no invented likes, comments, views, customers, testimonials, or any other success metrics.
 - NO invented camera reactions / facial expressions: never write fake reactions into the scenes or overlays such as "creator looks surprised/proud/happy/impressed into the camera" UNLESS the actual action of the story genuinely produces them and the narrative truly supports them. A camera reaction may appear only if the story itself triggers it — never as a filler to fake emotion.
@@ -311,9 +322,11 @@ Rules:
   - timedScenes: the complete scene plan WITH TIME MARKS covering the entire video from second 0 to its end. An array of objects {time, scene, text}: time is the exact time mark (e.g. "0-2s", "2-6s", "6-12s" — must cover the whole length without gaps), scene describes what is shown/happens, text is EXACTLY what is spoken or displayed as on-screen overlay in that moment (empty string if nothing). This is the shot-by-shot plan the user films directly.
   - title: a standalone TikTok title that stands ON ITS OWN next to the caption — catchy, concrete and appealing for profile/search (max ~60 characters, NOT identical to the hook).
   - imageIdeas: 2–4 concrete image/video ideas as objects {description, studioPrompt}. description names the concrete image/moment (e.g. "Produktfoto des Bechers in Morgenlicht"). studioPrompt is a COMPLETE, ready-to-paste Image Studio prompt (subject, style, lighting, composition — e.g. "Produktfoto, minimalistischer Stil, warmes Licht, Keramikbecher mit Dampf, Nahaufnahme, weicher Hintergrund") the user can drop straight into Growimo's Image Studio. If the video needs no separate images, still deliver 2–4 supporting image ideas (cover/thumbnail, props, scene mood, before/after).
-- Text overlays: 2–5 short on-screen text lines in natural wording.
-- Caption: ready to paste; Hashtags: 6–10 relevant ones WITH #.
-- CTA: one clear, realistic, natural call-to-action.
+- Text overlays (MANDATORY): 2–5 short on-screen text lines in natural wording — the texts the user really shows on screen.
+- Caption (MANDATORY): ready to paste, written in the brand's natural voice.
+- Hashtags: 3–5 relevant ones WITH # — NEVER more than 5 (anything above 5 is dropped automatically).
+- CTA: one clear, realistic, natural call-to-action — but ONLY if it genuinely fits this video; if a CTA would feel forced, return an empty string (""). Never force "download/buy now" and never invent urgency.
+- NO PLACEHOLDERS (HARD RULE): NEVER output generic placeholders such as "[insert trending sound here]", "Sound: <pick one>", "TODO", "your text here" or any bracketed instruction. For a sound/music/effect either give ONE concrete, justified recommendation (e.g. "quiet piano loop at ~70 BPM — the payoff lands on the beat") or OMIT that point completely. An output containing a placeholder is unusable: leave the point out instead of leaving a gap for the user to fill in.
 - why: one short paragraph explaining why this idea can work for THIS goal.
 
 Internal quality self-check BEFORE output (mandatory — answer honestly in the "selfCheck" field):
@@ -331,6 +344,8 @@ JSON schema exactly:
 {
   "idea": "one-sentence concrete video idea / concept",
   "hook": "exact first 1-2 second hook line (spoken + written)",
+  "scrollStop": "the exact trigger in the first second that stops the scroll + why it works for this audience",
+  "tension": "tension arc: how curiosity is built and held from second 0 to the payoff (open loop -> development -> payoff, incl. the second of the payoff)",
   "length": "recommended length, e.g. '45 seconds'",
   "format": "one concrete video format + short reason, e.g. 'Tutorial/How-to – step by step (fits the goal: sales)'",
   "title": "standalone TikTok title (max ~60 characters)",
@@ -372,6 +387,10 @@ Regeln:
 - Das Produkt darf NICHT sofort beworben werden. Es darf NUR auftauchen, wenn es natürlich in die Story/Demo/Experiment passt — nicht als eigentlicher Zweck des Videos.
 - Für einfache Konzepte standardmäßig KURZE Videos von ca. 8–20 Sekunden. Länger NUR, wenn die Story den zusätzlichen Inhalt wirklich rechtfertigt — setze das length-Feld entsprechend.
 - Der Hook MUSS eine konkrete gesprochene + eingeblendete Zeile für die ersten 1–2 Sekunden sein, die den Scroll stoppt. Hooks müssen konkret zu DIESEM Unternehmen passen und dürfen nicht austauschbar/generisch sein. Nutze keine leeren Teaser wie „Du glaubst nicht…", außer eine echte überraschende Auflösung folgt.
+- SCROLL-STOP-MOMENT (PFLICHTFELD „scrollStop"): Benenne den EXAKTEN Auslöser in der ersten Sekunde, der den Scroll stoppt (das konkrete Bild, Objekt, die Geste, Frage oder Zeile, die der Zuschauer sieht/hört) UND warum er bei DIESER Zielgruppe wirkt — eine generische Begründung („weil es interessant ist") ist NICHT akzeptabel.
+- SPANNUNGSBOGEN (PFLICHTFELD „tension"): Beschreibe, wie das Video von Sekunde 0 bis zum Payoff Neugier/Spannung aufbaut und hält (offene Schleife → Entwicklung/Steigerung → Payoff) und in welcher Sekunde der Payoff liegt. Lass die Spannung niemals unerklärt.
+- SZENENPLAN MIT SEKUNDEN (PFLICHT): timedScenes müssen von 0s bis zum Videoende LÜCKENLOS sein (z. B. „0-2s", „2-6s", „6-12s" …) und jeder Schritt muss seine Sekunden UND den Text dieses Moments nennen (leere Zeichenkette, wenn nichts gezeigt/gesagt wird).
+- SPRECHTEXT: Fülle „spokenText" immer dann, wenn ein Sprech-/Voice-over-Skript für das Format sinnvoll ist (Talking Head, Tutorial, Story, Demo) — leer NUR, wenn das Video wirklich ohne Worte funktioniert.
 - KEINE unbelegten Versprechen: „viral gehen", „zum Hit werden", „garantiert mehr Reichweite" und dergleichen ist verboten.
 - KEINE erfundenen Erfolgsnachweise: keine erfundenen Likes, Kommentare, Views, Kunden, Testimonials oder sonstigen Erfolgskennzahlen.
 - KEINE erfundenen Kamerareaktionen/Gesichtsausdrücke: schreibe niemals Fake-Reaktionen in die Szenen oder Einblendungen wie „der Ersteller schaut überrascht/stolz/glücklich/beeindruckt in die Kamera", AUSSER die tatsächliche Handlung der Story erzeugt sie echt und die Erzählung trägt sie wirklich. Eine Kamerareaktion darf nur auftauchen, wenn die Story sie selbst auslöst — niemals als Füllmittel, um Emotionen vorzutäuschen.
@@ -384,9 +403,11 @@ Regeln:
   - timedScenes: der komplette Szenenplan MIT ZEITANGABEN, der das gesamte Video von Sekunde 0 bis zum Ende abdeckt. Ein Array aus Objekten {time, scene, text}: time ist die exakte Zeitmarke (z. B. „0-2s", „2-6s", „6-12s" — muss die ganze Länge lückenlos abdecken), scene beschreibt, was zu sehen ist/passiert, text ist EXAKT das, was in diesem Moment gesprochen oder als Einblendung angezeigt wird (leere Zeichenkette, wenn nichts). Das ist der Shot-für-Shot-Plan, den der Nutzer direkt abfilmen kann.
   - title: ein eigenständiger TikTok-Titel, der allein neben der Caption steht — einprägsam, konkret, anziehend für Profil/Suche (max. ~60 Zeichen, NICHT identisch mit dem Hook).
   - imageIdeas: 2–4 konkrete Bild-/Videoideen als Objekte {description, studioPrompt}. description benennt das konkrete Bild/den Moment (z. B. „Produktfoto des Bechers im Morgenlicht"). studioPrompt ist ein KOMPLETTER, direkt ins Image-Studio übernehmbarer Prompt (Subjekt, Stil, Licht, Komposition — z. B. „Produktfoto, minimalistischer Stil, warmes Licht, Keramikbecher mit Dampf, Nahaufnahme, weicher Hintergrund"), den der Nutzer direkt in Growimos Image-Studio einfügen kann. Wenn das Video keine separaten Bilder braucht, liefere trotzdem 2–4 unterstützende Bildideen (Cover/Thumbnail, Requisiten, Szene-Stimmung, Vorher/Nachher).
-- Texteinblendungen: 2–5 kurze Bildschirmtextzeilen in natürlicher Formulierung.
-- Caption: kopierfertig; Hashtags: 6–10 relevante MIT #.
-- CTA: ein klarer, realistischer, natürlicher Call-to-Action.
+- Texteinblendungen (PFLICHT): 2–5 kurze Bildschirmtextzeilen in natürlicher Formulierung — die Texte, die der Nutzer wirklich einblendet.
+- Caption (PFLICHT): kopierfertig, in der natürlichen Stimme der Marke.
+- Hashtags: 3–5 relevante MIT # — NIEMALS mehr als 5 (alles darüber wird automatisch entfernt).
+- CTA: ein klarer, realistischer, natürlicher Call-to-Action — aber NUR, wenn er wirklich zu diesem Video passt; würde ein CTA aufgesetzt wirken, gib eine leere Zeichenkette ("") zurück. Erzwinge niemals „Jetzt herunterladen/kaufen" und erfinde keinen Druck.
+- KEINE PLATZHALTER (harte Regel): Gib NIEMALS generische Platzhalter aus wie „[Trendigen Sound hier einfügen]", „Sound: <beliebig wählen>", „TODO", „dein Text hier" oder irgendeine eckige Klammer-Anweisung. Für Sound/Musik/Effekt gilt: entweder EINE konkrete, begründete Empfehlung (z. B. „leiser Klavier-Loop mit ca. 70 BPM — der Payoff landet auf dem Takt") oder den Punkt KOMPLETT weglassen. Eine Ausgabe mit Platzhalter ist unbrauchbar: lieber den Punkt weglassen als eine Lücke zum Ausfüllen hinterlassen.
 - why: ein kurzer Absatz, warum diese Idee für DIESES Ziel funktionieren kann.
 
 Interne Qualitäts-Selbstprüfung VOR der Ausgabe (Pflicht — beantworte ehrlich im Feld „selfCheck"):
@@ -404,6 +425,8 @@ JSON-Schema exakt:
 {
   "idea": "ein Satz: konkrete Videoidee/Konzept",
   "hook": "exakte Hook-Zeile für die ersten 1-2 Sekunden (gesprochen + eingeblendet)",
+  "scrollStop": "der exakte Auslöser in der ersten Sekunde, der den Scroll stoppt + warum er bei dieser Zielgruppe wirkt",
+  "tension": "Spannungsbogen: wie Neugier von Sekunde 0 bis zum Payoff aufgebaut und gehalten wird (offene Schleife -> Entwicklung -> Payoff, inkl. Sekunde des Payoffs)",
   "length": "empfohlene Länge, z.B. '15 Sekunden'",
   "format": "ein konkretes Videoformat + kurze Begründung, z.B. 'Tutorial/How-to – Schritt für Schritt (passt zum Ziel: Verkäufe)'",
   "title": "eigenständiger TikTok-Titel (max. ~60 Zeichen)",
@@ -427,6 +450,31 @@ JSON-Schema exakt:
   }
 }`;
 
+// ── Phase 2 (C8) — gemeinsames Qualitäts-Mandat: todayIdea == concept ────────
+// Diese vier Regeln standen bis Phase 2 ausschließlich im todayIdea-Prompt und
+// fehlten dem concept-Pfad komplett. Sie sind jetzt EINE Quelle (geteilt statt
+// dupliziert) und werden von BEIDEN Idee-Modi verwendet:
+//   (1) Zielgruppen-Perspektive als Pflicht,
+//   (2) Produkt höchstens Beiwerk — NICHT das Thema,
+//   (3) Selbstreferenz-Verbot (produktzentrierte Meta-Ideen),
+//   (4) Anti-Werbe-/Aufmerksamkeits-Mandat (Mensch zuerst, Verkaufen danach).
+// Das Label des Selbstreferenz-Verbots wird übergeben, damit der todayIdea-Prompt
+// seine etablierte Formulierung ("… (heute-Idee)" / "(daily idea)") behält.
+function ideaQualityMandate(de: boolean, selfRefLabel: string): string {
+  if (de) {
+    return `QUALITÄTS-MANDAT (VERBINDLICH — exakt derselbe Standard wie im Modus „Was soll ich heute posten?"):
+- ZIELGRUPPEN-PERSPEKTIVE (harte Regel): Baue die gesamte Idee aus der PERSPEKTIVE DER ZIELGRUPPE auf (was hilft, interessiert oder begeistert SIE?) — NICHT aus der Produktperspektive und NICHT aus der Perspektive des Markeninhabers.
+- PRODUKT IST NICHT DAS THEMA (harte Regel): Das Produkt/Unternehmen darf höchstens als Beiwerk, Beispiel oder Umsetzungs-Hilfe INNERHALB der Story vorkommen — niemals als Thema oder Zweck des Videos.
+- ${selfRefLabel}: VERBOTEN sind selbstreferenzielle Meta-Ideen, die die eigene Marke/das eigene Produkt zum Testobjekt machen, z. B. „Kann Growimo eine TikTok-Idee erstellen?", „Wir testen unser eigenes Produkt", „Wie gut ist meine TikTok-Idee wirklich?", „Kann eine KI eine Strategie verbessern?". Solche Ideen sind austauschbare Selbstreferenz und gelten als werblich → setze Q3/Q4 im selfCheck auf true (verwerfen und NEU generieren). Ausnahme: Wenn der MARKENKONTEXT eine konkrete, verwertbare AKTUELLE Herausforderung enthält (z. B. „Beta gestartet, aber kaum Tester"), darfst du die Idee um diese ehrliche Situation bauen — die Story zählt dann, nicht das Produkt.
+- ANTI-WERBE-MANDAT (Mensch zuerst): Greife NICHT zur Standard-Werbe-Struktur — genau das gilt es zu vermeiden. Aufmerksamkeit und Zuschauerbindung kommen ZUERST, Verkaufen danach: beginne mit dem menschlichen Moment, der Neugier, der Story, der Demonstration oder dem Experiment aus der Zielgruppen-Perspektive, schaffe Vertrauen und Interesse, und bringe das Produkt höchstens am Ende als Beiwerk ein — oder gar nicht — wenn es natürlich passt. Erst Aufmerksamkeit & Bindung, dann Verkauf.`;
+  }
+  return `QUALITY MANDATE (MANDATORY — exactly the same standard as Growimo's "What should I post today?" mode):
+- TARGET-AUDIENCE PERSPECTIVE (hard rule): build the whole idea from the TARGET AUDIENCE's perspective (what helps, interests or excites THEM?) — NOT from the product perspective and NOT from the perspective of the brand owner.
+- PRODUCT IS NOT THE TOPIC (hard rule): the product/business may appear at most as a supporting element, example or implementation aid WITHIN the story — never as the topic or the purpose of the video.
+- ${selfRefLabel}: self-referential meta-ideas that turn your own brand/product into the test object are FORBIDDEN, e.g. "Can Growimo create a TikTok idea?", "We test our own product", "How good is my TikTok idea really?", "Can AI improve a strategy?". Such ideas are interchangeable self-reference and count as ad-like → set Q3/Q4 in selfCheck to true (discard and regenerate). Exception: if the BRAND CONTEXT contains a concrete, usable CURRENT CHALLENGE (e.g. "launched the beta, but hardly anyone tests it"), you may build the idea around that honest situation — the story counts, not the product.
+- ANTI-AD MANDATE (human first): do NOT default to the classic ad structure — that is exactly what to avoid. ATTENTION and VIEWER RETENTION come first, selling second: open with the human moment, the curiosity, the story, the demonstration or the experiment from the audience's perspective, build trust and interest, and bring the product in only at the end as a supporting element — or not at all — if it fits naturally. Serve attention & connection first, selling second.`;
+}
+
 const TODAY_IDEA_EN = `${IDEA_COMMON_EN}
 
 The user gave only their business + goal (+optional audience) and did NOT tell you which video format they want. YOU do NOT choose the content direction here: the MANDATORY content direction is given in the user prompt ("Content direction (chosen by Growimo, MANDATORY — from the catalog)"). Follow it strictly and build the idea EXACTLY in that direction.
@@ -443,11 +491,9 @@ Direction catalog (the direction ALWAYS comes from the TARGET AUDIENCE\'s perspe
 9. Checklist — a compact step-by-step checklist for the audience.
 10. Result/Outcome — a concrete result the audience wants to achieve.
 
-Pick the TOPIC within the given direction: ask yourself what the TARGET AUDIENCE really cares about, is unsure about or gets excited about today (their daily life, their questions, their mistakes, their goals — derivable from target audience, business/product and goal). The product/business may appear at most as a supporting element, example or implementation aid WITHIN the chosen direction — NOT as the topic of the idea.
+Pick the TOPIC within the given direction: ask yourself what the TARGET AUDIENCE really cares about, is unsure about or gets excited about today (their daily life, their questions, their mistakes, their goals — derivable from target audience, business/product and goal).
 
-SELF-REFERENCE BAN (daily idea): self-referential meta-ideas that turn your own brand/product into the test object are FORBIDDEN, e.g. "Can Growimo create a TikTok idea?", "We test our own product", "How good is my TikTok idea really?", "Can AI improve a strategy?". Such ideas are interchangeable self-reference and count as ad-like → set Q3/Q4 in selfCheck to true (discard and regenerate). Exception: if the BRAND CONTEXT contains a concrete, usable CURRENT CHALLENGE (e.g. "launched the beta, but hardly anyone tests it"), you may build the idea around that honest situation — the story counts, not the product.
-
-This is a "what should I post today?" idea. Do NOT default to the classic ad structure — that is exactly what to avoid. The priority is ATTENTION and VIEWER RETENTION first, not selling: open with the human moment, the curiosity, the story, the demonstration or the experiment from the audience\'s perspective, build trust and interest, and bring the product in only at the end as a supporting element — or not at all — if it fits naturally. Serve attention & connection first, selling second.`;
+${ideaQualityMandate(false, 'SELF-REFERENCE BAN (daily idea)')}`;
 const TODAY_IDEA_DE = `${IDEA_COMMON_DE}
 
 Der Nutzer hat nur Unternehmen + Ziel (+ optional Zielgruppe) angegeben und NICHT gesagt, welche Videoart er möchte. DU wählst die Content-Richtung hier NICHT selbst: Die verbindliche Content-Richtung steht im Nutzer-Prompt („Content-Richtung (von Growimo gewählt, VERBINDLICH — aus dem Katalog)"). Folge ihr strikt und baue die Idee GENAU in dieser Richtung auf.
@@ -464,18 +510,30 @@ Richtungs-Katalog (die Richtung kommt IMMER aus der PERSPEKTIVE DER ZIELGRUPPE �
 9. Checkliste — eine kompakte Schritt-für-Schritt-Checkliste für die Zielgruppe.
 10. Ergebnis — ein konkretes Ergebnis, das die Zielgruppe erreichen möchte.
 
-So wählst du das Thema INNERHALB der vorgegebenen Richtung: Frage dich, was die ZIELGRUPPE heute wirklich interessiert, verunsichert oder begeistert (aus ihrem Alltag, ihren Fragen, ihren Fehlern, ihren Zielen — ableitbar aus Zielgruppe, Unternehmen/Produkt und Ziel). Das Produkt/Unternehmen darf höchstens als Beiwerk, Beispiel oder Umsetzungs-Hilfe INNERHALB der gewählten Richtung auftauchen — NICHT als Thema der Idee.
+So wählst du das Thema INNERHALB der vorgegebenen Richtung: Frage dich, was die ZIELGRUPPE heute wirklich interessiert, verunsichert oder begeistert (aus ihrem Alltag, ihren Fragen, ihren Fehlern, ihren Zielen — ableitbar aus Zielgruppe, Unternehmen/Produkt und Ziel).
 
-SELBSTREFERENZ-VERBOT (heute-Idee): VERBOTEN sind selbstreferenzielle Meta-Ideen, die die eigene Marke/das eigene Produkt zum Testobjekt machen, z. B. „Kann Growimo eine TikTok-Idee erstellen?", „Wir testen unser eigenes Produkt", „Wie gut ist meine TikTok-Idee wirklich?", „Kann eine KI eine Strategie verbessern?". Solche Ideen sind austauschbare Selbstreferenz und gelten als werblich → setze Q3/Q4 im selfCheck auf true (verwerfen und NEU generieren). Ausnahme: Wenn der MARKENKONTEXT eine konkrete, verwertbare AKTUELLE Herausforderung enthält (z. B. „Beta gestartet, aber kaum Tester"), darfst du die Idee um diese ehrliche Situation bauen — die Story zählt dann, nicht das Produkt.
-
-Das ist eine „Was soll ich heute posten?"-Idee. Greife NICHT zur Standard-Werbe-Struktur — genau das gilt es zu vermeiden. Es zählt zuerst AUFMERKSAMKEIT und ZUSCHAUERBINDUNG, nicht das Verkaufen: beginne mit dem menschlichen Moment, der Neugier, der Story, der Demonstration oder dem Experiment aus der Zielgruppen-Perspektive, schaffe Vertrauen und Interesse, und bringe das Produkt höchstens am Ende als Beiwerk ein — oder gar nicht — wenn es natürlich passt. Erst Aufmerksamkeit & Bindung, dann Verkauf.`;
+${ideaQualityMandate(true, 'SELBSTREFERENZ-VERBOT (heute-Idee)')}`;
 
 const CONCEPT_EN = `${IDEA_COMMON_EN}
 
-The user may or may not have provided a topic/product/rough idea (it is OPTIONAL). If a topic was provided, build the complete TikTok concept around THAT specifically (treat it as the subject). If NO topic was provided, choose a fitting topic YOURSELF based on the BRAND CONTEXT / business description (e.g. a concrete product, a typical situation of the target audience or a current brand challenge) and build the complete, ready-to-record concept around it — NEVER ask the user back, always deliver the full concept. Either way you still choose the best angle and format yourself. Stay TikTok-native: lead with the story, demonstration, experiment or genuine value, and weave the product/topic in naturally rather than pitching it as a straight ad.`;
+The user may or may not have provided a topic/product/rough idea (it is OPTIONAL).
+
+- If a topic WAS provided: that topic stays the SUBJECT of the video — but you build it to exactly the SAME quality standard as the "What should I post today?" mode: from the TARGET AUDIENCE's perspective, TikTok-native, attention first, with the product as a supporting element rather than a straight product pitch. Never replace, override or reinterpret the user's topic.
+- If NO topic was provided: do NOT ask the user back. The MANDATORY content direction is given in the user prompt ("Content direction (chosen by Growimo, MANDATORY — from the catalog)") — follow it strictly and pick the topic WITHIN that direction from the TARGET AUDIENCE's perspective (their daily life, their questions, their mistakes, their goals — derivable from the brand context / business description / goal).
+
+Either way you still choose the best angle and format yourself and always deliver the complete, ready-to-record concept.
+
+${ideaQualityMandate(false, 'SELF-REFERENCE BAN')}`;
 const CONCEPT_DE = `${IDEA_COMMON_DE}
 
-Der Nutzer hat MÖGLICHERWEISE ein Thema/Produkt/grobe Idee vorgegeben (OPTIONAL). Wenn ein Thema angegeben wurde, baue das komplette TikTok-Konzept gezielt darum (als Gegenstand). Wenn KEIN Thema angegeben wurde, wähle selbst ein sinnvolles Thema basierend auf dem Markenkontext / der Unternehmensbeschreibung (z. B. ein konkretes Produkt, eine typische Situation der Zielgruppe oder eine aktuelle Marken-Herausforderung) und baue das komplette, aufnahmefähige Konzept darum — frage den Nutzer NIEMALS zurück, liefere immer das vollständige Konzept. In beiden Fällen wählst du weiterhin selbst den besten Winkel und das Format. Bleib TikTok-nativ: führe mit Story, Demonstration, Experiment oder echtem Mehrwert und binde Produkt/Thema natürlich ein, statt es als reine Werbung zu pitchen.`;
+Der Nutzer hat MÖGLICHERWEISE ein Thema/Produkt/grobe Idee vorgegeben (OPTIONAL).
+
+- Wenn ein Thema angegeben wurde: Dieses Thema BLEIBT der Gegenstand des Videos — du baust es aber nach exakt DEMSELBEN Qualitätsstandard wie im Modus „Was soll ich heute posten?": aus der PERSPEKTIVE DER ZIELGRUPPE, TikTok-nativ, Aufmerksamkeit zuerst, das Produkt höchstens als Beiwerk statt als reine Produktwerbung. Ersetze, überschreibe oder interpretiere das Nutzerthema NIEMALS um.
+- Wenn KEIN Thema angegeben wurde: Frage den Nutzer NICHT zurück. Die verbindliche Content-Richtung steht im Nutzer-Prompt („Content-Richtung (von Growimo gewählt, VERBINDLICH — aus dem Katalog)") — folge ihr strikt und wähle das Thema INNERHALB dieser Richtung aus der PERSPEKTIVE DER ZIELGRUPPE (ihr Alltag, ihre Fragen, ihre Fehler, ihre Ziele — ableitbar aus Markenkontext/Unternehmensbeschreibung/Ziel).
+
+In beiden Fällen wählst du weiterhin selbst den besten Winkel und das Format und lieferst immer das komplette, aufnahmefähige Konzept.
+
+${ideaQualityMandate(true, 'SELBSTREFERENZ-VERBOT')}`;
 
 const DIAGNOSE_EN = `You are Growimo's TikTok diagnostician. The user provides real performance numbers for one of their TikToks. You must analyze them honestly and give concrete, prioritized next steps — NEVER a generic pep talk, NEVER "keep going" without evidence.
 
@@ -669,6 +727,13 @@ export function buildUserPrompt(input: TikTokInput, lang: TikTokLang): string {
     );
   }
   if (input.mode === 'concept') {
+    // Phase 2 (C8): „TikTok erstellen" bekommt denselben Qualitätsstandard wie
+    // todayIdea. Das Nutzerthema bleibt der Gegenstand (Phase-1-Vorrang), wird
+    // aber aus der Zielgruppen-Perspektive aufgebaut (Aufmerksamkeit zuerst,
+    // Produkt höchstens als Beiwerk) — die System-Prompt-Regeln sind identisch.
+    const conceptPerspective = de
+      ? 'Baue das aus der PERSPEKTIVE DER ZIELGRUPPE auf (was hilft, interessiert oder begeistert sie?), TikTok-nativ und Aufmerksamkeit ZUERST — das Produkt höchstens als Beiwerk/Beispiel, NICHT als Thema, und keine Standard-Werbe-Struktur.'
+      : "Build it from the TARGET AUDIENCE's perspective (what helps, interests or excites them?), TikTok-native and attention FIRST — the product at most as a supporting element/example, NOT as the topic, and no classic ad structure.";
     if (input.topic) {
       lines.push(
         de ? 'Thema / Produkt / grobe Idee:' : 'Topic / product / rough idea:',
@@ -681,17 +746,44 @@ export function buildUserPrompt(input: TikTokInput, lang: TikTokLang): string {
             : 'The topic is the subject of the video; use the PROJECT CONTEXT as style/fact anchor (only present fields, invent nothing).',
         );
       }
+      lines.push(conceptPerspective);
     } else if (input.projectContext) {
       lines.push(
         de
           ? 'Kein Thema angegeben — wähle ein passendes Thema basierend auf dem PROJEKT-KONTEXT (Faktenquelle) und baue das komplette Konzept darum. KEINE Rückfragen an den Nutzer.'
           : 'No topic provided — choose a fitting topic based on the PROJECT CONTEXT (fact source) and build the complete concept around it. Do NOT ask the user back.',
       );
+      lines.push(conceptPerspective);
     } else {
       lines.push(
         de
           ? 'Kein Thema angegeben — wähle selbst ein sinnvolles Thema basierend auf dem Markenkontext / der Unternehmensbeschreibung (z. B. ein konkretes Produkt, eine typische Situation der Zielgruppe oder eine aktuelle Marken-Herausforderung) und baue das komplette Konzept darum. KEINE Rückfragen an den Nutzer.'
           : 'No topic provided — choose a fitting topic yourself based on the BRAND CONTEXT / business description (e.g. a concrete product, a typical target-audience situation or a current brand challenge) and build the complete concept around it. Do NOT ask the user back.',
+      );
+      lines.push(conceptPerspective);
+    }
+    // Phase 2 (C8): OHNE Nutzerthema wählt Growimo die Content-Richtung
+    // deterministisch aus dem Katalog (dieselbe Funktion/Rotation wie todayIdea,
+    // identische Prompt-Zeilen). Mit Nutzerthema wird KEINE Richtung injiziert —
+    // sie würde mit dem Nutzerthema kollidieren.
+    if (!input.topic?.trim()) {
+      const dir = pickTodayIdeaDirection(input.previousDirection);
+      lines.push(
+        de
+          ? `Content-Richtung (von Growimo gewählt, VERBINDLICH — aus dem Katalog): ${dir}`
+          : `Content direction (chosen by Growimo, MANDATORY — from the catalog): ${tiktokDirectionLabel(dir, false)}`,
+      );
+      if (isTiktokIdeaDirection(input.previousDirection)) {
+        lines.push(
+          de
+            ? `Letzte Content-Richtung (nicht wiederholen): ${input.previousDirection}`
+            : `Previous content direction (do not repeat): ${tiktokDirectionLabel(input.previousDirection, false)}`,
+        );
+      }
+      lines.push(
+        de
+          ? 'Baue die Idee GENAU in dieser Richtung und aus der PERSPEKTIVE DER ZIELGRUPPE auf (was hilft oder begeistert die Zielgruppe?) — NICHT aus der Produktperspektive. Das Produkt darf höchstens als Beiwerk/Beispiel innerhalb der Richtung vorkommen, NICHT als Thema.'
+          : "Build the idea EXACTLY in this direction, from the TARGET AUDIENCE's perspective (what helps or excites them?) — NOT from the product perspective. The product may appear at most as a supporting element/example within the direction, NOT as the topic.",
       );
     }
   }
@@ -915,12 +1007,16 @@ function parseIdea(mode: 'todayIdea' | 'concept', p: Record<string, unknown>): T
     overlays: strArr(p.overlays),
     spokenText: str(p.spokenText),
     caption: str(p.caption),
-    hashtags: strArr(p.hashtags),
+    hashtags: strArr(p.hashtags).slice(0, MAX_TIKTOK_HASHTAGS),
     cta: str(p.cta),
     why: str(p.why),
     // ── Phase 2: neue Felder OPTIONAL parsen (Fallbacks) — alte Outputs ohne
     //    diese Felder bleiben gültig und rendern im UI weiterhin korrekt.
     format: str(p.format) || undefined,
+    // Phase 2 — Scroll-Stop-Moment + Spannungsbogen (optional; alte Outputs ohne
+    // die Felder bleiben gültig, das UI rendert dann keinen leeren Block).
+    scrollStop: str(p.scrollStop) || undefined,
+    tension: str(p.tension) || undefined,
     timedScenes: parseTimedScenes(p.timedScenes),
     title: str(p.title) || undefined,
     imageIdeas: parseImageIdeas(p.imageIdeas),
@@ -1275,18 +1371,130 @@ function buildRetryHint(lang: TikTokLang, violations: string[] = [], mode: TikTo
     : '\n\nQUALITY SELF-CHECK NOTE: The previous idea was internally rejected (too interchangeable / too ad-like / without real brand facts or challenge tie-in — or because it contained an invented testimonial / quoted person / invented user feedback not backed by the BRAND CONTEXT, OR because it contained an unproven concrete performance/time promise or a prescribed artificial reaction/enthusiasm).' + rulePart + ' NOW produce a clearly better, NEW idea: stay in the given content direction and build it from the TARGET AUDIENCE\'s perspective (what helps or excites them?) — NOT from the product perspective. Product-centric self-referential ideas are forbidden ("Can Growimo create a TikTok idea?", "We test our own product", "How good is my TikTok idea really?"); the product may appear at most as a supporting element/example, never as the topic. Do not invent any users/testers/testimonials/quotes; instead show a real, honest process from the audience\'s perspective. Make NO unproven concrete performance/time/result promise (no "in just X seconds/minutes/days/weeks", no "+X%", no "doubles your reach", no "go viral") and NO prescribed artificial reaction/enthusiasm (no "Wow!", no "everyone is amazed", no staged surprise — a reaction only if genuinely produced by the shown real result, otherwise omit it entirely). Set all seven selfCheck booleans truthfully to passing.';
 }
 
+// ── Phase 2 — Ergebnisstruktur: maximal 5 Hashtags (Owner-Vorgabe) ──────────
+// Hart im Parser durchgesetzt (nicht nur im Prompt verlangt): „jedes Ergebnis
+// enthält maximal 5 passende Hashtags" gilt damit deterministisch für JEDE
+// Ausgabe, unabhängig davon, was das Modell liefert.
+export const MAX_TIKTOK_HASHTAGS = 5;
+
+// ── Phase 2 — Platzhalter-Verbot (deterministisch) ──────────────────────────
+// Generische Ausfüll-Anweisungen („[Trendigen Sound hier einfügen]",
+// „Sound: <beliebig>", „TODO", „Platzhalter") sind KEIN Ergebnis. Diese Muster
+// erkennen sie in allen Textfeldern; die Liste ist bewusst eng gefasst, damit
+// echte Inhalte (z. B. „Sound: leiser Klavier-Loop, 70 BPM") NICHT matchen.
+export const PLACEHOLDER_PATTERNS: Array<{ name: string; re: RegExp }> = [
+  { name: 'klammer-anweisung', re: /\[[^\]]{0,120}(?:einfügen|einsetzen|hier|dein|deine|your|insert|add|sound|musik|music|effekt|effect|filter|trend|beliebig|irgendein|optional|platzhalter|placeholder|todo|tbd)[^\]]{0,120}\]/i },
+  { name: 'klammer-punkte', re: /\[(?:\s*\.{2,}\s*|\s*…\s*)\]/ },
+  { name: 'spitzklammer-anweisung', re: /<[^>]{0,80}(?:sound|musik|music|einfügen|insert|dein|your|text|name|link|beliebig)[^>]{0,80}>/i },
+  { name: 'hier-einfuegen', re: /\b(?:hier|here)\s+(?:einfügen|einsetzen|insert|hineinfügen)\b/i },
+  { name: 'einfuegen-hier', re: /\b(?:einfügen|einsetzen|insert|add)\s+(?:hier|here)\b/i },
+  { name: 'dein-x-hier', re: /\b(?:dein(?:e|en)?|your)\s+(?:sound|musik|music|song|link|hashtags?|effekt|effect)\s+(?:hier|here)\b/i },
+  { name: 'beliebiger-sound', re: /\b(?:beliebig(?:er|en|es)?|irgendein(?:e|en)?|some|any)\s+(?:trend[-\s]?)?(?:sound|musik|music|song|effekt|effect|filter)\w*/i },
+  { name: 'sound-generisch', re: /\b(?:sound|musik|music|song|effekt|effect)\s*[:=]\s*(?:beliebig\w*|irgendein\w*|frei\w*|any\b|some\b)/i },
+  { name: 'todo-tbd', re: /\b(?:TODO|TBD|FIXME|XXX+)\b/ },
+  { name: 'platzhalter-wort', re: /\b(?:platzhalter|placeholder)\b/i },
+  { name: 'sound-klammer-wahl', re: /\(\s*(?:sound|musik|music|song|effekt|effect)\s*[:=]?\s*(?:beliebig|frei|wählen|wähle|choose|any)[^)]{0,40}\)/i },
+];
+
+/** Textfelder EINER Idee als Prüf-Blob (inkl. timedScenes/imageIdeas) — nur für
+ *  die Platzhalter-Prüfung (die Regel-A/B-Prüfung nutzt weiterhin
+ *  ideaContentBlob mit unverändertem Umfang). */
+export function ideaPlaceholderBlob(r: TikTokIdeaResult): string {
+  const parts: string[] = [
+    r.idea, r.hook, r.scrollStop ?? '', r.tension ?? '', r.length, r.format ?? '',
+    r.title ?? '', r.scenes.join(' '), r.overlays.join(' '), r.spokenText,
+    r.caption, r.cta, r.why,
+  ];
+  for (const s of r.timedScenes ?? []) parts.push(s.time, s.scene, s.text);
+  for (const i of r.imageIdeas ?? []) parts.push(i.description, i.studioPrompt);
+  return parts.join(' ').toLowerCase();
+}
+
+/** Liefert die Namen aller gefundenen Platzhalter-Muster (leer = sauber). */
+export function placeholderViolations(blob: string): string[] {
+  const hits: string[] = [];
+  for (const { name, re } of PLACEHOLDER_PATTERNS) if (re.test(blob)) hits.push('PLACEHOLDER:' + name);
+  return hits;
+}
+
+/** Entfernt Platzhalter-Reste aus einem einzelnen Textfeld (idempotent). */
+const PLACEHOLDER_STRIP_PATTERNS: RegExp[] = [
+  /\[[^\]]{0,120}(?:einfügen|einsetzen|hier|dein|deine|your|insert|add|sound|musik|music|effekt|effect|filter|trend|beliebig|irgendein|optional|platzhalter|placeholder|todo|tbd)[^\]]{0,120}\]/gi,
+  /\[(?:\s*\.{2,}\s*|\s*…\s*)\]/g,
+  /<[^>]{0,80}(?:sound|musik|music|einfügen|insert|dein|your|text|name|link|beliebig)[^>]{0,80}>/gi,
+  /\((?:hier\s+)?(?:einfügen|einsetzen|insert|add)[^)]{0,60}\)/gi,
+  /\b(?:hier|here)\s+(?:einfügen|einsetzen|insert|hineinfügen)\b/gi,
+  /\b(?:sound|musik|music|song|effekt|effect)\s*[:=]\s*(?:beliebig\w*|irgendein\w*|frei\w*|any\b|some\b)[^.;!?\n]{0,40}/gi,
+  /\b(?:beliebig(?:er|en|es)?|irgendein(?:e|en)?|some|any)\s+(?:trend[-\s]?)?(?:sound|musik|music|song|effekt|effect|filter)\w*/gi,
+  /\b(?:TODO|TBD|FIXME|XXX+)\b/g,
+  /\b(?:Platzhalter|Placeholder)\b/gi,
+];
+function stripPlaceholderText(s: string): string {
+  let out = s;
+  for (const re of PLACEHOLDER_STRIP_PATTERNS) out = out.replace(re, ' ');
+  return out.replace(/\s{2,}/g, ' ').replace(/\s+([,.;:!?])/g, '$1').trim();
+}
+
+/** Phase 2 — Platzhalter-Endreinigung: entfernt generische Ausfüll-Anweisungen
+ *  deterministisch aus dem akzeptierten Ergebnis („lieber den Punkt weglassen
+ *  als eine Lücke hinterlassen"). Gibt dasselbe Objekt zurück, wenn nichts zu
+ *  tun war (Identitäts-Vergleich bleibt dadurch aussagekräftig). */
+export function placeholderFreeResult(r: TikTokIdeaResult): TikTokIdeaResult {
+  const clean = stripPlaceholderText;
+  const cleanArr = (a: string[]) => a.map(clean).filter((x) => x.trim() !== '');
+  const out: TikTokIdeaResult = {
+    ...r,
+    idea: clean(r.idea),
+    hook: clean(r.hook),
+    length: clean(r.length),
+    scenes: cleanArr(r.scenes),
+    overlays: cleanArr(r.overlays),
+    spokenText: clean(r.spokenText),
+    caption: clean(r.caption),
+    cta: clean(r.cta),
+    why: clean(r.why),
+  };
+  if (r.scrollStop !== undefined) out.scrollStop = clean(r.scrollStop);
+  if (r.tension !== undefined) out.tension = clean(r.tension);
+  if (r.format !== undefined) out.format = clean(r.format);
+  if (r.title !== undefined) out.title = clean(r.title);
+  if (r.timedScenes !== undefined) {
+    out.timedScenes = r.timedScenes.map((s) => ({ time: s.time, scene: clean(s.scene), text: clean(s.text) }));
+  }
+  if (r.imageIdeas !== undefined) {
+    out.imageIdeas = r.imageIdeas
+      .map((i) => ({ description: clean(i.description), studioPrompt: clean(i.studioPrompt) }))
+      .filter((i) => i.description !== '' || i.studioPrompt !== '');
+  }
+  return JSON.stringify(out) === JSON.stringify(r) ? r : out;
+}
+
 // ── Phase 2 — Vollständigkeitsprüfung („Vollständiges Konzept") ─────────────
 /** Liefert die Liste der fehlenden Phase-2-Konzeptfelder (leer = vollständig).
  *  Nur für die Idee-Modi (todayIdea/concept) relevant; diagnose prüft nicht. */
 export function conceptCompleteness(r: TikTokIdeaResult): string[] {
   const missing: string[] = [];
+  // Phase 2 — Hook ist der Kern der Ergebnisstruktur (1–2 Sek., Scroll-Stop).
+  if (!r.hook.trim()) missing.push('hook');
   if (!r.format) missing.push('format');
   if (!r.title) missing.push('title');
   if (!r.timedScenes || r.timedScenes.length === 0) missing.push('timedScenes');
-  else if (r.timedScenes.some((s) => !s.time || !s.scene)) missing.push('timedScenes (vollständig)');
+  else {
+    if (r.timedScenes.some((s) => !s.time || !s.scene)) missing.push('timedScenes (vollständig)');
+    // Phase 2 — der Szenenplan muss bei Sekunde 0 beginnen (lückenlos ab 0s).
+    if (!timedSceneStartsAtZero(r.timedScenes[0].time)) missing.push('timedScenes (Start bei 0s)');
+  }
+  // Phase 2 — Hashtags: mindestens einer; die Obergrenze (max. 5) erzwingt der
+  // Parser deterministisch (MAX_TIKTOK_HASHTAGS), nicht ein Retry.
+  if (r.hashtags.length === 0) missing.push('hashtags');
   if (!r.imageIdeas || r.imageIdeas.length === 0) missing.push('imageIdeas');
   else if (r.imageIdeas.some((i) => !i.studioPrompt)) missing.push('imageIdeas (studioPrompt)');
   return missing;
+}
+
+/** Phase 2 — beginnt eine Zeitmarke bei Sekunde 0? („0-2s", „0–2s", „0s") */
+export function timedSceneStartsAtZero(time: string): boolean {
+  return /^\s*0\s*(?:s\b|[-–—]|$)/i.test(time ?? '');
 }
 
 /** Phase 2 — Retry-Hinweis für unvollständige Konzepte: nennt explizit die
@@ -1294,8 +1502,8 @@ export function conceptCompleteness(r: TikTokIdeaResult): string[] {
 function buildCompletenessHint(lang: TikTokLang, missing: string[]): string {
   if (missing.length === 0) return '';
   return lang === 'de'
-    ? `\n\nVOLLSTÄNDIGKEITSHINWEIS: Die vorherige Antwort war UNVOLLSTÄNDIG — diese PFLICHTFELDER des Konzepts fehlten: ${missing.join(', ')}. Liefere jetzt das KOMPLETTE Konzept mit ALLEN Feldern (idea, hook, length, format, title, timedScenes mit Zeitangaben, scenes, overlays, spokenText, caption, hashtags, cta, why, imageIdeas mit studioPrompt).`
-    : `\n\nCOMPLETENESS NOTE: The previous answer was INCOMPLETE — these REQUIRED concept fields were missing: ${missing.join(', ')}. NOW deliver the COMPLETE concept with ALL fields (idea, hook, length, format, title, timedScenes with time marks, scenes, overlays, spokenText, caption, hashtags, cta, why, imageIdeas with studioPrompt).`;
+    ? `\n\nVOLLSTÄNDIGKEITSHINWEIS: Die vorherige Antwort war UNVOLLSTÄNDIG — diese PFLICHTFELDER des Konzepts fehlten: ${missing.join(', ')}. Liefere jetzt das KOMPLETTE Konzept mit ALLEN Feldern (idea, hook, scrollStop, length, format, title, tension, timedScenes LÜCKENLOS MIT SEKUNDEN ab 0s, scenes, overlays, spokenText, caption, max. 5 Hashtags, cta, why, imageIdeas mit studioPrompt). KEINE Platzhalter, keine Klammer-Anweisungen — konkrete Angaben oder den Punkt weglassen.`
+    : `\n\nCOMPLETENESS NOTE: The previous answer was INCOMPLETE — these REQUIRED concept fields were missing: ${missing.join(', ')}. NOW deliver the COMPLETE concept with ALL fields (idea, hook, scrollStop, length, format, title, tension, timedScenes GAP-FREE WITH SECONDS from 0s, scenes, overlays, spokenText, caption, max. 5 hashtags, cta, why, imageIdeas with studioPrompt). NO placeholders, no bracketed instructions — concrete information or leave the point out.`;
 }
 
 // ── Phase 4 — Post-Generation-Guard auf TikTok-Outputs (metric-guard) ────────
@@ -1666,9 +1874,22 @@ export async function generateTikTok(
       // („Kann Growimo eine TikTok-Idee erstellen?", „Wir testen unser eigenes
       // Produkt", …) → Soft-Reject + Retry, damit keine produktzentrierte
       // Selbstthematisierung ausgegeben wird.
+      // Phase 2 (C8): Der Selbstreferenz-Check gilt jetzt auch für concept —
+      // aber nur, wenn Growimo das Thema selbst wählt (kein Nutzerthema), weil
+      // er dort exakt dieselbe Rolle wie im todayIdea-Modus hat. Gibt der Nutzer
+      // ein Thema vor, IST dieses Thema der Gegenstand (Phase-1-Vorrang); ein
+      // breites Muster wie „Wie gut ist meine …?" würde sonst legitime
+      // Zielgruppen-Themen („Wie gut ist meine Bewerbung wirklich?") ablehnen.
+      const userTopicProvided = Boolean(input.topic?.trim());
       const selfRefs =
-        input.mode === 'todayIdea' ? selfReferenceViolations(ideaContentBlob(result)) : [];
-      lastViolations = [...violations, ...selfRefs];
+        input.mode === 'todayIdea' || !userTopicProvided
+          ? selfReferenceViolations(ideaContentBlob(result))
+          : [];
+      // Phase 2 — Platzhalter-Verbot (deterministisch): generische Ausfüll-
+      // Anweisungen sind kein Ergebnis → Soft-Reject + Retry; auf dem letzten
+      // Versuch werden sie zusätzlich hart entfernt (placeholderFreeResult).
+      const placeholders = placeholderViolations(ideaPlaceholderBlob(result));
+      lastViolations = [...violations, ...selfRefs, ...placeholders];
       // Phase 1: eigenes Nutzerthema (oder gar kein Markenkontext) ⇒ das Fehlen
       // eines Markenfakts darf die Idee NICHT verwerfen.
       const userSubjectProvided = Boolean(input.topic?.trim()) || !input.brandContext;
@@ -1730,11 +1951,15 @@ export async function generateTikTok(
     // (aller Modi) durchläuft vor der Ausgabe die Guard (Pendant), damit keine
     // erfundenen Leistungsdaten/Trends den Weg ins UI finden. Nutzerzahlen sind
     // über buildSanitizeUserContext geschützt; ohne Muster = Fast-Path.
-    const sanitized = await sanitizeTikTokResult(result, buildSanitizeUserContext(input));
+    // Phase 2 — Platzhalter-Endreinigung VOR der metric-guard: ein akzeptiertes
+    // Ergebnis verlässt die Engine nie mit generischen Ausfüll-Anweisungen.
+    const cleaned = result.mode === 'diagnose' ? result : placeholderFreeResult(result);
+    const sanitized = await sanitizeTikTokResult(cleaned, buildSanitizeUserContext(input));
     console.log(
       `[tiktok] ${input.mode} OK (${lang}) — idea/analysis generated` +
         (result.selfCheck ? ` selfCheck=${JSON.stringify(result.selfCheck)}` : '') +
-        (sanitized !== result ? ' [metric-guard applied]' : ''),
+        (cleaned !== result ? ' [placeholders stripped]' : '') +
+        (sanitized !== cleaned ? ' [metric-guard applied]' : ''),
     );
     return sanitized;
   }

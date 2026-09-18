@@ -325,6 +325,13 @@ function ResultView({ result }: { result: TikTokResult }) {
       <FieldBlock label={t.tiktok_result_hook}>
         <p>{r.hook}<CopyButton text={r.hook} label={t.tiktok_copy} /></p>
       </FieldBlock>
+      {/* Phase 2 — Scroll-Stop-Moment + Spannungsbogen: nur rendern, wenn die
+          Engine sie geliefert hat (alte Ergebnisse zeigen keinen leeren Block). */}
+      {r.scrollStop !== undefined && r.scrollStop.trim() !== '' && (
+        <FieldBlock label={t.tiktok_result_scroll_stop}>
+          <p>{r.scrollStop}</p>
+        </FieldBlock>
+      )}
       <FieldBlock label={t.tiktok_result_length}>
         <p>{r.length}</p>
       </FieldBlock>
@@ -379,15 +386,24 @@ function ResultView({ result }: { result: TikTokResult }) {
           <p className="whitespace-pre-line">{r.spokenText}<CopyButton text={r.spokenText} label={t.tiktok_copy} /></p>
         </FieldBlock>
       )}
+      {r.tension !== undefined && r.tension.trim() !== '' && (
+        <FieldBlock label={t.tiktok_result_tension}>
+          <p className="whitespace-pre-line">{r.tension}</p>
+        </FieldBlock>
+      )}
       <FieldBlock label={t.tiktok_result_caption}>
         <p className="whitespace-pre-line">{r.caption}<CopyButton text={r.caption} label={t.tiktok_copy} /></p>
       </FieldBlock>
       <FieldBlock label={t.tiktok_result_hashtags}>
         <p className="whitespace-pre-line">{r.hashtags.join(' ')}<CopyButton text={r.hashtags.join(' ')} label={t.tiktok_copy} /></p>
       </FieldBlock>
-      <FieldBlock label={t.tiktok_result_cta}>
-        <p>{r.cta}</p>
-      </FieldBlock>
+      {/* Phase 2 — CTA nur, wenn sinnvoll: leere CTA (Modell hat bewusst keine
+          erzwungen) rendert keinen leeren Block. */}
+      {r.cta.trim() !== '' && (
+        <FieldBlock label={t.tiktok_result_cta}>
+          <p>{r.cta}</p>
+        </FieldBlock>
+      )}
       <FieldBlock label={t.tiktok_result_why}>
         <p>{r.why}</p>
       </FieldBlock>
@@ -610,10 +626,15 @@ function TikTokContent() {
         biz: biz.trim(),
         brandContext,
         history: loadTikTokHistory(),
-        // Diversität (todayIdea): zuletzt genutzte Richtung → Engine rotiert
-        // deterministisch zur NÄCHSTEN Katalog-Richtung (keine Wiederholung).
+        // Diversität: zuletzt genutzte Richtung → Engine rotiert deterministisch
+        // zur NÄCHSTEN Katalog-Richtung (keine Wiederholung). Phase 2: gilt auch
+        // für concept OHNE Thema — dort wählt Growimo die Richtung aus genau
+        // demselben Katalog; MIT Nutzerthema wird keine Richtung injiziert
+        // (das Thema ist dann selbst der Gegenstand des Videos).
         previousDirection:
-          mode === 'todayIdea' ? (localStorage.getItem(TIKTOK_LAST_DIRECTION_KEY) ?? undefined) : undefined,
+          mode === 'todayIdea' || (mode === 'concept' && !topic.trim())
+            ? (localStorage.getItem(TIKTOK_LAST_DIRECTION_KEY) ?? undefined)
+            : undefined,
         goal: goal || (usableBrandProfile?.mainGoal?.trim() || undefined),
         audience: audience.trim() || undefined,
         topic: mode === 'concept' ? topic.trim() : undefined,
@@ -642,7 +663,7 @@ function TikTokContent() {
       const res = await guarded.promise;
       setResult(res);
       if (res.mode !== 'diagnose') pushTikTokHistory(res.hook);
-      if (mode === 'todayIdea') {
+      if (mode === 'todayIdea' || (mode === 'concept' && !topic.trim())) {
         // Client und Engine nutzen dieselbe deterministische Funktion → die hier
         // gespeicherte Richtung ist identisch mit der im Prompt verwendeten.
         const prev = localStorage.getItem(TIKTOK_LAST_DIRECTION_KEY) ?? undefined;
