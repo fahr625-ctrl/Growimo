@@ -1,0 +1,53 @@
+# Stabilisierung Phase 3 — Suite-Läufe (Rohprotokoll)
+
+Stand: 2026-09-18 (UTC) · Arbeitsverzeichnis: Repo-Wurzel · Aufruf: `bun <suite>.ts`
+Die Suiten sind rein quelltext- und funktionsbasiert (keine DB, kein Netz) — EXIT 0 heißt
+„alle Checks grün". Phase-3-Referenz-Suite: `stabilisierung-phase3-test`.
+
+## Lauf 1 — Phase-3-Abschluss (Deploy-Basis, Commit `1d35375`)
+
+```
+tiktok-phase1-test EXIT=0 :: ALLE TESTS BESTANDEN
+tiktok-phase2-test EXIT=0 :: Fehlgeschlagen: image-studio.tsx wendet studioSearchPrefill an (Routebene belegt)
+tiktok-phase3-test EXIT=0 :: ALLE TESTS BESTANDEN
+tiktok-phase4-test EXIT=0 :: ALL PHASE 4 TESTS PASSED
+tiktok-phase6-directions-test EXIT=0 :: PHASE 6 GRÜN
+tiktok-diagnose-v2-test EXIT=0 :: ALLE TESTS BESTANDEN
+brand-profile-test EXIT=0 :: === brand-profile-test: 81 PASS, 0 FAIL ===
+usage-guard-test EXIT=0 :: === usage-guard-test: 31 PASS, 0 FAIL ===
+usage-semantics-test EXIT=0 :: === usage-semantics-test: 32 PASS, 0 FAIL ===
+stripe-webhook-test EXIT=0 ::   cleanup ok (users/subscriptions/beta_signups)
+improve-deadzone-test EXIT=0 :: ✅ F2-UX-8.4d SUITE PASSED — 50 checks, 0 failed (Dead Zone + Delta-Copy de/en)
+stabilisierung-phase3-test EXIT=0 :: === stabilisierung-phase3-test: 85 PASS, 0 FAIL ===
+
+```
+
+## Lauf 2 — Nachlauf auf dem Evidence-Stand (2026-09-18, Commit `eadf105` + Testdatei-Anpassung)
+
+Nachweis, dass der **committete** Stand die behaupteten 85 PASS tatsächlich reproduziert.
+Zweiter Lauf nach der Typbereinigung der Testdatei: identisch **85 PASS, 0 FAIL, EXIT 0** (keine
+Verhaltensänderung, nur Typ-Casts).
+
+```
+$ bun stabilisierung-phase3-test.ts
+$ echo $?
+EXIT=0
+=== stabilisierung-phase3-test: 85 PASS, 0 FAIL ===
+
+```
+
+Rohlog-Auszug (Ende des Laufs):
+
+```
+PASS: i18n de+en: image_studio_error_timeout
+PASS: i18n de+en: image_studio_error_aborted
+PASS: i18n de+en: image_studio_abort
+PASS: i18n de+en: image_studio_back_to_tiktok
+PASS: i18n de+en: image_studio_gallery_cap_hint
+PASS: i18n Timeout-Text enthält den Platzhalter %s
+PASS: i18n Galerie-Hinweis enthält den Platzhalter %s
+PASS: i18n de/en Parität (gleiche Schlüsselanzahl)
+PASS: i18n keine fehlenden Schlüssel
+=== stabilisierung-phase3-test: 85 PASS, 0 FAIL ===
+
+```

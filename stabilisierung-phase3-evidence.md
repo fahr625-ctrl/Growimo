@@ -127,21 +127,122 @@ einzeln (Variation/Neu generieren = je 1). Keine Änderung an der Usage-/Billing
   `runGuardRef`-Generik), wurden vor dem Commit behoben. Restliche Abweichung zur Baseline liegt in
   unveränderten Fremddateien (u. a. `performance.tsx`, `ScoreCard.tsx`, `serve.ts`, Test-Dateien am
   Repo-Root) — nicht durch Phase 3 verursacht.
+- tsc-Nachlauf 2026-09-18 (Evidence-Abschluss): Gesamtzahl **171** (Lauf auf dem Arbeitsstand davor: 174).
+  In `stabilisierung-phase3-test.ts` **0 Fehler** — die letzten 3 Typmeldungen (2× TS2352 an
+  `AbortSignal`-Casts, 1× TS2345 `boolean | undefined` aus `out.value?.…`) sind bereinigt, zusammen mit
+  den 4 zuvor offenen Cast-Meldungen (`globalThis`-Shim, i18n-Dicts). Rein typseitig (`as unknown as`,
+  `?? false`, typisierte Zwischenvariable) — **keine Verhaltensänderung**: die Suite liefert vor und nach
+  der Bereinigung identisch **85 PASS, 0 FAIL, EXIT 0**. Produktionscode unverändert (`git diff` auf
+  `src/` in diesem Commit: leer).
 - Bestehende Suiten (Reprint): siehe Abschnitt 6a unten (Shell-Log `stabilisierung-phase3-suiten.txt`).
 - `bash build-vercel.sh`: Ergebnis siehe Abschnitt 7 (Deployment).
 
 ## 6a. Suite-Läufe
-
-Siehe `stabilisierung-phase3-suiten.txt` (Rohprotokoll der Läufe aller geforderten Suiten mit
-EXIT-Code). Phase-3-relevant: `stabilisierung-phase3-test` EXIT 0 (85 PASS).
+`stabilisierung-phase3-suiten.txt` (Rohprotokoll der Läufe aller geforderten Suiten mit EXIT-Code,
+seit diesem Stand im Repo abgelegt). Phase-3-relevant: **`stabilisierung-phase3-test` EXIT 0, 85 PASS,
+0 FAIL** — nachreproduziert am 2026-09-18 (UTC) auf dem committeten Stand (`bun stabilisierung-phase3-test.ts`;
+Rohlog-Auszug am Ende des Protokolls). Die Suite ist rein quelltext- und funktionsbasiert (keine DB,
+kein Netz) und damit unabhängig von Deployment und Umgebung reproduzierbar.
 
 ## 7. Deployment + Live-Check
 
 **Deployment (Phase 3):** Build_EXIT=0 · Vercel-URL: https://site-3d8s594bh-growimo.vercel.app · Live-Check: www.growimo.app -> 200, /app/image-studio -> 200, /app/tiktok -> 200.
 
-**Bundle-Beleg (Timeout-/Retry-/Abbruch-Strings im Prod-Bundle):** siehe Abschnitt 6a-Protokoll (Probe-Bundle-Check unten).
+## 7a. Bundle-Beleg (Prod-Bundle des Phase-3-Deployments)
 
-PROBE_BUNDLE
+**Belegdatum:** 2026-09-18 (UTC) · **Deployment:** `site-3d8s594bh` (`https://site-3d8s594bh-growimo.vercel.app`), Alias `www.growimo.app`.
+**Methode:** HTML der Route per `curl` laden → die darin referenzierten ES-Chunks (Vite-Hashes) ziehen →
+Marker mit `grep -aob -F` (Byte-Offset) im **minifizierten** Bundle nachweisen. Geprüft wird also das
+tatsächlich ausgelieferte Artefakt, nicht der Quelltext.
+
+**Ausgelieferte Chunks (alle HTTP 200) und Fundstelle:**
+
+| Route | Chunk | Bytes | SHA-256 |
+|---|---|---|---|
+| `/app/image-studio` | `/assets/image-studio-DmYlVtMs.js` | 15268 | `6e711ca23399140a…fa44bf66` |
+| `/app/image-studio` | `/assets/index-WaVoMS8O.js` (i18n-Dictionary) | 593208 | `7dd0da8d1a8e8085…17729c65` |
+| `/app/tiktok` | `/assets/tiktok-Dc1OgwIA.js` | 35994 | `99c7983f1aa2f181…e0934dd0` |
+| `/app/*` | `/assets/ProtectedRoute-CHnRLhC2.js` | 2708 | `f6bb9321b44e28e6…50ed2d0ee` |
+
+**Gegenprobe Live-Domain:** `www.growimo.app/app/image-studio` liefert HTTP 200 mit **derselben
+Asset-Liste** (gleiche Vite-Hashes) wie das Deployment — `diff` der beiden Asset-Listen ist leer.
+Die Live-Domain serviert also exakt dieses Bundle.
+
+### 7a.1 Timeout / Abbruch / Fehlerbanner (Punkt 6)
+
+Alle Belege in `/assets/image-studio-DmYlVtMs.js` (minifiziert):
+
+| # | Marker | Nachweis im Bundle | Offset |
+|---|---|---|---|
+| 1 | Client-Timeout **120 s** | `const T=12e4;function H(r,a=T){const i=new AbortController;…` | 546 |
+| 2 | Watchdog bricht ab und markiert `timeout` | `g=setTimeout(()=>{n="timeout",i.abort()},a)` | 811 |
+| 3 | Abbruch-Grund `user`, zweiter `abort()` ist No-op | `abort:(l="user")=>{n||(n=l,i.abort())},reason:()=>n}` | 1101 |
+| 4 | Signal wird durchgereicht (Ergebnis settelt immer) | `Promise.race([l,v])` (1002) + `i.signal.addEventListener("abort",w,{once:!0})` (738) | 1002 / 738 |
+| 5 | Abort-Fehlertyp mit Klartext | `ImageClientAbortError` · `"Image request timed out"` / `"Image request aborted"` | 508 |
+| 6 | Abbruch-Button in der UI (Label = i18n `image_studio_abort`) | `children:r.image_studio_abort` | 9043 |
+| 7 | Ehrlicher Fehlertext je Grund, Sekunden aus `T/1e3` (= 120) | `R==="timeout"?r.image_studio_error_timeout.replace("%s",String(T/1e3)):R?r.image_studio_error_aborted:r.image_studio_card_error` | 6355 |
+| 8 | Fehlerbanner-Zweig der Hauptkarte | `U==="timeout"?r.image_studio_error_timeout.replace("%s",String(T/1e3)):U==="user"?r.image_studio_error_aborted:r.image_studio_error` | 4842 |
+
+**Klartext-Literale** (i18n-Werte, de) in `/assets/index-WaVoMS8O.js`:
+
+| String | Offset(s) |
+|---|---|
+| `Abbrechen` (Wert von `image_studio_abort`) | 411153, 433185, 438668, 463219 |
+| `Zeitüberschreitung` (Beginn `image_studio_error_timeout`) | 432979 |
+| `Generierung abgebrochen` (`image_studio_error_aborted`) | 433109, 438889 |
+| `nur die letzten %s Bilder` (`image_studio_gallery_cap_hint`) | 433331 |
+
+Der ServerFn des Bild-Pfads steckt ebenfalls im Studio-Chunk:
+`bbc1580306152defaeee8bb8710d483f458ce816801e953366365f7d61ee1468` (Offset 1358).
+
+### 7a.2 `IMAGE_GALLERY_MAX` — Kappung der Galerie (Phase 3.4)
+
+In `/assets/image-studio-DmYlVtMs.js`, Offset **1154** — Konstante und Funktion zusammenhängend,
+die Literal-Zahl `8` ist **inline** (der Bezeichner `IMAGE_GALLERY_MAX` wird erwartungsgemäß
+wegminifiziert, deshalb wird über die Aufrufstellen belegt):
+
+```js
+const j=8;function we(r,a=j){const i=Number.isFinite(a)&&a>0?Math.floor(a):0;
+return r.length<=i?{items:r.slice(),dropped:0}:{items:r.slice(0,i),dropped:r.length-i}}
+```
+
+`j` = `IMAGE_GALLERY_MAX = 8`, `we` = `capGallery`. Semantik im Bundle damit vollständig sichtbar:
+unter dem Limit unverändert (`dropped:0`), ab dem Limit `slice(0,i)` **und** `dropped = r.length-i`.
+
+**Aufrufstellen (Semantik-Nachweis, nicht nur Konstante):**
+
+| # | Verhalten | Nachweis | Offset |
+|---|---|---|---|
+| 1 | Neue Karte wird vorangestellt und die Galerie sofort gekappt | `const B=t=>{w(s=>we([t,...s],j).items),re(s=>s+1)}` | 4772 |
+| 2 | Hinweis-Streifen nur, wenn über dem Limit, mit Zahl aus derselben Konstante | `te>j&&e.jsx("p",{"data-testid":"image-gallery-cap-hint",…children:r.image_studio_gallery_cap_hint.replace("%s",String(j))})` | 10725 / 10891 |
+
+### 7a.3 Gates ohne Deadlock (Phase 3.2)
+
+`/assets/ProtectedRoute-CHnRLhC2.js`: `setTimeout` (Schonfrist, Offset 1303) sowie die Ausweich-UI
+`gate_slow_title` (2311), `gate_slow_text` (2390) und `common_reload` (2668 — „Seite neu laden").
+
+### 7a.4 TikTok ↔ Bild-Studio ohne Datenverlust (Phase 3.3)
+
+In `/assets/tiktok-Dc1OgwIA.js`:
+
+| # | Marker | Nachweis | Offset |
+|---|---|---|---|
+| 1 | Persistenz-Schlüssel + Version + TTL (12 h) | `const ie="growimo_tiktok_last_result",he=1,Fe=720*60*1e3` | 700 |
+| 2 | Gespeicherte Struktur mit Modus/Zeitstempel | `{version:he,mode:t,result:s,savedAt:o}` | 847 |
+| 3 | Router-Link statt Anchor (kein Reload → kein Datenverlust) | `e.jsxs(U,{to:"/app/image-studio",search:Pe(i.studioPrompt),…` | 18299 |
+| 4 | Prefill-Deeplink-Modul `studio-deeplink` | `/assets/studio-deeplink-cxIdefry.js` (`prompt`/`idea`/`fromStrategy` + Fallback-Zweig) | 1 |
+
+`/assets/studio-deeplink-cxIdefry.js` enthält den Prefill-Fallback (C7) vollständig:
+`{prompt:"",strategy:null,fromTikTok:!1}` als letzter Zweig.
+
+### 7a.5 Abgrenzung
+
+Die Marker in 7a.1–7a.4 stammen ausschließlich aus dem Phase-3-Code (Commit `1d35375`): die
+i18n-Schlüssel `image_studio_error_timeout`, `image_studio_error_aborted`, `image_studio_abort`,
+`image_studio_gallery_cap_hint` und `gate_slow_*` wurden in Phase 3 neu angelegt, ebenso
+`capGallery`/`IMAGE_GALLERY_MAX`, der Abort-Watchdog und `growimo_tiktok_last_result`. Vor dem
+Phase-3-Commit existiert keiner dieser Strings im Bundle; ihr gemeinsames Vorkommen im
+ausgelieferten Chunk beweist, dass der Phase-3-Code tatsächlich live ist.
 
 ## 8. Offener Punkt (Owner-Entscheidung, NICHT in Phase 3 umgesetzt)
 

@@ -114,7 +114,7 @@ const ideaResult = {
 } as unknown as Parameters<typeof saveTikTokResult>[1];
 
 async function main(): Promise<void> {
-  const storage = (globalThis as { sessionStorage: MemoryStorage }).sessionStorage;
+  const storage = (globalThis as unknown as { sessionStorage: MemoryStorage }).sessionStorage;
 
   // ── 3.1 Guard: Timeout ────────────────────────────────────────────────────
   {
@@ -140,7 +140,8 @@ async function main(): Promise<void> {
     const out = await settleOutcome(guard.promise);
     check('3.1 „Abbrechen“ settelt die Promise', !out.ok && out.ms < 2_000, `ms=${out.ms}`);
     check('3.1 Abbruch-Grund ist "user"', guard.reason() === 'user');
-    check('3.1 Signal wird an den Aufrufer durchgereicht und abgebrochen', !!seenSignal && (seenSignal as AbortSignal).aborted === true);
+    const seenSig = seenSignal as AbortSignal | null;
+    check('3.1 Signal wird an den Aufrufer durchgereicht und abgebrochen', seenSig !== null && seenSig.aborted === true);
     check('3.1 Fehlertext-Schlüssel = image_studio_error_aborted', imageErrorTextKey('user') === 'image_studio_error_aborted');
     check('3.1 zweiter abort() ist No-op (Grund bleibt "user")', (guard.abort('timeout'), guard.reason() === 'user'));
   }
@@ -152,9 +153,10 @@ async function main(): Promise<void> {
       return Promise.resolve({ url: 'data:image/png;base64,AAAA' });
     }, 5_000);
     const out = await settleOutcome(guard.promise);
-    check('3.1 erfolgreicher Lauf liefert das Ergebnis durch', out.ok && out.value?.url.startsWith('data:image/png'), JSON.stringify(out.value));
+    check('3.1 erfolgreicher Lauf liefert das Ergebnis durch', out.ok && (out.value?.url.startsWith('data:image/png') ?? false), JSON.stringify(out.value));
     check('3.1 erfolgreicher Lauf setzt keinen Abbruchgrund (Timer wird geräumt)', guard.reason() === null);
-    check('3.1 erfolgreicher Lauf bricht das Signal nicht ab', !!signal && (signal as AbortSignal).aborted === false);
+    const okSig = signal as AbortSignal | null;
+    check('3.1 erfolgreicher Lauf bricht das Signal nicht ab', okSig !== null && okSig.aborted === false);
     check('3.1 Timeout-Konstante = 120 s (Messbasis 16–23 s + Reserve)', IMAGE_CLIENT_TIMEOUT_MS === 120_000);
 
     const serverErr = new Error('Monatliches Limit erreicht');
@@ -297,11 +299,11 @@ async function main(): Promise<void> {
     for (const key of required) {
       check(
         `i18n de+en: ${key}`,
-        typeof (de as Record<string, unknown>)[key] === 'string' && typeof (en as Record<string, unknown>)[key] === 'string',
+        typeof (de as unknown as Record<string, unknown>)[key] === 'string' && typeof (en as unknown as Record<string, unknown>)[key] === 'string',
       );
     }
-    check('i18n Timeout-Text enthält den Platzhalter %s', (de as Record<string, string>).image_studio_error_timeout.includes('%s') && (en as Record<string, string>).image_studio_error_timeout.includes('%s'));
-    check('i18n Galerie-Hinweis enthält den Platzhalter %s', (de as Record<string, string>).image_studio_gallery_cap_hint.includes('%s'));
+    check('i18n Timeout-Text enthält den Platzhalter %s', (de as unknown as Record<string, string>).image_studio_error_timeout.includes('%s') && (en as unknown as Record<string, string>).image_studio_error_timeout.includes('%s'));
+    check('i18n Galerie-Hinweis enthält den Platzhalter %s', (de as unknown as Record<string, string>).image_studio_gallery_cap_hint.includes('%s'));
     const dk = Object.keys(de);
     const ek = Object.keys(en);
     check('i18n de/en Parität (gleiche Schlüsselanzahl)', dk.length === ek.length, `de=${dk.length} en=${ek.length}`);
