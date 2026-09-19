@@ -1,0 +1,38 @@
+Stabilisierung Phase 4.2 — Suiten-/Gate-Protokoll (Rohlog-Auszuege)
+Erstellt: 2026-09-19 (Session Engineer), Arbeitsbaum /home/team/shared/site, HEAD d7c73b5
+Neue Phase-4-Suite: stabilisierung-phase4-test.ts
+
+--- Suite phase4 (stabilisierung-phase4-test.ts) — Rohlog /tmp/p42-test.log (60 Zeilen) ---
+PASS: i18n de/en Parität (gleiche Schlüsselanzahl)
+PASS: i18n keine fehlenden Schlüssel
+=== stabilisierung-phase4-test: 50 PASS, 0 FAIL ===
+EXIT=0
+
+--- Suite 31 (usage-guard-test.ts) — Rohlog /tmp/g31.log (58 Zeilen) ---
+=== usage-guard-test: 31 PASS, 0 FAIL ===
+EXIT=0
+
+--- Suite 32 (usage-semantics-test.ts) — Rohlog /tmp/g32.log (56 Zeilen) ---
+=== usage-semantics-test: 32 PASS, 0 FAIL ===
+EXIT=0
+
+--- Suite 55 (tiktok-diagnose-v2-test.ts) — Rohlog /tmp/g55.log (108 Zeilen) ---
+===== ERGEBNIS =====
+PASS: 56  FAIL: 0
+ALLE TESTS BESTANDEN
+EXIT=0
+
+--- Suite 56 (stabilisierung-phase3-test.ts) — Rohlog /tmp/g56.log (88 Zeilen) ---
+PASS: i18n de/en Parität (gleiche Schlüsselanzahl)
+PASS: i18n keine fehlenden Schlüssel
+=== stabilisierung-phase3-test: 85 PASS, 0 FAIL ===
+EXIT=0
+
+--- tsc --noEmit (Rohlog /tmp/tsc-p42.log) ---
+Fehlerzeilen 'error TS': 171  (Baseline Phase 3: 171 — identische Fehlermenge, nur Zeilennummern in src/ai/server.ts 844->855 und src/routes/app/package.tsx 253->259)
+EXIT=2
+
+--- build-vercel.sh (Rohlog /tmp/build-p42.log) ---
+
+done -> .vercel/output ready for: bunx vercel deploy --prebuilt
+EXIT=0

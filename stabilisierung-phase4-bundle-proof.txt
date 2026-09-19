@@ -1,0 +1,31 @@
+Bundle-Beleg Stabilisierung Phase 4.2 (Kontexttreue) — Deploy site-qvvw8v98d-growimo
+Datum: 2026-09-19 · Commit: d7c73b5 · Deployment-ID: G6dYgcWaUw7d8WygjVsyMpUZ3fTq
+Production-URL: https://site-qvvw8v98d-growimo.vercel.app  (Alias: www.growimo.app)
+
+A) SERVER-Bundle (.vercel/output/functions/render.func/index.mjs = ausgelieferte SSR-Funktion)
+   Groesse: 4376492 B · sha256: c94da6135194f934640b28752d21b0a52baaf0546fb8f9e504b7d6f68717281f
+   Marker 'SELF-REF:growimo': 2x, Byte-Offsets [1965530, 4187399]
+   Marker 'KEIN SELBSTBEZUG': 2x, Byte-Offsets [1975951, 4187879]
+   Marker 'CONTEXT_LOYALTY_ERROR': 6x, Byte-Offsets [1976834, 1979852, 2077348, 2078326]
+   Marker 'contextLoyaltyCorrection': 8x, Byte-Offsets [1963264, 1979961, 2077322, 2077847]
+
+   Kontext SELF-REF:growimo (minifizierter/gebundelter Code, +-170 Zeichen):
+   ...ions(text, ctx) {   if (typeof text !== "string" || text.trim() === "")     return [];   if (ctx.allowsGrowimo)     return [];   return GROWIMO_MENTION_RE.test(text) ? ["SELF-REF:growimo"] : []; } function requestLoyaltyViolations(request, text) {   return contextLoyaltyViolations(text, resolveGrowimoContext(request)); } function resultLoyaltyViolations(...
+
+   Hinweis zur Aussagekraft: 'SELF-REF:growimo' und 'KEIN SELBSTBEZUG' existierten vor Phase 4.2
+   nirgends im Repo (Quelltext-Verdrahtung wird von der Suite geprueft); der String kann nur
+   ueber den Commit d7c73b5 in dieses Bundle gelangt sein. Das Server-Bundle ist NICHT minifiziert
+   (bun build ohne --minify), daher bleiben Bezeichner wie CONTEXT_LOYALTY_ERROR erhalten.
+
+B) CLIENT-Bundle: Live-Chunks vs. lokal vorgebautes Artefakt (dist/client/assets)
+   22 von 22 ausgelieferten /assets/*.js sind byte-identisch (sha256) mit dem lokalen Prebuilt-Output.
+   Das belegt: das Deployment ist genau das mit Commit d7c73b5 erzeugte .vercel/output.
+   Live-Marker im Client: /assets/package-DI93-mtW.js enthaelt 'brandContext' (neu in Phase 4.2:
+   die Paket-Route sendet getBrandContext() mit) · sha256 f642376ac46f5624c87223fb9f7aff65186dbf2d1768850b6a1080ae85052f31
+
+C) Live-Check (HTTP) 2026-09-19:
+   200  https://www.growimo.app/
+   200  https://www.growimo.app/app
+   200  https://www.growimo.app/app/tiktok
+   200  https://www.growimo.app/app/image-studio
+   200  https://site-qvvw8v98d-growimo.vercel.app/
