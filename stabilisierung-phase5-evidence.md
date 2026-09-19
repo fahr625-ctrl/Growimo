@@ -138,7 +138,7 @@ Nutzer-Thema (Weihnachts-Pin) nicht in Growimo-Marketing umgedeutet und die Mark
 | E — Idee „Weihnachts-Pin", Markenprofil EIN | **PASS** | weihnachtlicher Pin, 0× „Growimo" im Output trotz aktivem Markenprofil | 2 → 3 |
 
 **Alle drei Läufe: echte UI-Klicks + echte OpenAI-Generierung auf www.growimo.app, Repo-Stand 72fc4cb, kein Deploy, keine Code-Änderung, Owner-Konto unberührt.**
-Tests C/D/F (TikTok, Bild-Studio, Android-Reload) sind **nicht** Teil dieser Delegation und bleiben offen.
+Tests C/D/F (TikTok, Bild-Studio, Android-Reload) waren **nicht** Teil der 5a-Delegation; Teillauf 5b (Test C) und 5c (Tests D/F) sind unten dokumentiert.
 
 **Neue UX-/Produktfunde aus diesem Lauf (für die 8.4d-Sammlung, ohne Fix in diesem Auftrag):**
 1. (P3) Usage-Banner aktualisiert sich nach einer abgeschlossenen Generierung nicht (zeigt „5 von 5", obwohl serverseitig 1 verbraucht ist); erst Routenwechsel/Fokus lädt neu.
@@ -158,3 +158,33 @@ sowie die fünf Screenshots `e2e-testA-01-brandprofil-ein.png`, `e2e-testA-02-er
 **Reproduktion:** Hilfsskripte (untracked): `scripts/_abnahme-setup.ts` (synthetischer Clerk-User + Beta-Approval + Sign-in-Token),
 `scripts/_abn-usage.ts` (DB-Zähler), Poll-/Extraktions-JS unter `/tmp` (Marker-Erkenntnis: `span.textContent` liefert „Generiert",
 `innerText` „GENERIERT" — Poll **immer** auf `textContent === "Generiert"`, sonst läuft die Schleife bis zum Timeout).
+
+---
+
+## Teillauf 5b — Test C: TikTok-Konzept (2 Generierungen) — PASS
+
+Konto: synthetisches Pro-Konto **E2E CDBot** (Clerk `user_3JZ1X21pNidksnLIqznjqXzGQoN`, `subscriptions.plan_tier=pro`, `status=active`),
+Live-App `https://www.growimo.app/app/tiktok`, Repo-Stand 90b0ab5, echte UI-Klicks + echte LLM-Generierung, kein Deploy, keine Code-Änderung.
+
+| Lauf | Eingabe (Was machst/verkaufst du) | Ergebnis-Marker | Assertions | DB-Zähler (`usage_monthly.count`) nach dem Lauf |
+|---|---|---|---|---|
+| C1 | „personalisierte Tasse" | h2 **„Video-Idee"** vorhanden, 17 Ergebnisfelder, Textlänge 6802 | **15/15 Checks true**, 4 Hashtags, Zeitmarken vorhanden | 1 |
+| C2 | „minimalistischer Schmuck" (+ Thema „minimalistischer Schmuck") | h2 **„Video-Idee"** vorhanden, Textlänge 8683 | **15/15 Checks true**, 5 Hashtags, 5 Zeitmarken (0-2s / 2-6s / 6-10s / 10-12s / 12-15s), 0 Platzhalter, 0 Filler | 2 |
+
+Geprüfte Marker (je Lauf): Hook, Scroll-Stop-Moment, Szenenplan mit ≥2 Zeitangaben, Texteinblendungen, Sprechtext/Voice-over,
+Spannungsbogen, Caption, Hashtags (≤5), Videolänge, Video-Format, keine `[…]`-Platzhalter, keine Filler-Formulierungen
+(„hier einfügen", „Sound einfügen" …), „Warum"-Erklärung, Bild-/Videoideen fürs Studio, Aufnahme-Anleitung.
+Rohwerte: `e2e-testC-assertions.txt` (vollständige Check-Liste + Fakten) und die per JS aus der Ergebniskarte extrahierten
+`innerText`-Fassungen `e2e-testC-content-01-tasse.json` / `e2e-testC-content-02-schmuck.json`.
+Die Konzepte sind konkret filmbar (C2: Szene 0-2s Hook „So stylst du deinen Alltag!", 12-15s finaler Look im Spiegel,
+Videolänge 15 Sekunden, Titel „3 Schmuckstücke für den perfekten Look", CTA „Wie stylst du deinen Alltag?"),
+ohne erfundene Nutzerzahlen oder Testimonials.
+
+**Ergebnis: Test C = PASS** (2/2 Konzepte inhaltlich vollständig, je 1 Generierung pro Konzept, kein Retry-Verbrauch).
+
+**Wiederholter UX-Fund (P3, bereits aus 5a bekannt — Fund 1):** Der Usage-Banner der Werkstatt zeigte nach **beiden**
+Generierungen unverändert „200 von 200 Generierungen verbleibend", obwohl der DB-Zähler danach 2 war; korrekt lädt die
+Anzeige erst bei Seitenwechsel/Reload. Direkt nach einer Generierung ist die Rest-Anzeige also irreführend hoch.
+
+**Screenshots:** `e2e-testC-01-werkstatt-pro.png` (Werkstatt als Pro-Konto, Banner-Stand, Eingabefelder),
+`e2e-testC-03-ergebnis-schmuck.png` (C2-Ergebnis mit h2 „Video-Idee").
