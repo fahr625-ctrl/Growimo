@@ -15,6 +15,14 @@ export interface ContentRequest {
   productIdea: string;
   tone?: string;
   additionalContext?: string;
+  /**
+   * Phase 4.2 (Stabilisierung) — interner Korrektur-Hinweis für den EINEN
+   * wiederholten Versuch nach einem Kontexttreue-Verstoß (unbegründete
+   * Growimo-Selbstthematisierung). Wird ausschließlich serverseitig von
+   * `ai/generate.ts` gesetzt und im User-Prompt als harte Regel gerendert —
+   * NICHT von der UI/den Server-Fn-Validatoren durchgereicht.
+   */
+  correctionNote?: string;
 }
 
 export interface ContentResult {

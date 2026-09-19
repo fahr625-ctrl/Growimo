@@ -41,11 +41,15 @@ export async function generatePackageChannel(
   briefContext?: string,
   perfContext?: string,
   learnContext?: string,
+  /** Phase 4.2 — MARKENKONTEXT-Block (leer bei AUSgeschaltetem Profil). */
+  brandContext?: string,
 ): Promise<ContentResult> {
   const request: ContentRequest = {
     contentType,
     productIdea,
-    additionalContext: [kernelContext(kernel), briefContext, perfContext, learnContext].filter(Boolean).join('\n\n'),
+    additionalContext: [kernelContext(kernel), brandContext, briefContext, perfContext, learnContext]
+      .filter(Boolean)
+      .join('\n\n'),
   };
   const { generateContent } = await import('../generate');
   return generateContent(request);

@@ -22,6 +22,7 @@ import { trackEvent } from '~/store/analytics';
 import { trackAnalytics } from '~/lib/analytics-client';
 import { track } from '~/lib/tracking-client';
 import { resolveInitialIdea } from '~/lib/idea-priority';
+import { getBrandContext } from '~/store/brand';
 
 export const Route = createFileRoute('/app/package')({
   // Phase 1 (C3): optionales ?idea= (frische Nutzeridee) — schlägt den Entwurf.
@@ -197,8 +198,13 @@ function PackageContent() {
     try {
       // 1. Shared kernel + combined context (F6 Brief wird durchgereicht) —
       //    EIN schneller LLM-Call, der die Ergebnisansicht sofort aufmacht.
+      // Phase 4.2 (C1/C2) - das Paket bekommt denselben Marken-Kontext- und
+      // Vorrang-Rahmen wie die Einzel-Kanaele: Markenfakten sind Stil-/Fakten-
+      // rahmen, das Nutzerthema bleibt der Gegenstand. AUSgeschaltetes Profil
+      // => getBrandContext() liefert '' (keine Wirkung).
+      const packageBrandContext = getBrandContext();
       const prep = (await fetchPackageKernelServer({
-        data: { productIdea, lang: locale, brief },
+        data: { productIdea, lang: locale, brief, brandContext: packageBrandContext },
       })) as unknown as PreparedPackage;
       const seed: MarketingPackage = {
         kernel: prep.kernel,
@@ -217,7 +223,7 @@ function PackageContent() {
         CHANNEL_META.map(async ({ key, contentType }) => {
           try {
             const res = (await generatePackageChannelServer({
-              data: { productIdea, contentType, context: prep.context },
+              data: { productIdea, contentType, context: prep.context, brandContext: packageBrandContext },
             })) as ContentResult;
             acc[key] = res;
           } catch (err) {

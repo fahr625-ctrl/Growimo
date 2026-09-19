@@ -792,7 +792,7 @@ export const generatePackageServer = createServerFn({ method: 'POST' })
 //   3. finalizePackagePrioritiesServer → deterministic F3 prioritization.
 export const fetchPackageKernelServer = createServerFn({ method: 'POST' })
   .validator((input: unknown) => {
-    const d = input as { productIdea?: unknown; lang?: unknown; brief?: unknown; userId?: unknown };
+    const d = input as { productIdea?: unknown; lang?: unknown; brief?: unknown; userId?: unknown; brandContext?: unknown };
     if (!d || typeof d !== 'object') throw new Error('data is required');
     if (typeof d.productIdea !== 'string' || !d.productIdea.trim()) throw new Error('productIdea is required');
     let brief: Record<string, string> | null = null;
@@ -808,6 +808,11 @@ export const fetchPackageKernelServer = createServerFn({ method: 'POST' })
       lang: (d.lang === 'en' ? 'en' : 'de') as 'de' | 'en',
       brief,
       userId: typeof d.userId === 'string' && d.userId ? d.userId : undefined,
+      // Phase 4.2 — Markenrahmen (client-seitig gebaut; leer = kein Profil/AUS).
+      brandContext:
+        typeof d.brandContext === 'string' && d.brandContext.trim()
+          ? d.brandContext.slice(0, 8000)
+          : undefined,
     };
   })
   .handler(async ({ data }) => {
@@ -825,20 +830,26 @@ export const fetchPackageKernelServer = createServerFn({ method: 'POST' })
       lang: data.lang,
       brief: data.brief,
       userId,
+      brandContext: data.brandContext, // Phase 4.2 — gleiches Kontext-Modell wie Einzel-Kanäle
     });
   });
 export const generatePackageChannelServer = createServerFn({ method: 'POST' })
   .validator((input: unknown) => {
-    const d = input as { productIdea?: unknown; contentType?: unknown; context?: unknown };
+    const d = input as { productIdea?: unknown; contentType?: unknown; context?: unknown; brandContext?: unknown };
     if (!d || typeof d !== 'object') throw new Error('data is required');
     if (typeof d.productIdea !== 'string' || !d.productIdea.trim()) throw new Error('productIdea is required');
     const ct = d.contentType;
     const allowed: ContentType[] = ['pinterest_pin', 'etsy_listing', 'seo_blog', 'social_post', 'email_newsletter'];
     if (typeof ct !== 'string' || !(allowed as string[]).includes(ct)) throw new Error('contentType is required');
+    // Phase 4.2 — Markenrahmen der Kanäle (kommt aus dem Kernel-Prep; der
+    // Client schickt ihn erneut mit, damit er auch bei direktem Kanal-Aufruf
+    // gilt). Leer = kein Markenprofil aktiv.
+    const brandContext =
+      typeof d.brandContext === 'string' && d.brandContext.trim() ? d.brandContext.slice(0, 8000) : '';
     return {
       productIdea: d.productIdea.trim(),
       contentType: ct as ContentType,
-      context: typeof d.context === 'string' ? d.context : '',
+      context: [brandContext, typeof d.context === 'string' ? d.context : ''].filter(Boolean).join('\n\n'),
     };
   })
   .handler(async ({ data }) => {

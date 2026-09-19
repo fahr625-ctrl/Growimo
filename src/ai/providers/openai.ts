@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import type { AIProvider, AIConfig, ContentRequest, ContentResult, ContentType } from '../types';
+import { SELF_REFERENCE_CONSTRAINT } from '../context-loyalty';
 
 const NO_INVENT_CONSTRAINT = `⚠️ WICHTIG: Verwende AUSSCHLIESSLICH die vom Nutzer bereitgestellten Produktinformationen. Erfinde KEINE Größen, Materialien, Preise, Farben, Versanddetails oder andere Produktspezifikationen, die nicht in den Produktdetails genannt werden. Wenn eine Information nicht verfügbar ist, formuliere allgemein oder lasse sie weg — aber erfinde sie nicht.`;
 
@@ -781,7 +782,11 @@ export function parseResponse(contentType: ContentType, text: string): ContentRe
  */
 export function buildSystemPrompt(contentType: ContentType): string {
   const base = SYSTEM_PROMPTS[contentType] ?? '';
-  return `${base}\n${USER_PRIORITY_CONSTRAINT}`;
+  // Phase 4.2 (C1/C2): ZUSÄTZLICH der Selbstbezug-Bann — Growimo (die App) ist
+  // nur Inhalt, wenn der Nutzer es als Thema nennt oder das Profil eindeutig
+  // Growimo ist. Gilt für JEDEN Kanal, den dieser Provider bedient (auch
+  // Paket-Flow und Strategie-Stream, die dieselbe Funktion nutzen).
+  return `${base}\n${USER_PRIORITY_CONSTRAINT}\n${SELF_REFERENCE_CONSTRAINT}`;
 }
 
 /**
@@ -792,6 +797,11 @@ export function buildSystemPrompt(contentType: ContentType): string {
  */
 export function buildUserPrompt(req: ContentRequest): string {
   let userPrompt = `Produktidee: ${req.productIdea}`;
+  // Phase 4.2 — Korrektur-Hinweis des wiederholten Versuchs: steht VOR dem
+  // Zusatzkontext, damit er nicht als Produktdetail missverstanden wird.
+  if (req.correctionNote) {
+    userPrompt += `\n\n${req.correctionNote}`;
+  }
   if (req.additionalContext) {
     userPrompt += `\n\nProduktdetails:\n${req.additionalContext}`;
   }

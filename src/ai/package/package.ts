@@ -46,6 +46,14 @@ export interface PackageOptions {
    * channel generation. Empty when no performance data exists yet.
    */
   userId?: string;
+  /**
+   * Phase 4.2 (C1/C2): MARKENKONTEXT-Block des Markenprofils (client-seitig via
+   * getBrandContext() gebaut, leer bei AUSgeschaltetem Profil). Das Paket hatte
+   * bisher KEINEN Markenrahmen — jetzt bekommt es denselben Kontext- und
+   * Vorrang-Modell wie Einzel-Kanäle und Strategie-Stream: Markenfakten sind
+   * Stil-/Faktenrahmen, das Nutzerthema bleibt der Gegenstand.
+   */
+  brandContext?: string;
 }
 
 /**
@@ -132,6 +140,7 @@ export async function generateMarketingPackage(
                 briefContext,
                 perfContext,
                 learnContext,
+                opts.brandContext,
               ),
           );
         } else {
@@ -142,6 +151,7 @@ export async function generateMarketingPackage(
             briefContext,
             perfContext,
             learnContext,
+            opts.brandContext,
           );
         }
       } catch (err) {
@@ -219,7 +229,11 @@ export async function preparePackageContext(
       learnContext = '';
     }
   }
-  const context = [kernelContext(kernel), briefContext, perfContext, learnContext]
+  // Phase 4.2: Markenrahmen (falls Profil aktiv) direkt hinter dem Kernel —
+  // gleiches Vorrang-Modell wie bei den Einzel-Kanälen (Nutzerthema bestimmt
+  // den Inhalt, der Markenblock liefert nur Tonalität/Fakten).
+  const brandContext = typeof opts.brandContext === 'string' ? opts.brandContext.trim() : '';
+  const context = [kernelContext(kernel), brandContext, briefContext, perfContext, learnContext]
     .filter(Boolean)
     .join('\n\n');
   return { kernel, kernelFallback, lang, context };
