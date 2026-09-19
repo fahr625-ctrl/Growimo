@@ -2,6 +2,7 @@ import { useAuth } from "@clerk/clerk-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { isClerkConfigured } from "~/auth/middleware";
 import { useTranslation } from "~/i18n";
+import { isBfcacheReturn } from "~/lib/navigation-lifecycle";
 
 /** Phase 3.2 (C6) — Clerk-Initialisierung (`!isLoaded`) hatte KEIN Timeout:
  *  blieb `isLoaded` aus (hängender Clerk-Bootstrap, offline, blockierter
@@ -48,6 +49,20 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
     const id = setTimeout(() => setSlowLoad(true), AUTH_LOAD_TIMEOUT_MS);
     return () => clearTimeout(id);
   }, [isLoaded]);
+
+  // Phase 4.1 (C6) — bfcache-Rückkehr: kommt die Seite aus dem Back/Forward-Cache
+  // zurück, ist ein zuvor gesetzter Zeitüberschreitungs-Hinweis veraltet — er darf
+  // nach einem Zurück-Sprung nicht sichtbar „kleben“ bleiben. Der Gate-Zustand der
+  // Layout-Ebene bleibt dabei erhalten (dortiges pageshow-Handling); hier wird nur
+  // der Hinweis zurückgesetzt, ohne Clerk neu zu prüfen.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (isBfcacheReturn(event)) setSlowLoad(false);
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 
   if (!isLoaded) {
     return (

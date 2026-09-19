@@ -8,6 +8,13 @@ import FeedbackButton from "~/components/FeedbackButton";
 import { ensureUser } from "~/store/projects";
 import { OWNER_USER_ID } from "~/lib/tracking";
 import { UsageStatus } from "~/components/UsageStatus";
+import {
+  readBetaAccessCache,
+  writeBetaAccessCache,
+  clearBetaAccessCache,
+  shouldKeepBetaState,
+  shouldRecheckOnReturn,
+} from "~/lib/navigation-lifecycle";
 
 export const Route = createFileRoute("/app")({
   component: AppLayout,
@@ -55,8 +62,22 @@ function AppLayout() {
     // Nur setzen, solange wir noch im 'checking'-Zustand sind — ein später
     // gesetztes Ergebnis (z. B. verspätete Antwort nach Cleanup) darf einen
     // bereits erreichten Zustand nicht überschreiben.
-    const settle = (v: 'approved' | 'denied' | 'error') =>
+    const settle = (v: 'approved' | 'denied' | 'error') => {
       setBeta((prev) => (prev === 'checking' ? v : prev));
+      // Phase 4.1 (C6) — bestätigte Freischaltung kurz spiegeln, damit Reload
+      // und Zurück-Navigation die App sofort zeigen statt erneut „Lädt...“.
+      // `denied`/`error` werden bewusst NICHT gecacht (kein Festhängen auf der
+      // Warteliste, wenn der Owner zwischenzeitlich freischaltet).
+      if (v === 'approved') writeBetaAccessCache(email, 'approved');
+      if (v === 'denied') clearBetaAccessCache();
+    };
+    // Phase 4.1 (C6) — Reload/Zurück-Szenario: lag für genau diese E-Mail ein
+    // frischer, bestätigter Zustand vor, wird er ohne erneuten Netzwerk-Check
+    // übernommen (kein Spinner, keine Lade-Schleife).
+    if (readBetaAccessCache(email) === 'approved') {
+      settle('approved');
+      return;
+    }
     // Phase 3.2 (C6) — kein Dauer-„Lädt...“ mehr:
     // (i) `email` ist bei isSignedIn kurzzeitig leer (Clerk-Session noch nicht
     //     vollständig). Statt für immer in 'checking' zu hängen, gibt es eine
@@ -96,6 +117,27 @@ function AppLayout() {
     setBeta("checking");
     setCheckVersion(v => v + 1);
   };
+
+  // ── Phase 4.1 (C6/A7) — bfcache-Rückkehr (Android: Zurück/Vor, Tab-Wechsel) ──
+  // Kommt die Seite aus dem Back/Forward-Cache zurück, ist der Zustand bereits
+  // geprüft: `approved` bleibt `approved`, es wird NICHT neu geprüft (kein
+  // Spinner, kein erneuter Netzwerk-Call). Ausnahme: ein während des Einfrierens
+  // abgelaufener Timeout kann fälschlich `error` gesetzt haben — dann genau
+  // einmal neu prüfen statt einen Fehlerbildschirm zu zeigen.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!shouldKeepBetaState(event)) return;
+      // Kein verschachteltes setState (StrictMode-sicher): der Effekt oben hat
+      // `beta` in den Dependencies und läuft durch den Wechsel auf 'checking'
+      // automatisch erneut — ein eigener Versionszähler ist nicht nötig.
+      setBeta((prev) =>
+        prev !== "approved" && shouldRecheckOnReturn(event, prev) ? "checking" : prev,
+      );
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 
   // Ensure a `users` row exists in PostgreSQL for the signed-in Clerk user.
   // Only runs once the user's email is confirmed beta-approved.
