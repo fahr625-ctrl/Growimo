@@ -11,13 +11,22 @@ import { generateTikTokServer } from '~/ai/server';
 import { pickTodayIdeaDirection } from '~/lib/tiktok-directions';
 import { studioSearch } from '~/lib/studio-deeplink';
 import { clearTikTokResult, readTikTokResult, saveTikTokResult } from '~/lib/last-result';
+// Phase 4.3 — „Zuletzt erstellt": versionierte Liste (max. 3) mit Wiederöffnen
+// und „In Projekt speichern" (beides ohne neue Generierung).
+import {
+  buildTikTokSaveArgs,
+  pushRecentResult,
+  readRecentList,
+  type TikTokRecentEntry,
+} from '~/lib/tiktok-recent';
+import { timeAgo } from '~/lib/date';
 import {
   getBrandProfile,
   getBrandContext,
   isBrandProfileComplete,
   type BrandProfile,
 } from '~/store/brand';
-import { getRecentProjects, type Project } from '~/store/projects';
+import { getRecentProjects, saveProject, type Project } from '~/store/projects';
 import { buildTikTokProjectContext } from '~/lib/tiktok-project-context';
 import { buildTikTokRecordingPlan } from '~/ai/action-plans/tiktok-recording';
 import { guardTikTokRun } from '~/lib/tiktok-safeguards';
@@ -498,6 +507,16 @@ function TikTokContent() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  // Phase 4.3 — die letzten 3 erzeugten Ergebnisse (versioniert im sessionStorage).
+  // Jeder Eintrag ist ohne neue Generierung wiederöffenbar (0 Verbrauch) und über
+  // den vorhandenen saveProject-Weg in ein Projekt speicherbar (0 Verbrauch).
+  const [recent, setRecent] = useState<TikTokRecentEntry[]>([]);
+  const [openedRecentId, setOpenedRecentId] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<{
+    id: string;
+    status: 'saving' | 'saved' | 'error';
+  } | null>(null);
+  const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
 
   useEffect(() => {
     track('tiktok_area_opened', user?.id);
@@ -519,6 +538,9 @@ function TikTokContent() {
       setResult(restored.result);
       setActiveMode(restored.mode);
     }
+    // Phase 4.3 — „Zuletzt erstellt"-Liste laden (liest nur sessionStorage,
+    // migriert einmalig das Phase-3-Einzelergebnis, wenn die Liste leer ist).
+    setRecent(readRecentList());
   }, []);
 
   /** Phase 1 — explizite Übernahme der Markenprofil-Fakten in die Formularfelder. */
@@ -677,6 +699,17 @@ function TikTokContent() {
       // damit es Bereichswechsel/Zurück/Reload überlebt (keine erneute,
       // kostenpflichtige Generierung nötig).
       saveTikTokResult(res.mode, res);
+      // Phase 4.3 — zusätzlich in die versionierte „Zuletzt erstellt"-Liste
+      // (Position 0, Kappung auf 3). Der Produktbezug stammt AUSSCHLIESSLICH aus
+      // der echten Eingabe (Feld/Thema/Projekt) — nie erfunden, darf leer sein.
+      setRecent(
+        pushRecentResult(
+          res.mode,
+          res,
+          biz.trim() || topic.trim() || selectedProject?.productIdea?.trim() || '',
+        ),
+      );
+      setOpenedRecentId(null);
       if (res.mode !== 'diagnose') pushTikTokHistory(res.hook);
       if (mode === 'todayIdea' || (mode === 'concept' && !topic.trim())) {
         // Client und Engine nutzen dieselbe deterministische Funktion → die hier
@@ -711,7 +744,49 @@ function TikTokContent() {
     setMinimalQuery(null);
     setMinimalError(null);
     // Phase 3.3b — bewusster „Neue Session“-Klick räumt auch die Persistenz.
+    // Phase 4.3 — die „Zuletzt erstellt"-Liste bleibt ABSICHTLICH erhalten
+    // (Anforderung: Ergebnisse behalten); nur die aktuelle Ansicht wird geleert.
     clearTikTokResult();
+    setOpenedRecentId(null);
+  };
+
+  /**
+   * Phase 4.3 — ein früheres Ergebnis wieder ÖFFNEN: rendert das gespeicherte
+   * Ergebnis aus dem sessionStorage. KEIN Server-/KI-Aufruf, kein
+   * generateTikTokServer → keine Generierung wird verbraucht (Zähl-Semantik
+   * Phase 8.2: nur eine echte Generierung zählt). Der Phase-3-Spiegel wird
+   * mitgezogen, damit Bild-Studio-Prefill und angezeigtes Ergebnis zusammenpassen.
+   */
+  const openRecent = (entry: TikTokRecentEntry) => {
+    setResult(entry.result);
+    setActiveMode(entry.mode);
+    setErrorMessage(null);
+    setMinimalQuery(null);
+    setMinimalError(null);
+    setMetricErrors({});
+    setOpenedRecentId(entry.id);
+    saveTikTokResult(entry.mode, entry.result);
+  };
+
+  /**
+   * Phase 4.3 — „In Projekt speichern" über den VORHANDENEN saveProject-Weg
+   * (Muster QuickGenerator.tsx:298-333): kein DB-Schema-Eingriff, kein
+   * ContentType-Eingriff (TikTok wird als 'social_post' gespeichert, die
+   * Herkunft steht im Asset-Metadata). Zähl-Semantik (Phase 8.2): reiner
+   * Postgres-Schreibvorgang, KEIN KI-Pfad → 0 Generierungen verbraucht.
+   */
+  const saveRecentToProject = async (entry: TikTokRecentEntry) => {
+    const uid = user?.id ?? 'anonymous';
+    setSaveState({ id: entry.id, status: 'saving' });
+    try {
+      const args = buildTikTokSaveArgs(entry, uid, t);
+      const saved = await saveProject(uid, args.project, args.contents);
+      setSavedProjectId(saved.id);
+      setSaveState({ id: entry.id, status: 'saved' });
+    } catch (err) {
+      console.error('[tiktok] saveProject failed:', err);
+      setSaveState({ id: entry.id, status: 'error' });
+    }
   };
 
   /** Minimal-Abfrage absenden: fehlendes Pflichtfeld (Produkt/Angebot) muss
@@ -828,6 +903,80 @@ function TikTokContent() {
             </Link>
           </span>
         </div>
+      )}
+
+      {/* Phase 4.3 — „Zuletzt erstellt": max. 3 gespeicherte Ergebnisse.
+          Öffnen rendert das gespeicherte Ergebnis (keine Generierung) und
+          Speichern nutzt den vorhandenen saveProject-Weg (keine Generierung). */}
+      {recent.length > 0 && (
+        <section
+          data-testid="tiktok-recent"
+          className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
+        >
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-bold text-gray-900">{t.tiktok_recent_title}</h2>
+            <span className="max-w-xl text-xs text-gray-500">{t.tiktok_recent_hint}</span>
+          </div>
+          <ul className="mt-3 space-y-2">
+            {recent.map((entry) => (
+              <li
+                key={entry.id}
+                data-testid="tiktok-recent-item"
+                className="flex flex-col gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-gray-900">{entry.label}</p>
+                  <p className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                    <span className="rounded-full bg-cyan-50 px-2 py-0.5 font-semibold text-cyan-700">
+                      {entry.mode === 'diagnose'
+                        ? t.tiktok_recent_mode_diagnose
+                        : entry.mode === 'concept'
+                          ? t.tiktok_recent_mode_concept
+                          : t.tiktok_recent_mode_today}
+                    </span>
+                    <span>{timeAgo(new Date(entry.savedAt), t, locale)}</span>
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    data-testid="tiktok-recent-open"
+                    disabled={loading}
+                    onClick={() => openRecent(entry)}
+                    className="rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 transition hover:bg-gray-100 disabled:opacity-60"
+                  >
+                    {openedRecentId === entry.id ? t.tiktok_recent_open_active : t.tiktok_recent_open}
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="tiktok-recent-save"
+                    disabled={loading || (saveState?.id === entry.id && saveState.status === 'saving')}
+                    onClick={() => void saveRecentToProject(entry)}
+                    className="rounded-xl bg-violet-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-violet-700 disabled:opacity-60"
+                  >
+                    {saveState?.id === entry.id && saveState.status === 'saving'
+                      ? t.tiktok_recent_saving
+                      : saveState?.id === entry.id && saveState.status === 'saved'
+                        ? `✓ ${t.tiktok_recent_saved}`
+                        : t.tiktok_recent_save}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          {saveState?.status === 'error' && (
+            <p className="mt-2 text-xs font-semibold text-red-600">{t.tiktok_recent_save_error}</p>
+          )}
+          {savedProjectId && (
+            <Link
+              to="/app/projects/$projectId"
+              params={{ projectId: savedProjectId }}
+              className="mt-3 inline-flex text-sm font-semibold text-blue-700 underline hover:text-blue-900"
+            >
+              {t.results_view_project}
+            </Link>
+          )}
+        </section>
       )}
 
       {/* Gezielte Minimal-Abfrage (Phase 1): erscheint statt des generischen
