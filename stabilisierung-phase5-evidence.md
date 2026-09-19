@@ -145,6 +145,11 @@ Tests C/D/F (TikTok, Bild-Studio, Android-Reload) sind **nicht** Teil dieser Del
 2. (P3) Bei Markenprofil mit nur Name+Website erfindet das Modell eine Produkt-Identität (Growimo als „Produktivitäts-Tool", Pin-Kategorie „Technologie") — nicht durch Profilfakten gedeckt (keine Zahlen erfunden, Metric-Guard hält).
 3. (P2, kein Fehler, aber Copy) Alle drei Pinterest-Ergebnisse öffnen mit dem identischen Hype-Muster „… lieben gerade ALLE …" (Test A/E) bzw. „…musst du besuchen" (B) und landen exakt bei Score 84/100 (A/B) bzw. 85/100 (E) — Titel/Keywords-Scores identisch (89/66). Über Tests hinweg wirkt der Generator templatig; kein Abnahmekriterium verletzt, aber Diversität zwischen Läufen ist gering.
 
+**Hinweis zur Screenshot-Aussage:** Die Beleg-Screenshots zeigen den oberen Viewport der jeweiligen Live-Seite
+(Toggle-Zustand inkl. Badge „Markenprofil aktiv/aus", das Ideenfeld mit der Testeingabe und den Zähler im Header);
+die Ergebnis-Karte liegt darunter („unter dem Falz") und wurde nicht mitgescrollt. Die inhaltlichen Assertions stützen sich
+deshalb auf die per JS aus der gerenderten Ergebniskarte extrahierten `innerText`-Fassungen (`e2e-test*-content.json`), nicht auf die Pixel.
+
 **Rohdaten (im Team-Share abgelegt):** `/home/team/shared/e2e-testA-content.json`, `e2e-testB-content.json`,
 `e2e-testE-content.json` (jeweils die per JS aus der Ergebniskarte extrahierte `innerText`-Fassung des generierten Contents)
 sowie die fünf Screenshots `e2e-testA-01-brandprofil-ein.png`, `e2e-testA-02-ergebnis.png`,
