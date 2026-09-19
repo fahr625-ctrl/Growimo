@@ -158,3 +158,33 @@ Vollständig in `/home/team/shared/stabilisierung-phase4-bundle-proof.txt`. Kern
 - Keine DB-Schreibvorgänge, keine Migration, keine neuen Env-Variablen.
 - Keine erfundenen Leistungsdaten/Testimonials — die neue Regel verbietet zusätzlich den
   Growimo-Selbstbezug ohne Nutzer-/Profilbezug.
+
+## 9. Teil 4.1 — Navigation/History (nachgezogen, Commit 1ee095d)
+
+**Umfang:** bfcache-/Reload-Verhalten des Beta-Gates, ohne neue UI-Strings (i18n unberührt).
+
+| Datei | Änderung |
+|---|---|
+| `src/lib/navigation-lifecycle.ts` **(neu)** | reines, testbares Modul: `isBfcacheReturn()`, `shouldKeepBetaState()`, `shouldRecheckOnReturn()`, `encodeBetaAccessEntry()`/`decodeBetaAccessEntry()` (Version + E-Mail + TTL), `readBetaAccessCache()`/`writeBetaAccessCache()`/`clearBetaAccessCache()` — alle Speicherzugriffe gekapselt und fehlertolerant (SSR/private mode). Nur `approved` wird gecacht, `denied` nie. TTL 5 min, Schlüssel `growimo_beta_access_v1`. |
+| `src/routes/app.tsx` | Gate übernimmt einen frischen `approved`-Eintrag **vor** dem Netzwerk-Check (kein Spinner bei Reload/Zurück); schreibt den Zustand bei `approved`, räumt ihn bei `denied` auf. Neuer `pageshow`-Listener: bei `persisted === true` bleibt `approved` erhalten (keine Neu-Prüfung), nur ein fälschlich gesetztes `error` wird genau einmal neu geprüft — bewusst ohne verschachteltes `setState`. |
+| `src/components/ProtectedRoute.tsx` | `pageshow`/`persisted`-Guard setzt den Langsam-Lade-Hinweis zurück, damit er nach einem Zurück-Sprung nicht sichtbar stehen bleibt. Phase-3.2-Timeout (12 s) unverändert. |
+| `stabilisierung-phase41-test.ts` **(neu)** | 47 Prüfungen: Lifecycle-/Cache-Semantik (TTL-Grenze, Fremd-E-Mail, Zukunft, defektes JSON, Version, `denied` nie) + Quelltext-Verdrahtung beider Komponenten + Nachweis, dass keine `<a href="/app…">`-Sprünge mehr existieren. |
+
+**Gates (Teil 4.1):**
+- Neue Suite `stabilisierung-phase41-test.ts`: **47 PASS, 0 FAIL, EXIT 0** (Log `/tmp/p41-test.log`).
+- Regression: Phase-3-Suite 56 **85 PASS, 0 FAIL, EXIT 0**; Phase-4-Suite **50 PASS, 0 FAIL, EXIT 0**;
+  Suite 31 (usage-guard) im Kombi-Lauf; `bunx tsc --noEmit` **171 = Baseline** (0 neue, auch nicht in
+  den neuen Dateien).
+- **Build: EXIT 0**, **Deploy: EXIT 0** → **`https://site-2we79tehq-growimo.vercel.app`**
+  (Inspect `GuH3h8qEL2CZVC4S75RxToEj1ega`), Alias `www.growimo.app`.
+- **Live-Check (200):** `www.growimo.app/` · `/app` · `/app/tiktok` · `/app/image-studio`.
+
+**Bundle-Beleg 4.1 (live, über HTTP abrufbar — stärker als bei 4.2):** Der durch diesen Commit neu
+entstandene Lazy-Chunk `/assets/navigation-lifecycle-7427tQrj.js` wird von
+`site-2we79tehq-growimo.vercel.app` **und** `www.growimo.app` mit **HTTP 200** ausgeliefert, enthält
+den neuen Cache-Schlüssel `growimo_beta_access_v1` (Offset 9) und ist **sha256-identisch**
+(`7cc0c7991a1cb33f…`) mit dem lokal aus `1ee095d` gebauten Chunk. Ein Chunk dieses Namens existierte
+vor 4.1 nicht.
+
+**4.3 („Zuletzt erstellt"-Liste in der TikTok-Werkstatt) wurde NICHT begonnen** — das Budget der
+Session endete hier. Der Fix-Plan-Abschnitt 4.3 und die Vorarbeit in Abschnitt 5 bleiben gültig.
