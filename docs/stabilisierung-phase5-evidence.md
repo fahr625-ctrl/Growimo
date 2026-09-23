@@ -231,3 +231,94 @@ Die vollständigen Laufprotokolle (jeder Schritt, jede Poll-Zeile, jeder Zähler
 Kernbelege Test D (aus dem Protokoll): Studio-Prompt kommt aus der **sessionStorage-Persistenz** des TikTok-Ergebnisses (Phase 3.3b),
 Studio öffnet mit vorbefülltem Prompt (111 Zeichen), Zähler-Banner im Studio **„198 von 200"** (= C verbraucht 2), Bild 1 wurde erzeugt (Galerie `IMGS=1`), keine Fehler-/Timeout-Banner, kein Dauer-„Generiert…".
 **Hinweis für den Lead:** Für D und F lag am Ende des Zeitbudgets dieser Session kein vollständig abgeschlossener Protokolllauf vor (D war beim Stand „Bild 1 erzeugt, Zurück/Vorwärts + Bild 2/3 offen", F noch nicht gestartet). Die Tests sind mit `bash /tmp/df-test.sh` (Protokoll `/tmp/df-run.log`) reproduzierbar; die Skripte (`/tmp/df-test.sh`, `/tmp/poll_img.js`, `/tmp/img_state.js`) liegen im Arbeitsverzeichnis und sind im Rohlog dokumentiert.
+
+---
+## Teillauf 5c — Test D: Bild-Studio (Prompt-Vorbefüllung, Galerie, Rückweg) — **TEILWEISE**
+Konto: synthetisches Pro-Konto **E2E CDBot** (Clerk `user_3JZ1X21pNidksnLIqznjqXzGQoN`, `subscriptions.plan_tier=pro`, `status=active`),
+Live-App `https://www.growimo.app`, Repo-Stand 90b0ab5 / 11b5c95, echte UI-Klicks + echte OpenAI-Bildgenerierung, kein Deploy, keine Code-Änderung.
+**Szenario (aus den Rohdaten rekonstruiert):** Von der TikTok-Werkstatt (Ergebnis C2 „minimalistischer Schmuck") über die Bildidee ins
+KI-Bild-Studio → Prompt vorbefüllt generieren (Bild 1) → Browser-Zurück zur TikTok-Werkstatt → Browser-Vorwärts zurück ins Studio
+→ Bild 2 generieren → über die zweite Bildidee („Lifestyle-Foto …") Bild 3 anstoßen.
+**Rohdaten:** `/home/team/shared/e2e-testDF-rawlogs.txt` (Zustands-JSON je Schritt), Screenshots `e2e-testD-00 … e2e-testD-10`.
+
+### Belegte Fakten (nur aus Artefakten)
+| Schritt | Artefakt | Belegter Fakt |
+|---|---|---|
+| D0 TikTok-Ausgang | `e2e-testD-00-tiktok-ausgang.png` | Ausgangslage: TikTok-Ergebnis/Werkstatt vorhanden |
+| D1 Prompt-Vorbefüllung | `e2e-testD-01-studio-prefill.png` (21:42) | Studio öffnet mit vorbefülltem Prompt (Klick auf die Bildidee des TikTok-Ergebnisses) |
+| D2 Bild 1 | `e2e-testD-02-bild1.png` (21:44) | Studio mit Prompt „Produktfoto, minimalistischer Stil, weiches Licht, Fokus auf ein einzelnes Schmuckstück…", Banner **„198 von 200"**; das Bild selbst liegt unter dem Falz (nicht im Viewport) |
+| D3 Zurück zur TikTok-Werkstatt | `e2e-testD-03-zurueck-tiktok.png` (21:44) | **TikTok-Idee noch da:** Seite „TikTok-Werkstatt" mit „Zuletzt erstellt" und **beiden** C-Konzepten („Ein schnelles Tutorial, wie man mit minimalistischem Schmuck den perf…" · „Wie man eine langweilige Tasse in ein persönliches Statement verwand…"), Banner 197 |
+| D4 Vorwärts zurück ins Studio | `e2e-testD-04-zurueck-im-studio.png` (21:45) + Roh-Zustand | Prompt **vorbefüllt** (`promptLen=111`) und Link „← Zurück zur TikTok-Idee" sichtbar; URL `/app/image-studio?prompt=Produktfoto%2C+…`; **`galleryImgs=0`** |
+| D5 Bild 2 | `e2e-testD-05-bild2.png` (21:47) + Roh-Zustand | Nach Klick: **`galleryImgs=1`, `imgSrcPrefixes:["data:image/png;base64,iVBORw0KGgoAAAANSUhEUg"]`** ⇒ 1 fertiges Bild (PNG data-URL) liegt in der Galerie; kein Fehlerbanner (`errBanner:"none"`), Banner 197 |
+| D5b Bild 3 | `e2e-testD-06-bild3.png` (21:50) + Roh-Zustand | Klick auf die zweite Bildidee („Lifestyle-Foto, natürliche Beleuchtung, Person legt eine schlichte Kette an…"): **Generierung lief noch** (Button „Generiere Bild…" mit Spinner + „Abbrechen"), Banner 194, **kein Fehler**; ``"D_end laedt=false generiere=true err=false len=678"`` — Bild 3 ist im letzten Zustand **nicht als fertig belegt** |
+| Galerie nach Navigation | Roh-Zustand D4 + `e2e-testD-09-zurueck-tiktok.png` (22:00) | Siehe Fund unten: Galerie ist **nicht navigationsfest** |
+
+### Fund 3 „Galerie nicht navigationsfest" — hier konkret belegt (P2, NICHT gefixt)
+1. **Roh-Zustand D4:** Nach Browser-Zurück (TikTok) und -Vorwärts (Studio) meldet die Seite `galleryImgs=0`, obwohl im selben
+   Lauf bereits ein Bild erzeugt wurde (`imgSrcPrefixes` mit PNG-data-URL in D5) — die zuvor erzeugten Bilder sind weg.
+2. **Screenshot `e2e-testD-09-zurueck-tiktok.png`** (Aufnahme 22:00, Dateiname und Bildinhalt passen nicht zusammen — siehe Hinweis unten)
+   zeigt das KI-Bild-Studio mit Banner **„193 von 200"** und dem expliziten Leerzustand
+   **„Noch keine Bilder generiert. Gib einen Prompt ein und klicke auf Generieren."** ⇒ 7 verbrauchte Generierungen, 0 sichtbare Bilder.
+3. **Ursache im Code (nur Mechanik, keine Änderung in diesem Auftrag):** `src/routes/app/image-studio.tsx:100`
+   (`const [images, setImages] = useState<GeneratedImage[]>([])`) — die Galerie lebt ausschließlich im Component-State;
+   `strategy-image.ts`/`last-result.ts`/`tiktok-recent.ts` persistieren nur Prompt-Vorbelegung bzw. TikTok-Ergebnisse in `sessionStorage`,
+   **die Bildgalerie hat keinerlei Persistenz**. Jeder Routenwechsel/Reload leert sie ⇒ bezahlter Output ist nicht wiederauffindbar.
+**Nicht fixen:** Entscheidung liegt beim Lead (Auftragsvorgabe).
+
+### „3 Bilder erzeugt" — nur teilweise belegt
+- Der **zweite D-Anlauf** (`e2e-testD-6-bild1.png` 21:54, `e2e-testD-7-bild2.png` 21:57, `e2e-testD-8-bild3.png` 22:00) ist **kein Bild-Beleg**:
+  alle drei Dateien sind **byte-identisch** (md5 `0cb3ed7b642ef0b36344f05b8b1cbace`) und zeigen die
+  **Vercel-Security-Checkpoint-Seite „Failed to verify your browser — Code 21"**.
+- Der Poll-Rohblock `--- DF-poll ---` zeigt während des Laufs mehrfach `IMGS=2 loading=true`, ab Poll 14 aber
+  `NOSEC len=8678 url=/app/tiktok` (die Seite war zwischenzeitlich auf `/app/tiktok`) und danach `IMGS=0` — d. h. der Lauf wurde
+  mitten in der Generierung durch den Seitenwechsel/Bot-Checkpoint unterbrochen. **Interpretation nicht verifiziert.**
+- **Nicht verifiziert:** dass Bild 1, 2 und 3 jeweils fertig gerendert wurden (nur: generiert = 1 Bild als data-URL belegt,
+  Bild 3 lief noch, kein Fehlerbanner); ebenso die vollständige Zuordnung aller Verbrauchseinheiten (siehe Zähler).
+
+### Hinweis zur Datei-/Inhalt-Zuordnung (Dokumentationsfehler, kein App-Fehler)
+Die beiden letzten Aufnahmen passen inhaltlich **nicht** zu ihren Dateinamen: `e2e-testD-09-zurueck-tiktok.png` zeigt das
+**Bild-Studio** (leerer Prompt-Platzhalter, leerer Galerie-Zustand, Banner 193), `e2e-testD-10-zurueck-studio.png` zeigt die
+**TikTok-Werkstatt** („Zuletzt erstellt" mit beiden Konzepten „Vor 20m"/„Vor 21m", Banner 193). Beide Belege sind oben nach
+**Bildinhalt** ausgewertet, nicht nach Dateiname.
+
+---
+
+## Teillauf 5c — Test F: Mobile-/Android-Verhalten (Zurück, Reload, Bereichswechsel) — **TEILWEISE**
+**Setup (Rohdaten):** `vp=393x851 ua=true` (Android-Simulation, 393×851 Viewport, Mobile-User-Agent) — F0 „✓ Done".
+**Szenarien der 6 Screenshots (aus Rohlog + Pixel):**
+| # | Szenario | Roh-Zustand | Pixel-Beleg | Bewertung |
+|---|---|---|---|---|
+| F1 | TikTok-Werkstatt im mobilen Viewport mit vorhandenem Ergebnis | `url=/app/tiktok hasVideoIdee=true recent=true laedt=false spin=0 len=8679` | `e2e-testF-01-mobil-tiktok-ergebnis.png` (mobiles Layout, Zähler „193 von 200", TikTok aktiv) | **PASS** — rendert, kein leerer Screen, keine Lade-Schleife |
+| F2 | Browser-Zurück aus der Werkstatt | `url=/app/image-studio laedt=false spin=0 len=716 hasImageStudio=true hasVideoIdee=false` | `e2e-testF-02-mobil-zurueck.png` (mobiles Studio, „← Dashboard  ← Zurück zur TikTok-Idee") | **PASS** — Zielseite gerendert, kein Spinner |
+| F3 | Reload mitten im Flow | `F3 1 "laedt=false len=716 hasVideoIdee=false recent=false spin=0"` | `e2e-testF-03-mobil-reload.png` | **TEILWEISE** — Datei ist **byte-identisch** zu F-02 (md5 `f09ec7f6bac7c751f69a57f78447fe2c`): der Reload erzeugt weder Blank- noch Lade-Schleife, liefert aber keinen eigenständigen Beleg (Aufnahme nicht von F-02 trennbar) |
+| F4 | Bereichswechsel Dashboard → Image-Studio | `url=/app/image-studio laedt=false len=107 willkommen=false dash=false` | `e2e-testF-04-mobil-dashboard.png` = **„We're verifying your browser"** (Vercel Security Checkpoint, Spinner) | **NICHT VERIFIZIERBAR** |
+| F5 | Bereichswechsel → Image-Studio/TikTok | `len=117 gallery=false` | `e2e-testF-05-mobil-studio.png` = **„Failed to verify your browser — Code 21"** (byte-identisch zu `e2e-testD-05-studio-prefill.png`) | **NICHT VERIFIZIERBAR** |
+| F6 | Zurück zur TikTok-Werkstatt mobil | `url=/app/tiktok laedt=false hasVideoIdee=false recent=false spin=0 len=117` | `e2e-testF-06-mobil-zurueck-tiktok.png` = **Checkpoint „Code 21"** | **NICHT VERIFIZIERBAR** |
+**Warum nicht verifizierbar:** Ab F4 fing die Bot-Abwehr der Live-Domain jede weitere automatisierte Navigation ab (`len=107/117` =
+Checkpoint-Seite, nicht die App). Das ist **kein App-Fehler und kein Produkt-Fund** — es ist eine Grenze der automatisierten
+Prüfungsumgebung. Die drei Szenarien „Bereichswechsel Dashboard → Studio → TikTok" und „Reload" bleiben damit offen und müssen
+später mit einer nicht-auffälligen Session (frische Sign-in-Token-Session, langsamere Navigation) nachgeholt werden.
+**Kein Verbrauch:** Der F-Lauf hat **0 Generierungen** verbraucht (`generation_throttle.last_at` liegt vor dem F-Lauf, siehe Zähler).
+
+---
+
+## Zähler-Wahrheit (DB) — Endstand nach C/D/F
+| Größe | Wert | Quelle |
+|---|---|---|
+| `usage_monthly.count` (Konto `user_3JZ1X21pNidksnLIqznjqXzGQoN`, `period=2026-09`) | **7** | `usage_monthly.updated_at = 2026-09-19T21:50:02.437Z`; erneut gemessen am **2026-09-23 15:28 UTC** via `bun --env-file=.env scripts/_abn-usage.ts user_3JZ1X21pNidksnLIqznjqXzGQoN` → unverändert **7** |
+| `generation_throttle.last_at` (letzte Generierung dieses Kontos) | **2026-09-19T21:50:01.844Z** | dito (Rohabfrage 2026-09-23) |
+| Aufteilung | C = 2 (dokumentiert) · **D = 5** · F = 0 | C aus 5b; D-Delta aus 7 − 2; F = 0, weil `last_at` der letzten Generierung **vor** dem F-Lauf (21:50–21:51) liegt |
+| Banner-Gegenprobe (Pixel) | `e2e-testD-02` 198 → `e2e-testD-04`/`-05` 197 → `e2e-testD-06` **194** → `e2e-testF-01`/`e2e-testD-10` **193** von 200 | Screenshots; 193 = 7 verbraucht ⇒ Banner deckt sich zum Zeitpunkt F-01 mit der DB |
+**Ehrliche Einschränkung:** Von den **5** D-Verbrauchseinheiten sind nur **3** durch Artefakte belegt (Bild-1-Klick, Bild-2 mit Bild in der
+Galerie, Bild-3 in Ausführung). Die übrigen **2** lassen sich aus den vorhandenen Artefakten keiner einzelnen Aktion zuordnen
+(kein eigener Screenshot/State vorhanden — vermutlich Vorab-/Wiederholungsversuche im selben Lauf; **nicht verifiziert**).
+Nach `updated_at` wurde **nach 21:50:02Z nichts mehr verbraucht**, d. h. der zweite D-Anlauf (21:54–22:00, Bot-Checkpoint) und der
+komplette F-Lauf waren **verbrauchsneutral**.
+
+## Gesamtergebnis Teillauf 5c
+| Test | Ergebnis | Kern-Beleg | Was offen bleibt |
+|---|---|---|---|
+| **D — Bild-Studio** | **TEILWEISE** | Prompt vorbefüllt (D-01/D-04, `promptLen=111`), TikTok-Idee überlebt den Ausflug ins Studio (D-03, D-10), 1 fertiges Bild als PNG-data-URL in der Galerie (D-05-Rohzustand), Bild 3 ohne Fehler angestoßen (D-06) | Bilder 1–3 nicht alle als **fertig** belegt (D-6/7/8 = Vercel-Checkpoint, byte-identisch); Galerie nach Navigation leer (**Fund 3 belegt**); 2 von 5 Verbrauchseinheiten nicht zuordenbar |
+| **F — Mobil/Android** | **TEILWEISE** | Mobiler Viewport rendert Werkstatt **und** Studio ohne Leer-Screen/Lade-Schleife (F-01, F-02), Zurück-Link und Zähler vorhanden | Reload nur als Duplikat-Screenshot (F-03 = F-02), Bereichswechsel Dashboard→Studio→TikTok durch Vercel-Bot-Checkpoint abgebrochen (F-04–F-06) |
+**Kein Deploy, keine Code-Änderung, Owner-Konto unberührt.** Rohdaten, Screenshots und Zählerabfragen: `/home/team/shared/e2e-testDF-rawlogs.txt`,
+`/home/team/shared/e2e-testD-*.png`, `e2e-testF-*.png`, `/tmp/usage-now.txt`, `/tmp/thr2.out`.
