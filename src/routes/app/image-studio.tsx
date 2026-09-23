@@ -19,6 +19,13 @@ import {
   IMAGE_GALLERY_MAX,
   type ImageAbortReason,
 } from '~/lib/image-safeguards';
+// Phase 5d (Fund 3) — versionierte sessionStorage-Persistenz der Galerie.
+import { persistGallery, readGallery } from '~/lib/image-gallery';
+
+/** Studio-Bild inkl. Herkunfts-Flag: `preview === true` heißt „aus der
+ *  sessionStorage-Persistenz wiederhergestellte, verkleinerte Vorschau"
+ *  (nicht das Original-Datenbild der laufenden Sitzung). */
+type StudioImage = GeneratedImage & { preview?: boolean };
 
 const generateImageServer = createServerFn({ method: 'POST' }).validator((input: unknown) => input as { prompt: string; aspectRatio: string }).handler(async ({ data }) => {
   // Phase 8.2 — 1 Bild = 1 Generierung (nur bei erfolgreichem Bild); Identität
@@ -97,7 +104,12 @@ function ImageStudioContent() {
   const { user } = useUser();
   const [prompt, setPrompt] = useState('');
   const [ratio, setRatio] = useState<GeneratedImage['aspectRatio']>('2:3');
-  const [images, setImages] = useState<GeneratedImage[]>([]);
+  const [images, setImages] = useState<StudioImage[]>([]);
+  // Phase 5d — Spiegel der Galerie für die Persistenz: `addImage` braucht den
+  // neuen Stand synchron (kein Seiteneffekt im setState-Updater).
+  const imagesRef = useRef<StudioImage[]>([]);
+  // Phase 5d — Anzahl der aus der Session wiederhergestellten Bilder (Hinweis).
+  const [restoredCount, setRestoredCount] = useState(0);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -124,6 +136,27 @@ function ImageStudioContent() {
   // to the same composition via gpt-image-1's similar-prompt fold).
   const variationCounter = useRef(0);
 
+  useEffect(() => {
+    // Phase 5d (Fund 3) — Galerie aus der Session wiederherstellen.
+    // Die Route wird bei Zurück/Vorwärts, Reload und bfcache-Rückkehr neu
+    // gemountet; ohne diesen Schritt war die bereits bezahlte Galerie leer
+    // (5c-Befund: „Noch keine Bilder generiert", galleryImgs=0). Das Lesen der
+    // sessionStorage berührt keinen KI-Pfad → 0 verbrauchte Generierungen.
+    const entries = readGallery();
+    if (entries.length === 0) return;
+    const restored: StudioImage[] = entries.map((entry) => ({
+      id: entry.id,
+      url: entry.url,
+      prompt: entry.prompt,
+      aspectRatio: entry.aspectRatio,
+      createdAt: new Date(entry.createdAt),
+      preview: entry.preview,
+    }));
+    imagesRef.current = restored;
+    setImages(restored);
+    setGeneratedCount(restored.length);
+    setRestoredCount(restored.length);
+  }, []);
   useEffect(() => {
     // Query-Param-Auswertung (additiv, bestehende Einstiege unverändert):
     // - fromStrategy=1: Strategie-Prefill-Flow (hat Vorrang, wenn Payload da ist)
@@ -153,8 +186,15 @@ function ImageStudioContent() {
   // Phase 3.4 — neue Karte voranstellen und die Galerie auf IMAGE_GALLERY_MAX
   // begrenzen (Speicherlast der Daten-URL-Bilder auf Android).
   const addImage = (image: GeneratedImage) => {
-    setImages((prev) => capGallery([image, ...prev], IMAGE_GALLERY_MAX).items);
+    const next = capGallery<StudioImage>([image, ...imagesRef.current], IMAGE_GALLERY_MAX).items;
+    imagesRef.current = next;
+    setImages(next);
     setGeneratedCount((c) => c + 1);
+    // Phase 5d (Fund 3) — die Galerie sofort in die sessionStorage spiegeln,
+    // damit sie Zurück/Vorwärts und einen Reload übersteht. Asynchron, weil zu
+    // große Originale vorher zu einer Vorschau verkleinert werden; ein Fehler
+    // hier darf die gelungene Generierung nie kaputtmachen.
+    void persistGallery(next).catch(() => { /* Persistenz ist Zusatznutzen */ });
   };
   // Phase 3.1 — ehrlicher Fehlertext: Timeout (Guard), Nutzer-Abbruch, sonst generisch.
   const errorText = errorKind === 'timeout'
@@ -257,7 +297,7 @@ function ImageStudioContent() {
     <section className="rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white shadow-lg"><label className="mb-2 block text-sm font-semibold">{t.image_studio_prompt_label}</label><div className="flex flex-col gap-3 sm:flex-row"><input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={t.image_studio_prompt_placeholder} className="min-w-0 flex-1 rounded-xl border-0 px-4 py-3 text-gray-900 outline-none ring-2 ring-transparent focus:ring-white" /><button onClick={() => void generate()} disabled={loading || !prompt.trim()} className="rounded-xl bg-white px-6 py-3 font-bold text-blue-700 transition hover:bg-blue-50 disabled:opacity-60">{loading ? <span className="inline-block animate-spin">◌</span> : '✨'} {loading ? t.image_studio_generating : t.image_studio_generate_btn}</button>{loading && <button type="button" onClick={() => runGuardRef.current?.abort('user')} className="rounded-xl border border-white/70 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/20">{t.image_studio_abort}</button>}</div><p className="mt-5 text-xs font-semibold uppercase tracking-wide text-blue-100">{t.image_studio_templates_label}</p><div className="mt-2 flex flex-wrap gap-2">{templates.map(([r, key, baseKey]) => <button key={r} onClick={() => { setRatio(r); setPrompt(`${t[baseKey]} ${prompt || t.image_studio_prompt_fallback_product}${t.image_studio_prompt_suffix}`); }} className="rounded-full bg-white/15 px-3 py-2 text-xs font-semibold transition hover:bg-white/30">{t[key]} </button>)}</div></section>
     <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"><h2 className="text-lg font-bold text-gray-900">{t.image_studio_from_strategy}</h2><select value={selectedProject} onChange={(e) => setSelectedProject(e.target.value)} className="mt-3 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"><option value="">{t.image_studio_select_project}</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}</select>{strategyPrompts.length > 0 && <><p className="mt-4 text-sm font-semibold text-gray-700">{t.image_studio_prompts_generated}</p><div className="mt-2 flex flex-wrap gap-2">{strategyPrompts.map((p) => <button key={p} onClick={() => setPrompt(p)} className="rounded-full bg-blue-50 px-3 py-2 text-left text-xs text-blue-700 transition hover:bg-blue-100">{p}</button>)}</div></>}</section>
     {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{usageError ?? errorText} <button onClick={() => void generate()} className="ml-3 font-bold underline">{t.analysis_retry}</button></div>}
-    <section><h2 className="mb-4 text-xl font-bold text-gray-900">{t.image_studio_gallery_title}</h2>{generatedCount > IMAGE_GALLERY_MAX && <p data-testid="image-gallery-cap-hint" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">{t.image_studio_gallery_cap_hint.replace('%s', String(IMAGE_GALLERY_MAX))}</p>}{images.length === 0 && !loading ? <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center text-sm text-gray-500">{t.image_studio_empty}</div> : <div className="grid grid-cols-1 gap-6 md:grid-cols-2">{loading && <article className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"><div className={`relative ${aspectClass(ratio)} bg-gray-100`}><div className="h-full w-full animate-pulse bg-gray-200" /></div><p className="px-4 py-4 text-sm font-semibold text-gray-500"><span>{t.image_studio_generating}</span> · {elapsed}s</p></article>}{images.map((image) => <article key={image.id} className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md"><div className={`relative ${aspectClass(image.aspectRatio)} bg-gray-100`}><img src={image.url} alt={image.prompt} className="h-full w-full object-cover" /><span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-gray-700">{image.aspectRatio}</span></div>{cardError?.id === image.id && <div className="border-t border-red-200 bg-red-50 px-4 py-2.5 text-xs font-semibold text-red-700">{cardError.message}</div>}<div className="grid grid-cols-2 gap-2 p-4"><button onClick={() => download(image)} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200">⬇ {t.image_studio_download}</button><button onClick={() => void copy(image.prompt)} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200">📋 {t.image_studio_copy_prompt}</button><button onClick={() => void runCardAction(image, 'regenerate')} disabled={busy?.id === image.id} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200 disabled:opacity-60">{busy?.id === image.id && busy.action === 'regenerate' ? <span className="inline-block animate-spin">◌</span> : '🔄'} {busy?.id === image.id && busy.action === 'regenerate' ? t.image_studio_regenerate_generating : t.image_studio_regenerate}</button><button onClick={() => void runCardAction(image, 'variation')} disabled={busy?.id === image.id} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200 disabled:opacity-60">{busy?.id === image.id && busy.action === 'variation' ? <span className="inline-block animate-spin">◌</span> : '✨'} {busy?.id === image.id && busy.action === 'variation' ? t.image_studio_variation_generating : t.image_studio_variation}</button></div></article>)}</div>}</section>
+    <section><h2 className="mb-4 text-xl font-bold text-gray-900">{t.image_studio_gallery_title}</h2>{restoredCount > 0 && <p data-testid="image-gallery-restored-hint" className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs text-blue-800">{t.image_studio_gallery_restored_hint.replace('%s', String(restoredCount))}</p>}{generatedCount > IMAGE_GALLERY_MAX && <p data-testid="image-gallery-cap-hint" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">{t.image_studio_gallery_cap_hint.replace('%s', String(IMAGE_GALLERY_MAX))}</p>}{images.length === 0 && !loading ? <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center text-sm text-gray-500">{t.image_studio_empty}</div> : <div className="grid grid-cols-1 gap-6 md:grid-cols-2">{loading && <article className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"><div className={`relative ${aspectClass(ratio)} bg-gray-100`}><div className="h-full w-full animate-pulse bg-gray-200" /></div><p className="px-4 py-4 text-sm font-semibold text-gray-500"><span>{t.image_studio_generating}</span> · {elapsed}s</p></article>}{images.map((image) => <article key={image.id} className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md"><div className={`relative ${aspectClass(image.aspectRatio)} bg-gray-100`}><img src={image.url} alt={image.prompt} className="h-full w-full object-cover" /><span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-gray-700">{image.aspectRatio}</span>{image.preview && <span data-testid="image-preview-badge" title={t.image_studio_gallery_preview_hint} className="absolute right-3 top-3 rounded-full bg-amber-500/90 px-3 py-1 text-xs font-bold text-white">⚠ {t.image_studio_gallery_preview_badge}</span>}</div>{cardError?.id === image.id && <div className="border-t border-red-200 bg-red-50 px-4 py-2.5 text-xs font-semibold text-red-700">{cardError.message}</div>}<div className="grid grid-cols-2 gap-2 p-4"><button onClick={() => download(image)} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200">⬇ {t.image_studio_download}</button><button onClick={() => void copy(image.prompt)} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200">📋 {t.image_studio_copy_prompt}</button><button onClick={() => void runCardAction(image, 'regenerate')} disabled={busy?.id === image.id} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200 disabled:opacity-60">{busy?.id === image.id && busy.action === 'regenerate' ? <span className="inline-block animate-spin">◌</span> : '🔄'} {busy?.id === image.id && busy.action === 'regenerate' ? t.image_studio_regenerate_generating : t.image_studio_regenerate}</button><button onClick={() => void runCardAction(image, 'variation')} disabled={busy?.id === image.id} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200 disabled:opacity-60">{busy?.id === image.id && busy.action === 'variation' ? <span className="inline-block animate-spin">◌</span> : '✨'} {busy?.id === image.id && busy.action === 'variation' ? t.image_studio_variation_generating : t.image_studio_variation}</button></div></article>)}</div>}</section>
     <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"><h2 className="text-lg font-bold text-gray-900">{t.image_studio_upload_title}</h2><label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/50 p-8 text-center transition hover:bg-blue-50"><span className="text-3xl">⬆️</span><span className="mt-2 text-sm font-semibold text-blue-700">{t.image_studio_upload_dropzone}</span><input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} /></label>{uploads.length > 0 && <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">{uploads.map((file) => <div key={file.url} className="overflow-hidden rounded-xl border"><img src={file.url} className="aspect-square w-full object-cover" alt={file.name} /><p className="truncate p-2 text-xs text-gray-600">{file.name}</p><button onClick={() => void generate(`${t.image_studio_prompt_upload_variation} ${file.name}`, '1:1')} className="m-2 rounded-lg bg-blue-600 px-2 py-1 text-xs font-semibold text-white">✨ {t.image_studio_variation}</button></div>)}</div>}</section>
   </div>;
 }

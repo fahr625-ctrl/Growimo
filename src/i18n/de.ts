@@ -1642,4 +1642,8 @@ export const de = {
   analytics_channel_package: 'Komplettpaket',
   analytics_channel_image: 'Bild',
   analytics_channel_tiktok: 'TikTok',
+  // Phase 5d — Hinweise der persistenten Studio-Galerie (sessionStorage).
+  image_studio_gallery_restored_hint: 'Aus deiner Sitzung wiederhergestellt: %s Bilder — als Vorschau, damit beim Navigieren nichts verloren geht.',
+  image_studio_gallery_preview_badge: 'Vorschau',
+  image_studio_gallery_preview_hint: 'Wiederhergestellte Vorschau — das Original stand nur in der laufenden Sitzung zur Verfügung.',
 } as const;

@@ -1639,4 +1639,8 @@ export const en: EnShape = {
   analytics_channel_package: 'Full package',
   analytics_channel_image: 'Image',
   analytics_channel_tiktok: 'TikTok',
+  // Phase 5d — hints of the persistent studio gallery (sessionStorage).
+  image_studio_gallery_restored_hint: 'Restored from your session: %s images — as previews, so nothing is lost while navigating.',
+  image_studio_gallery_preview_badge: 'Preview',
+  image_studio_gallery_preview_hint: 'Restored preview — the original was only available in the live session.',
 }
