@@ -262,7 +262,11 @@ async function main(): Promise<void> {
     check('3.1 unhandled rejection der Projektliste abgefangen', studio.includes('getProjectsByUser(user.id).then(setProjects).catch('));
     check('3.3c Studio nutzt die getestete Prefill-Auflösung (kein Early-return)', studio.includes('resolveStudioPrefill(window.location.search, readStrategyPrefill())') && !studio.includes('consumeStrategyPrefill('));
     check('3.3d Rückweg „Zurück zur TikTok-Idee“ im Studio', studio.includes('{t.image_studio_back_to_tiktok}') && studio.includes('to="/app/tiktok"'));
-    check('3.4 Studio begrenzt die Galerie über capGallery', studio.includes('capGallery([image, ...prev], IMAGE_GALLERY_MAX)') && studio.includes('t.image_studio_gallery_cap_hint'));
+    // Phase 5d: die Galerie liegt jetzt zusätzlich in der sessionStorage-Persistenz;
+  // der Kappungs-Aufruf heißt deshalb capGallery<StudioImage>([image, ...imagesRef.current], IMAGE_GALLERY_MAX).
+  // Geprüft wird die SEMANTIK (Aufruf von capGallery mit IMAGE_GALLERY_MAX auf der neuen Karte
+  // + Kappungs-Hinweis), nicht mehr eine einzige Textform.
+  check('3.4 Studio begrenzt die Galerie über capGallery', /capGallery(<[^>]*>)?\(\[image,\s*\.\.\.(prev|imagesRef\.current)\],\s*IMAGE_GALLERY_MAX\)/.test(studio) && studio.includes('t.image_studio_gallery_cap_hint'));
     check('3.4 Galerie-Hinweis ist nur ab dem Limit sichtbar', studio.includes('generatedCount > IMAGE_GALLERY_MAX &&'));
 
     const tik = read('src/routes/app/tiktok.tsx');

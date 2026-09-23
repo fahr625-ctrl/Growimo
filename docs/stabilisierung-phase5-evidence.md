@@ -322,3 +322,112 @@ komplette F-Lauf waren **verbrauchsneutral**.
 | **F — Mobil/Android** | **TEILWEISE** | Mobiler Viewport rendert Werkstatt **und** Studio ohne Leer-Screen/Lade-Schleife (F-01, F-02), Zurück-Link und Zähler vorhanden | Reload nur als Duplikat-Screenshot (F-03 = F-02), Bereichswechsel Dashboard→Studio→TikTok durch Vercel-Bot-Checkpoint abgebrochen (F-04–F-06) |
 **Kein Deploy, keine Code-Änderung, Owner-Konto unberührt.** Rohdaten, Screenshots und Zählerabfragen: `/home/team/shared/e2e-testDF-rawlogs.txt`,
 `/home/team/shared/e2e-testD-*.png`, `e2e-testF-*.png`, `/tmp/usage-now.txt`, `/tmp/thr2.out`.
+
+---
+
+# 5d — Fix Galerie-Persistenz + Nachtest D/F (2026-09-23)
+
+## 1. Fix „Fund 3: Galerie nicht navigationsfest" (P2 → behoben)
+
+**Ursache (5c-Beleg):** `src/routes/app/image-studio.tsx` hielt die Galerie in einem reinen
+`useState([])`. Bei Zurück/Vorwärts/Reload wurde die Route neu gemountet → Galerie leer
+(„Noch keine Bilder generiert", `galleryImgs=0`), obwohl die Generierungen verbraucht waren.
+Bezahlter Output verschwand.
+
+**Fix:** neues Modul `src/lib/image-gallery.ts` (versionierte sessionStorage-Persistenz nach dem
+Muster `~/lib/tiktok-recent` aus 4.3) + Verdrahtung in der Route:
+- `readGallery()` beim Mount → Galerie zurück in den State (deckt Reload, bfcache, Zurück/Vorwärts).
+- `persistGallery(next)` bei **jeder** neuen Karte in `addImage` (Original-Galerie-State wird über
+  `imagesRef` gespiegelt, kein Seiteneffekt im setState-Updater).
+- UI: Hinweis-Streifen `data-testid="image-gallery-restored-hint"` + Badge
+  `data-testid="image-preview-badge"` auf wiederhergestellten Vorschaubildern (ehrlich statt still).
+
+**Dokumentierte Größen-Entscheidung (sessionStorage-Limit ~5 MB):**
+
+| Frage | Entscheidung |
+|---|---|
+| Wie viele Bilder persistieren? | `IMAGE_GALLERY_PERSIST_MAX = 3` (die 3 neuesten) — state-Kappung `IMAGE_GALLERY_MAX = 8` bleibt unverändert |
+| Warum nicht alles? | 1 Original ist `data:image/png;base64,…` mit gemessen 1,26–2,41 MB PNG ⇒ 1,7–3,2 Mio. Base64-Zeichen (`.run/generated`); 3 Originale sprengen das Limit |
+| Was wird gespeichert? | Original, wenn ≤ `IMAGE_GALLERY_ENTRY_MAX_CHARS` (600 000 Zeichen); sonst eine verkleinerte Vorschau (längste Kante 720 px, JPEG q 0,72, typ. 50–120 KB) mit `preview: true` |
+| Budget | hartes `IMAGE_GALLERY_PERSIST_BUDGET_CHARS = 3 500 000` Zeichen für die Gesamtnutzlast (unter dem Limit, das sich alle Keys des Origins teilen) |
+| Quota-Fallback | `setItem` wirft (QuotaExceededError) ⇒ ältester Eintrag fällt weg und wird erneut geschrieben; passt nicht einmal einer, wird der Schlüssel entfernt (fail-closed, nichts Halbes) |
+| Version/TTL | `version: 1` je Aufnahme, fremde/fehlende Version wird IGNORIERT (fail-closed); TTL 12 h |
+| Zähl-Semantik | Lesen/Schreiben berührt keinen KI-Pfad (`usage-guard`/`withGenerationGuard`) ⇒ Wiederherstellen = **0 Generierungen** |
+| Schema/ContentType | KEIN Eingriff (Konvention 4.3), nur sessionStorage |
+
+Storage-Key (Bundle-Marker): `growimo_image_studio_gallery`.
+**Commit:** `85baff6` `feat(image-studio-gallery): persist gallery across navigation (sessionStorage)` → `origin/master`.
+**Deployment:** https://site-bq04rw5dq-growimo.vercel.app → Aliased **https://www.growimo.app** (EXIT 0);
+Live-Check `/` , `/app`, `/app/image-studio` = **200**.
+
+## 2. Gates (Rohlogs in `/tmp`)
+
+| Gate | Ergebnis | Log |
+|---|---|---|
+| Neue Suite `stabilisierung-phase43b-test.ts` (89 Checks) | **89 PASS, 0 FAIL, EXIT 0** | `/tmp/p43b.log` |
+| Regression 4.3 (`stabilisierung-phase43-test`) | **111 PASS, 0 FAIL, EXIT 0** | `/tmp/stabilisierung-phase43-test.log` |
+| Regression 4.1 (`stabilisierung-phase41-test`) | **47 PASS, 0 FAIL, EXIT 0** | `/tmp/stabilisierung-phase41-test.log` |
+| Regression 4.2 (`stabilisierung-phase4-test`) | **50 PASS, 0 FAIL, EXIT 0** | `/tmp/stabilisierung-phase4-test.log` |
+| 31 `usage-guard-test` | **31 PASS, 0 FAIL, EXIT 0** | `/tmp/usage-guard-test.log` |
+| 32 `usage-semantics-test` | **32 PASS, 0 FAIL, EXIT 0** | `/tmp/usage-semantics-test.log` |
+| 55 `tiktok-diagnose-v2-test` | **ALLE TESTS BESTANDEN, 0 FAIL, EXIT 0** | `/tmp/tiktok-diagnose-v2-test.log` |
+| 56 `stabilisierung-phase3-test` | **85 PASS, 0 FAIL, EXIT 0** (nach Check-Anpassung, s. §4) | `/tmp/p3b.log` |
+| `tsc --noEmit` | **171 Fehler = Baseline 171**, Differenz **0** (0 Fehler in den 5d-Dateien) | `/tmp/tsc5d.log` |
+| i18n de/en | **1475 = 1475 Schlüssel**, keine fehlenden Schlüssel | in `/tmp/p43b.log` |
+| `bash build-vercel.sh` | **EXIT 0** | `/tmp/build5d.log` |
+
+Neue i18n-Keys: `image_studio_gallery_restored_hint` (%s), `image_studio_gallery_preview_badge`,
+`image_studio_gallery_preview_hint` (de + en).
+
+## 3. Bundle-Beleg (Methode: Skill `prod-bundle-marker-proof`)
+
+Route-HTML `https://www.growimo.app/app/image-studio` geladen (200), assets gezogen:
+
+| Marker | Fundstelle im ausgelieferten Chunk | Byte-Offset |
+|---|---|---|
+| `growimo_image_studio_gallery` (neuer Storage-Key, in 5d angelegt) | `assets/image-studio-CRXQDYO_.js` | 1372 |
+| `image-gallery-restored-hint` (neuer Test-Anker) | `assets/image-studio-CRXQDYO_.js` | 13983 |
+| `image-preview-badge` (neuer Test-Anker) | `assets/image-studio-CRXQDYO_.js` | 15528 |
+
+Chunk: `image-studio-CRXQDYO_.js`, **sha256 `3fa4fb138410c212256e2af88e7b4a72509bbeeef29a086908ff51109698cdc3`**, 18 990 Byte.
+Gegenprobe: `diff` der Asset-Listen von `www.growimo.app` und dem Deployment → **leer** (Alias liefert genau dieses Bundle).
+Abgrenzung: der Storage-Key existiert vor diesem Commit nirgends im Repo („grep growimo_image_studio_gallery src/ → nur `src/lib/image-gallery.ts`"), er kann also nur über diesen Commit im Bundle sein.
+
+## 4. Angepasster Alt-Check (ehrlich ausgewiesen, keine Verhaltensänderung)
+
+`stabilisierung-phase3-test.ts:265` prüfte den Kappungs-Aufruf per **exakter Textform**
+(`capGallery([image, ...prev], IMAGE_GALLERY_MAX)`). Durch den Fix heißt die Zeile
+`capGallery<StudioImage>([image, ...imagesRef.current], IMAGE_GALLERY_MAX)` — die Semantik
+(Kappung auf `IMAGE_GALLERY_MAX` beim Voranstellen der neuen Karte + Kappungs-Hinweis) ist unverändert.
+Der Check prüft diese Semantik jetzt per Regex (beide Formen). Ohne diese Anpassung hätte die Suite
+84 PASS / **1 FAIL** gemeldet (`/tmp/stabilisierung-phase3-test.log`) — gemeldet, nicht versteckt.
+
+## 5. Nachtest D und F — **NICHT abgeschlossen (offen)**
+
+In diesem Lauf wurde **Schritt 1 (Fix + Gates + Deploy + Bundle-Beleg) vollständig abgeschlossen**;
+für die Nachläufe D (Desktop, 3 Bilder inkl. Galerie nach Browser-Zurück) und F (Mobil Pixel 5,
+6 Szenarien) reichte das Session-Budget nicht mehr. Es wurden **keine** Schein-Artefakte erzeugt und
+**keine** alten 5c-Screenshots wiederverwendet — es existieren für 5d **keine** neuen
+`e2e-testD2-*`/`e2e-testF2-*`-Dateien. D und F sind damit weiterhin **TEILWEISE** (Stand 5c) und
+müssen mit frischer Sign-in-Session nachgefahren werden (Ablauf unverändert wie unten beschrieben).
+
+**Vorbereitet und einsatzbereit:** Sign-in-Token-Erzeugung für das synthetische Pro-Konto
+(`user_3JZ1X21pNidksnLIqznjqXzGQoN`, DB `usage_monthly.count = 7`, period 2026-09) liegt als
+`/tmp/e2e-d-setup.ts` bereit; Zähler-Wahrheit weiterhin per
+`bun --env-file=.env scripts/_abn-usage.ts user_3JZ1X21pNidksnLIqznjqXzGQoN`.
+
+**Maßgeblicher Nachfahr-Ablauf (D):** Studio öffnen → 3 Bilder nacheinander erzeugen (je 1
+Generierung; Poll auf h2 „Generierte Bilder" + `article img`-Zählung; Screenshot je Bild) → Browser-Zurück
+zur TikTok-Werkstatt (Idee bleibt, 4.3) → zurück ins Studio → **Prüfungskern: Galerie zeigt nach dem
+Zurück wieder die 3 Bilder** (mit dem Fix: 3 Karten + Hinweis-Streifen `image-gallery-restored-hint`,
+Badge `image-preview-badge`) → DB-Zähler vorher/nachher (erwartet 7 → 10).
+
+**Maßgeblicher Nachfahr-Ablauf (F, Mobil „Pixel 5"):** F1 TikTok-Werkstatt mit Ergebnis →
+F2 Browser-Zurück → Studio rendert (kein leerer Screen, kein Spinner, keine dauerhafte „Lädt…") →
+F3 Reload → Studio mit **wiederhergestellter Galerie** (Fix) → F4–F6 Bereichswechsel
+Dashboard→Studio→TikTok je mit frischer Session. Screenshots `e2e-testD2-*`/`e2e-testF2-*`
+(die alten 5c-Artefakte NICHT wiederverwenden; `md5sum`-Identitätsprüfung gegen Schein-Artefakte).
+
+**Hinweis auf überholte Abschnitte:** die Abschnitte „Test D + F — Rohbelege" (5b),
+„Teillauf 5c — Test D" und „Teillauf 5c — Test F" bleiben als Befund-Historie stehen; der
+dort dokumentierte **Fund 3 ist mit diesem Abschnitt behoben**, die D/F-Abnahme selbst ist es nicht.
