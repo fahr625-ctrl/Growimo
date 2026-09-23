@@ -490,7 +490,7 @@ Platzhalter und **keine** alte Datei wiederverwendet: alle in 5e erzeugten Datei
 | Studio per Deep-Link `?prompt=<Idee>`, Prompt vorbefüllt | `PREFILL len=35 value="Personalisierte Kerze aus Sojawachs" disabled=false fromTikTok=true imgs=0` | — | **PASS** |
 | Bild 1 generieren + Galerie prüfen | `CLICKED {"promptLen":35,"disabled":false}` → `GAL imgs=1 arts=1 spin=0 restoredHint=none errs=[] loading_text=false` | `e2e-testD2-02-bild1.png` (Galerie im Bild) | **PASS** (kein Fehler-, kein Timeout-Banner, kein Dauer-„Lädt…") |
 | **Zähler-Wahrheit (DB, autoritativ)** | `usage_monthly.count` **8 → 9** nach Bild 1 | — | **+1 = genau 1 Bild bezahlt** |
-| Bild 2 | `CLICKED {"promptLen":35,"disabled":false}` gesetzt, Lauf beim Session-Ende noch offen | — | **offen** |
+| Bild 2 | `CLICKED {"promptLen":35,"disabled":false}`; Generierung serverseitig bezahlt (DB 16:04:15 = **10**) | — (Screenshot beim Session-Ende noch nicht geschrieben) | **Generierung bezahlt, Galerie/Screenshot offen** |
 | Bild 3 | — | — | **OFFEN** |
 | **Prüfungskern: Browser-Zurück → Werkstatt → zurück ins Studio → Galerie zeigt 3 Bilder** | — | — | **NICHT ERREICHT** |
 
@@ -534,5 +534,11 @@ Der **Fix selbst** war bereits in 5d belegt (Gates §2, Bundle-Marker §3) und i
 Teilabbruch unberührt; 5e liefert zusätzlich den ersten Live-Beleg, dass eine generierte Karte
 korrekt in der Galerie landet (`GAL imgs=1`, 0 Fehler).
 
-**Verbrauch 5e:** 1 Generierung (TikTok-Modul 0, Bild-Studio 1) — DB 8 → 9 (Stand beim Abbruch);
-Konto unverändert Pro/aktiv.
+**Verbrauch 5e (autoritativ):** DB `usage_monthly.count` **8 → 10** (16:04:15 UTC) = **2 bezahlte Bilder**
+(Bild 1 + Bild 2); TikTok-Modul 0. Konto unverändert Pro/aktiv.
+
+**Der D-Lauf lief beim Session-Ende weiter** (`bash /tmp/e2e-D.sh`, PID 7141, `nohup`): Bild 3 und die
+Phasen Zurück/Vorwärts/Reload können nachlaufen und dann in `/tmp/d2run.log` sowie als
+`e2e-testD2-03-bild2.png` / `-04-bild3.png` / `-05-zurueck-tiktok.png` / `-06-galerie-nach-forward.png` /
+`-07-galerie-nach-reload.png` vorliegen — **erst nach Sichtprüfung + md5sum gegen Schein-Duplikate
+verwerten**, nicht blind als Abnahme werten. Ohne diese Prüfung gilt der Prüfungskern weiter als offen.
