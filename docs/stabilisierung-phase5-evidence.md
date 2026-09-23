@@ -225,12 +225,12 @@ Wörtlich (Idee 1): Hook „Hast du auch eine langweilige Tasse im Schrank?" · 
 Wörtlich (Idee 2): Hook „So stylst du deinen Alltag mit nur 3 Schmuckstücken!" · Spannungsbogen „… Der Payoff liegt in der 12. Sekunde, wenn der fertige Look gezeigt wird." · Hashtags „#Minimalismus #Schmuckliebe #StilTipps #FashionInspo #EinfachSchick" · CTA „Wie stylst du deinen Alltag? Teile deine Tipps!".
 Bewertung: Zielgruppen-Perspektive, Produkt nicht automatisch Mittelpunkt, keine erfundenen Kennzahlen, keine Platzhalter — Qualität wie `todayIdea`.
 
-## Test D + F — Rohbelege
+## Test D + F — Rohbelege **(Zwischenstand mitten im Lauf, ÜBERHOLT — maßgeblich ist „Teillauf 5c" unten)**
 Die vollständigen Laufprotokolle (jeder Schritt, jede Poll-Zeile, jeder Zähler-/Assertion-Zustand) liegen als
 **`/home/team/shared/e2e-testDF-rawlogs.txt`** im Team-Share; Screenshots `e2e-testD-*.png` / `e2e-testF-*.png` (soweit erzeugt).
 Kernbelege Test D (aus dem Protokoll): Studio-Prompt kommt aus der **sessionStorage-Persistenz** des TikTok-Ergebnisses (Phase 3.3b),
 Studio öffnet mit vorbefülltem Prompt (111 Zeichen), Zähler-Banner im Studio **„198 von 200"** (= C verbraucht 2), Bild 1 wurde erzeugt (Galerie `IMGS=1`), keine Fehler-/Timeout-Banner, kein Dauer-„Generiert…".
-**Hinweis für den Lead:** Für D und F lag am Ende des Zeitbudgets dieser Session kein vollständig abgeschlossener Protokolllauf vor (D war beim Stand „Bild 1 erzeugt, Zurück/Vorwärts + Bild 2/3 offen", F noch nicht gestartet). Die Tests sind mit `bash /tmp/df-test.sh` (Protokoll `/tmp/df-run.log`) reproduzierbar; die Skripte (`/tmp/df-test.sh`, `/tmp/poll_img.js`, `/tmp/img_state.js`) liegen im Arbeitsverzeichnis und sind im Rohlog dokumentiert.
+**Zwischenstand-Hinweis (2026-09-19, überholt):** Dieser Absatz stammt mitten aus dem Lauf („D war beim Stand Bild 1 erzeugt, F noch nicht gestartet") und ist durch die Artefakt-Auswertung unten korrigiert: **D und F wurden tatsächlich weiter gefahren** (Screenshots bis `e2e-testD-10`, sechs F-Screenshots, DB-Zähler 7) — Ergebnis, Belege und Grenzen stehen im Abschnitt **„Teillauf 5c — Test D/F"**. Beide Läufe sind dort als **TEILWEISE** dokumentiert (u. a. weil der zweite D-Anlauf und der Bereichswechsel in F in den Vercel-Bot-Checkpoint liefen).
 
 ---
 ## Teillauf 5c — Test D: Bild-Studio (Prompt-Vorbefüllung, Galerie, Rückweg) — **TEILWEISE**
