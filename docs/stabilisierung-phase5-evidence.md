@@ -402,7 +402,7 @@ Abgrenzung: der Storage-Key existiert vor diesem Commit nirgends im Repo („gre
 Der Check prüft diese Semantik jetzt per Regex (beide Formen). Ohne diese Anpassung hätte die Suite
 84 PASS / **1 FAIL** gemeldet (`/tmp/stabilisierung-phase3-test.log`) — gemeldet, nicht versteckt.
 
-## 5. Nachtest D und F — **NICHT abgeschlossen (offen)**
+## 5. Nachtest D und F — **NICHT abgeschlossen (offen)** — *D inzwischen UEBERHOLT (Nachlauf grün), F s. „5f — Test F (Mobil)"*
 
 In diesem Lauf wurde **Schritt 1 (Fix + Gates + Deploy + Bundle-Beleg) vollständig abgeschlossen**;
 für die Nachläufe D (Desktop, 3 Bilder inkl. Galerie nach Browser-Zurück) und F (Mobil Pixel 5,
@@ -434,7 +434,7 @@ dort dokumentierte **Fund 3 ist mit diesem Abschnitt behoben**, die D/F-Abnahme 
 
 ---
 
-# 5d-Nachtrag — Test D Nachlauf (abgebrochen, ehrlich ausgewiesen)
+# 5d-Nachtrag — Test D Nachlauf (abgebrochen, ehrlich ausgewiesen) — **UEBERHOLT** (durch den nachgelaufenen, gruenen Lauf ersetzt; s. Abschnitt „5e-Test D — Abnahme GRUEN")
 
 **Datum:** 2026-09-23, ~15:52–16:02 UTC. **Konto:** synthetisches Pro-Konto
 `user_3JZ1X21pNidksnLIqznjqXzGQoN` (users-UUID `0ac63bb3-9f32-41b7-b31e-03881daab276`), `period=2026-09`.
@@ -476,8 +476,9 @@ App-Befund**: die Generierung selbst lief durch (DB 7 → 8), der Client wurde n
 
 # 5e — Finale Abnahme D/F (2026-09-23, TEILWEISE — ehrlich ausgewiesen)
 
-**Status: D = TEILWEISE, F = NICHT GELAUFEN.** Der Prüfungskern von D („Galerie zeigt nach dem
-Browser-Zurück alle 3 Bilder") ist **nicht abgenommen**. Es wurde **kein** Schein-Artefakt, **kein**
+**Status: D = UEBERHOLT (Nachlauf GRUEN, s. Abschnitt „5e-Test D — Abnahme GRUEN"), F = TEILWEISE.**
+Der damalige Zwischenstand dieses Abschnitts: der Prüfungskern von D („Galerie zeigt nach dem
+Browser-Zurück alle 3 Bilder") war zu diesem Zeitpunkt **noch nicht abgenommen**. Es wurde **kein** Schein-Artefakt, **kein**
 Platzhalter und **keine** alte Datei wiederverwendet: alle in 5e erzeugten Dateien sind neu
 (`e2e-testD2-00/-01/-02`, Zeitstempel 2026-09-23 15:57–16:01 UTC) und werden unten einzeln belegt.
 
@@ -492,7 +493,7 @@ Platzhalter und **keine** alte Datei wiederverwendet: alle in 5e erzeugten Datei
 | **Zähler-Wahrheit (DB, autoritativ)** | `usage_monthly.count` **8 → 9** nach Bild 1 | — | **+1 = genau 1 Bild bezahlt** |
 | Bild 2 | `CLICKED {"promptLen":35,"disabled":false}`; Generierung serverseitig bezahlt (DB 16:04:15 = **10**) | — (Screenshot beim Session-Ende noch nicht geschrieben) | **Generierung bezahlt, Galerie/Screenshot offen** |
 | Bild 3 | — | — | **OFFEN** |
-| **Prüfungskern: Browser-Zurück → Werkstatt → zurück ins Studio → Galerie zeigt 3 Bilder** | — | — | **NICHT ERREICHT** |
+| **Prüfungskern: Browser-Zurück → Werkstatt → zurück ins Studio → Galerie zeigt 3 Bilder** | im Nachlauf erreicht: `GAL imgs=3 arts=3 restoredHint="Aus deiner Sitzung wiederhergestellt: 3 Bilder…" previewBadges=3` (PHASE6/7) | `e2e-testD2-06`, `-07` | **UEBERHOLT — GRUEN** (s. „5e-Test D — Abnahme GRUEN") |
 
 ## F — Mobil „Pixel 5"
 
@@ -537,8 +538,94 @@ korrekt in der Galerie landet (`GAL imgs=1`, 0 Fehler).
 **Verbrauch 5e (autoritativ):** DB `usage_monthly.count` **8 → 10** (16:04:15 UTC) = **2 bezahlte Bilder**
 (Bild 1 + Bild 2); TikTok-Modul 0. Konto unverändert Pro/aktiv.
 
-**Der D-Lauf lief beim Session-Ende weiter** (`bash /tmp/e2e-D.sh`, PID 7141, `nohup`): Bild 3 und die
-Phasen Zurück/Vorwärts/Reload können nachlaufen und dann in `/tmp/d2run.log` sowie als
+**UEBERHOLT — der D-Lauf lief beim Session-Ende weiter** (`bash /tmp/e2e-D.sh`, PID 7141, `nohup`) und ist
+vollständig durchgelaufen (`DDONE`): Bild 3 und die
+Phasen Zurück/Vorwärts/Reload sind nachgelaufen und dann in `/tmp/d2run.log` sowie als
 `e2e-testD2-03-bild2.png` / `-04-bild3.png` / `-05-zurueck-tiktok.png` / `-06-galerie-nach-forward.png` /
 `-07-galerie-nach-reload.png` vorliegen — **erst nach Sichtprüfung + md5sum gegen Schein-Duplikate
 verwerten**, nicht blind als Abnahme werten. Ohne diese Prüfung gilt der Prüfungskern weiter als offen.
+
+---
+
+# 5e-Test D — Abnahme GRUEN (nachgelaufener Lauf)
+
+**Status: Test D = PASS.** Der in 5e gestartete Lauf (`bash /tmp/e2e-D.sh`, `nohup`, PID 7141) ist nach dem
+Session-Ende **vollständig durchgelaufen**; Rohlog `/tmp/d2run.log` endet mit `DDONE`. Damit ist der bis
+5e offene **Prüfungskern** („Galerie zeigt nach dem Browser-Zurück wieder alle Bilder") **abgenommen**.
+Es wurde kein Schein-Artefakt erzeugt: alle Artefakte des Nachlaufs sind neu (Zeitstempel 2026-09-23
+15:57–16:09 UTC), `md5sum` geprüft (s. u.).
+**Konto:** synthetisches Pro-Konto `user_3JZ1X21pNidksnLIqznjqXzGQoN` (users-UUID
+`0ac63bb3-9f32-41b7-b31e-03881daab276`), `period=2026-09`.
+
+## Rohbelege (chronologisch, wörtliche Auszüge aus `/tmp/d2run.log`, 132 Zeilen)
+
+| Phase | Rohlog-Auszug (wörtlich) | Bewertung |
+|---|---|---|
+| PHASE1 token | `TICKET_OK len=554 user=user_3JZ1X21pNidksnLIqznjqXzGQoN` → `STATE url=/app user=user_3JZ1X21pNidksnLIqznjqXzGQoN bodyLen=1101 cp=false loads=0` | **PASS** (Login ohne Interaktion, kein Checkpoint) |
+| PHASE2 tiktok | `IDEA_SET=Personalisierte Kerze aus Sojawachs url=/app/tiktok title=🎵 TikTok-Werkstatt` | **PASS** (0 Verbrauch) |
+| PHASE3 studio | `PREFILL len=35 value="Personalisierte Kerze aus Sojawachs" disabled=false fromTikTok=true imgs=0 url=/app/image-studio` | **PASS** (4.3b-Vorbefüllung aus der Werkstatt) |
+| PHASE4 Bild 1 | `GAL imgs=1 arts=1 spin=0 restoredHint=none previewBadges=0 errs=[] loading_text=false generating=true` | **PASS** (Karte landet in der Galerie, 0 Fehler) |
+| PHASE4 Bild 2 | `GAL imgs=2 arts=2 spin=0 restoredHint=none previewBadges=0 errs=[] loading_text=false generating=true` | **PASS** |
+| PHASE4 Bild 3 | `GAL imgs=3 arts=3 spin=0 restoredHint=none previewBadges=0 errs=[] loading_text=false generating=true` | **PASS** |
+| PHASE5 zurueck | Browser-Zurück → TikTok-Werkstatt rendert (`e2e-testD2-05-zurueck-tiktok.png`) | **PASS** (kein Leer-Screen) |
+| **PHASE6 forward** | `GAL imgs=3 arts=3 spin=0 restoredHint="Aus deiner Sitzung wiederhergestellt: 3 Bilder — als Vorschau, damit b…" previewBadges=3 errs=[] loading_text=false generating=true` | **PRÜFUNGSKERN GRÜN** (3 Bilder + Wiederherstellungs-Hinweis + 3 Vorschau-Badges) |
+| **PHASE7 Reload** | `GAL imgs=3 arts=3 spin=0 restoredHint="Aus deiner Sitzung wiederhergestellt: 3 Bilder — als Vorschau, damit b…" previewBadges=3 errs=[] loading_text=false generating=true` (Gegenprobe: frischer Mount statt bfcache) | **GRÜN** (identische Werte nach echtem Reload) |
+| PHASE8 Zähler DB | `USAGE [{"user_id":"0ac63bb3-…","period":"2026-09","count":11}]` | **8 → 11 = +3** |
+| Ende | `DDONE` | Lauf planmäßig beendet, kein Abbruch |
+
+**Damit sind alle drei Kernpunkte des Nachtests belegt:** Galerie bleibt navigationsfest (forward **und**
+Reload), der 5d-Fix greift live (Hinweis-Streifen `image-gallery-restored-hint` + `image-preview-badge`),
+und es entstand kein Fehler-/Timeout-Zustand (`errs=[]`, `loading_text=false` in allen Phasen).
+
+## Zähler (autoritativ: DB `usage_monthly`)
+
+| Zeitpunkt | DB `usage_monthly.count` | UI-Banner | Bedeutung |
+|---|---|---|---|
+| Ende 5e (Bild 1+2) | 8 | 192 von 200 (`-02-bild1.png`, `-04-bild3.png`) | 2 bezahlte Bilder |
+| nach Bild 3 (PHASE8) | **11** | 189 von 200 (`-05`, `-06`, `-07`) | **+3 = genau 3 Bilder** |
+
+⇒ Der Nachlauf hat **3 Generierungen** gekostet (Bild 1–3), TikTok-Modul 0. Keine Retries/Scoring-Abgänge.
+Banner-Verhalten wie in 5a dokumentiert (8.4a): im Generator selbst bleibt der Wert stale (192), erst der
+frische Mount nach Zurück/Fortschritt/Reload zeigt 189. Konto unverändert Pro/aktiv (189 verbleibend).
+
+## Screenshot-Liste + md5 (Sichtprüfung am Bild)
+
+| Datei | Zeit | Bytes | md5 | Sichtprüfung |
+|---|---|---|---|---|
+| `e2e-testD2-00-dashboard.png` | 15:57:39 | 104811 | `247e708025c23655aee40a1d5651c536` | nicht einzeln gesichtet (Log-Beleg: `STATE … cp=false`) |
+| `e2e-testD2-01-tiktok-idee.png` | 15:57:47 | 156703 | `13252ce50d6409540b3c57f0dfcf38b3` | nicht einzeln gesichtet (Log-Beleg: `IDEA_SET=…`) |
+| `e2e-testD2-02-bild1.png` | 16:01:42 | 164177 | `49559b6ba5b208f88fc6634544b14b07` | **gesichtet:** echtes KI-Bild-Studio, Prompt „Personalisierte Kerze aus Sojawachs" vorbefüllt, Banner „192 von 200", Links „← Dashboard  ← Zurück zur TikTok-Idee" — echter App-Zustand, keine Checkpoint-Seite |
+| `e2e-testD2-03-bild2.png` | 16:05:29 | 164171 | `d0dc107fe059ea30d558b902a4dc2799` | nicht einzeln gesichtet (Log-Beleg: `imgs=2 arts=2`) |
+| `e2e-testD2-04-bild3.png` | 16:09:16 | 164108 | `4ad915d9fd73b13475e05cb6655920e5` | **gesichtet:** Studio wie 02, Banner noch „192 von 200" (stale, s. o.) |
+| `e2e-testD2-05-zurueck-tiktok.png` | 16:09:24 | 157448 | `855730c6a3bff72279c282795234108c` | **gesichtet:** TikTok-Werkstatt nach Browser-Zurück gerendert (h1 „TikTok-Werkstatt", Banner „189 von 200" = 11) |
+| `e2e-testD2-06-galerie-nach-forward.png` | 16:09:33 | 164176 | `4fd62250b78887102ec68bb7650f3966` | gleich wie 07 (md5) |
+| `e2e-testD2-07-galerie-nach-reload.png` | 16:09:42 | 164176 | `4fd62250b78887102ec68bb7650f3966` | **gesichtet:** Studio nach Reload, Prompt vorbefüllt, Banner „189 von 200" |
+
+**md5-Befund:** `06`/`07` sind **byte-identisch** — das ist der **gleiche Endzustand** (kein Checkpoint-Duplikat,
+denn beide zeigen den geladenen Studio-Screen mit 189/200; Checkpoint-Seiten haben ~107–117 Zeichen Text und
+`cp=true`, hier `bodyLen` groß und `cp=false`). `00`–`05` haben **sechs verschiedene** md5 → keine Schein-Artefakte,
+keine wiederverwendeten 5c-Dateien.
+
+**Grenze (ehrlich ausgewiesen):** Die Aufnahmen sind Viewport-Screenshots (Desktop 1280×720) und zeigen die
+Galerie-Sektion **nicht im Ausschnitt** (sie liegt unterhalb des sichtbaren Bereichs; die Scroll-Sonde lief,
+der Screenshot wird aber am Seitenanfang geschrieben). Der Beleg „3 Karten + Hinweis-Streifen + 3 Badges"
+stammt daher aus den **DOM-Sonden** (PHASE4/6/7), die Bilder belegen den echten Seitenzustand und dass
+zwischen den Phasen keine Bot-Checkpoint-Seite lag.
+
+**Nebenbeobachtung (klein, kein FAIL für D):** Nach dem Zurück-Navigieren in die TikTok-Werkstatt ist das
+Ideen-Eingabefeld leer (Platzhalter „z. B. Handgemachte Keramiktassen mit Duftkerzen", Screenshot 05) — die
+im Feld getippte Idee wird also nicht wiederhergestellt; der Studio-Prompt ist dagegen korrekt vorbefüllt
+(aus der Werkstatt-Session). Für F1 ist das relevant (Ergebnis kommt aus „Zuletzt erstellt", nicht aus dem Feld).
+
+## Abnahme
+
+| Kriterium (Fix-Plan Test D) | Ergebnis |
+|---|---|
+| Prompt-Vorbefüllung aus der TikTok-Werkstatt | **PASS** |
+| 3 Bilder nacheinander erzeugbar, je 1 Generierung (8 → 11) | **PASS** |
+| Galerie zeigt nach Browser-Zurück wieder **alle 3** Bilder | **PASS** (PHASE6: `imgs=3 arts=3`) |
+| Fix greift: Hinweis-Streifen + 3 Vorschau-Badges | **PASS** (`restoredHint="Aus deiner Sitzung wiederhergestellt: 3 Bilder…"`, `previewBadges=3`) |
+| Gegenprobe Reload (frischer Mount) | **PASS** (PHASE7 identisch) |
+| Kein Fehler-/Lade-Schleifen-Zustand | **PASS** (`errs=[]`, `spin=0`, `loading_text=false`) |
+
+**⇒ Test D = PASS (abgenommen).** Frühere Abschritte sind damit überholt (s. Markierungen unten).
