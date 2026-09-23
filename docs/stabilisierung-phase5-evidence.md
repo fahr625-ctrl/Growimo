@@ -471,3 +471,68 @@ App-Befund**: die Generierung selbst lief durch (DB 7 → 8), der Client wurde n
 - **Test F: weiterhin TEILWEISE** (kein Lauf in 5d; Szenarien F1–F6 wie in §5 beschrieben).
 - Bereits verbraucht: **1 Generierung** (7 → 8); für D (3) + F bleibt Kontingent (Pro 200).
 - Der **Fix selbst** ist davon unberührt belegt: Gates grün (§2), Bundle-Marker live (§3).
+
+---
+
+# 5e — Finale Abnahme D/F (2026-09-23, TEILWEISE — ehrlich ausgewiesen)
+
+**Status: D = TEILWEISE, F = NICHT GELAUFEN.** Der Prüfungskern von D („Galerie zeigt nach dem
+Browser-Zurück alle 3 Bilder") ist **nicht abgenommen**. Es wurde **kein** Schein-Artefakt, **kein**
+Platzhalter und **keine** alte Datei wiederverwendet: alle in 5e erzeugten Dateien sind neu
+(`e2e-testD2-00/-01/-02`, Zeitstempel 2026-09-23 15:57–16:01 UTC) und werden unten einzeln belegt.
+
+## D — belegte Schritte (Konto `user_3JZ1X21pNidksnLIqznjqXzGQoN`, Desktop, frische Sign-in-Session)
+
+| Schritt | Beleg (Rohlog `/tmp/d2run.log`) | Screenshot | Ergebnis |
+|---|---|---|---|
+| Anmeldung ohne Interaktion (Sign-in-Token auf dem App-Origin) | `STATE url=/app user=user_3JZ1X21pNidksnLIqznjqXzGQoN bodyLen=1101 cp=false` | `e2e-testD2-00-dashboard.png` | **PASS** |
+| TikTok-Werkstatt betreten + Idee setzen (**ohne** Generierung) | `IDEA_SET=Personalisierte Kerze aus Sojawachs url=/app/tiktok title=🎵 TikTok-Werkstatt` | `e2e-testD2-01-tiktok-idee.png` (Idee im Feld sichtbar, Banner „192 von 200 verbleibend") | **PASS** (0 Verbrauch) |
+| Studio per Deep-Link `?prompt=<Idee>`, Prompt vorbefüllt | `PREFILL len=35 value="Personalisierte Kerze aus Sojawachs" disabled=false fromTikTok=true imgs=0` | — | **PASS** |
+| Bild 1 generieren + Galerie prüfen | `CLICKED {"promptLen":35,"disabled":false}` → `GAL imgs=1 arts=1 spin=0 restoredHint=none errs=[] loading_text=false` | `e2e-testD2-02-bild1.png` (Galerie im Bild) | **PASS** (kein Fehler-, kein Timeout-Banner, kein Dauer-„Lädt…") |
+| **Zähler-Wahrheit (DB, autoritativ)** | `usage_monthly.count` **8 → 9** nach Bild 1 | — | **+1 = genau 1 Bild bezahlt** |
+| Bild 2 | `CLICKED {"promptLen":35,"disabled":false}` gesetzt, Lauf beim Session-Ende noch offen | — | **offen** |
+| Bild 3 | — | — | **OFFEN** |
+| **Prüfungskern: Browser-Zurück → Werkstatt → zurück ins Studio → Galerie zeigt 3 Bilder** | — | — | **NICHT ERREICHT** |
+
+## F — Mobil „Pixel 5"
+
+**Kein F-Szenario wurde in 5e ausgeführt** (Session-Budget endete nach D-Teil 1). F1–F6 bleiben auf
+dem Stand von 5c (`TEILWEISE`); es existieren für 5e **keine** `e2e-testF2-*`-Dateien.
+
+## Warum abgebrochen (Werkzeug-Befund, **kein App-Befund**)
+
+Der Lauf war **nicht** von der Anwendung blockiert, sondern vom Browser-CLI:
+
+- `agent-browser --session d1 wait 45000` („dumb wait") **hängt** und kehrt erst zurück, wenn der
+  äußere `timeout` es nach **200 s** abschneidet (`WAIT_FAIL(45000)` im Rohlog) — pro Wartephase
+  ~200 s statt 45 s. Damit lief das Session-Budget auf, obwohl die Generierungen durchliefen
+  (DB 8 → 9 belegt genau 1 fertiges Bild).
+- `agent-browser wait --fn "<js>"` funktioniert dagegen einwandfrei (`true` nach ~1 s im Smoke-Test
+  vor Bild 1) → **Wartephasen künftig als `sleep` in der Shell** ausführen, nicht als `wait <ms>`.
+- Nach dem Abbruch weiterhin offen: Bild 2/3, Browser-Zurück/Fortschritt, Reload-Gegenprobe,
+  DB-Vergleich 9 → 11.
+
+## Einsatzfertige Vorlagen für den Nachlauf (kein Prod-Code, kein Deploy nötig)
+
+- `/tmp/e2e-D.sh` — kompletter D-Fahrplan: Login → TikTok-Idee → Studio-Deep-Link → 3× Bild
+  (`article img`-Zählung, Screenshot je Bild) → `back` (Werkstatt) → `forward` → `reload`
+  (Gegenprobe frischer Mount) → DB-Zähler. **Fix für den Nachlauf: `w(){ sleep $(( $2/1000 )); }`**
+  (in `/tmp/e2e-F.sh` bereits so umgesetzt).
+- `/tmp/e2e-F.sh` — F1–F6 auf „Pixel 5" (`set device "Pixel 5"`, Fallback `set viewport 393 851`),
+  je Lauf frische Session + frischer Sign-in-Token, `md5sum`-Identitätsprüfung am Ende.
+- JS-Sonden: `/tmp/jsD/*.js` (auth, idea, prefill, gen, count, tiktokback, scrollgal, state),
+  `/tmp/jsF/*.js` (tiktokgen, tiktokresult, dash, studio, dismiss); Zähler:
+  `bun --env-file=.env scripts/_abn-usage.ts user_3JZ1X21pNidksnLIqznjqXzGQoN`.
+
+## Überholte Abschnitte
+
+Die Abschnitte „5c — Teillauf D/F", „5d-Nachtrag — Test D Nachlauf (abgebrochen)" und der
+5d-Statusblock werden mit 5e **inhaltlich bestätigt, aber nicht ersetzt**: der dort dokumentierte
+Blockgrund (Treiber-Hänger) ist derselbe, jetzt genauer lokalisiert (`wait <ms>`). **Offen bleibt
+unverändert:** D-Prüfungskern (Galerie nach Zurück = 3 Bilder) und alle F-Szenarien.
+Der **Fix selbst** war bereits in 5d belegt (Gates §2, Bundle-Marker §3) und ist von diesem
+Teilabbruch unberührt; 5e liefert zusätzlich den ersten Live-Beleg, dass eine generierte Karte
+korrekt in der Galerie landet (`GAL imgs=1`, 0 Fehler).
+
+**Verbrauch 5e:** 1 Generierung (TikTok-Modul 0, Bild-Studio 1) — DB 8 → 9 (Stand beim Abbruch);
+Konto unverändert Pro/aktiv.
