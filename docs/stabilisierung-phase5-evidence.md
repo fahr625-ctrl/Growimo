@@ -476,7 +476,7 @@ App-Befund**: die Generierung selbst lief durch (DB 7 → 8), der Client wurde n
 
 # 5e — Finale Abnahme D/F (2026-09-23, TEILWEISE — ehrlich ausgewiesen)
 
-**Status: D = UEBERHOLT (Nachlauf GRUEN, s. Abschnitt „5e-Test D — Abnahme GRUEN"), F = TEILWEISE.**
+**Status: D = UEBERHOLT (Nachlauf GRUEN), F = PASS** — s. Abschnitte „5e-Test D — Abnahme GRUEN" und „5f — Test F (Mobil)".
 Der damalige Zwischenstand dieses Abschnitts: der Prüfungskern von D („Galerie zeigt nach dem
 Browser-Zurück alle 3 Bilder") war zu diesem Zeitpunkt **noch nicht abgenommen**. Es wurde **kein** Schein-Artefakt, **kein**
 Platzhalter und **keine** alte Datei wiederverwendet: alle in 5e erzeugten Dateien sind neu
@@ -497,8 +497,7 @@ Platzhalter und **keine** alte Datei wiederverwendet: alle in 5e erzeugten Datei
 
 ## F — Mobil „Pixel 5"
 
-**Kein F-Szenario wurde in 5e ausgeführt** (Session-Budget endete nach D-Teil 1). F1–F6 bleiben auf
-dem Stand von 5c (`TEILWEISE`); es existieren für 5e **keine** `e2e-testF2-*`-Dateien.
+**Kein F-Szenario wurde in 5e ausgeführt** (Session-Budget endete nach D-Teil 1). **UEBERHOLT: F wurde in „5f — Test F (Mobil)" vollständig gefahren (F1–F6, alle PASS).**
 
 ## Warum abgebrochen (Werkzeug-Befund, **kein App-Befund**)
 
@@ -629,3 +628,132 @@ im Feld getippte Idee wird also nicht wiederhergestellt; der Studio-Prompt ist d
 | Kein Fehler-/Lade-Schleifen-Zustand | **PASS** (`errs=[]`, `spin=0`, `loading_text=false`) |
 
 **⇒ Test D = PASS (abgenommen).** Frühere Abschritte sind damit überholt (s. Markierungen unten).
+
+---
+
+# 5f — Test F (Mobil „Pixel 5")
+
+**Datum:** 2026-09-23, 16:12–16:35 UTC · **Gerät:** „Pixel 5" (`agent-browser set device "Pixel 5"`, Viewport 393×851)
+**Konto:** synthetisches Pro-Konto `user_3JZ1X21pNidksnLIqznjqXzGQoN` (Pro 200) · **Ziel:** www.growimo.app (LIVE, kein Deploy, kein Prod-Code)
+**Rohlogs:** `/tmp/f2run.log` (F1/F2, Fahrplan `/tmp/e2e-F.sh`), `/tmp/f3run.log` (F3–F6, `/tmp/frest.sh` + `/tmp/f6.sh`)
+**Erwartungen (Fix-Plan F):** kein leerer Screen, keine Lade-Schleife, Ergebnisse/Galerie bleiben erhalten,
+Beta-Gate nie dauerhaft „Lädt…", Bereichswechsel Dashboard→Studio→TikTok funktioniert mobil.
+
+## F1 — TikTok-Werkstatt mobil mit Ergebnis → **PASS**
+
+Frische Sign-in-Session `m1` (Pixel 5), 16:12. Kalter Login auf dem App-Origin funktionierte (noch) ohne Checkpoint.
+
+| Schritt | Rohlog-Auszug | Ergebnis |
+|---|---|---|
+| Anmeldung + Dashboard mobil | `STATE url=/app user=user_3JZ1X21pNidksnLIqznjqXzGQoN bodyLen=941 cp=false loads=0` | **PASS** (`e2e-testF2-f1-00-mobil-dashboard.png`) |
+| Werkstatt + „Was soll ich heute posten?" | `TODAY_CLICKED idea=Personalisierte Kerze aus Sojawachs` | Klick greift (Button nicht disabled) |
+| Ergebnis + „Zuletzt erstellt" | `TIKTOK url=/app/tiktok videoIdee=true recent=true bodyLen=9438 spin=0 loads=0 cp=false` | **PASS** (`e2e-testF2-f1-01-tiktok-ergebnis.png`): Ergebnis-Karte **und** Liste „Zuletzt erstellt" gerendert, **kein** Spinner, **kein** Dauer-„Lädt…", keine Checkpoint-Seite |
+
+**Verbrauch: 1 Generierung** (DB 11 → 12). Der Zähler konnte nicht bei 11 bleiben: die geforderte
+0-Verbrauch-Variante („Ergebnis aus *Zuletzt erstellt* der Sitzung öffnen") war in einer **frischen**
+Session nicht möglich, weil `sessionStorage`/Tab-Zustand an die Sitzung gebunden ist; der Fahrplan hat
+deshalb den echten „Was soll ich heute posten?"-Pfad genutzt (reguläre Pro-Generierung, im Kontingent).
+Die Rest-Anzeige/-Zähler-Prüfung ist damit ebenfalls berührt (Banner im Screenshot `-f1-01`).
+
+## F2 — Browser-Zurück → Studio rendert → **PASS**
+
+Frische Sign-in-Session `m2` (Pixel 5), 16:13: Dashboard → Studio (Deep-Link) → **Zurück** → **Vorwärts**.
+
+| Schritt | Rohlog-Auszug | Ergebnis |
+|---|---|---|
+| Dashboard | `DASH url=/app bodyLen=941 willkommen=true loads=0 links=[…12 /app-Routen…] cp=false empty=false` | **PASS** |
+| Studio | `FSTATE url=/app/image-studio bodyLen=691 imgs=0 restored=none loads=0 spin=0 emptyText=true title=KI-Bild-Studio` | **PASS** (rendert, kein Spinner, Leer-Hinweis statt leerer Fläche) |
+| Browser-Zurück | Screenshot `e2e-testF2-f2-02-zurueck.png` | **PASS** — die Aufnahme ist **byte-identisch** mit dem verifizierten Dashboard-Screenshot (`md5 2b2fd5d35a584b7bf7473fa464ac6106` = `e2e-testF2-f4-dashboard.png`), d. h. die Zurück-Navigation landet auf dem intakten Dashboard |
+| Browser-Vorwärts | `FSTATE url=/app/image-studio bodyLen=653 imgs=0 restored=none loads=0 spin=0 emptyText=true title=KI-Bild-Studio` | **PASS** (Studio rendert erneut, kein Leer-Screen, keine Schleife) |
+
+## F3 — Reload im Studio → Galerie wiederhergestellt (Fix) → **PASS (visuell belegt)**
+
+Session `d1` (dieselbe, in der Test D lief) mit Pixel-5-Viewport, Studio per Deep-Link
+`?prompt=Personalisierte Kerze aus Sojawachs`. **Verbrauch: 0 Generierungen** — der Fahrplan hat erkannt,
+dass die Galerie schon aus `sessionStorage` vorhanden war (`F3 Galerie schon aus sessionStorage vorhanden (imgs=3)`).
+
+| Schritt | Rohlog-Auszug | Ergebnis |
+|---|---|---|
+| Vor dem Reload | `GALVIEW imgs=3 badges=3 hint="Aus deiner Sitzung wiederhergestellt: 3 Bilder — als Vorschau, damit beim Navigi…" secTitle=Generierte Bilder` | 3 Karten, 3 Vorschau-Badges, Hinweis-Streifen |
+| **Reload** | `FSTATE url=/app/image-studio bodyLen=988 imgs=3 restored="Aus deiner Sitzung wiederhergestellt: 3 Bilder — als Vorscha…" loads=0 spin=0 emptyText=false title=KI-Bild-Studio` | **GRÜN** — Galerie nach echtem Reload wieder da, `loads=0`/`spin=0` (keine Lade-Schleife) |
+| Sichtbeleg | `e2e-testF2-f3-02-reload-galerie.png` (mobil, 520710 Bytes) | **gesichtet:** Überschrift „Generierte Bilder", blauer Streifen „Aus deiner Sitzung wiederhergestellt: **3 Bilder** — als Vorschau, damit beim Navigieren nichts verloren geht.", darunter die generierte Kerzen-Karte mit Badge `2:3` und `⚠ Vorschau` |
+
+Damit ist der 5d-Fix **auch mobil** visuell abgenommen (die Desktop-Aufnahmen aus 5e zeigen die Galerie
+nicht im Ausschnitt, hier ist sie im Bild).
+
+## F4 — Dashboard mobil → **PASS**
+
+Session `m2`, Pixel 5, 16:21: `CPCHECK m2 -> "CP url=/app title=Growimo — … bodyLen=941 cp=false"` und
+`DASH url=/app bodyLen=941 willkommen=true loads=0 cp=false empty=false` → Screenshot
+`e2e-testF2-f4-dashboard.png` (md5 `2b2fd5d3…`, identisch mit der verifizierten Dashboard-Aufnahme aus F2).
+Kein leerer Screen, keine Lade-Schleife, kein Checkpoint.
+
+## F5 — Dashboard → Studio mobil → **PASS**
+
+Session `d2`, Pixel 5, 16:21/16:22: `DASH url=/app bodyLen=1101 … cp=false empty=false` → Deep-Link Studio →
+`FSTATE url=/app/image-studio bodyLen=803 imgs=1 restored="Aus deiner Sitzung wiederhergestellt: 1 Bilder — als Vorscha…" loads=0 spin=0 emptyText=false title=KI-Bild-Studio`.
+Bereichswechsel gerendert, Galerie aus der Sitzung wiederhergestellt, kein Spinner/„Lädt…".
+Screenshot `e2e-testF2-f5-studio.png`.
+
+## F6 — Dashboard → TikTok mobil → **PASS**
+
+Frische Sign-in-Session `k1` (Pixel 5), 16:31 — nach der 180-s-Abkühlpause war der kalte Login wieder möglich
+(`TRYPASS k1`, `TRYPCP k1 -> "CP url=/app title=Growimo — … bodyLen=1101 cp=false"`).
+
+| Schritt | Rohlog-Auszug | Ergebnis |
+|---|---|---|
+| Dashboard mobil | `DASH url=/app bodyLen=941 willkommen=true loads=0 links=[…12 /app-Routen…] cp=false empty=false` | **PASS** (`e2e-testF2-f6-00-dashboard.png`) |
+| Bereichswechsel Dashboard → TikTok | `CPCHECK k1 -> "CP url=/app/tiktok title=Growimo — … bodyLen=997 cp=false"` und `TIKTOK url=/app/tiktok videoIdee=true recent=false bodyLen=997 spin=0 loads=0 cp=false` | **PASS** (`e2e-testF2-f6-tiktok.png`): Werkstatt gerendert (Idee-Feld + Einstiegskarten), kein Spinner, kein Dauer-„Lädt…", keine Checkpoint-Seite |
+
+**Verbrauch 0** (DB bleibt 12). Die zwei vorherigen F6-Versuche (16:22 Session `m1`, 16:24/16:28 Session `d1`)
+liefen in den Vercel-Checkpoint; die dabei entstandenen Aufnahmen sind ehrlich als
+`e2e-testF2-f6-00-CHECKPOINT-code21.png` und `-f6-01-CHECKPOINT-code21.png` gekennzeichnet (Code-21-Seite,
+`bodyLen=117`) und **nicht** als App-Beleg gewertet.
+
+
+
+## Verbrauch Test F (autoritativ: DB `usage_monthly`, period 2026-09)
+
+| Stand | DB count | Erklärung |
+|---|---|---|
+| Ende Test D | 11 | 3 Bilder aus dem D-Nachlauf |
+| nach F1 | **12** | 1 echte TikTok-Generierung („Was soll ich heute posten?"), im Kontingent |
+| nach F3/F4/F5 | 12 | **0 zusätzliche** Generierungen (Persistenz-/Render-Prüfungen) |
+
+Konto unverändert Pro/aktiv, 188 von 200 verbleibend.
+
+## Werkzeug-Befund: Vercel Security Checkpoint ab 16:14 (kein App-Befund)
+
+Ab **16:14** lieferte die Bot-Abwehr von www.growimo.app für **neue** Browser-Sessions statt der App die
+Checkpoint-Seite aus; ab 16:22 wurde auch in bereits angemeldeten Sessions eine **neue Dokument-Navigation**
+gechallenged:
+
+| Zeit | Versuch | Ergebnis |
+|---|---|---|
+| 16:12 / 16:13 | frische Logins `m1`, `m2` | **OK** (`cp=false`, App gerendert) |
+| 16:14 / 16:17 / 16:21 | frische Logins `m3`, `g3`, `h1` | Checkpoint: `CP url=/app/sign-in title=Vercel Security Checkpoint bodyLen=117 cp=true` |
+| 16:22 | `m1`: Direktaufruf `/app/tiktok` nach gerendertem Dashboard | Checkpoint — Screenshot `e2e-testF2-f6-00-CHECKPOINT-code21.png` („Failed to verify your browser / Code 21") |
+| 16:24 | `d1`: Direktaufruf `/app`, obwohl die Session bis 16:21 fehlerfrei arbeitete | Checkpoint (`bodyLen=117 cp=true`) |
+| 16:28 | Abkühlpause 180 s; `curl https://www.growimo.app/app` | `PROBE http=200 checkpoint_marker=0` (Edge-Challenge serverseitig weg) |
+| 16:28 | `d1` (Session mit Clearance, aber zwischenzeitlich challenged) erneut | weiterhin Checkpoint (`F6B_CHECKPOINT`) |
+| 16:31 | **frischer Login `k1`** (neue Session, neuer Sign-in-Token) | **OK** (`cp=false`) → F6 gefahren und **GRÜN** |
+
+Merkmale (wie im Skill dokumentiert): `bodyLen=117`, `cp=true`, Titel „Vercel Security Checkpoint", Screenshot
+„Code 21". Ein Checkpoint verbraucht **keine** Generierung. Gegenmaßnahmen: Abkühlpause (180 s) + IP-Probe
+(`curl https://www.growimo.app/app` auf „Security Checkpoint" prüfen), danach die Navigation in einer
+Session mit Clearance wiederholen; mehr als zwei Fehlversuche in Folge werden nicht verbrannt, sondern der
+Befund wird ehrlich als „nicht verifizierbar" dokumentiert.
+
+## Gesamtergebnis Stabilisierung A–F
+
+| Test | Inhalt | Ergebnis |
+|---|---|---|
+| **A** | Markenprofil EIN, Pinterest „Growimo" | **PASS** (5a) |
+| **B** | Markenprofil AUS, „kleines Café in Hamburg" | **PASS** (5a) |
+| **C** | TikTok-Werkstatt, 2 Ideen, Konzept-Qualität | **PASS** (5b) |
+| **D** | Bild-Studio: Vorbefüllung, 3 Bilder, Galerie nach Zurück/Forward/Reload | **PASS** (Nachlauf, s. „5e-Test D — Abnahme GRUEN"; DB 8 → 11) |
+| **E** | Pinterest „Weihnachts-Pin" bei Markenprofil EIN | **PASS** (5a) |
+| **F** | Mobil „Pixel 5": TikTok-Ergebnis, Zurück/Vorwärts, Reload-Galerie, Bereichswechsel | ****PASS** (F1–F6; F6 nach Abkühlpause im Nachlauf)** (s. o.) |
+
+**Abgenommene Kernpunkte:** Kontexttreue mit/ohne Markenprofil (A/B/E), TikTok-Konzept (C),
+Galerie-Navigationsfestigkeit inkl. Reload-Fix (D + F3), mobil keine leeren Screens/Lade-Schleifen (F1–F5).
