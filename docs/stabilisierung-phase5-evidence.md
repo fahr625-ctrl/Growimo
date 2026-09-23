@@ -431,3 +431,43 @@ Dashboard→Studio→TikTok je mit frischer Session. Screenshots `e2e-testD2-*`/
 **Hinweis auf überholte Abschnitte:** die Abschnitte „Test D + F — Rohbelege" (5b),
 „Teillauf 5c — Test D" und „Teillauf 5c — Test F" bleiben als Befund-Historie stehen; der
 dort dokumentierte **Fund 3 ist mit diesem Abschnitt behoben**, die D/F-Abnahme selbst ist es nicht.
+
+---
+
+# 5d-Nachtrag — Test D Nachlauf (abgebrochen, ehrlich ausgewiesen)
+
+**Datum:** 2026-09-23, ~15:52–16:02 UTC. **Konto:** synthetisches Pro-Konto
+`user_3JZ1X21pNidksnLIqznjqXzGQoN` (users-UUID `0ac63bb3-9f32-41b7-b31e-03881daab276`), `period=2026-09`.
+
+## Belegte Schritte (Rohlog `/tmp/d2run.log`, Artefakte `e2e-testD2-*`)
+
+| Schritt | Beleg | Ergebnis |
+|---|---|---|
+| Anmeldung ohne Interaktion (Sign-in-Token auf dem App-Origin) | `URL=https://www.growimo.app/app`, `window.Clerk.user.id = user_3JZ1X21pNidksnLIqznjqXzGQoN`; `e2e-testD2-00-dashboard.png` | **PASS** |
+| TikTok-Werkstatt betreten + Idee eintragen (ohne Generierung) | `IDEA_SET=Personalisierte Kerze aus Sojawachs`; `e2e-testD2-01-tiktok-idee.png` | **PASS** (0 Verbrauch) |
+| Studio per Deep-Link `?prompt=` mit vorbelegtem Feld | `pre={"idea":"Personalisierte Kerze aus Soja","disabled":false}` → `CLICKED` | **PASS** |
+| Bild 1 generieren | Poll `imgs=0 spin=1` (6 s, 12 s) → anschließend Läufe blockiert | **Generierung serverseitig bezahlt belegt** |
+| **Zähler-Wahrheit (DB, autoritativ)** | `usage_monthly.count` 7 → **8** (per `scripts/_abn-usage.ts`) | **+1 = genau 1 Bild bezahlt** |
+| Galerie nach Browser-Zurück (Prüfungskern D) | — | **NICHT ERREICHT** |
+
+## Warum abgebrochen (kein App-Befund)
+
+Der Poll-Aufruf des E2E-Treibers (`agent-browser eval`, der die Galerie-Zählung
+`document.querySelectorAll("article img")` liest) **blockierte nach dem 2. Poll** — der Lauf stand ~8 Minuten
+ohne neuen Log-Eintrag und wurde abgebrochen. Das ist ein Werkzeug-/Treiber-Hänger des Browser-CLI, **kein
+App-Befund**: die Generierung selbst lief durch (DB 7 → 8), der Client wurde nur nicht mehr abgefragt
+(`imgs=0 spin=1` = Skeleton sichtbar, Request lief). Es wurde **kein** Schein-Artefakt erzeugt und **keine**
+5c-Datei wiederverwendet; für Bild 2/3 existieren keine Screenshots, für die Galerie-Prüfung existiert **kein** Beleg.
+
+## Konsequenz / nächster Schritt
+
+- **Test D: weiterhin TEILWEISE.** Der Prüfungskern („Galerie enthält nach dem Zurück alle 3 Bilder") ist
+  **nicht abgenommen**. Nötig: 3 Bilder nacheinander erzeugen, Browser-Zurück → TikTok, zurück ins Studio,
+  dort `article img`-Zählung **und** `data-testid="image-gallery-restored-hint"` prüfen; Zähler vorher/nachher
+  (erwartet 7 → 10). Empfehlung: Poll **nicht** mit einem pro Schritt gestarteten `agent-browser eval`
+  (das war die hängende Stelle), sondern — wenn möglich — die Zählung in den Screenshot-Schritt integrieren bzw.
+  nach jedem Bild genau **einen** `eval` ausführen und bei ausbleibender Antwort den Browser-Kontext
+  (`pkill -f "agent-browser --session <name>"`) neu aufsetzen.
+- **Test F: weiterhin TEILWEISE** (kein Lauf in 5d; Szenarien F1–F6 wie in §5 beschrieben).
+- Bereits verbraucht: **1 Generierung** (7 → 8); für D (3) + F bleibt Kontingent (Pro 200).
+- Der **Fix selbst** ist davon unberührt belegt: Gates grün (§2), Bundle-Marker live (§3).
