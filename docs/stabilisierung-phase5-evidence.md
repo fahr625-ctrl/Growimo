@@ -712,6 +712,17 @@ liefen in den Vercel-Checkpoint; die dabei entstandenen Aufnahmen sind ehrlich a
 
 
 
+## Beobachtung zum mobilen Layout (kein FAIL, für den Owner)
+
+Auf allen Pixel-5-Aufnahmen **sichtgeprüft** (`-f4-dashboard.png`, `-f6-tiktok.png`, `-f1-01-tiktok-ergebnis.png`,
+`-f3-02-reload-galerie.png`): Die Navigationsspalte läuft auf 393 px in **voller Breite** und schiebt den
+Seiteninhalt unter den ersten Fold — Kopfzeile „growimo", Menü (aktiver Bereich hervorgehoben), Sprachumschalter,
+Nutzername/„Abmelden" und der Zähler-Banner („188 von 200 Generierungen verbleibend" = 12 verbraucht) sind sichtbar,
+der Seiteninhalt beginnt darunter. Das ist **kein** leerer Screen und **keine** Lade-Schleife (DOM-Sonden:
+`bodyLen` 941–997, `willkommen=true`, alle 12 `/app`-Routen, `spin=0`, `loads=0`), aber die eigentliche Seite
+ist on mobile erst nach Scrollen zu sehen. Empfehlung (P3, nicht Teil dieses Auftrags): mobile Navigation als
+Burgermenü/ausklappbar, damit der Inhalt im ersten Screen steht.
+
 ## Verbrauch Test F (autoritativ: DB `usage_monthly`, period 2026-09)
 
 | Stand | DB count | Erklärung |
