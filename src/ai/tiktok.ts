@@ -305,8 +305,8 @@ Rules:
 - Prefer AUTHENTIC TikTok formats: problem → attempt → result, behind-the-scenes, experiment, mistake/lesson, before/after, challenge, surprising insight, concrete demonstration, story. Story and curiosity take priority over advertising.
 - The product must NOT be pitched immediately. It may appear ONLY if it fits naturally into the story/demo/experiment — never as the video's actual purpose.
 - For simple concepts default to SHORT videos of about 8–20 seconds. Only go longer if the story genuinely justifies the extra content — set the length field accordingly.
-- The hook MUST be a specific spoken + on-screen line for the first 1-2 seconds that stops the scroll. Hooks must be concrete to THIS business and must not be interchangeable/generic. Do not use empty teasers like "You won't believe…" unless a genuinely surprising payoff follows.
-- SCROLL-STOP MOMENT (MANDATORY FIELD "scrollStop"): name the EXACT trigger in the first second that stops the scroll (the concrete visual, object, gesture, question or line the viewer sees/hears) AND why it works for this audience — a generic justification ("because it is interesting") is NOT acceptable.
+- The hook MUST be a specific spoken + on-screen line for the first 1-2 seconds that stops the scroll. Hooks must be concrete to THIS business and must not be interchangeable/generic. Do not use empty teasers like "You won't believe…" unless a genuinely surprising payoff follows. The hook AND the first scene MUST show a concrete VISUAL element (object, action, detail or reveal) of THIS product — a general question alone (e.g. "Are you tired of …?") is NOT a scroll-stop and must not open the video.
+- SCROLL-STOP MOMENT (MANDATORY FIELD "scrollStop"): name the EXACT trigger in the first second that stops the scroll (the concrete visual, object, gesture, question or line the viewer sees/hears) AND why it works for this audience — a generic justification ("because it is interesting") is NOT acceptable. You MUST pick exactly ONE mechanic from the mandatory catalog (Transformation, Reveal, unexpected result, Problem/Payoff, curiosity gap — or another equally concrete one) and NAME it at the start of the field, e.g. "Mechanic: Reveal — …". A spoken question without a visible element is NOT a valid scroll-stop.
 - TENSION ARC (MANDATORY FIELD "tension"): describe how the video builds and holds curiosity from second 0 to the payoff (open loop → development/escalation → payoff) and name the second in which the payoff lands. Never leave the tension unexplained.
 - SCENE PLAN WITH SECONDS (MANDATORY): timedScenes must be gap-free from 0s to the end of the video (e.g. "0-2s", "2-6s", "6-12s" …) and every step must name its seconds AND the on-screen/spoken text of that moment (empty string if nothing is shown or said).
 - SPOKEN TEXT: fill "spokenText" whenever a spoken script/voice-over makes sense for the format (talking head, tutorial, story, demo) — leave it empty ONLY if the video genuinely works without words.
@@ -332,7 +332,7 @@ Rules:
 Internal quality self-check BEFORE output (mandatory — answer honestly in the "selfCheck" field):
 - Q1 - usesConcreteBrandFact: Does the idea use AT LEAST ONE concrete fact from the MARKENKONTEXT (more than just the generic business name)?
 - Q2 - addressesCurrentChallenge: If the MARKENKONTEXT contains a present current challenge, did the idea genuinely account for it?
-- Q3 - interchangeable: Could any generic AI tool produce this idea almost unchanged for 100 other businesses? Be strict: "show how easy it is to use our product" IS interchangeable and is a generic ad — reject it.
+- Q3 - interchangeable: Could any generic AI tool produce this idea almost unchanged for 100 other businesses? Be strict: "show how easy it is to use our product" IS interchangeable and is a generic ad — reject it. Also report true if any FORBIDDEN generic line appears (e.g. "Find your style", "The difference is immediately visible", "Discover your potential", "The best for you") — such lines are interchangeable by definition.
 - Q4 - soundsLikeAd: Does the result read like an advertisement?
 - Q5 - inventsUserOrTestimonial: Does the idea claim that a real person (user, customer, tester, beta user) said/experienced/gave feedback about the product WITHOUT a real quote or proof in the MARKENKONTEXT (or provided by the user)? An invented user/testimonial/quote/user-feedback that is not backed by the MARKENKONTEXT MUST be reported as true. This is a HARD REJECT: if true, the idea is fabricated and MUST be discarded and regenerated — never output it.
 - Q6 - unprovenPerformancePromise: Does the idea contain ANY unproven concrete time-based / result-based performance promise — e.g. "in just X seconds/minutes/days/weeks", "+X%", "% more reach/engagement/followers/clicks/sales/success", "doubles (the) reach/followers/clicks", "guaranteed more reach/followers/success", "go viral", "become a hit" — across the idea, the hook, the scenes, the overlays, the spoken text, the caption AND the why? Any such unproven concrete promise that is not backed by real data the user actually provided MUST be reported as true. This is a HARD REJECT: if true, the idea MUST be discarded and regenerated — never output it.
@@ -344,7 +344,7 @@ JSON schema exactly:
 {
   "idea": "one-sentence concrete video idea / concept",
   "hook": "exact first 1-2 second hook line (spoken + written)",
-  "scrollStop": "the exact trigger in the first second that stops the scroll + why it works for this audience",
+  "scrollStop": "the exact trigger in the first second that stops the scroll, starting with \"Mechanic: <name> — \" (name the chosen mechanic from the catalog) + why it works for this audience",
   "tension": "tension arc: how curiosity is built and held from second 0 to the payoff (open loop -> development -> payoff, incl. the second of the payoff)",
   "length": "recommended length, e.g. '45 seconds'",
   "format": "one concrete video format + short reason, e.g. 'Tutorial/How-to – step by step (fits the goal: sales)'",
@@ -386,8 +386,8 @@ Regeln:
 - Bevorzuge AUTHENTISCHE TikTok-Formate: Problem → Versuch → Ergebnis, Behind-the-Scenes, Experiment, Fehler/Learning, Vorher/Nachher, Challenge, überraschende Erkenntnis, konkrete Demonstration, Story. Story und Neugier haben Vorrang vor Werbung.
 - Das Produkt darf NICHT sofort beworben werden. Es darf NUR auftauchen, wenn es natürlich in die Story/Demo/Experiment passt — nicht als eigentlicher Zweck des Videos.
 - Für einfache Konzepte standardmäßig KURZE Videos von ca. 8–20 Sekunden. Länger NUR, wenn die Story den zusätzlichen Inhalt wirklich rechtfertigt — setze das length-Feld entsprechend.
-- Der Hook MUSS eine konkrete gesprochene + eingeblendete Zeile für die ersten 1–2 Sekunden sein, die den Scroll stoppt. Hooks müssen konkret zu DIESEM Unternehmen passen und dürfen nicht austauschbar/generisch sein. Nutze keine leeren Teaser wie „Du glaubst nicht…", außer eine echte überraschende Auflösung folgt.
-- SCROLL-STOP-MOMENT (PFLICHTFELD „scrollStop"): Benenne den EXAKTEN Auslöser in der ersten Sekunde, der den Scroll stoppt (das konkrete Bild, Objekt, die Geste, Frage oder Zeile, die der Zuschauer sieht/hört) UND warum er bei DIESER Zielgruppe wirkt — eine generische Begründung („weil es interessant ist") ist NICHT akzeptabel.
+- Der Hook MUSS eine konkrete gesprochene + eingeblendete Zeile für die ersten 1–2 Sekunden sein, die den Scroll stoppt. Hooks müssen konkret zu DIESEM Unternehmen passen und dürfen nicht austauschbar/generisch sein. Nutze keine leeren Teaser wie „Du glaubst nicht…", außer eine echte überraschende Auflösung folgt. Der Hook UND die erste Szene MÜSSEN ein KONKRETES visuelles Element DIESES Produkts zeigen (Objekt, Handlung, Detail oder Reveal) — eine allgemeine Frage allein (z. B. „Bist du es leid, dass …?") ist KEIN Scroll-Stop und darf das Video nicht eröffnen.
+- SCROLL-STOP-MOMENT (PFLICHTFELD „scrollStop"): Benenne den EXAKTEN Auslöser in der ersten Sekunde, der den Scroll stoppt (das konkrete Bild, Objekt, die Geste, Frage oder Zeile, die der Zuschauer sieht/hört) UND warum er bei DIESER Zielgruppe wirkt — eine generische Begründung („weil es interessant ist") ist NICHT akzeptabel. Du MUSST GENAU EINE Mechanik aus dem Pflicht-Katalog (Transformation, Reveal, unerwartetes Ergebnis, Problem/Payoff, Neugierlücke — oder eine andere ebenso konkrete) wählen und sie am Anfang des Feldes BENENNEN, z. B. „Mechanik: Reveal — …". Eine gesprochene Frage ohne sichtbares Element ist KEIN gültiger Scroll-Stop.
 - SPANNUNGSBOGEN (PFLICHTFELD „tension"): Beschreibe, wie das Video von Sekunde 0 bis zum Payoff Neugier/Spannung aufbaut und hält (offene Schleife → Entwicklung/Steigerung → Payoff) und in welcher Sekunde der Payoff liegt. Lass die Spannung niemals unerklärt.
 - SZENENPLAN MIT SEKUNDEN (PFLICHT): timedScenes müssen von 0s bis zum Videoende LÜCKENLOS sein (z. B. „0-2s", „2-6s", „6-12s" …) und jeder Schritt muss seine Sekunden UND den Text dieses Moments nennen (leere Zeichenkette, wenn nichts gezeigt/gesagt wird).
 - SPRECHTEXT: Fülle „spokenText" immer dann, wenn ein Sprech-/Voice-over-Skript für das Format sinnvoll ist (Talking Head, Tutorial, Story, Demo) — leer NUR, wenn das Video wirklich ohne Worte funktioniert.
@@ -413,7 +413,7 @@ Regeln:
 Interne Qualitäts-Selbstprüfung VOR der Ausgabe (Pflicht — beantworte ehrlich im Feld „selfCheck"):
 - Q1 - usesConcreteBrandFact: Nutzt die Idee MINDESTENS eine konkrete Information aus dem MARKENKONTEXT (mehr als nur den generischen Markennamen)?
 - Q2 - addressesCurrentChallenge: Wenn der MARKENKONTEXT eine aktuelle Herausforderung enthält, hat die Idee sie wirklich berücksichtigt?
-- Q3 - interchangeable: Könnte irgendeine generische KI diese Idee nahezu unverändert für 100 andere Unternehmen erzeugen? Sei streng: „Zeig, wie einfach unser Produkt zu nutzen ist" IST austauschbar und generische Werbung — verwerfe es.
+- Q3 - interchangeable: Könnte irgendeine generische KI diese Idee nahezu unverändert für 100 andere Unternehmen erzeugen? Sei streng: „Zeig, wie einfach unser Produkt zu nutzen ist" IST austauschbar und generische Werbung — verwerfe es. Melde außerdem true, wenn ein VERBOTENER generischer Satz vorkommt (z. B. „Finde deinen Stil", „Der Unterschied ist sofort sichtbar", „Entdecke dein Potenzial", „Das Beste für dich") — solche Sätze sind per Definition austauschbar.
 - Q4 - soundsLikeAd: Klingt das Ergebnis wie Werbung?
 - Q5 - inventsUserOrTestimonial: Behauptet die Idee, dass eine echte Person (Nutzer, Kunde, Tester, Beta-Nutzer) etwas über das Produkt gesagt/erlebt/Feedback gegeben hat, OHNE echtes Zitat oder Beleg im MARKENKONTEXT (oder vom Nutzer angegeben)? Ein erfundenes Testimonial/erfundene zitierte Person/erfundenes Nutzerfeedback, das nicht durch den MARKENKONTEXT belegt ist, MUSS als true gemeldet werden. Das ist ein HARD REJECT: Ist das Flag true, ist die Idee erfunden und MUSS verworfen und NEU generiert werden — niemals ausgeben.
 - Q6 - unprovenPerformancePromise: Enthält die Idee IRGENDEIN unbelegtes konkretes Zeit-/Ergebnis-Leistungsversprechen — z. B. „in nur X Sekunden/Minuten/Tagen/Wochen", „+X%", „% mehr Reichweite/Engagement/Follower/Klicks/Verkäufe/Erfolg", „verdoppelt (die) Reichweite/Follower/Klicks", „garantiert mehr Reichweite/Follower/Erfolg", „viral gehen", „zum Hit werden" — in Idee, Hook, Szenen, Einblendungen, Sprechtext, Caption UND why? Jedes solche unbelegte konkrete Versprechen, das nicht durch echte, vom Nutzer gelieferte Daten belegt ist, MUSS als true gemeldet werden. Das ist ein HARD REJECT: Ist das Flag true, MUSS die Idee verworfen und NEU generiert werden — niemals ausgeben.
@@ -425,7 +425,7 @@ JSON-Schema exakt:
 {
   "idea": "ein Satz: konkrete Videoidee/Konzept",
   "hook": "exakte Hook-Zeile für die ersten 1-2 Sekunden (gesprochen + eingeblendet)",
-  "scrollStop": "der exakte Auslöser in der ersten Sekunde, der den Scroll stoppt + warum er bei dieser Zielgruppe wirkt",
+  "scrollStop": "der exakte Auslöser in der ersten Sekunde, der den Scroll stoppt, beginnend mit „Mechanik: <Name> — " (gewählte Mechanik aus dem Katalog benennen) + warum er bei dieser Zielgruppe wirkt",
   "tension": "Spannungsbogen: wie Neugier von Sekunde 0 bis zum Payoff aufgebaut und gehalten wird (offene Schleife -> Entwicklung -> Payoff, inkl. Sekunde des Payoffs)",
   "length": "empfohlene Länge, z.B. '15 Sekunden'",
   "format": "ein konkretes Videoformat + kurze Begründung, z.B. 'Tutorial/How-to – Schritt für Schritt (passt zum Ziel: Verkäufe)'",
@@ -475,6 +475,50 @@ function ideaQualityMandate(de: boolean, selfRefLabel: string): string {
 - ANTI-AD MANDATE (human first): do NOT default to the classic ad structure — that is exactly what to avoid. ATTENTION and VIEWER RETENTION come first, selling second: open with the human moment, the curiosity, the story, the demonstration or the experiment from the audience's perspective, build trust and interest, and bring the product in only at the end as a supporting element — or not at all — if it fits naturally. Serve attention & connection first, selling second.`;
 }
 
+// ── Phase 5g (Owner-Auftrag 2026-09-23) — VERSCHÄRFTES INHALTS-MANDAT ───────
+// Test C war NICHT bestanden: die Ideen deuteten die Nutzereingabe um
+// („personalisierte Tasse" → Idee über Tassenform/Kaffeegeschmack statt über
+// Name/Foto/Text/Design) bzw. blieben generisch („Finde deinen Stil").
+// Diese fünf Owner-Kriterien gelten für BEIDE Idee-Modi (todayIdea + concept)
+// und stehen deshalb — wie das Qualitäts-Mandat — an EINER Quelle:
+//   (1) Bedeutungs-Erhalt (keine thematische Umdeutung),
+//   (2) ECHTER visueller Scroll-Stop + Pflicht-Katalog TikTok-nativer Mechaniken,
+//   (3) Anti-Generik (austauschbare Standard-Werbesätze verboten),
+//   (4) Spezifität (nicht auf beliebige Produkte übertragbar),
+//   (5) keine unbelegten Fakten (Wahrheitsregel konsequent anwenden).
+// Die im Punkt 3 genannten Verbote sind deckungsgleich mit GENERIC_PATTERNS
+// (deterministischer Post-Check weiter unten in dieser Datei).
+function ideaSharpeningMandate(de: boolean): string {
+  if (de) {
+    return `INHALTS-MANDAT (VERBINDLICH — verschärfter Qualitätsstandard, Owner-Kriterien; gilt für JEDE Ausgabe):
+1. BEDEUTUNGS-ERHALT (harte Regel): Konkrete Produktmerkmale UND die tatsächliche Bedeutung der Nutzereingabe bleiben erhalten. Deute das Thema NIEMALS um. Beispiel: Eingabe „personalisierte Tasse" → Name, Foto, Text oder individuelles Design SIND das zentrale visuelle Element UND der Payoff des Videos. VERBOTEN ist eine Umdeutung wie „die Tassenform beeinflusst den Kaffeegeschmack" — das ist eine andere Idee zum selben Gegenstand, nicht dieselbe Bedeutung. Jedes konkrete Merkmal, das die Nutzereingabe nennt, muss im Video sichtbar wieder auftauchen (als Objekt, Szene oder Payoff); fehlt es, ist die Idee ungültig und muss verworfen werden.
+2. ECHTER VISUELLER SCROLL-STOP (harte Regel): Hook UND erste Szene zeigen ein KONKRETES visuelles Element (Objekt, Handlung, Detail, Reveal) — eine allgemeine Frage allein oder eine reine Behauptung ist KEIN Scroll-Stop. Wähle GENAU EINE TikTok-native Mechanik aus diesem Pflicht-Katalog und benenne sie WÖRTLICH zu Beginn des Feldes „scrollStop" (Format: „Mechanik: <Name> — <konkreter Auslöser + warum er bei dieser Zielgruppe wirkt>"):
+   - Transformation (sichtbare Veränderung von A nach B),
+   - Reveal (etwas wird aufgedeckt/enthüllt),
+   - unerwartetes Ergebnis (das Resultat widerspricht der Erwartung),
+   - Problem/Payoff (Problem in der ersten Sekunde, Auflösung am Ende),
+   - Neugierlücke (sichtbarer Hinweis auf ein fehlendes Detail),
+   - oder eine andere, ebenso konkrete Mechanik, die zu DIESEM Produkt passt (dann ebenfalls benennen).
+   Die Mechanik muss im ersten Bild/Film-Moment TATSÄCHLICH sichtbar sein — nicht nur erklärt werden.
+3. ANTI-GENERIK (harte Regel): Generische, austauschbare Standard-Werbeaussagen sind VERBOTEN — z. B. „Finde deinen Stil", „Der Unterschied ist sofort sichtbar", „Entdecke dein Potenzial", „Das Beste für dich", „Heb dich von der Masse ab". Solche Sätze passen unverändert auf beliebige Produkte und werden verworfen. Formuliere stattdessen eine Aussage, die NUR mit genau diesem Produkt und diesem konkreten Detail funktioniert.
+4. SPEZIFITÄT (Pflicht-Assertion): Die Idee MUSS so spezifisch sein, dass sie NICHT auf beliebige andere Produkte übertragbar ist. Selbstprüfung VOR der Ausgabe: „Wäre diese Idee fast unverändert auf beliebige andere Produkte übertragbar? Wenn ja: verwirf sie und entwickle eine produktspezifische." Nenne mindestens ein konkretes, produktspezifisches Detail aus der Nutzereingabe im Hook, in der ersten Szene ODER im Payoff.
+5. KEINE UNBELEGTEN FAKTEN (harte Regel): Erfinde NIEMALS Fakten, Merkmale, Zahlen, Trends, Zielgruppen-Aussagen oder Zusatznutzen, nur um den Hook stärker zu machen. Verwende ausschließlich, was der Nutzer angegeben hat oder was im MARKENKONTEXT/PROJEKT-KONTEXT steht; fehlt eine Information, entwickle die Idee OHNE diese Behauptung.`;
+  }
+  return `CONTENT MANDATE (MANDATORY — sharpened quality standard, owner criteria; applies to EVERY output):
+1. MEANING PRESERVATION (hard rule): concrete product features AND the actual meaning of the user's input must be preserved. NEVER reinterpret the subject. Example: input "personalized mug" → name, photo, text or custom design ARE the central visual element AND the payoff of the video. A reinterpretation such as "the shape of the mug influences the taste of the coffee" is FORBIDDEN — that is a different idea about the same object, not the same meaning. Every concrete attribute the user's input names must visibly reappear in the video (as an object, scene or payoff); if it does not, the idea is invalid and MUST be discarded.
+2. REAL VISUAL SCROLL-STOP (hard rule): the hook AND the first scene show a CONCRETE visual element (object, action, detail, reveal) — a general question alone or a bare claim is NOT a scroll-stop. Choose EXACTLY ONE TikTok-native mechanic from this mandatory catalog and name it LITERALLY at the start of the "scrollStop" field (format: "Mechanic: <name> — <concrete trigger + why it works for this audience>"):
+   - Transformation (visible change from A to B),
+   - Reveal (something is uncovered/revealed),
+   - unexpected result (the outcome contradicts the expectation),
+   - Problem/Payoff (problem in the first second, resolution at the end),
+   - curiosity gap (a visible hint at a missing detail),
+   - or another equally concrete mechanic that fits THIS product (then name it as well).
+   The mechanic must ACTUALLY be visible in the first image/filmed moment — not merely explained.
+3. ANTI-GENERIC (hard rule): generic, interchangeable standard advertising lines are FORBIDDEN — e.g. "Find your style", "The difference is immediately visible", "Discover your potential", "The best for you", "Stand out from the crowd". Such lines fit any product unchanged and are rejected. Instead write a line that works ONLY with exactly this product and this concrete detail.
+4. SPECIFICITY (mandatory assertion): the idea MUST be so specific that it can NOT be transferred to arbitrary other products. Self-check BEFORE output: "Could this idea be used almost unchanged for arbitrary other products? If yes: discard it and develop a product-specific one." Name at least one concrete, product-specific detail from the user's input in the hook, the first scene OR the payoff.
+5. NO UNBACKED FACTS (hard rule): NEVER invent facts, features, numbers, trends, audience claims or extra benefits just to make the hook stronger. Use ONLY what the user provided or what the MARKENKONTEXT/PROJECT CONTEXT contains; if information is missing, build the idea WITHOUT that claim.`;
+}
+
 const TODAY_IDEA_EN = `${IDEA_COMMON_EN}
 
 The user gave only their business + goal (+optional audience) and did NOT tell you which video format they want. YOU do NOT choose the content direction here: the MANDATORY content direction is given in the user prompt ("Content direction (chosen by Growimo, MANDATORY — from the catalog)"). Follow it strictly and build the idea EXACTLY in that direction.
@@ -493,7 +537,9 @@ Direction catalog (the direction ALWAYS comes from the TARGET AUDIENCE\'s perspe
 
 Pick the TOPIC within the given direction: ask yourself what the TARGET AUDIENCE really cares about, is unsure about or gets excited about today (their daily life, their questions, their mistakes, their goals — derivable from target audience, business/product and goal).
 
-${ideaQualityMandate(false, 'SELF-REFERENCE BAN (daily idea)')}`;
+${ideaQualityMandate(false, 'SELF-REFERENCE BAN (daily idea)')}
+
+${ideaSharpeningMandate(false)}`;
 const TODAY_IDEA_DE = `${IDEA_COMMON_DE}
 
 Der Nutzer hat nur Unternehmen + Ziel (+ optional Zielgruppe) angegeben und NICHT gesagt, welche Videoart er möchte. DU wählst die Content-Richtung hier NICHT selbst: Die verbindliche Content-Richtung steht im Nutzer-Prompt („Content-Richtung (von Growimo gewählt, VERBINDLICH — aus dem Katalog)"). Folge ihr strikt und baue die Idee GENAU in dieser Richtung auf.
@@ -512,7 +558,9 @@ Richtungs-Katalog (die Richtung kommt IMMER aus der PERSPEKTIVE DER ZIELGRUPPE �
 
 So wählst du das Thema INNERHALB der vorgegebenen Richtung: Frage dich, was die ZIELGRUPPE heute wirklich interessiert, verunsichert oder begeistert (aus ihrem Alltag, ihren Fragen, ihren Fehlern, ihren Zielen — ableitbar aus Zielgruppe, Unternehmen/Produkt und Ziel).
 
-${ideaQualityMandate(true, 'SELBSTREFERENZ-VERBOT (heute-Idee)')}`;
+${ideaQualityMandate(true, 'SELBSTREFERENZ-VERBOT (heute-Idee)')}
+
+${ideaSharpeningMandate(true)}`;
 
 const CONCEPT_EN = `${IDEA_COMMON_EN}
 
@@ -523,7 +571,9 @@ The user may or may not have provided a topic/product/rough idea (it is OPTIONAL
 
 Either way you still choose the best angle and format yourself and always deliver the complete, ready-to-record concept.
 
-${ideaQualityMandate(false, 'SELF-REFERENCE BAN')}`;
+${ideaQualityMandate(false, 'SELF-REFERENCE BAN')}
+
+${ideaSharpeningMandate(false)}`;
 const CONCEPT_DE = `${IDEA_COMMON_DE}
 
 Der Nutzer hat MÖGLICHERWEISE ein Thema/Produkt/grobe Idee vorgegeben (OPTIONAL).
@@ -533,7 +583,9 @@ Der Nutzer hat MÖGLICHERWEISE ein Thema/Produkt/grobe Idee vorgegeben (OPTIONAL
 
 In beiden Fällen wählst du weiterhin selbst den besten Winkel und das Format und lieferst immer das komplette, aufnahmefähige Konzept.
 
-${ideaQualityMandate(true, 'SELBSTREFERENZ-VERBOT')}`;
+${ideaQualityMandate(true, 'SELBSTREFERENZ-VERBOT')}
+
+${ideaSharpeningMandate(true)}`;
 
 const DIAGNOSE_EN = `You are Growimo's TikTok diagnostician. The user provides real performance numbers for one of their TikToks. You must analyze them honestly and give concrete, prioritized next steps — NEVER a generic pep talk, NEVER "keep going" without evidence.
 
@@ -738,6 +790,13 @@ export function buildUserPrompt(input: TikTokInput, lang: TikTokLang): string {
       lines.push(
         de ? 'Thema / Produkt / grobe Idee:' : 'Topic / product / rough idea:',
         input.topic,
+      );
+      // Phase 5g (Owner-Auftrag): Bedeutungserhalt — konkrete Merkmale des
+      // Nutzerthemas sind verbindlich und dürfen nicht umgedeutet werden.
+      lines.push(
+        de
+          ? 'Bedeutungserhalt (PFLICHT): Die konkreten Merkmale dieses Themas bleiben verbindlich — jedes genannte Merkmal muss als sichtbares Element UND als Payoff des Videos auftauchen (Beispiel: „personalisierte Tasse" → Name/Foto/Text/individuelles Design als zentrales Element). Deute das Thema NIEMALS um (verboten: „die Tassenform beeinflusst den Kaffeegeschmack") und ersetze es nicht durch eine verwandte Idee zum selben Gegenstand.'
+          : 'Meaning preservation (MANDATORY): the concrete attributes of this topic stay binding — every named attribute must appear as a visible element AND as the payoff of the video (example: "personalized mug" → name/photo/text/custom design as the central element). NEVER reinterpret the topic (forbidden: "the shape of the mug influences the taste of the coffee") and never replace it with a related idea about the same object.',
       );
       if (input.projectContext) {
         lines.push(
@@ -1366,9 +1425,14 @@ function buildRetryHint(lang: TikTokLang, violations: string[] = [], mode: TikTo
         ? ` ERKANNTE REGEL-VERLETZUNGEN DER VERWORFENEN IDEE: ${violations.join(', ')} — entferne diese Wörter/Formulierungen VÖLLIG und ersetze sie durch authentische Neugier/Möglichkeit (bei Regel A: keine konkreten unbelegten Zahlen/Zeiten/Erfolgsversprechen; bei Regel B: keine künstliche/vorgegebene Reaktion, schreibe keine Reaktion in Szenen/Einblendungen, außer sie ergibt sich echt aus dem gezeigten tatsächlichen Ergebnis).`
         : ` DETECTED RULE VIOLATIONS IN THE REJECTED IDEA: ${violations.join(', ')} — remove those words/phrases COMPLETELY and replace them with authentic curiosity/possibility (Rule A: no concrete unproven numbers/times/success promises; Rule B: no prescribed/artificial reaction — do not write any reaction into scenes/overlays unless it genuinely arises from the shown real result).`
       : '';
+  const genericPart = violations.some((v) => v.startsWith('GENERIC:'))
+    ? lang === 'de'
+      ? ' ANTI-GENERIK: Die verworfene Idee enthielt austauschbare Standard-Werbesätze (siehe Liste oben) — ersetze sie durch Aussagen, die NUR mit diesem konkreten Produkt/Detail funktionieren. Prüfe: „Wäre diese Idee fast unverändert auf beliebige andere Produkte übertragbar?" Wenn ja: verwirf sie und entwickle eine produktspezifische Idee.'
+      : ' ANTI-GENERIC: the rejected idea contained interchangeable standard advertising lines (see the list above) — replace them with lines that work ONLY with this concrete product/detail. Check: "Could this idea be used almost unchanged for arbitrary other products?" If yes: discard it and develop a product-specific one.'
+    : '';
   return lang === 'de'
-    ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Idee wurde intern verworfen (zu austauschbar / zu werblich / ohne echte Markenfakten oder Challenge-Bezug — oder weil sie ein erfundenes Testimonial / eine zitierte Person / erfundenes Nutzerfeedback enthielt, das nicht im MARKENKONTEXT belegt ist, ODER weil sie ein unbelegtes konkretes Leistungs-/Zeit-Versprechen oder eine vorgegebene künstliche Reaktion/Begeisterung enthielt).' + rulePart + ' Erzeuge JETZT eine deutlich bessere, neue Idee: bleibe in der vorgegebenen Content-Richtung und baue sie aus der PERSPEKTIVE DER ZIELGRUPPE (was hilft oder begeistert die Zielgruppe?) — NICHT aus der Produktperspektive. Verboten sind produktzentrierte Selbstreferenz-Ideen („Kann Growimo eine TikTok-Idee erstellen?", „Wir testen unser eigenes Produkt", „Wie gut ist meine TikTok-Idee wirklich?"); das Produkt darf höchstens als Beiwerk/Beispiel vorkommen, niemals als Thema. Erfinde keinerlei Nutzer/Tester/Testimonials/Zitate; zeige stattdessen einen echten, ehrlichen Prozess aus der Zielgruppen-Perspektive. Mache KEINERLEI unbelegtes konkretes Leistungs-/Zeit-/Ergebnis-Versprechen (kein „in nur X Sekunden/Minuten/Tagen/Wochen", kein „+X%", kein „verdoppelt die Reichweite", kein „viral gehen") und KEINE vorgegebene künstliche Reaktion/Begeisterung (kein „Wow!", kein „Da staunen alle", keine aufgesetzte Überraschung — eine Reaktion nur, wenn sie das gezeigte tatsächliche Ergebnis echt erzeugt, sonst ganz weglassen). Setze alle sieben selfCheck-Booleans ehrlich auf bestehen.'
-    : '\n\nQUALITY SELF-CHECK NOTE: The previous idea was internally rejected (too interchangeable / too ad-like / without real brand facts or challenge tie-in — or because it contained an invented testimonial / quoted person / invented user feedback not backed by the BRAND CONTEXT, OR because it contained an unproven concrete performance/time promise or a prescribed artificial reaction/enthusiasm).' + rulePart + ' NOW produce a clearly better, NEW idea: stay in the given content direction and build it from the TARGET AUDIENCE\'s perspective (what helps or excites them?) — NOT from the product perspective. Product-centric self-referential ideas are forbidden ("Can Growimo create a TikTok idea?", "We test our own product", "How good is my TikTok idea really?"); the product may appear at most as a supporting element/example, never as the topic. Do not invent any users/testers/testimonials/quotes; instead show a real, honest process from the audience\'s perspective. Make NO unproven concrete performance/time/result promise (no "in just X seconds/minutes/days/weeks", no "+X%", no "doubles your reach", no "go viral") and NO prescribed artificial reaction/enthusiasm (no "Wow!", no "everyone is amazed", no staged surprise — a reaction only if genuinely produced by the shown real result, otherwise omit it entirely). Set all seven selfCheck booleans truthfully to passing.';
+    ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Idee wurde intern verworfen (zu austauschbar / zu werblich / ohne echte Markenfakten oder Challenge-Bezug — oder weil sie ein erfundenes Testimonial / eine zitierte Person / erfundenes Nutzerfeedback enthielt, das nicht im MARKENKONTEXT belegt ist, ODER weil sie ein unbelegtes konkretes Leistungs-/Zeit-Versprechen oder eine vorgegebene künstliche Reaktion/Begeisterung enthielt).' + rulePart + genericPart + ' Erzeuge JETZT eine deutlich bessere, neue Idee: bleibe in der vorgegebenen Content-Richtung und baue sie aus der PERSPEKTIVE DER ZIELGRUPPE (was hilft oder begeistert die Zielgruppe?) — NICHT aus der Produktperspektive. Verboten sind produktzentrierte Selbstreferenz-Ideen („Kann Growimo eine TikTok-Idee erstellen?", „Wir testen unser eigenes Produkt", „Wie gut ist meine TikTok-Idee wirklich?"); das Produkt darf höchstens als Beiwerk/Beispiel vorkommen, niemals als Thema. Erfinde keinerlei Nutzer/Tester/Testimonials/Zitate; zeige stattdessen einen echten, ehrlichen Prozess aus der Zielgruppen-Perspektive. Mache KEINERLEI unbelegtes konkretes Leistungs-/Zeit-/Ergebnis-Versprechen (kein „in nur X Sekunden/Minuten/Tagen/Wochen", kein „+X%", kein „verdoppelt die Reichweite", kein „viral gehen") und KEINE vorgegebene künstliche Reaktion/Begeisterung (kein „Wow!", kein „Da staunen alle", keine aufgesetzte Überraschung — eine Reaktion nur, wenn sie das gezeigte tatsächliche Ergebnis echt erzeugt, sonst ganz weglassen). Setze alle sieben selfCheck-Booleans ehrlich auf bestehen.'
+    : '\n\nQUALITY SELF-CHECK NOTE: The previous idea was internally rejected (too interchangeable / too ad-like / without real brand facts or challenge tie-in — or because it contained an invented testimonial / quoted person / invented user feedback not backed by the BRAND CONTEXT, OR because it contained an unproven concrete performance/time promise or a prescribed artificial reaction/enthusiasm).' + rulePart + genericPart + ' NOW produce a clearly better, NEW idea: stay in the given content direction and build it from the TARGET AUDIENCE\'s perspective (what helps or excites them?) — NOT from the product perspective. Product-centric self-referential ideas are forbidden ("Can Growimo create a TikTok idea?", "We test our own product", "How good is my TikTok idea really?"); the product may appear at most as a supporting element/example, never as the topic. Do not invent any users/testers/testimonials/quotes; instead show a real, honest process from the audience\'s perspective. Make NO unproven concrete performance/time/result promise (no "in just X seconds/minutes/days/weeks", no "+X%", no "doubles your reach", no "go viral") and NO prescribed artificial reaction/enthusiasm (no "Wow!", no "everyone is amazed", no staged surprise — a reaction only if genuinely produced by the shown real result, otherwise omit it entirely). Set all seven selfCheck booleans truthfully to passing.';
 }
 
 // ── Phase 2 — Ergebnisstruktur: maximal 5 Hashtags (Owner-Vorgabe) ──────────
@@ -1465,6 +1529,114 @@ export function placeholderFreeResult(r: TikTokIdeaResult): TikTokIdeaResult {
     out.imageIdeas = r.imageIdeas
       .map((i) => ({ description: clean(i.description), studioPrompt: clean(i.studioPrompt) }))
       .filter((i) => i.description !== '' || i.studioPrompt !== '');
+  }
+  return JSON.stringify(out) === JSON.stringify(r) ? r : out;
+}
+
+// ── Phase 5g (Owner-Auftrag 2026-09-23) — ANTI-GENERIK (deterministisch) ────
+// Die Owner-Kriterien 3 und 4 verlangen, dass austauschbare Standard-
+// Werbeaussagen weder im Prompt noch im Ergebnis landen. Die Muster sind
+// deckungsgleich mit den im Prompt (ideaSharpeningMandate) verbotenen
+// Beispielen und enthalten die beiden vom Owner wörtlich beanstandeten Sätze:
+// „Finde deinen Stil" und „Der Unterschied ist sofort sichtbar".
+// Bewusst eng gefasst (ganze Slogans statt einzelner Wörter), damit echte
+// produktspezifische Inhalte NICHT fälschlich abgelehnt werden.
+export const GENERIC_PATTERNS: Array<{ name: string; re: RegExp }> = [
+  { name: 'finde-deinen-stil', re: /\bfind(?:e|et|en)?\s+deinen\s+stil\b/i },
+  { name: 'find-your-style', re: /\bfind\s+your\s+(?:own\s+)?style\b/i },
+  { name: 'unterschied-sofort-sichtbar', re: /der\s+unterschied\s+ist\s+(?:sofort|direkt|gleich|auf\s+den\s+ersten\s+blick)\s+sichtbar/i },
+  { name: 'difference-immediately-visible', re: /the\s+difference\s+is\s+(?:immediately|instantly|clearly)\s+visible/i },
+  { name: 'entdecke-dein-potenzial', re: /\bentdeck(?:e|t|en)?\s+dein\s+(?:volles\s+)?potenzial\b/i },
+  { name: 'discover-your-potential', re: /\bdiscover\s+your\s+(?:full\s+)?potential\b/i },
+  { name: 'das-beste-fuer-dich', re: /\bdas\s+beste\s+(?:für|fuer)\s+dich\b/i },
+  { name: 'the-best-for-you', re: /\bthe\s+best\s+for\s+you\b/i },
+  { name: 'hebe-dich-ab', re: /\bheb(?:e|t|en)?\s+dich\s+(?:von\s+der\s+masse\s+)?ab\b/i },
+  { name: 'stand-out-from-the-crowd', re: /\bstand\s+out\s+from\s+the\s+crowd\b/i },
+];
+
+/** Liefert die Namen aller zutreffenden Anti-Generik-Muster (leer = sauber). */
+export function genericViolations(blob: string): string[] {
+  const hits: string[] = [];
+  for (const { name, re } of GENERIC_PATTERNS) if (re.test(blob)) hits.push('GENERIC:' + name);
+  return hits;
+}
+
+/** Entfernt generische Slogans aus einem einzelnen Textfeld (idempotent). */
+const GENERIC_STRIP_PATTERNS: RegExp[] = [
+  /\bfind(?:e|et|en)?\s+deinen\s+stil\b/gi,
+  /\bfind\s+your\s+(?:own\s+)?style\b/gi,
+  /der\s+unterschied\s+ist\s+(?:sofort|direkt|gleich|auf\s+den\s+ersten\s+blick)\s+sichtbar/gi,
+  /the\s+difference\s+is\s+(?:immediately|instantly|clearly)\s+visible/gi,
+  /\bentdeck(?:e|t|en)?\s+dein\s+(?:volles\s+)?potenzial\b/gi,
+  /\bdiscover\s+your\s+(?:full\s+)?potential\b/gi,
+  /\bdas\s+beste\s+(?:für|fuer)\s+dich\b/gi,
+  /\bthe\s+best\s+for\s+you\b/gi,
+  /\bheb(?:e|t|en)?\s+dich\s+(?:von\s+der\s+masse\s+)?ab\b/gi,
+  /\bstand\s+out\s+from\s+the\s+crowd\b/gi,
+];
+function stripGenericText(s: string): string {
+  let out = s;
+  let hit = false;
+  for (const re of GENERIC_STRIP_PATTERNS) {
+    const next = out.replace(re, ' ');
+    if (next !== out) hit = true;
+    out = next;
+  }
+  // NICHTS gefunden => Feld unverändert zurückgeben (kein Trimmen/Normalisieren):
+  // sonst würde jedes saubere Feld „angefasst" und die Identitäts-/Idempotenz-
+  // Garantie (genericFreeResult gibt bei sauberem Ergebnis DASSELBE Objekt
+  // zurück) wäre wertlos.
+  if (!hit) return s;
+  return out
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,.;:!?])/g, '$1')
+    // Übrig gebliebene Satzzeichen/Bindestriche am Feldrand (z. B. „: die Tasse",
+    // nachdem der Slogan am Satzanfang entfernt wurde) => kein kaputter Feldanfang.
+    .replace(/^[\s:;,.\u2013\u2014-]+/, '')
+    .replace(/[\s:;,.\u2013\u2014-]+$/, '')
+    .trim();
+}
+
+/** Phase 5g — Anti-Generik-Endreinigung (letzter Versuch): entfernt generische
+ *  Slogans deterministisch aus dem akzeptierten Ergebnis (Pendant zu
+ *  placeholderFreeResult). Die Regel „Ein verbotener Satz verlässt die Engine
+ *  NIE" hat Vorrang vor Kosmetik: bleibt nach dem Entfernen nichts übrig, ist
+ *  das Feld leer statt wieder generisch. */
+export function genericFreeResult(r: TikTokIdeaResult): TikTokIdeaResult {
+  // Bewusst OHNE „lieber Original als leer"-Rückfall (anders als in einem ersten
+  // Entwurf): ein verbotener Slogan darf das Ergebnis NIE erreichen — auch nicht
+  // als Ganzfeld-Füllung wie hook = „Finde deinen Stil". Bleibt nach dem
+  // Entfernen nichts übrig, ist das Feld ehrlich leer (die Retry-Schleife hat
+  // vorher bis zu MAX_TIKTOK_ATTEMPTS Versuche unternommen, das zu vermeiden).
+  const clean = stripGenericText;
+  const cleanArr = (a: string[]): string[] => a.map(clean).filter((x) => x.trim() !== '');
+  const out: TikTokIdeaResult = {
+    ...r,
+    idea: clean(r.idea),
+    hook: clean(r.hook),
+    length: clean(r.length),
+    scenes: cleanArr(r.scenes),
+    overlays: cleanArr(r.overlays),
+    spokenText: clean(r.spokenText),
+    caption: clean(r.caption),
+    cta: clean(r.cta),
+    why: clean(r.why),
+  };
+  if (r.scrollStop !== undefined) out.scrollStop = clean(r.scrollStop);
+  if (r.tension !== undefined) out.tension = clean(r.tension);
+  if (r.format !== undefined) out.format = clean(r.format);
+  if (r.title !== undefined) out.title = clean(r.title);
+  if (r.timedScenes !== undefined) {
+    out.timedScenes = r.timedScenes.map((s) => ({
+      time: s.time,
+      scene: clean(s.scene),
+      text: clean(s.text),
+    })).filter((s) => s.scene.trim() !== '' || s.text.trim() !== '');
+  }
+  if (r.imageIdeas !== undefined) {
+    out.imageIdeas = r.imageIdeas
+      .map((i) => ({ description: clean(i.description), studioPrompt: clean(i.studioPrompt) }))
+      .filter((i) => i.description.trim() !== '' || i.studioPrompt.trim() !== '');
   }
   return JSON.stringify(out) === JSON.stringify(r) ? r : out;
 }
@@ -1889,7 +2061,12 @@ export async function generateTikTok(
       // Anweisungen sind kein Ergebnis → Soft-Reject + Retry; auf dem letzten
       // Versuch werden sie zusätzlich hart entfernt (placeholderFreeResult).
       const placeholders = placeholderViolations(ideaPlaceholderBlob(result));
-      lastViolations = [...violations, ...selfRefs, ...placeholders];
+      // Phase 5g — Anti-Generik (deterministisch, Owner-Kriterien 3+4):
+      // austauschbare Standard-Werbesätze („Finde deinen Stil", „Der
+      // Unterschied ist sofort sichtbar", …) sind KEIN Ergebnis → Soft-Reject
+      // + Retry; auf dem letzten Versuch werden sie hart entfernt.
+      const generic = genericViolations(ideaPlaceholderBlob(result));
+      lastViolations = [...violations, ...selfRefs, ...placeholders, ...generic];
       // Phase 1: eigenes Nutzerthema (oder gar kein Markenkontext) ⇒ das Fehlen
       // eines Markenfakts darf die Idee NICHT verwerfen.
       const userSubjectProvided = Boolean(input.topic?.trim()) || !input.brandContext;
@@ -1953,7 +2130,10 @@ export async function generateTikTok(
     // über buildSanitizeUserContext geschützt; ohne Muster = Fast-Path.
     // Phase 2 — Platzhalter-Endreinigung VOR der metric-guard: ein akzeptiertes
     // Ergebnis verlässt die Engine nie mit generischen Ausfüll-Anweisungen.
-    const cleaned = result.mode === 'diagnose' ? result : placeholderFreeResult(result);
+    const cleaned =
+      result.mode === 'diagnose'
+        ? result
+        : genericFreeResult(placeholderFreeResult(result));
     const sanitized = await sanitizeTikTokResult(cleaned, buildSanitizeUserContext(input));
     console.log(
       `[tiktok] ${input.mode} OK (${lang}) — idea/analysis generated` +
