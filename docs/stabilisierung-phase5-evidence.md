@@ -806,3 +806,36 @@ Galerie-Navigationsfestigkeit inkl. Reload-Fix (D + F3), mobil keine leeren Scre
 1. Vercel-Deploy autorisieren (CLI-Login/Token) → `deploy --prebuilt --prod` erneut.
 2. Bundle-Marker „Mechanik:" nach `prod-bundle-marker-proof` belegen.
 3. Test C mit EXAKT „personalisierte Tasse" und „minimalistischer Schmuck" fahren, vollständige wörtliche Outputs nach `/home/team/shared/tiktok-testC-outputs.md`, Bewertung je Owner-Kriterium 1–5, Zähler vorher/nachher (`scripts/_abn-usage.ts`).
+
+---
+## 5g — Test C Nachschärfung (Owner) — E2E-Teil ABGESCHLOSSEN (2026-09-26)
+
+**Status: Test C ist am LIVE-Deployment `site-lll9lvi3p` (Alias www.growimo.app, ausgeliefert: 03111a0/a0a6b2d) mit ECHTEN Generierungen gefahren. Idee 1 („personalisierte Tasse") erfüllt alle 5 Owner-Kriterien. Idee 2 („minimalistischer Schmuck") erfüllt Kriterium 2 und 3, VERFEHLT aber Kriterium 1 und 4 (kein konkretes Schmuckstück-Format/-Detail, Idee auf andere Accessoires übertragbar) und Kriterium 5 (erfundener Anlass „Vorstellungsgespräch", erfundene Zielgruppen-Aussage „stilbewusste Zuschauer"). Der Durchlauf ist damit inhaltlich TEILWEISE GRÜN — offen ist eine Nachschärf-Runde für den Schmuck-Fall (Prompt-Änderung + Folge-Generierung), die in dieser Sitzung nicht mehr ging (siehe „Offen").**
+
+**Konto/Setup:** Pro-E2E-Konto `user_3JZ1X21pNidksnLIqznjqXzGQoN` (e2e-abn2-8wqw77@ctomail.io, subscriptions plan_tier=pro/status=active), Clerk-Sign-in-Token im Browser auf der App-Origin, TikTok-Werkstatt `/app/tiktok`, Karte „🎬 TikTok erstellen" (concept), Sprache de, Markenprofil AUS (frische Browser-Session, keine Marken-/Projekt-Überlagerung). Feld „Thema" bleibt im ersten Lauf unerreichbar (bekannter UX-Fund) → Eingabe wie in den Abnahme-Läufen über „Was machst/verkaufst du?" mit exakt der Produktbezeichnung.
+
+**Zähler (autoritativ, DB `usage_monthly` 2026-09):** vorher **12** → nachher **14** (2 Generierungen = +2, Pro-Limit 200; Banner-Anzeige „188 von 200" beim Start). Kein Retry-/Scoring-Verbrauch.
+
+**Bundle-Beleg (Skill `prod-bundle-marker-proof`):** Route-HTML `https://site-lll9lvi3p-growimo.vercel.app/app/tiktok` (HTTP 200) + `/` → Asset-Liste; alle referenzierten Chunks sind mit dem lokalen 5g-Build-Output byte-identisch (SHA-256), u. a. `tiktok-CgtumwGs.js` c4226d86…ba1bb, `index-CkkuDCoh.js` 2962edc4…8ea3e (je 0 Byte Unterschied). Im Server-Bundle dieses Builds (`.vercel/output/functions/render.func/index.mjs`, 4 415 046 Bytes, SHA-256 2f0b339f…ed2a2) liegen die 5g-Marker mit Byte-Offset: `BEDEUTUNGS-ERHALT` @1566183, `MEANING PRESERVATION` @1569150, `Mechanik:` @1567204/1648374/1659712, `Finde deinen Stil` @1567921 (Strip-Pattern), `ideaSharpeningMandate` @1566020/1688421/1690149, `GENERIC_PATTERNS` @1603769/1685273/1699609. Rohdaten: `/tmp/5g/route.html`, `/tmp/5g/js/*.js`, `/tmp/5g/inspect.txt` (Deployment `dpl_BNxhxXSD3BBSK1nCLrc7Awq1qWw6`, target production, status Ready, created 2026-09-26 12:53 UTC). Zweitbeleg verhaltensbasiert: der Live-Output von Idee 1 beginnt das Feld Scroll-Stop wörtlich mit „Mechanik: …" — genau das Format, das erst 5g einfordert.
+
+**Outputs:** vollständig wörtlich in `/home/team/shared/tiktok-testC-outputs.md` (Idee 1: 7 731 Zeichen / 17 Felder, Idee 2: 6 269 Zeichen / 16 Felder). Deterministischer Anti-Generik-Check (die 10 `GENERIC_STRIP_PATTERNS` aus `src/ai/tiktok.ts`) über BEIDE Volltexte: **0 Treffer**.
+
+### Bewertung je Owner-Kriterium
+
+| Kriterium | Idee 1 „personalisierte Tasse" | Idee 2 „minimalistischer Schmuck" |
+|---|---|---|
+| 1 Bedeutungserhalt | **erfüllt** — „Die personalisierte Tasse wird in die Kamera gehalten, mit einem Namen darauf." + Payoff „Problem gelöst!" (keine Umdeutung zu Tassenform/Kaffeegeschmack) | **VERFEHLT** — es bleibt bei „ein Schmuckstück" ohne Format/Detail (keine Kette/Ring/Ohrring/Material); Gegenstand ist das Outfit-Prinzip: „wie man mit minimalistischem Schmuck einen eleganten Look … kreiert" |
+| 2 Echter visueller Scroll-Stop | **erfüllt** — „Mechanik: Problem/Payoff — Der Frust über eine verwechslungsanfällige Tasse …"; Szene 0–2s zeigt konkret „Ein Mitarbeiter schaut verwirrt in die Kamera mit einer Tasse in der Hand." (Anmerkung: der Hook selbst ist eine reine Frage) | **erfüllt** — „Mechanik: Transformation — Ein schlichtes Outfit wird durch einen minimalistischen Schmuck sofort eleganter …"; Szene 0–2s konkret „Eine Person steht in einem neutralen Outfit vor einem Spiegel." |
+| 3 Anti-Generik | **erfüllt** — keine verbotene Floskel (0 Treffer), nichts Austauschbares | **erfüllt (eingeschränkt)** — „Finde deinen Stil" o. Ä. sind weg (0 Treffer), aber „einen eleganten Look aufwerten" ist inhaltlich noch nah an einer Standard-Werbeaussage |
+| 4 Spezifität | **erfüllt** — „Nie wieder Tassenverwechslung im Büro!", Büroschrank voller identischer Tassen + Name auf der Tasse: nicht auf beliebige Produkte übertragbar | **VERFEHLT** — „mit nur einem Schmuckstück deinen Look aufwertest" funktioniert unverändert mit Gürtel/Uhr/Schal → Kriterium „nicht übertragbar" nicht erfüllt |
+| 5 Keine unbelegten Fakten | **erfüllt** — keine Zahlen/Trends; keine Fake-Reaktionen (Anmerkung: „trifft den Nerv vieler Büroangestellter" ist eine allgemeine Rahmung ohne Messbehauptung) | **VERFEHLT** — erfundener Anlass „Perfekt für dein nächstes Vorstellungsgespräch!" und erfundene Zielgruppen-Aussage „was bei stilbewussten Zuschauern den Scroll stoppt" (Input war nur „minimalistischer Schmuck") |
+
+### Screenshots
+`e2e-testC2-01-werkstatt-pro.png` (Werkstatt, Pro-Konto, Banner „188 von 200", Markenprofil-Felder leer), `e2e-testC2-02-ergebnis-tasse.png` (Ergebniskarte Idee 1), `e2e-testC2-03-ergebnis-schmuck.png` (Ergebniskarte Idee 2). Hinweis: Screenshots zeigen den sichtbaren Viewport; die wörtlichen Volltexte sind der Beleg oben.
+
+### Verifikation des prä-existierenden tiktok-phase2-FAILs (nur geprüft, nicht gefixt)
+FAIL-Zeile: „image-studio.tsx wendet studioSearchPrefill an (Routebene belegt)" (`tiktok-phase2-test.ts:329`, prüft `routeSrc.includes('studioSearchPrefill(window.location.search)')`). `src/routes/app/image-studio.tsx` enthält 0-mal `studioSearchPrefill` in **allen** geprüften Revisionen (85baff6~1, 85baff6, 9771a07, 03111a0, a0a6b2d) — die Zeile wurde bereits am **2026-09-18 in `1d35375`** durch `resolveStudioPrefill(window.location.search, readStrategyPrefill())` ersetzt (Vorgänger: eingeführt 2026-09-10 in `93868f9`; `1d35375` ist Ancestor von HEAD). **Der FAIL ist also prä-existierend und NICHT durch den Galerie-Fix `85baff6` (oder `03111a0`) verursacht.**
+
+### Offen / Nicht verifiziert (ehrlich)
+- Idee 2 verfehlt Kriterium 1/4/5 → **Nachschärf-Runde nötig** (Prompt: Schmuck-Fall muss ein konkretes Format/Material nennen und darf keinen Anlass/Zielgruppe erfinden). In dieser Sitzung nicht umgesetzt: dafür sind Änderung an `src/ai/tiktok.ts`, Build + Deploy nötig — außerhalb des Auftrags („kein Produktionscode, kein Deploy").
+- Die frühere 5g-Deploy-Blockade („Not authorized") ist erledigt: `site-lll9lvi3p` ist production/Ready und unter www.growimo.app ausgeliefert (Bundle-Beleg oben).
