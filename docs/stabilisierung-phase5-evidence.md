@@ -940,7 +940,7 @@ Vorgängernotiz, die als „kein Runde-2-Beleg" markiert ist.
 
 | K | Ergebnis | Beleg |
 |---|---|---|
-| K1 Bedeutungserhalt (konkretes Format + Material/Finish, zentral) | **teilweise** | „Nahaufnahme eines angelaufenen **Silberrings**" (L1) / „Die Person legt eine schlichte **Goldkette** mit einem **kleinen Anhänger** um den Hals" (L2) — das Runde-1-„ein Schmuckstück" ist in Szenen/Bildideen weg. Aber in Idee/Hook/Titel steht weiter nur die Kategorie („deinen minimalistischen Schmuck", „deinen Look"), und „minimalistisch" überlebt nur als Hashtag `#Minimalismus`. |
+| K1 Bedeutungserhalt (konkretes Format + Material/Finish, zentral) | **teilweise** | „Nahaufnahme eines angelaufenen **Silberrings**" (L1) / „Die Person legt eine schlichte **Goldkette** mit einem **kleinen Anhänger** um den Hals" (L2) — das Runde-1-„ein Schmuckstück" ist in Szenen/Bildideen weg. Aber: in Idee/Hook/Titel steht weiter nur die Kategorie, nicht das Format (L1-Idee „Wie du deinen **minimalistischen Schmuck** sauber und glänzend hältst", L2-Idee „Wie ein einfacher Trick deinen **Look** sofort eleganter macht"); das geforderte Finish/Trage-Detail fehlt, und in L2 überlebt „minimalistisch" nur als Hashtag `#Minimalismus` (L1 nennt es dagegen in der Idee). |
 | K2 echter visueller Scroll-Stop | **erfüllt** | L1: „Mechanik: Problem/Payoff — Das Video beginnt mit einer Nahaufnahme eines angelaufenen Schmuckstücks …" + erste Szene „Nahaufnahme eines angelaufenen Silberrings"; L2: „Mechanik: Problem/Payoff — Die Zielgruppe sieht in der ersten Sekunde jemanden, der sich unsicher fühlt, weil ihr Outfit nicht stimmig wirkt." |
 | K3 Anti-Generik (0 Floskeln) | **erfüllt** | 0 Treffer in beiden Läufen; konkret-benannte Hooks/CTAs statt „Finde deinen Stil". |
 | K4 Spezifität (nicht auf Gürtel/Uhr/Schal übertragbar) | **L1 erfüllt, L2 schwach** | L1 schmuckspezifisch (Silber-Anlauf, Reinigungslösung, weiche Bürste, Vorher/Nachher). L2 trägt in Idee/Hook/Caption nur „Wie ein einfacher Trick deinen Look sofort eleganter macht" / „Dein Outfit fehlt das gewisse Extra?" — mit Gürtel/Uhr/Schal fast unverändert verwendbar; das Schmuck-Spezifische steckt nur in Szene 3 + einer Bildidee. |
@@ -949,6 +949,29 @@ Vorgängernotiz, die als „kein Runde-2-Beleg" markiert ist.
 **Fazit (ehrlich):** Runde 2 beseitigt das Fehlerbild der ersten Runde nachweisbar — K2/K3/K5 sind in beiden
 echten Produktionsläufen sauber (0 Floskeln, 0 erfundene Anlässe/Zielgruppen), und es erscheint erstmals ein
 konkretes Produktformat mit Material (Silberring / schlichte Goldkette mit Anhänger). **Nicht vollständig
-erreicht:** K1 nur teilweise (Format nicht in Idee/Hook, „minimalistisch" nur als Hashtag) und K4 in 1 von 2
-Läufen schwach (L2 ist mit anderen Accessoires austauschbar). Der Befund ist damit **überwiegend grün mit zwei
-benannten Restlücken**, nicht vollständig grün.
+erreicht:** K1 nur teilweise (Format nicht in Idee/Hook, kein Finish/Trage-Detail; in Lauf 2 fällt zudem
+„minimalistisch" auf den Hashtag zurück) und K4 in 1 von 2 Läufen schwach (L2 ist mit anderen Accessoires
+austauschbar). Der Befund ist damit **überwiegend grün mit zwei benannten Restlücken**, nicht vollständig grün.
+
+**Nachtrag Lauf 3 (Browser-E2E, derselbe Deploy/Commit) — REGRESSION, revidiert das Fazit:**
+Ein dritter echter Produktionslauf über den Browser-Klickweg (nicht-interaktiver Clerk-Login, `/app/tiktok`,
+Markenprofil AUS, Feld „Was machst/verkaufst du?" = `minimalistischer Schmuck`, Klick „🎬 TikTok erstellen";
+Zähler **18 → 19**) liefert wieder das **Runde-1-Fehlerbild**: Idee „Zeige, wie man einen eleganten **Alltagslook**
+mit einem minimalistischen **Accessoire** für den **Abend** aufwertet.", Hook „Von **Büro** zu **Abendessen**:
+Ein Accessoire macht den Unterschied!", Titel „Vom **Bürolook** zum **Abendglamour**", Szene 2 „Nahaufnahme eines
+minimalistischen **Schmuckstücks**" → **K1 verfehlt** (keine konkretes Format/Material) und **K5 verfehlt**
+(erfundener Nutzungskontext als Empfehlung: Büro/Abendessen — vom Nutzer nie genannt). Text vollständig im
+gemeinsamen Output-File (`/home/team/shared/tiktok-testC-outputs.md`, Abschnitt „Lauf 3"), Quelle
+`sessionStorage`-Spiegel (`growimo_tiktok_last_result`) per `agent-browser eval` gelesen = **0 zusätzlicher
+Verbrauch**; Screenshots `e2e-testC2b-0{1,2,3}-…-r2.png`, Log `/tmp/5gr2/final3/e2e.log`.
+
+- **Der deterministische Post-Check fängt diesen Fall nicht:** auch Lauf 3 ergibt `genericViolations=[]`,
+  `inventedContextViolations=[]`, `selfCheckRejected=false` (`/tmp/5gr2/final3/gates.txt`). Grund ist bauartbedingt:
+  `INVENTED_CONTEXT_PATTERNS` deckt Anlässe (Hochzeit, Weihnachten …) und Zielgruppen-Muster ab, aber **bewusst
+  keine Schauplätze/Nutzungskontexte** („Büro"/„Schreibtisch" sind laut Kommentar in `src/ai/tiktok.ts` kein
+  Muster). Regel 5(c) verbietet sie nur im Prompt — erzwungen wird sie nicht.
+- **Revidierte Gesamtbewertung über 3 echte Produktionsläufe (Deploy `site-gwwxup2qo`, Commit `300223b`):**
+  K2 und K3 in allen 3 Läufen erfüllt; K1 in 2/3 nur teilweise und in 1/3 verfehlt; K4 in 1/3 verfehlt, in 1/3
+  schwach; K5 in 1/3 verfehlt. → **Runde 2 hält nicht zuverlässig** (1 von 3 Läufen unverändert im monierten
+  Fehlerbild). Der Befund ist damit **nicht grün**, sondern ein grün/schlechter-Mix mit benannter Ursache
+  (Prompt-Regel ohne deterministische Durchsetzung für Nutzungskontexte; konkretes Format nicht in Idee/Hook erzwungen).
