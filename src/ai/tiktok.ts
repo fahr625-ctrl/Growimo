@@ -502,7 +502,8 @@ function ideaSharpeningMandate(de: boolean): string {
    Die Mechanik muss im ersten Bild/Film-Moment TATSÄCHLICH sichtbar sein — nicht nur erklärt werden.
 3. ANTI-GENERIK (harte Regel): Generische, austauschbare Standard-Werbeaussagen sind VERBOTEN — z. B. „Finde deinen Stil", „Der Unterschied ist sofort sichtbar", „Entdecke dein Potenzial", „Das Beste für dich", „Heb dich von der Masse ab". Solche Sätze passen unverändert auf beliebige Produkte und werden verworfen. Formuliere stattdessen eine Aussage, die NUR mit genau diesem Produkt und diesem konkreten Detail funktioniert.
 4. SPEZIFITÄT (Pflicht-Assertion): Die Idee MUSS so spezifisch sein, dass sie NICHT auf beliebige andere Produkte übertragbar ist. Selbstprüfung VOR der Ausgabe: „Wäre diese Idee fast unverändert auf beliebige andere Produkte übertragbar? Wenn ja: verwirf sie und entwickle eine produktspezifische." Nenne mindestens ein konkretes, produktspezifisches Detail aus der Nutzereingabe im Hook, in der ersten Szene ODER im Payoff.
-5. KEINE UNBELEGTEN FAKTEN (harte Regel): Erfinde NIEMALS Fakten, Merkmale, Zahlen, Trends, Zielgruppen-Aussagen oder Zusatznutzen, nur um den Hook stärker zu machen. Verwende ausschließlich, was der Nutzer angegeben hat oder was im MARKENKONTEXT/PROJEKT-KONTEXT steht; fehlt eine Information, entwickle die Idee OHNE diese Behauptung.`;
+5. KEINE UNBELEGTEN FAKTEN (harte Regel): Erfinde NIEMALS Fakten, Merkmale, Zahlen, Trends, Zielgruppen-Aussagen oder Zusatznutzen, nur um den Hook stärker zu machen. Verwende ausschließlich, was der Nutzer angegeben hat oder was im MARKENKONTEXT/PROJEKT-KONTEXT steht; fehlt eine Information, entwickle die Idee OHNE diese Behauptung. Das gilt ausdrücklich für DREI Dinge, die NIE erfunden werden dürfen — fehlt die Angabe, LASS DIE BEHAUPTUNG WEG: (a) ANLASS (z. B. „perfekt für dein Vorstellungsgespräch", „das perfekte Weihnachtsgeschenk", „ideal zur Hochzeit", „perfekt zum Valentinstag") — nenne einen Anlass NUR, wenn der Nutzer ihn selbst genannt hat; sonst bleibt der Anlass unbenannt. (b) ZIELGRUPPE (z. B. „stilbewusste Zuschauer", „für modebewusste Frauen", „was alle Fashionistas lieben", „viele Büroangestellte") — nenne, beschreibe oder typisiere eine Zielgruppe NUR, wenn der Nutzer sie genannt hat; sonst sprich die Zuschauer nicht an und schreibe ihnen keine Eigenschaften zu. (c) NUTZUNGSKONTEXT ALS EMPFEHLUNG (z. B. „perfekt für dein Büro", „ideal für die Reise") — nur wenn der Nutzer ihn angegeben hat; eine neutrale Schauplatz-Beschreibung im Szenenplan ohne Behauptung (z. B. „eine Person an einem Schreibtisch") ist erlaubt. Eine erfundene Anlass-, Zielgruppen- oder Kontext-Behauptung ist ein HARTES VERFEHLEN (Owner-Kriterien 4 und 5) → verwirf die Idee und generiere neu.
+6. KONKRETES PRODUKTFORMAT (harte Regel): Bleibe NICHT auf der bloßen Produktkategorie — WÄHLE aus der Nutzereingabe EINE konkrete Ausprägung und baue die Idee darauf auf. Bei offenen Produktkategorien (z. B. „Schmuck", „Kleidung", „Accessoires", „Deko", „Möbel", „Geschenkartikel", „Kosmetik", „Pflegeprodukt", „Sportartikel") MUSS die Idee ein konkretes Produktformat MIT Material/Finish und einem Trage-/Nutzungsdetail nennen — z. B. „eine zarte Goldkette mit einem einzelnen Kreis-Anhänger" oder „schmale Silber-Ohrstecker mit mattem Finish" — statt „ein Schmuckstück"/„ein Accessoire". Dieses eine konkrete Format erscheint in Idee, Hook, erster Szene UND Payoff (keine Aufzählung mehrerer Varianten). Selbstprüfung VOR der Ausgabe: „Nennt die Idee ein konkretes Format/Material (Kette, Anhänger, Ohrstecker, Ring, Armband …) — oder bleibt sie bei der bloßen Kategorie?" Bleibt sie bei der Kategorie („ein Schmuckstück", „ein Teil", „ein Accessoire"), ist die Idee UNGÜLTIG: verwirf sie und generiere neu.`;
   }
   return `CONTENT MANDATE (MANDATORY — sharpened quality standard, owner criteria; applies to EVERY output):
 1. MEANING PRESERVATION (hard rule): concrete product features AND the actual meaning of the user's input must be preserved. NEVER reinterpret the subject. Example: input "personalized mug" → name, photo, text or custom design ARE the central visual element AND the payoff of the video. A reinterpretation such as "the shape of the mug influences the taste of the coffee" is FORBIDDEN — that is a different idea about the same object, not the same meaning. Every concrete attribute the user's input names must visibly reappear in the video (as an object, scene or payoff); if it does not, the idea is invalid and MUST be discarded.
@@ -516,7 +517,8 @@ function ideaSharpeningMandate(de: boolean): string {
    The mechanic must ACTUALLY be visible in the first image/filmed moment — not merely explained.
 3. ANTI-GENERIC (hard rule): generic, interchangeable standard advertising lines are FORBIDDEN — e.g. "Find your style", "The difference is immediately visible", "Discover your potential", "The best for you", "Stand out from the crowd". Such lines fit any product unchanged and are rejected. Instead write a line that works ONLY with exactly this product and this concrete detail.
 4. SPECIFICITY (mandatory assertion): the idea MUST be so specific that it can NOT be transferred to arbitrary other products. Self-check BEFORE output: "Could this idea be used almost unchanged for arbitrary other products? If yes: discard it and develop a product-specific one." Name at least one concrete, product-specific detail from the user's input in the hook, the first scene OR the payoff.
-5. NO UNBACKED FACTS (hard rule): NEVER invent facts, features, numbers, trends, audience claims or extra benefits just to make the hook stronger. Use ONLY what the user provided or what the MARKENKONTEXT/PROJECT CONTEXT contains; if information is missing, build the idea WITHOUT that claim.`;
+5. NO UNBACKED FACTS (hard rule): NEVER invent facts, features, numbers, trends, audience claims or extra benefits just to make the hook stronger. Use ONLY what the user provided or what the MARKENKONTEXT/PROJECT CONTEXT contains; if information is missing, build the idea WITHOUT that claim. This applies explicitly to THREE things that must NEVER be invented — if the information is missing, DROP THE CLAIM: (a) OCCASION (e.g. "perfect for your job interview", "the perfect Christmas gift", "ideal for a wedding", "perfect for Valentine's Day") — name an occasion ONLY if the user named it themselves; otherwise leave the occasion unnamed. (b) TARGET AUDIENCE (e.g. "style-conscious viewers", "for fashion-conscious women", "what all fashionistas love", "many office workers") — name, describe or typify an audience ONLY if the user named it; otherwise do not address the viewers and do not attribute any traits to them. (c) USAGE CONTEXT AS A RECOMMENDATION (e.g. "perfect for your office", "ideal for travel") — only if the user provided it; a neutral setting description in the scene plan without a claim (e.g. "a person at a desk") is allowed. An invented occasion/audience/context claim is a HARD FAIL (owner criteria 4 and 5) → discard the idea and regenerate.
+6. CONCRETE PRODUCT FORMAT (hard rule): do NOT stay on the bare product category — CHOOSE ONE concrete form from the user's input and build the idea on it. For open product categories (e.g. "jewelry", "clothing", "accessories", "decor", "furniture", "gift items", "cosmetics", "skincare", "sports gear") the idea MUST name a concrete product format WITH material/finish and a wearing/usage detail — e.g. "a delicate gold chain with a single circular pendant" or "slim silver stud earrings with a matte finish" — instead of "a piece of jewelry"/"an accessory". That one concrete format appears in the idea, the hook, the first scene AND the payoff (no list of variants). Self-check BEFORE output: "Does the idea name a concrete format/material (chain, pendant, stud earrings, ring, bracelet …) — or is it still on the bare category?" If it is still on the category ("a piece of jewelry", "a piece", "an accessory"), the idea is INVALID: discard it and regenerate.`;
 }
 
 const TODAY_IDEA_EN = `${IDEA_COMMON_EN}
@@ -1430,9 +1432,14 @@ function buildRetryHint(lang: TikTokLang, violations: string[] = [], mode: TikTo
       ? ' ANTI-GENERIK: Die verworfene Idee enthielt austauschbare Standard-Werbesätze (siehe Liste oben) — ersetze sie durch Aussagen, die NUR mit diesem konkreten Produkt/Detail funktionieren. Prüfe: „Wäre diese Idee fast unverändert auf beliebige andere Produkte übertragbar?" Wenn ja: verwirf sie und entwickle eine produktspezifische Idee.'
       : ' ANTI-GENERIC: the rejected idea contained interchangeable standard advertising lines (see the list above) — replace them with lines that work ONLY with this concrete product/detail. Check: "Could this idea be used almost unchanged for arbitrary other products?" If yes: discard it and develop a product-specific one.'
     : '';
+  const inventedPart = violations.some((v) => v.startsWith('INVENTED:'))
+    ? lang === 'de'
+      ? ' ERFUNDENER ANLASS / ERFUNDENE ZIELGRUPPE (Owner-Kriterium 5): Die verworfene Idee nannte einen Anlass, eine Zielgruppe oder einen Nutzungskontext, den der Nutzer NICHT angegeben hat (siehe Liste oben). Lasse diese Behauptung(en) KOMPLETT weg und baue die Idee ohne sie — nennt der Nutzer keinen Anlass und keine Zielgruppe, beschreibe nur das Produkt und was sichtbar damit passiert. Erfinde auch keinen Nutzungskontext als Empfehlung („perfekt für …").'
+      : ' INVENTED OCCASION / INVENTED TARGET AUDIENCE (owner criterion 5): the rejected idea named an occasion, an audience or a usage context that the user did NOT provide (see list above). Omit those claim(s) ENTIRELY and build the idea without them — if the user names no occasion and no audience, describe only the product and what visibly happens with it. Do not invent a usage context as a recommendation ("perfect for …") either.'
+    : '';
   return lang === 'de'
-    ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Idee wurde intern verworfen (zu austauschbar / zu werblich / ohne echte Markenfakten oder Challenge-Bezug — oder weil sie ein erfundenes Testimonial / eine zitierte Person / erfundenes Nutzerfeedback enthielt, das nicht im MARKENKONTEXT belegt ist, ODER weil sie ein unbelegtes konkretes Leistungs-/Zeit-Versprechen oder eine vorgegebene künstliche Reaktion/Begeisterung enthielt).' + rulePart + genericPart + ' Erzeuge JETZT eine deutlich bessere, neue Idee: bleibe in der vorgegebenen Content-Richtung und baue sie aus der PERSPEKTIVE DER ZIELGRUPPE (was hilft oder begeistert die Zielgruppe?) — NICHT aus der Produktperspektive. Verboten sind produktzentrierte Selbstreferenz-Ideen („Kann Growimo eine TikTok-Idee erstellen?", „Wir testen unser eigenes Produkt", „Wie gut ist meine TikTok-Idee wirklich?"); das Produkt darf höchstens als Beiwerk/Beispiel vorkommen, niemals als Thema. Erfinde keinerlei Nutzer/Tester/Testimonials/Zitate; zeige stattdessen einen echten, ehrlichen Prozess aus der Zielgruppen-Perspektive. Mache KEINERLEI unbelegtes konkretes Leistungs-/Zeit-/Ergebnis-Versprechen (kein „in nur X Sekunden/Minuten/Tagen/Wochen", kein „+X%", kein „verdoppelt die Reichweite", kein „viral gehen") und KEINE vorgegebene künstliche Reaktion/Begeisterung (kein „Wow!", kein „Da staunen alle", keine aufgesetzte Überraschung — eine Reaktion nur, wenn sie das gezeigte tatsächliche Ergebnis echt erzeugt, sonst ganz weglassen). Setze alle sieben selfCheck-Booleans ehrlich auf bestehen.'
-    : '\n\nQUALITY SELF-CHECK NOTE: The previous idea was internally rejected (too interchangeable / too ad-like / without real brand facts or challenge tie-in — or because it contained an invented testimonial / quoted person / invented user feedback not backed by the BRAND CONTEXT, OR because it contained an unproven concrete performance/time promise or a prescribed artificial reaction/enthusiasm).' + rulePart + genericPart + ' NOW produce a clearly better, NEW idea: stay in the given content direction and build it from the TARGET AUDIENCE\'s perspective (what helps or excites them?) — NOT from the product perspective. Product-centric self-referential ideas are forbidden ("Can Growimo create a TikTok idea?", "We test our own product", "How good is my TikTok idea really?"); the product may appear at most as a supporting element/example, never as the topic. Do not invent any users/testers/testimonials/quotes; instead show a real, honest process from the audience\'s perspective. Make NO unproven concrete performance/time/result promise (no "in just X seconds/minutes/days/weeks", no "+X%", no "doubles your reach", no "go viral") and NO prescribed artificial reaction/enthusiasm (no "Wow!", no "everyone is amazed", no staged surprise — a reaction only if genuinely produced by the shown real result, otherwise omit it entirely). Set all seven selfCheck booleans truthfully to passing.';
+    ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Idee wurde intern verworfen (zu austauschbar / zu werblich / ohne echte Markenfakten oder Challenge-Bezug — oder weil sie ein erfundenes Testimonial / eine zitierte Person / erfundenes Nutzerfeedback enthielt, das nicht im MARKENKONTEXT belegt ist, ODER weil sie ein unbelegtes konkretes Leistungs-/Zeit-Versprechen oder eine vorgegebene künstliche Reaktion/Begeisterung enthielt).' + rulePart + genericPart + inventedPart + ' Erzeuge JETZT eine deutlich bessere, neue Idee: bleibe in der vorgegebenen Content-Richtung und baue sie aus der PERSPEKTIVE DER ZIELGRUPPE (was hilft oder begeistert die Zielgruppe?) — NICHT aus der Produktperspektive. Verboten sind produktzentrierte Selbstreferenz-Ideen („Kann Growimo eine TikTok-Idee erstellen?", „Wir testen unser eigenes Produkt", „Wie gut ist meine TikTok-Idee wirklich?"); das Produkt darf höchstens als Beiwerk/Beispiel vorkommen, niemals als Thema. Erfinde keinerlei Nutzer/Tester/Testimonials/Zitate; zeige stattdessen einen echten, ehrlichen Prozess aus der Zielgruppen-Perspektive. Mache KEINERLEI unbelegtes konkretes Leistungs-/Zeit-/Ergebnis-Versprechen (kein „in nur X Sekunden/Minuten/Tagen/Wochen", kein „+X%", kein „verdoppelt die Reichweite", kein „viral gehen") und KEINE vorgegebene künstliche Reaktion/Begeisterung (kein „Wow!", kein „Da staunen alle", keine aufgesetzte Überraschung — eine Reaktion nur, wenn sie das gezeigte tatsächliche Ergebnis echt erzeugt, sonst ganz weglassen). Setze alle sieben selfCheck-Booleans ehrlich auf bestehen.'
+    : '\n\nQUALITY SELF-CHECK NOTE: The previous idea was internally rejected (too interchangeable / too ad-like / without real brand facts or challenge tie-in — or because it contained an invented testimonial / quoted person / invented user feedback not backed by the BRAND CONTEXT, OR because it contained an unproven concrete performance/time promise or a prescribed artificial reaction/enthusiasm).' + rulePart + genericPart + inventedPart + ' NOW produce a clearly better, NEW idea: stay in the given content direction and build it from the TARGET AUDIENCE\'s perspective (what helps or excites them?) — NOT from the product perspective. Product-centric self-referential ideas are forbidden ("Can Growimo create a TikTok idea?", "We test our own product", "How good is my TikTok idea really?"); the product may appear at most as a supporting element/example, never as the topic. Do not invent any users/testers/testimonials/quotes; instead show a real, honest process from the audience\'s perspective. Make NO unproven concrete performance/time/result promise (no "in just X seconds/minutes/days/weeks", no "+X%", no "doubles your reach", no "go viral") and NO prescribed artificial reaction/enthusiasm (no "Wow!", no "everyone is amazed", no staged surprise — a reaction only if genuinely produced by the shown real result, otherwise omit it entirely). Set all seven selfCheck booleans truthfully to passing.';
 }
 
 // ── Phase 2 — Ergebnisstruktur: maximal 5 Hashtags (Owner-Vorgabe) ──────────
@@ -1632,6 +1639,107 @@ export function genericFreeResult(r: TikTokIdeaResult): TikTokIdeaResult {
       scene: clean(s.scene),
       text: clean(s.text),
     })).filter((s) => s.scene.trim() !== '' || s.text.trim() !== '');
+  }
+  if (r.imageIdeas !== undefined) {
+    out.imageIdeas = r.imageIdeas
+      .map((i) => ({ description: clean(i.description), studioPrompt: clean(i.studioPrompt) }))
+      .filter((i) => i.description.trim() !== '' || i.studioPrompt.trim() !== '');
+  }
+  return JSON.stringify(out) === JSON.stringify(r) ? r : out;
+}
+
+// ── Phase 5g Runde 2 (Owner-Auftrag 2026-09-26) — ERFUNDENE ANLÄSSE / ───────
+// ZIELGRUPPEN (deterministisch) ──────────────────────────────────────────────
+// Owner-Befund zu Idee 2 („minimalistischer Schmuck"): der Output erfand einen
+// Anlass („Perfekt für dein nächstes Vorstellungsgespräch!") und eine
+// Zielgruppe („was bei stilbewussten Zuschauern den Scroll stoppt"), obwohl der
+// Nutzer beides NICHT genannt hatte (Owner-Kriterium 5). Diese Muster sind
+// bewusst eng gefasst (klare Anlass-Begriffe + typisierende Zielgruppen-
+// Zuschreibungen) und greifen NUR, wenn der Begriff nicht in den Nutzerangaben
+// (Thema/Produkt/Zielgruppe/Ziel/Markenkontext/Projekt) vorkommt — eine vom
+// Nutzer genannte Hochzeit oder ein Bewerbungsgespräch bleiben erlaubt.
+// Neutrale Schauplätze („Büro", „Schreibtisch") sind KEIN Muster: sie sind als
+// Szenen-Setting legitim und dürfen die grüne Idee 1 („personalisierte Tasse")
+// nicht fälschlich ablehnen.
+export const INVENTED_CONTEXT_PATTERNS: Array<{ name: string; re: RegExp; grounding: RegExp }> = [
+  { name: 'anlass-vorstellungsgespraech', re: /\b(?:vorstellungsgespräch|bewerbungsgespräch|job-?\s?interview)\b/i, grounding: /(?:vorstellungsgespräch|bewerbungsgespräch|interview|bewerbung)/i },
+  { name: 'anlass-hochzeit', re: /\b(?:hochzeit(?:en|s)?|wedding)\b/i, grounding: /(?:hochzeit|wedding|braut|bräutigam|heirat)/i },
+  { name: 'anlass-geburtstag', re: /\b(?:geburtstag(?:e|en|s)?|birthdays?)\b/i, grounding: /(?:geburtstag|birthday)/i },
+  { name: 'anlass-weihnachten', re: /\b(?:weihnacht(?:en|s|lich\w*)?|christmas)\b/i, grounding: /(?:weihnacht|christmas)/i },
+  { name: 'anlass-valentinstag', re: /\b(?:valentinstag|valentine'?s?\s?day)\b/i, grounding: /(?:valentin)/i },
+  { name: 'anlass-jahrestag', re: /\b(?:jahrestag|anniversary)\b/i, grounding: /(?:jahrestag|anniversary)/i },
+  { name: 'anlass-abschlussfeier', re: /\b(?:abschlussfeier|abiball|graduation|prom)\b/i, grounding: /(?:abschlussfeier|abiball|graduation|prom)/i },
+  { name: 'anlass-muttertag', re: /\b(?:muttertag|mother'?s\s?day)\b/i, grounding: /(?:muttertag|mother'?s\s?day)/i },
+  { name: 'anlass-vatertag', re: /\b(?:vatertag|father'?s\s?day)\b/i, grounding: /(?:vatertag|father'?s\s?day)/i },
+  { name: 'anlass-ostern', re: /\b(?:ostern|easter)\b/i, grounding: /(?:ostern|easter)/i },
+  { name: 'anlass-einzug', re: /\b(?:einzug|einweihungsparty|housewarming)\b/i, grounding: /(?:einzug|einweihung|housewarming)/i },
+  // Typisierende Zielgruppen-Zuschreibung (der Nutzer hat keine Zielgruppe genannt)
+  { name: 'zielgruppe-stilbewusst', re: /\b(?:stil|mode|design|trend|qualitäts|preis|marken)-?bewusste[ns]?\b/i, grounding: /(?:stilbewusst|modebewusst|designbewusst|trendbewusst|qualitätsbewusst|preisbewusst|markenbewusst)/i },
+  { name: 'audience-style-conscious', re: /\b(?:style|fashion|design|trend|quality|price|brand)[- ]conscious\b/i, grounding: /[- ]conscious/i },
+  { name: 'zielgruppe-fashionistas', re: /\b(?:fashionistas?|fashion\s+lovers?|modeliebhaber\w*)\b/i, grounding: /(?:fashionista|fashion\s+lovers?|modeliebhaber)/i },
+];
+
+/** Alle Nutzerangaben als Grounding-Blob (klein geschrieben): was hier steht,
+ *  gilt als vom Nutzer genannt und wird NICHT als erfunden gemeldet. */
+export function inventedGroundingBlob(input: TikTokInput): string {
+  const pc = input.projectContext;
+  return [
+    input.topic ?? '', input.biz ?? '', input.audience ?? '', input.goal ?? '',
+    input.brandContext ?? '', input.videoTopic ?? '', input.videoHook ?? '',
+    pc ? [pc.title ?? '', pc.productIdea ?? '', pc.brief ?? ''].join(' ') : '',
+  ].join(' ').toLowerCase();
+}
+
+/** Liefert die Namen der erfundenen Anlass-/Zielgruppen-Muster (leer = sauber).
+ *  Ein Muster zählt nur, wenn sein Begriff NICHT in den Nutzerangaben steht. */
+export function inventedContextViolations(blob: string, groundingBlob: string): string[] {
+  const g = (groundingBlob ?? '').toLowerCase();
+  const hits: string[] = [];
+  for (const { name, re, grounding } of INVENTED_CONTEXT_PATTERNS) {
+    if (re.test(blob) && !grounding.test(g)) hits.push('INVENTED:' + name);
+  }
+  return hits;
+}
+
+/** Letzter Versuch: entfernt jeden SATZ, der eine erfundene Anlass-/
+ *  Zielgruppen-Behauptung enthält. Bewusst satzweise statt wortweise — ein
+ *  herausgeschnittenes Wort würde kaputte Halbsätze hinterlassen. Bleibt nichts
+ *  übrig, ist das Feld ehrlich leer (Pendant zu genericFreeResult). */
+function dropInventedSentences(s: string, groundingBlob: string): string {
+  if (!s) return s;
+  const parts = s.split(/(?<=[.!?])\s+/);
+  const kept = parts.filter((part) => inventedContextViolations(part.toLowerCase(), groundingBlob).length === 0);
+  if (kept.length === parts.length) return s;
+  return kept.join(' ').trim();
+}
+
+/** Phase 5g Runde 2 — Endreinigung: erfundene Anlässe/Zielgruppen verlassen die
+ *  Engine NIE (auch nicht als letzter Versuch). Saubere Ergebnisse werden
+ *  unverändert (identisches Objekt) zurückgegeben. */
+export function inventedContextFreeResult(r: TikTokIdeaResult, groundingBlob: string): TikTokIdeaResult {
+  if (inventedContextViolations(ideaPlaceholderBlob(r), groundingBlob).length === 0) return r;
+  const clean = (s: string) => dropInventedSentences(s, groundingBlob);
+  const cleanArr = (a: string[]): string[] => a.map(clean).filter((x) => x.trim() !== '');
+  const out: TikTokIdeaResult = {
+    ...r,
+    idea: clean(r.idea),
+    hook: clean(r.hook),
+    length: clean(r.length),
+    scenes: cleanArr(r.scenes),
+    overlays: cleanArr(r.overlays),
+    spokenText: clean(r.spokenText),
+    caption: clean(r.caption),
+    cta: clean(r.cta),
+    why: clean(r.why),
+  };
+  if (r.scrollStop !== undefined) out.scrollStop = clean(r.scrollStop);
+  if (r.tension !== undefined) out.tension = clean(r.tension);
+  if (r.format !== undefined) out.format = clean(r.format);
+  if (r.title !== undefined) out.title = clean(r.title);
+  if (r.timedScenes !== undefined) {
+    out.timedScenes = r.timedScenes
+      .map((s) => ({ time: s.time, scene: clean(s.scene), text: clean(s.text) }))
+      .filter((s) => s.scene.trim() !== '' || s.text.trim() !== '');
   }
   if (r.imageIdeas !== undefined) {
     out.imageIdeas = r.imageIdeas
@@ -2066,7 +2174,15 @@ export async function generateTikTok(
       // Unterschied ist sofort sichtbar", …) sind KEIN Ergebnis → Soft-Reject
       // + Retry; auf dem letzten Versuch werden sie hart entfernt.
       const generic = genericViolations(ideaPlaceholderBlob(result));
-      lastViolations = [...violations, ...selfRefs, ...placeholders, ...generic];
+      // Phase 5g Runde 2 — erfundene Anlässe/Zielgruppen/Nutzungskontexte
+      // (Owner-Kriterium 5, deterministisch): ein Begriff, den der Nutzer NICHT
+      // genannt hat, wird wie ein Soft-Reject behandelt → Retry mit gezieltem
+      // Hinweis; auf dem letzten Versuch werden die betroffenen Sätze entfernt.
+      const invented = inventedContextViolations(
+        ideaPlaceholderBlob(result),
+        inventedGroundingBlob(input),
+      );
+      lastViolations = [...violations, ...selfRefs, ...placeholders, ...generic, ...invented];
       // Phase 1: eigenes Nutzerthema (oder gar kein Markenkontext) ⇒ das Fehlen
       // eines Markenfakts darf die Idee NICHT verwerfen.
       const userSubjectProvided = Boolean(input.topic?.trim()) || !input.brandContext;
@@ -2133,7 +2249,10 @@ export async function generateTikTok(
     const cleaned =
       result.mode === 'diagnose'
         ? result
-        : genericFreeResult(placeholderFreeResult(result));
+        : inventedContextFreeResult(
+            genericFreeResult(placeholderFreeResult(result)),
+            inventedGroundingBlob(input),
+          );
     const sanitized = await sanitizeTikTokResult(cleaned, buildSanitizeUserContext(input));
     console.log(
       `[tiktok] ${input.mode} OK (${lang}) — idea/analysis generated` +

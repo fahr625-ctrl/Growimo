@@ -53,6 +53,9 @@ import {
   placeholderFreeResult,
   placeholderViolations,
   ideaPlaceholderBlob,
+  inventedContextViolations,
+  inventedContextFreeResult,
+  inventedGroundingBlob,
   type TikTokInput,
   type TikTokIdeaResult,
 } from './src/ai/tiktok';
@@ -626,8 +629,137 @@ section('R4 i18n de/en Parität');
   );
 }
 
+// ── P5: RUNDE 2 — konkretes Format/Material + Verbot erfundener Anlässe ─────
+section('P5 Runde 2: konkretes Produktformat + Verbot erfundener Anlässe/Zielgruppen (de + en)');
+{
+  for (const mode of ['todayIdea', 'concept'] as const) {
+    const deP = pickSystemPrompt(mode, 'de');
+    const enP = pickSystemPrompt(mode, 'en');
+    // (a) konkretes Format/Material/Detail als Pflicht (Owner-Kriterien 1+4)
+    check(deP.includes('6. KONKRETES PRODUKTFORMAT (harte Regel)'), `P5 ${mode}(de): Regel „konkretes Produktformat"`);
+    check(enP.includes('6. CONCRETE PRODUCT FORMAT (hard rule)'), `P5 ${mode}(en): "concrete product format" rule`);
+    check(deP.includes('MIT Material/Finish und einem Trage-/Nutzungsdetail'), `P5 ${mode}(de): Material/Finish + Tragedetail sind Pflicht`);
+    check(enP.includes('WITH material/finish and a wearing/usage detail'), `P5 ${mode}(en): material/finish + wearing detail mandatory`);
+    check(deP.includes('„eine zarte Goldkette mit einem einzelnen Kreis-Anhänger"'), `P5 ${mode}(de): konkretes Format/Material als Beispiel`);
+    check(enP.includes('"a delicate gold chain with a single circular pendant"'), `P5 ${mode}(en): concrete format/material example`);
+    check(deP.includes('statt „ein Schmuckstück"/„ein Accessoire"'), `P5 ${mode}(de): bloße Kategorie ist verboten (wörtlich)`);
+    check(enP.includes('instead of "a piece of jewelry"/"an accessory"'), `P5 ${mode}(en): bare category is banned (literally)`);
+    check(deP.includes('Idee UNGÜLTIG: verwirf sie und generiere neu'), `P5 ${mode}(de): Selbstprüfung mit Verwerfen`);
+    check(enP.includes('the idea is INVALID: discard it and regenerate'), `P5 ${mode}(en): self-check with discard`);
+    // (b) erfundene Anlässe/Zielgruppen/Nutzungskontexte (Owner-Kriterium 5)
+    check(deP.includes('ANLASS (z. B. „perfekt für dein Vorstellungsgespräch"'), `P5 ${mode}(de): Anlass-Verbot benannt`);
+    check(deP.includes('ZIELGRUPPE (z. B. „stilbewusste Zuschauer"'), `P5 ${mode}(de): Zielgruppen-Verbot benannt`);
+    check(deP.includes('NUTZUNGSKONTEXT ALS EMPFEHLUNG'), `P5 ${mode}(de): Nutzungskontext-Verbot benannt`);
+    check(deP.includes('wenn der Nutzer ihn selbst genannt hat'), `P5 ${mode}(de): Anlass nur bei Nutzerangabe`);
+    check(deP.includes('wenn der Nutzer sie genannt hat'), `P5 ${mode}(de): Zielgruppe nur bei Nutzerangabe`);
+    check(deP.includes('erfundene Anlass-, Zielgruppen- oder Kontext-Behauptung ist ein HARTES VERFEHLEN'), `P5 ${mode}(de): erfundene Behauptung = hartes Verfehlen`);
+    check(enP.includes('OCCASION (e.g. "perfect for your job interview"'), `P5 ${mode}(en): occasion ban named`);
+    check(enP.includes('TARGET AUDIENCE (e.g. "style-conscious viewers"'), `P5 ${mode}(en): audience ban named`);
+    check(enP.includes('USAGE CONTEXT AS A RECOMMENDATION'), `P5 ${mode}(en): usage-context ban named`);
+    check(enP.includes('ONLY if the user named it'), `P5 ${mode}(en): only-if-user-named condition`);
+    check(enP.includes('is a HARD FAIL (owner criteria 4 and 5)'), `P5 ${mode}(en): invented claim = hard fail`);
+  }
+}
+
+// ── I1: deterministischer Post-Check — erfundene Anlässe/Zielgruppen ────────
+section('I1 erfundene Anlässe/Zielgruppen werden deterministisch erkannt');
+{
+  const owner = 'Perfekt für dein nächstes Vorstellungsgespräch! Was bei stilbewussten Zuschauern den Scroll stoppt.';
+  const hits = inventedContextViolations(owner.toLowerCase(), '');
+  check(hits.includes('INVENTED:anlass-vorstellungsgespraech'), 'I1a Anlass „Vorstellungsgespräch" erkannt');
+  check(hits.includes('INVENTED:zielgruppe-stilbewusst'), 'I1b Zielgruppe „stilbewusste Zuschauer" erkannt');
+  check(hits.length === 2, `I1c genau 2 Treffer (ist ${hits.length})`);
+  check(inventedContextViolations('perfect for your job interview', '').length === 1, 'I1d en: „job interview" erkannt');
+  check(
+    inventedContextViolations('the perfect christmas gift for style-conscious viewers', '').length === 2,
+    'I1e en: Weihnachten + "style-conscious viewers" erkannt (=2)',
+  );
+  check(inventedContextViolations('ideal zum valentinstag für fashionistas', '').length === 2, 'I1f Valentinstag + Fashionistas erkannt');
+  // Grounding: nennt der Nutzer den Anlass, ist es KEIN Verstoß
+  check(
+    inventedContextViolations('perfekt für deine hochzeit', 'hochzeitsdeko aus ton').length === 0,
+    'I1g vom Nutzer genannter Anlass bleibt erlaubt',
+  );
+  check(
+    inventedContextViolations('for style-conscious viewers', 'zielgruppe: style-conscious designers').length === 0,
+    'I1h vom Nutzer genannte Zielgruppe bleibt erlaubt',
+  );
+  // Keine False Positives für die GRÜNE Idee 1 (Tasse) inkl. Szenen-Schauplatz
+  const idea1 =
+    'nie wieder tassenverwechslung im büro! eine person am schreibtisch greift zur tasse mit namensgravur. '
+    + 'der name auf der tasse ist der payoff. viele im team greifen sonst zur falschen tasse.';
+  check(inventedContextViolations(idea1, 'personalisierte tasse').length === 0, 'I1i Idee 1 (Tasse) löst keinen Treffer aus');
+  check(inventedContextViolations('', '').length === 0, 'I1j leere Eingabe → keine Treffer');
+}
+
+// ── I2: Endreinigung entfernt nur die betroffenen Sätze ─────────────────────
+section('I2 inventedContextFreeResult entfernt die erfundenen Sätze (satzweise)');
+{
+  const dirty = JSON.parse(JSON.stringify(cleanIdea(true))) as unknown as TikTokIdeaResult;
+  dirty.hook = 'Perfekt für dein nächstes Vorstellungsgespräch!';
+  dirty.overlays = [
+    'Diese schmale Goldkette mit Kreis-Anhänger bleibt im Alltag sichtbar.',
+    'Was bei stilbewussten Zuschauern den Scroll stoppt.',
+  ];
+  dirty.caption = 'Schmale Goldkette mit Kreis-Anhänger: so trägst du sie.';
+  const out = inventedContextFreeResult(dirty, '');
+  check(out.hook.trim() === '', 'I2a Ganzfeld-Behauptung → ehrlich leeres Feld');
+  check(out.caption.includes('Schmale Goldkette'), 'I2b saubere Sätze bleiben erhalten');
+  check(out.overlays.length === 1 && out.overlays[0].includes('Kreis-Anhänger'), 'I2c nur der betroffene Satz fliegt raus');
+  check(inventedContextViolations(ideaPlaceholderBlob(out), '').length === 0, 'I2d Ergebnis ohne erfundene Anlässe/Zielgruppen');
+  check(
+    JSON.stringify(inventedContextFreeResult(out, '')) === JSON.stringify(out),
+    'I2e idempotent',
+  );
+  const clean = cleanIdea(true) as unknown as TikTokIdeaResult;
+  check(inventedContextFreeResult(clean, '') === clean, 'I2f saubere Idee: identisches Objekt (kein Kopieren)');
+  const wed = JSON.parse(JSON.stringify(cleanIdea(true))) as unknown as TikTokIdeaResult;
+  wed.hook = 'Perfekt für deine Hochzeit!';
+  check(
+    inventedContextFreeResult(wed, 'hochzeitsdeko aus ton').hook.includes('Hochzeit'),
+    'I2g vom Nutzer genannter Anlass wird NICHT entfernt',
+  );
+}
+
+// ── I3: Engine — erfundener Anlass → Soft-Reject + Retry-Hinweis ────────────
+section('I3 Engine: erfundener Anlass/Zielgruppe → Retry mit gezieltem Hinweis');
+{
+  const attempt1 = JSON.parse(JSON.stringify(cleanIdea(true))) as unknown as TikTokIdeaResult;
+  attempt1.hook = 'Perfekt für dein nächstes Vorstellungsgespräch! Diese zarte Goldkette fällt sofort auf.';
+  attempt1.cta = 'Was bei stilbewussten Zuschauern den Scroll stoppt.';
+  const attempt2 = JSON.parse(JSON.stringify(cleanIdea(true))) as unknown as TikTokIdeaResult;
+  attempt2.hook = 'Diese zarte Goldkette mit Kreis-Anhänger dreht sich in Sekunde 1 ins Licht.';
+  reset((a) => JSON.stringify(a === 1 ? attempt1 : attempt2));
+  const input = baseInput({ mode: 'concept', topic: 'minimalistischer Schmuck' });
+  const r = (await generateTikTok(input, 'de')) as TikTokIdeaResult;
+  check(attemptCounter === 2, `I3a genau 2 Versuche (ist ${attemptCounter})`);
+  check(seenUserPrompts[1].includes('ERFUNDENER ANLASS'), 'I3b Retry-Prompt nennt das Verbot erfundener Anlässe');
+  check(
+    seenUserPrompts[1].includes('INVENTED:anlass-vorstellungsgespraech'),
+    'I3c Retry-Prompt listet den erkannten Verstoß namentlich',
+  );
+  check(inventedContextViolations(ideaPlaceholderBlob(r), inventedGroundingBlob(input)).length === 0, 'I3d Ergebnis ohne erfundene Anlässe/Zielgruppen');
+  check(r.hook.includes('Kreis-Anhänger'), 'I3e Retry-Ergebnis wird ausgegeben');
+}
+
+// ── I4: Engine — dauerhaft erfundene Anlässe → Satz wird entfernt ───────────
+section('I4 Engine: dauerhaft erfundene Behauptung → letzte Idee OHNE den Satz');
+{
+  const dirty = JSON.parse(JSON.stringify(cleanIdea(true))) as unknown as TikTokIdeaResult;
+  dirty.hook = 'Perfekt für dein nächstes Vorstellungsgespräch!';
+  dirty.cta = 'Was bei stilbewussten Zuschauern den Scroll stoppt.';
+  dirty.why = 'Das überzeugt modebewusste Zuschauer sofort.';
+  reset(() => JSON.stringify(dirty));
+  const input = baseInput({ mode: 'concept', topic: 'minimalistischer Schmuck' });
+  const r = (await generateTikTok(input, 'de')) as TikTokIdeaResult;
+  check(attemptCounter === 4, `I4a 4 Versuche ausgeschöpft (ist ${attemptCounter})`);
+  check(inventedContextViolations(ideaPlaceholderBlob(r), inventedGroundingBlob(input)).length === 0, 'I4b Ergebnis enthält KEINE erfundene Anlass-/Zielgruppen-Behauptung');
+  check(r.hook === '', 'I4c reine Behauptungs-Hook bleibt leer statt erfunden');
+  check(r.idea.includes('eingravierte Name'), 'I4d produktspezifischer Inhalt bleibt erhalten');
+}
+
 // ── Ergebnis ────────────────────────────────────────────────────────────────
-console.log(`\nStabilisierung Phase 5g (Test C Nachschärfung): ${passed} passed, ${failed} failed`);
+console.log(`\nStabilisierung Phase 5g (Test C Nachschärfung, Runde 2): ${passed} passed, ${failed} failed`);
 if (failed > 0) {
   console.log('FAILURES:\n - ' + failures.join('\n - '));
   process.exit(1);
