@@ -837,5 +837,118 @@ Galerie-Navigationsfestigkeit inkl. Reload-Fix (D + F3), mobil keine leeren Scre
 FAIL-Zeile: „image-studio.tsx wendet studioSearchPrefill an (Routebene belegt)" (`tiktok-phase2-test.ts:329`, prüft `routeSrc.includes('studioSearchPrefill(window.location.search)')`). `src/routes/app/image-studio.tsx` enthält 0-mal `studioSearchPrefill` in **allen** geprüften Revisionen (85baff6~1, 85baff6, 9771a07, 03111a0, a0a6b2d) — die Zeile wurde bereits am **2026-09-18 in `1d35375`** durch `resolveStudioPrefill(window.location.search, readStrategyPrefill())` ersetzt (Vorgänger: eingeführt 2026-09-10 in `93868f9`; `1d35375` ist Ancestor von HEAD). **Der FAIL ist also prä-existierend und NICHT durch den Galerie-Fix `85baff6` (oder `03111a0`) verursacht.**
 
 ### Offen / Nicht verifiziert (ehrlich)
-- Idee 2 verfehlt Kriterium 1/4/5 → **Nachschärf-Runde nötig** (Prompt: Schmuck-Fall muss ein konkretes Format/Material nennen und darf keinen Anlass/Zielgruppe erfinden). In dieser Sitzung nicht umgesetzt: dafür sind Änderung an `src/ai/tiktok.ts`, Build + Deploy nötig — außerhalb des Auftrags („kein Produktionscode, kein Deploy").
+- Idee 2 verfehlt Kriterium 1/4/5 → **Nachschärf-Runde nötig** — *überholt (2026-09-26): die Nachschärfung ist umgesetzt (Commit `300223b`) und in zwei echten Produktionsläufen belegt, siehe Abschnitt „5g — Runde 2" unten* (Prompt: Schmuck-Fall muss ein konkretes Format/Material nennen und darf keinen Anlass/Zielgruppe erfinden). In dieser Sitzung nicht umgesetzt: dafür sind Änderung an `src/ai/tiktok.ts`, Build + Deploy nötig — außerhalb des Auftrags („kein Produktionscode, kein Deploy").
 - Die frühere 5g-Deploy-Blockade („Not authorized") ist erledigt: `site-lll9lvi3p` ist production/Ready und unter www.growimo.app ausgeliefert (Bundle-Beleg oben).
+
+---
+
+## 5g — Runde 2: Test C Idee 2 („minimalistischer Schmuck") — Prompt-Nachschärfung + Post-Check (2026-09-26)
+
+**Auftrag:** gezielte Nachschärfung nur für den Schmuck-Fall — (a) konkretes Produktformat/Material erzwingen,
+(b) erfundene Anlässe/Zielgruppen/Nutzungskontexte härter verbieten (Regel 5 geschärft). Kein Umbau.
+
+### Änderung (Commit `300223b`)
+- `src/ai/tiktok.ts`, `ideaSharpeningMandate(de/en)`:
+  - **Regel 5 geschärft:** drei ausdrücklich nie zu erfindende Dinge — (a) ANLASS („perfekt für dein
+    Vorstellungsgespräch", „das perfekte Weihnachtsgeschenk" …), (b) ZIELGRUPPE („stilbewusste Zuschauer",
+    „modebewusste Frauen", „was alle Fashionistas lieben"), (c) NUTZUNGSKONTEXT ALS EMPFEHLUNG — jeweils NUR wenn
+    der Nutzer es genannt hat; sonst Behauptung weglassen. Neutrale Schauplatz-Beschreibung bleibt erlaubt.
+  - **Neue Regel 6 „KONKRETES PRODUKTFORMAT" (de/en):** bei offenen Kategorien (Schmuck, Kleidung, Accessoires,
+    Deko, Möbel, Geschenkartikel, Kosmetik …) MUSS die Idee EIN konkretes Format MIT Material/Finish und
+    Trage-/Nutzungsdetail nennen (z. B. „eine zarte Goldkette mit einem einzelnen Kreis-Anhänger") statt
+    „ein Schmuckstück"/„ein Accessoire"; Selbstprüfung mit Verwerfen bei bloßer Kategorie.
+- **Deterministischer Post-Check (neu):** `INVENTED_CONTEXT_PATTERNS` + `inventedContextViolations(blob, grounding)`
+  + `inventedContextFreeResult(...)` — 11 Anlass-Muster (Vorstellungsgespräch, Hochzeit, Geburtstag, Weihnachten,
+  Valentinstag, Jahrestag, Abschlussfeier, Mutter-/Vatertag, Ostern, Einzug) und 3 Zielgruppen-Muster
+  (stil-/mode-/design-/trend-/qualitäts-/preis-/markenbewusst, *-conscious, Fashionistas). Greift NUR, wenn der
+  Begriff nicht in den Nutzerangaben steht (Grounding aus topic/biz/audience/goal/brandContext/Projekt) → ein
+  vom Nutzer genannter Anlass bleibt erlaubt; Schauplätze wie „Büro"/„Schreibtisch" sind bewusst kein Muster
+  (Idee 1 bleibt unangetastet). Verstoß = Soft-Reject + Retry mit gezieltem Hinweis („ERFUNDENER ANLASS …"),
+  auf dem letzten Versuch werden die betroffenen Sätze entfernt (satzweise, damit keine Halbsätze entstehen).
+
+### Gates (alle auf dem Commit-Stand 300223b)
+| Gate | Ergebnis | Rohlog |
+|---|---|---|
+| `stabilisierung-phase5c-test.ts` (erweitert: P5/I1–I4, 68 neue Checks) | **287 PASS, 0 FAIL**, EXIT 0 | `/tmp/5gr2-5c.log` |
+| tiktok-phase1/3/4/6, concept-quality, diagnose-v2, 41/43/43b, phase4 | EXIT 0 (75/91/75/47/126/56/47/111/89/50 PASS, 0 FAIL) | `/tmp/5gr2-*-test.ts.log` |
+| tiktok-phase2-test | 89 PASS, **1 FAIL** — prä-existierender `studioSearchPrefill`-FAIL (unverändert, nicht durch diese Runde verursacht) | ebd. |
+| usage-semantics-test | **32 PASS, 0 FAIL**, EXIT 0 | `/tmp/5gr2-usage-semantics.log` |
+| usage-guard-test | 1. Lauf **hing** in Abschnitt [4] (DB/Neon, kein Bezug zur Änderung), 2. Lauf parallel gestartet — Ergebnis im Runden-Log | `/tmp/5gr2-usage-guard*.log` |
+| `bunx tsc --noEmit` | **171 Fehler = Baseline 171 → 0 neue**; 0 Treffer in `src/ai/tiktok.ts` + `stabilisierung-phase5c-test.ts` | `/tmp/5gr2-tsc.log` |
+| `build-vercel.sh` | **EXIT 0** | `/tmp/5gr2-build.log` |
+
+### Deploy + Marker
+- `bunx vercel deploy --prebuilt --prod --yes` (ohne --token) → **`https://site-bdofqatc1-growimo.vercel.app`**, 1. Versuch OK (`/tmp/5gr2/deploy-run.log`).
+- Live: `https://www.growimo.app/` **200**, `https://www.growimo.app/app/tiktok` **200**; die 14 Asset-Chunks des
+  Alias sind identisch mit denen des Deployments (sha256-Liste in `/tmp/5gr2/bundle.txt`).
+- **Marker-Beleg:** die neuen Prompt-Strings liegen (wie in 5g) **serverseitig**, nicht in den öffentlich
+  abrufbaren Client-Chunks — Nachweis daher am ausgelieferten Artefakt: `CONCRETE PRODUCT FORMAT` /
+  `KONKRETES PRODUKTFORMAT` stehen in `.vercel/output/functions/render.func/index.mjs` (4 424 917 B) und in
+  `dist/server/assets/tiktok-ClQCTX7V.js` — also im genau mit `--prebuilt` hochgeladenen Stand (`/tmp/5gr2/inv.txt`).
+
+### E2E Idee 2 (echte Generierung auf der LIVE-Site) — Runde 2, 2026-09-26
+
+**Verifizierter Deploy:** `https://site-gwwxup2qo-growimo.vercel.app` → `▲ Aliased https://www.growimo.app`
+(Commit `300223b`, HEAD = origin/master). **Warum neu deployt:** der Deploy der Vorsession
+(`site-bdofqatc1`) wurde 15:54:50 UTC erstellt, der zugehörige Build aber erst 15:55:30 UTC fertig
+(`.vercel/output/.../index.mjs`, mtime) — der ausgelieferte Stand trug die Runde-2-Logik damit **nicht
+nachweisbar**, und der damals gespeicherte Live-Output war strukturell noch der Runde-1-Fehlerfall
+(„Ein TikTok-Video zeigt, wie … man ein Alltagsoutfit mit einem minimalistischen Schmuckstück **für das Büro**
+aufwerten kann", Hook „Wie du dein **Büro**-Outfit in Sekunden aufwertest!"). Dieser Lauf ist als
+Runde-2-Beleg verworfen; ersetzt durch: `bash build-vercel.sh` (BUILD_EXIT=0) +
+`bunx vercel deploy --prebuilt --prod --yes` (DEPLOY_EXIT=0, `▲ Aliased`), danach die Generierungen.
+
+**Generierungsweg (Weg A, ServerFn — kein Browser nötig):** echte Produktions-Generierung über die deployte
+ServerFn `generateTikTokServer`, `POST https://www.growimo.app/_serverFn/c5a06ea3…caba3c` mit gültiger
+Clerk-Session des Pro-Kontos `user_3JZ1X21pNidksnLIqznjqXzGQoN`. Payload exakt wie im Browser-Flow:
+`{mode:'concept', biz:'minimalistischer Schmuck', goal:'Reichweite', lang:'de', history:[]}` — **kein**
+`brandContext` (Markenprofil AUS), `topic` leer. Beide Antworten **HTTP 200** (4 402 / 4 154 Bytes,
+11 074 / 7 810 ms, 18 Felder, `selfCheckRejected=false`). Rohdaten: `/tmp/5gr2/final/{raw.txt,fields.txt,result.json}`,
+`/tmp/5gr2/final2/…`. (Der Browser-Vorlauf derselben Sitzung brach die DOM-Extraktion ab — `idee2-result.json`
+= `"NOGEN"`; die visuellen Screenshots `e2e-testC2b-01/02` zeigen nur die Werkstatt mit der gefüllten Eingabe.)
+
+**Zähler (DB `usage_monthly`, Periode 2026-09, Plan pro):** Lauf 1 **16 → 17**, Lauf 2 **17 → 18** — je fertiger
+Generierung genau **+1** (`scripts/_abn-usage.ts`). Ausgangswert der Runde war 14 (frühere Versuche dieser
+Runde: 15 = Browser-Vorlauf, 16 = verworfener Lauf).
+
+**Bundle-/Marker-Beleg** (`.vercel/output/functions/render.func/index.mjs`, 4 424 917 Bytes,
+sha256 `163c62a58d90e233085ae2a7e15b6943be5ee3b36f9e11a61c432bd5e63dd81d`), Byte-Offsets:
+`KONKRETES PRODUKTFORMAT` @1570140 · `CONCRETE PRODUCT FORMAT` @1574921 · `INVENTED:` @1602839 ·
+`inventedGroundingBlob` @1610660 · `inventedContextViolations` @1611033 · `inventedContextFreeResult` @1611659
+(Rohliste `/tmp/5gr2/markers-final.txt`). Die neuen Prompt-Strings liegen serverseitig — Nachweis daher wie
+in 5g am genau mit `--prebuilt` hochgeladenen Artefakt.
+
+**Wörtlicher Output:** `/home/team/shared/tiktok-testC-outputs.md`, Abschnitt „Runde 2 — Idee 2
+`minimalistischer Schmuck`" — Lauf 1 und Lauf 2 **vollständig, alle 18 Felder**, plus die alte (überholte)
+Vorgängernotiz, die als „kein Runde-2-Beleg" markiert ist.
+
+**Deterministische Gates auf genau diese beiden echten Outputs** (Engine-eigene Funktionen aus
+`src/ai/tiktok.ts`, Rohprotokolle `/tmp/5gr2/final/gates.txt`, `/tmp/5gr2/final2/gates.txt`):
+
+| Prüfung | Lauf 1 (Silberring) | Lauf 2 (Goldkette) |
+|---|---|---|
+| `genericViolations(blob)` | **0** | **0** |
+| `placeholderViolations(blob)` | **0** | **0** |
+| `inventedContextViolations(blob, inventedGroundingBlob(input))` | **0** | **0** |
+| `selfCheckRejected` | false | false |
+| Hashtags (Limit `MAX_TIKTOK_HASHTAGS` = 5) | 4 | 4 |
+| erfundene Begriffe (Büro/Alltag/stilbewusst/Weihnacht/Hochzeit …) | **keine** | **keine** |
+| konkretes Format + Material im Output | Ring + Silber (+ glänzend) | Kette + Anhänger + Gold |
+| konkretes Format in VIDEO-IDEE / HOOK | nein / nein | nein / nein |
+
+**Bewertung gegen die 5 Owner-Kriterien (kritisch):**
+
+| K | Ergebnis | Beleg |
+|---|---|---|
+| K1 Bedeutungserhalt (konkretes Format + Material/Finish, zentral) | **teilweise** | „Nahaufnahme eines angelaufenen **Silberrings**" (L1) / „Die Person legt eine schlichte **Goldkette** mit einem **kleinen Anhänger** um den Hals" (L2) — das Runde-1-„ein Schmuckstück" ist in Szenen/Bildideen weg. Aber in Idee/Hook/Titel steht weiter nur die Kategorie („deinen minimalistischen Schmuck", „deinen Look"), und „minimalistisch" überlebt nur als Hashtag `#Minimalismus`. |
+| K2 echter visueller Scroll-Stop | **erfüllt** | L1: „Mechanik: Problem/Payoff — Das Video beginnt mit einer Nahaufnahme eines angelaufenen Schmuckstücks …" + erste Szene „Nahaufnahme eines angelaufenen Silberrings"; L2: „Mechanik: Problem/Payoff — Die Zielgruppe sieht in der ersten Sekunde jemanden, der sich unsicher fühlt, weil ihr Outfit nicht stimmig wirkt." |
+| K3 Anti-Generik (0 Floskeln) | **erfüllt** | 0 Treffer in beiden Läufen; konkret-benannte Hooks/CTAs statt „Finde deinen Stil". |
+| K4 Spezifität (nicht auf Gürtel/Uhr/Schal übertragbar) | **L1 erfüllt, L2 schwach** | L1 schmuckspezifisch (Silber-Anlauf, Reinigungslösung, weiche Bürste, Vorher/Nachher). L2 trägt in Idee/Hook/Caption nur „Wie ein einfacher Trick deinen Look sofort eleganter macht" / „Dein Outfit fehlt das gewisse Extra?" — mit Gürtel/Uhr/Schal fast unverändert verwendbar; das Schmuck-Spezifische steckt nur in Szene 3 + einer Bildidee. |
+| K5 keine erfundenen Fakten | **erfüllt** | 0 `INVENTED:`-Treffer, kein „Büro"/„Alltag"/„stilbewusst": der konkrete Runde-1-Fehler (erfundener Nutzungskontext) ist geschlossen. Weiche Beobachtung: L1-Hook „schneller anläuft, als du denkst" + Caption „bleibt **immer** glänzend" (werbliche Zuspitzung, ohne Zahlen/Anlass). |
+
+**Fazit (ehrlich):** Runde 2 beseitigt das Fehlerbild der ersten Runde nachweisbar — K2/K3/K5 sind in beiden
+echten Produktionsläufen sauber (0 Floskeln, 0 erfundene Anlässe/Zielgruppen), und es erscheint erstmals ein
+konkretes Produktformat mit Material (Silberring / schlichte Goldkette mit Anhänger). **Nicht vollständig
+erreicht:** K1 nur teilweise (Format nicht in Idee/Hook, „minimalistisch" nur als Hashtag) und K4 in 1 von 2
+Läufen schwach (L2 ist mit anderen Accessoires austauschbar). Der Befund ist damit **überwiegend grün mit zwei
+benannten Restlücken**, nicht vollständig grün.
