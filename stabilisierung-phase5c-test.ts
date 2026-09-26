@@ -56,6 +56,9 @@ import {
   inventedContextViolations,
   inventedContextFreeResult,
   inventedGroundingBlob,
+  categoryFormatViolations,
+  concreteFormatNames,
+  OPEN_CATEGORY_PATTERNS,
   type TikTokInput,
   type TikTokIdeaResult,
 } from './src/ai/tiktok';
@@ -669,7 +672,12 @@ section('I1 erfundene Anlässe/Zielgruppen werden deterministisch erkannt');
   check(hits.includes('INVENTED:anlass-vorstellungsgespraech'), 'I1a Anlass „Vorstellungsgespräch" erkannt');
   check(hits.includes('INVENTED:zielgruppe-stilbewusst'), 'I1b Zielgruppe „stilbewusste Zuschauer" erkannt');
   check(hits.length === 2, `I1c genau 2 Treffer (ist ${hits.length})`);
-  check(inventedContextViolations('perfect for your job interview', '').length === 1, 'I1d en: „job interview" erkannt');
+  // (Runde 3: „perfect for …" erzeugt zusätzlich einen Nutzungskontext-Treffer
+  // („job") — die Erkennung des Anlasses bleibt davon unberührt.)
+  check(
+    inventedContextViolations('perfect for your job interview', '').includes('INVENTED:anlass-vorstellungsgespraech'),
+    'I1d en: „job interview" erkannt',
+  );
   check(
     inventedContextViolations('the perfect christmas gift for style-conscious viewers', '').length === 2,
     'I1e en: Weihnachten + "style-conscious viewers" erkannt (=2)',
@@ -758,8 +766,445 @@ section('I4 Engine: dauerhaft erfundene Behauptung → letzte Idee OHNE den Satz
   check(r.idea.includes('eingravierte Name'), 'I4d produktspezifischer Inhalt bleibt erhalten');
 }
 
+
+// ── J1: RUNDE 3 — erfundener NUTZUNGSKONTEXT als Empfehlung (deterministisch) ─
+// Owner-Beispiel aus dem Runde-2-Befund (Lauf 3): „Von Büro zu Abendessen: Ein
+// Accessoire macht den Unterschied!". Erkannt werden nur Empfehlungs-/Label-
+// Konstruktionen — neutrale Schauplätze („eine Person an einem Schreibtisch")
+// bleiben erlaubt (deshalb bleibt die grüne Tassen-Idee trefferfrei, s. J3).
+section('J1 Runde 3: erfundener Nutzungskontext wird deterministisch erkannt');
+{
+  const owner = 'Von Büro zu Abendessen: Ein Accessoire macht den Unterschied!';
+  const hits = inventedContextViolations(owner, '');
+  check(
+    hits.includes('INVENTED:kontext-von-zu(buro/abendessen)') ||
+      hits.includes('INVENTED:kontext-von-zu(abendessen/buro)'),
+    `J1a Owner-Beispiel „Von Büro zu Abendessen" erkannt (ist ${hits.join('|')})`,
+  );
+  check(hits.length === 1, `J1b genau 1 Treffer für das Owner-Beispiel (ist ${hits.length})`);
+
+  const ready = inventedContextViolations('Du bist bereit für ein Abendessen.', '');
+  check(
+    ready.includes('INVENTED:kontext-bereit-fuer(abendessen)'),
+    `J1c „bereit für ein Abendessen" erkannt (ist ${ready.join('|')})`,
+  );
+  const perf = inventedContextViolations('Perfekt für dein Büro!', '');
+  check(
+    perf.includes('INVENTED:kontext-perfekt-fuer(buro)'),
+    `J1d „Perfekt für dein Büro" erkannt (ist ${perf.join('|')})`,
+  );
+  const next = inventedContextViolations('Das richtige Format für dein nächstes Meeting.', '');
+  check(
+    next.some((h) => h.startsWith('INVENTED:kontext-fuer-naechstes')),
+    `J1e „für dein nächstes Meeting" erkannt (ist ${next.join('|')})`,
+  );
+  check(
+    inventedContextViolations('Ein Büro-Look für jeden Tag.', '').includes('INVENTED:kontext-look(buro)'),
+    'J1f „Büro-Look" erkannt',
+  );
+  check(
+    inventedContextViolations('Ein Alltagslook, der bleibt.', '').includes('INVENTED:kontext-look(alltags)'),
+    'J1g „Alltagslook" erkannt',
+  );
+  check(
+    inventedContextViolations('Der Abendlook für dich.', '').includes('INVENTED:kontext-look(abend)'),
+    'J1h „Abendlook" erkannt',
+  );
+  check(
+    inventedContextViolations('Ein Video, das von Arbeit zu Wochenende führt.', '').some((h) =>
+      h.startsWith('INVENTED:kontext-von-zu'),
+    ),
+    'J1i zweites von-zu-Beispiel erkannt',
+  );
+  // en
+  check(
+    inventedContextViolations('from office to dinner', '').some((h) => h.startsWith('INVENTED:context-from-to')),
+    'J1j en: "from office to dinner" erkannt',
+  );
+  check(
+    inventedContextViolations('you are ready for the gym', '').some((h) => h.startsWith('INVENTED:context-ready-for')),
+    'J1k en: "ready for the gym" erkannt',
+  );
+  check(
+    inventedContextViolations('perfect for your vacation', '').some((h) => h.startsWith('INVENTED:context-perfect-for')),
+    'J1l en: "perfect for your vacation" erkannt',
+  );
+  check(
+    inventedContextViolations('made for your next workout', '').some((h) =>
+      h.startsWith('INVENTED:context-for-your-next'),
+    ),
+    'J1m en: "for your next workout" erkannt',
+  );
+  check(
+    inventedContextViolations('an office look that lasts', '').includes('INVENTED:kontext-look(office)'),
+    'J1n en: "office look" erkannt',
+  );
+}
+
+// ── J2: Grounding — vom Nutzer genannter Kontext ist KEIN Verstoß ───────────
+section('J2 Runde 3: Grounding — vom Nutzer genannter Nutzungskontext bleibt erlaubt');
+{
+  check(
+    inventedContextViolations('Bereit für ein Abendessen.', 'schmuck fürs abendessen').length === 0,
+    'J2a Nutzer nannte „Abendessen" → kein Verstoß',
+  );
+  check(
+    inventedContextViolations('Perfekt für dein Büro!', 'schmuck fürs büro').length === 0,
+    'J2b Nutzer nannte „Büro" → kein Verstoß',
+  );
+  check(
+    inventedContextViolations('Perfekt für dein Büro!', 'schmuck fürs buero').length === 0,
+    'J2c Schreibweise „buero" belegt dieselbe Wortgruppe',
+  );
+  const mixed = inventedContextViolations('Von Büro zu Abendessen', 'schmuck fürs büro');
+  check(
+    mixed.some((h) => h.includes('abendessen')),
+    `J2d halb-belegter Kontext: erfundenes „Abendessen" bleibt Verstoß (ist ${mixed.join('|')})`,
+  );
+  check(
+    !mixed.some((h) => h.includes('buro')),
+    `J2e belegtes „Büro" wird nicht mitgemeldet (ist ${mixed.join('|')})`,
+  );
+  check(
+    inventedContextViolations('Ein Büroalltag mit Namen.', 'schmuck fürs büroalltag').length === 0,
+    'J2f Kompositum „Büroalltag" belegt die Gruppe (Wortanfang-Grenze)',
+  );
+  check(
+    inventedContextViolations('Ein Abendessen zu zweit.', 'idee: abendessen für paare').length === 0,
+    'J2g identischer Begriff belegt',
+  );
+}
+
+// ── J3: KEINE False Positives auf den echten Outputs aus Runde 1/2 ──────────
+// Wörtliche Auszüge der LIVE-Outputs (Tasse = grün mit Büro-Setting; Schmuck
+// Lauf 1 = grün) — die neuen Muster dürfen sie NICHT ablehnen. Zusätzlich darf
+// bei „personalisierte Tasse" kein Format-Zwang greifen (kein Kategorie-Wort).
+const MUG_L1_BLOB = [
+  'ein humorvolles tiktok-video, das zeigt, wie eine personalisierte tasse im alltag ein problem lösen kann, z.b. verwechslungen im büro.',
+  'wer hat schon wieder meine tasse genommen?!',
+  'mechnik: problem/payoff — der frust über eine verwechslungsanfällige tasse zieht die aufmerksamkeit der zuschauer an, die das problem im büroalltag kennen.',
+  'nie wieder tassenverwechslung im büro!',
+  'ein mitarbeiter schaut verwirrt in die kamera mit einer tasse in der hand.',
+  'szenenwechsel: verschiedene mitarbeiter greifen nach der gleichen tasse.',
+  'nahaufnahme von mehreren identischen tassen im schrank.',
+  'der mitarbeiter lächelt zufrieden, während er aus seiner personalisierten tasse trinkt.',
+  'kennst du das auch? #tassenchaos #büroalltag',
+  'teile das mit deinem bürofreund, der auch immer seine tasse sucht!',
+  'dieses tiktok-video trifft den nerv vieler büroangestellter, die das problem der tassenverwechslung kennen.',
+  'nahaufnahme, persönliche tasse mit namen, helles bürolicht, fokus auf den namen, unscharfer hintergrund',
+  'büroschrank, viele identische tassen, tageslicht, leichte unordnung',
+].join(' ');
+const JEWEL_L1_BLOB = [
+  'wie du deinen minimalistischen schmuck sauber und glänzend hältst',
+  'warum dein schmuck schneller anläuft, als du denkst!',
+  'mechnik: problem/payoff — das video beginnt mit einer nahaufnahme eines angelaufenen schmuckstücks, was die zuschauer neugierig macht.',
+  'tutorial/how-to – schritt für schritt (passt zum ziel: reichweite durch nützliche tipps)',
+  'nahaufnahme eines angelaufenen silberrings',
+  'mit einer weichen bürste wird der ring sanft gereinigt',
+  'der ring wird mit klarem wasser abgespült',
+  'vergleich: der ring glänzt wieder neben einem angelaufenen schmuckstück',
+  'so bleibt dein schmuck immer glänzend',
+  'mit diesem einfachen trick bleibt dein schmuck immer glänzend!',
+  '#schmuckpflege #minimalismus #diy #glänzenderschmuck',
+  'teile diesen tipp mit jemandem, dessen schmuck immer glänzen soll!',
+].join(' ');
+section('J3 Runde 3: keine False Positives auf den echten Runde-1/2-Outputs + kein Format-Zwang bei der Tasse');
+{
+  check(
+    inventedContextViolations(MUG_L1_BLOB, 'personalisierte tasse').length === 0,
+    `J3a Tasse L1 (Büro-Setting) → 0 Treffer (ist ${inventedContextViolations(MUG_L1_BLOB, 'personalisierte tasse').join('|')})`,
+  );
+  check(
+    inventedContextViolations(MUG_L1_BLOB, '').length === 0,
+    `J3b Tasse L1 auch ohne Grounding-Blob → 0 Treffer (ist ${inventedContextViolations(MUG_L1_BLOB, '').join('|')})`,
+  );
+  check(
+    inventedContextViolations(JEWEL_L1_BLOB, 'minimalistischer schmuck').length === 0,
+    `J3c Schmuck Lauf 1 (Silberring) → 0 Treffer (ist ${inventedContextViolations(JEWEL_L1_BLOB, 'minimalistischer schmuck').join('|')})`,
+  );
+  check(
+    !/INVENTED:/.test(ideaPlaceholderBlob(cleanIdea(true) as unknown as TikTokIdeaResult)),
+    'J3d saubere Tassen-Idee (Fixture) → 0 Treffer',
+  );
+  check(
+    OPEN_CATEGORY_PATTERNS.filter((p) => p.re.test('personalisierte tasse')).length === 0,
+    'J3e Eingabe „personalisierte Tasse" nennt keine offene Produktkategorie',
+  );
+  check(
+    categoryFormatViolations(baseInput({ mode: 'concept', topic: 'personalisierte Tasse' }), {
+      idea: 'Zeig die Gravur in Nahaufnahme',
+      hook: 'Wer hat meine Tasse genommen?',
+      title: 'Tassenverwechslung im Büro',
+    }).length === 0,
+    'J3f Tassen-Idee: kein Kategorie-Wort → kein Format-Zwang',
+  );
+  check(
+    categoryFormatViolations(baseInput({ mode: 'todayIdea' }), {
+      idea: 'Zeig die Gravur in Nahaufnahme',
+      hook: 'Wer hat meine Tasse genommen?',
+      title: 'Tassenverwechslung',
+    }).length === 0,
+    'J3g todayIdea (Keramiktassen-Produkt) → kein Format-Zwang',
+  );
+  check(
+    categoryFormatViolations(baseInput({ mode: 'concept', topic: 'personalisierte Tasse' }), {
+      idea: 'Eine Person am Schreibtisch greift zur Tasse mit Namensgravur.',
+      hook: 'Nie wieder Tassenverwechslung im Büro!',
+      title: 'Büroalltag mit Namen',
+    }).length === 0,
+    'J3h neutrale Büro-Kulisse in der Tassen-Idee bleibt erlaubt',
+  );
+}
+
+// ── J4: Satzweise Entfernung erfundener Nutzungskontext-Behauptungen ───────
+section('J4 Runde 3: inventedContextFreeResult entfernt nur den betroffenen Satz');
+{
+  const dirty = JSON.parse(JSON.stringify(cleanIdea(true))) as unknown as TikTokIdeaResult;
+  dirty.idea =
+    'Zeig, wie die Namensgravur entsteht. Von Büro zu Abendessen: ein Accessoire macht den Unterschied!';
+  dirty.hook = 'Bereit für ein Abendessen!';
+  dirty.caption = 'Deine Keramiktasse bleibt schön. Perfekt für dein Büro!';
+  const out = inventedContextFreeResult(dirty, 'personalisierte tasse');
+  check(
+    out.idea.includes('Namensgravur') && !out.idea.includes('Büro'),
+    `J4a Idee: erfundener Satz weg, produktspezifischer Satz bleibt (ist „${out.idea}")`,
+  );
+  check(out.hook.trim() === '', `J4b Ganzfeld-Behauptung → ehrlich leeres Feld (ist „${out.hook}")`);
+  check(
+    out.caption.includes('Keramiktasse') && !out.caption.includes('Büro'),
+    `J4c Caption: nur der betroffene Satz fliegt (ist „${out.caption}")`,
+  );
+  check(
+    inventedContextViolations(ideaPlaceholderBlob(out), 'personalisierte tasse').length === 0,
+    'J4d Ergebnis trefferfrei',
+  );
+  check(
+    JSON.stringify(inventedContextFreeResult(out, 'personalisierte tasse')) === JSON.stringify(out),
+    'J4e idempotent',
+  );
+  const clean = cleanIdea(true) as unknown as TikTokIdeaResult;
+  check(inventedContextFreeResult(clean, '') === clean, 'J4f saubere Idee: identisches Objekt (kein Kopieren)');
+}
+
+// ── J5: Engine — erfundener Nutzungskontext → Soft-Reject + Retry (de/en) ───
+section('J5 Runde 3: erfundener Nutzungskontext → Retry mit namentlicher Verstoßliste (de)');
+{
+  const attempt1 = JSON.parse(JSON.stringify(cleanIdea(true))) as unknown as TikTokIdeaResult;
+  attempt1.idea = 'Zeig die schmale Goldkette mit Kreis-Anhänger im Detail.';
+  attempt1.hook = 'Von Büro zu Abendessen: Deine Goldkette macht den Unterschied!';
+  attempt1.title = 'Goldkette mit Kreis-Anhänger';
+  const attempt2 = JSON.parse(JSON.stringify(attempt1)) as unknown as TikTokIdeaResult;
+  attempt2.hook = 'Deine schmale Goldkette dreht sich in Sekunde 1 ins Licht.';
+  reset((a) => JSON.stringify(a === 1 ? attempt1 : attempt2));
+  const input = baseInput({ mode: 'concept', topic: 'minimalistischer Schmuck' });
+  const r = (await generateTikTok(input, 'de')) as TikTokIdeaResult;
+  check(attemptCounter === 2, `J5a genau 2 Versuche (ist ${attemptCounter})`);
+  check(seenUserPrompts[1].includes('ERFUNDENER ANLASS'), 'J5b Retry-Prompt nennt das Verbot erfundener Behauptungen');
+  check(
+    seenUserPrompts[1].includes('INVENTED:kontext-von-zu'),
+    'J5c Retry-Prompt listet den erkannten Nutzungskontext namentlich',
+  );
+  check(
+    inventedContextViolations(ideaPlaceholderBlob(r), inventedGroundingBlob(input)).length === 0,
+    'J5d Ergebnis ohne erfundenen Nutzungskontext',
+  );
+  check(r.hook.includes('schmale Goldkette'), 'J5e Retry-Ergebnis wird ausgegeben');
+}
+section('J6 Runde 3: erfundener Nutzungskontext → Retry (en)');
+{
+  const attempt1 = JSON.parse(JSON.stringify(cleanIdea(false))) as unknown as TikTokIdeaResult;
+  attempt1.hook = 'From office to dinner: your gold chain makes the difference!';
+  attempt1.title = 'Gold chain with circular pendant';
+  const attempt2 = JSON.parse(JSON.stringify(attempt1)) as unknown as TikTokIdeaResult;
+  attempt2.hook = 'Your slim gold chain catches the light in second one.';
+  reset((a) => JSON.stringify(a === 1 ? attempt1 : attempt2));
+  const input = baseInput({ mode: 'concept', topic: 'minimalist jewelry' });
+  const r = (await generateTikTok(input, 'en')) as TikTokIdeaResult;
+  check(attemptCounter === 2, `J6a exactly 2 attempts (is ${attemptCounter})`);
+  check(seenUserPrompts[1].includes('INVENTED OCCASION'), 'J6b retry prompt names the invented-claim ban');
+  check(
+    seenUserPrompts[1].includes('INVENTED:context-from-to'),
+    'J6c retry prompt lists the detected usage context by name',
+  );
+  check(
+    inventedContextViolations(ideaPlaceholderBlob(r), inventedGroundingBlob(input)).length === 0,
+    'J6d result free of invented usage context',
+  );
+}
+
+// ── J7: KONKRETES PRODUKTFORMAT deterministisch (Einheitstests) ─────────────
+section('J7 Runde 3: konkretes Format in Idee UND Hook/Titel wird erzwungen');
+{
+  const jewelryInput = baseInput({ mode: 'concept', topic: 'minimalistischer Schmuck' });
+  const bare = categoryFormatViolations(jewelryInput, {
+    idea: 'So hältst du deinen minimalistischen Schmuck sauber',
+    hook: 'Wie ein einfacher Trick deinen Look sofort eleganter macht',
+    title: 'Schneller Eleganz-Boost',
+  });
+  check(bare.length === 2, `J7a Runde-2-Fehlerbild: Idee UND Hook ohne Format = 2 Verstöße (ist ${bare.length})`);
+  check(
+    bare.some((v) => v.startsWith('FORMAT:kategorie-ohne-format-idee')),
+    `J7b Verstoß nennt das Feld „idee" (ist ${bare.join('|')})`,
+  );
+  check(
+    bare.some((v) => v.startsWith('FORMAT:kategorie-ohne-format-hook')),
+    'J7c Verstoß nennt das Feld „hook"',
+  );
+  check(
+    bare.some((v) => v.includes('kategorie:schmuck')),
+    'J7d erkannte Kategorie wird benannt',
+  );
+  const bareCat = categoryFormatViolations(jewelryInput, {
+    idea: 'Zeig dein Schmuckstück im Alltag',
+    hook: 'Ein Accessoire macht den Unterschied',
+    title: 'Dein Teil für jeden Tag',
+  });
+  check(bareCat.length === 2, `J7e „Schmuckstück"/„Accessoire"/„Teil" = Verstoß (ist ${bareCat.length})`);
+  check(
+    bareCat.some((v) => v.includes('nur-kategorie:schmuckstueck')),
+    `J7f bloße Kategorie wird namentlich benannt (ist ${bareCat.join('|')})`,
+  );
+  check(
+    bareCat.some((v) => v.includes('nur-kategorie:accessoire')),
+    'J7g „Accessoire" wird namentlich benannt',
+  );
+  // Konkretes Format in Idee UND Hook → grün
+  const ok = categoryFormatViolations(jewelryInput, {
+    idea: 'Eine zarte Goldkette mit einzelnem Kreis-Anhänger wird in Sekunde 1 sichtbar.',
+    hook: 'Diese Goldkette mit Kreis-Anhänger dreht sich ins Licht.',
+    title: 'Goldkette mit Kreis-Anhänger',
+  });
+  check(ok.length === 0, `J7h konkretes Format in Idee + Hook = 0 Verstöße (ist ${ok.join('|')})`);
+  const okMaterial = categoryFormatViolations(jewelryInput, {
+    idea: 'Schmale Silber-Ohrstecker mit mattem Finish werden gezeigt.',
+    hook: 'Silber-Ohrstecker, die nicht verrutschen.',
+    title: 'Silber-Ohrstecker matt',
+  });
+  check(okMaterial.length === 0, 'J7i Material/Finish genügt als konkretes Format');
+  const okHookOnlyInTitle = categoryFormatViolations(jewelryInput, {
+    idea: 'Eine Perlenkette wird um den Hals gelegt.',
+    hook: 'Der Trick mit der Perlenkette.',
+    title: 'Perlenkette richtig tragen',
+  });
+  check(okHookOnlyInTitle.length === 0, 'J7j Titel zählt als Hook-Feld');
+  // Formate/Materialien werden erkannt (Stichproben de)
+  for (const [w, label] of [
+    ['Eine schmale Lederarmband-Variante', 'material-leder'],
+    ['Edelstahl-Finish', 'material-edelstahl'],
+    ['Perlenkette', 'perlen'],
+    ['Ohrstecker aus Gold', 'ohrring'],
+    ['Anhänger in Kreisform', 'anhaenger'],
+    ['Armband mit Gliedern', 'armband'],
+    ['Brosche für den Mantel', 'brosche'],
+  ] as Array<[string, string]>) {
+    const names = concreteFormatNames(w);
+    check(
+      names.length > 0,
+      `J7k „${w}" zählt als konkretes Format (erkannt: ${names.join(',') || '—'} / erwartet u. a. ${label})`,
+    );
+  }
+  check(concreteFormatNames('deinen minimalistischen Schmuck').length === 0, 'J7l bloße Kategorie = kein Format');
+  // en
+  const jewelryEn = baseInput({ mode: 'concept', topic: 'minimalist jewelry' });
+  const bareEn = categoryFormatViolations(jewelryEn, {
+    idea: 'How to keep your minimalist jewelry clean',
+    hook: 'A simple trick that makes your look more elegant',
+    title: 'Instant elegance boost',
+  });
+  check(bareEn.length === 2, `J7m en: Idee + Hook ohne Format = 2 Verstöße (ist ${bareEn.length})`);
+  const okEn = categoryFormatViolations(jewelryEn, {
+    idea: 'A delicate gold chain with a single circular pendant.',
+    hook: 'This gold chain with a pendant catches the light.',
+    title: 'Gold chain with circular pendant',
+  });
+  check(okEn.length === 0, `J7n en: konkretes Format = 0 Verstöße (ist ${okEn.join('|')})`);
+  check(
+    categoryFormatViolations(jewelryEn, {
+      idea: 'A piece of jewelry you will love',
+      hook: 'This accessory changes everything',
+      title: 'Your accessory',
+    }).some((v) => v.includes('nur-kategorie:schmuckstueck') || v.includes('nur-kategorie:accessoire')),
+    'J7o en: "a piece of jewelry"/"an accessory" wird namentlich benannt',
+  );
+  check(
+    categoryFormatViolations(baseInput({ mode: 'concept', topic: 'personalized mug' }), {
+      idea: 'Show the engraving',
+      hook: 'Who took my mug?',
+      title: 'Mug mix-up',
+    }).length === 0,
+    'J7p en: „personalized mug" → kein Kategorie-Wort, kein Zwang',
+  );
+}
+
+// ── J8: Engine — fehlendes konkretes Format → Soft-Reject + Retry ──────────
+section('J8 Runde 3: fehlendes konkretes Format → Retry mit namentlicher Verstoßliste');
+{
+  const without = JSON.parse(JSON.stringify(cleanIdea(true))) as unknown as TikTokIdeaResult;
+  without.idea = 'So hältst du deinen minimalistischen Schmuck sauber und glänzend.';
+  without.hook = 'Wie ein einfacher Trick deinen Look sofort eleganter macht.';
+  without.title = 'Schneller Eleganz-Boost für deinen Look';
+  without.scrollStop = 'Mechanik: Problem/Payoff — ein angelaufenes Schmuckstück wird gezeigt.';
+  const with_ = JSON.parse(JSON.stringify(without)) as unknown as TikTokIdeaResult;
+  with_.idea = 'Eine zarte Goldkette mit Kreis-Anhänger wird in Sekunde 1 ins Licht gedreht.';
+  with_.hook = 'Diese Goldkette mit Kreis-Anhänger dreht sich ins Licht.';
+  with_.title = 'Goldkette mit Kreis-Anhänger';
+  with_.scrollStop = 'Mechanik: Reveal — die Goldkette mit Kreis-Anhänger wird gedreht.';
+  reset((a) => JSON.stringify(a === 1 ? without : with_));
+  const input = baseInput({ mode: 'concept', topic: 'minimalistischer Schmuck' });
+  const r = (await generateTikTok(input, 'de')) as TikTokIdeaResult;
+  check(attemptCounter === 2, `J8a genau 2 Versuche (ist ${attemptCounter})`);
+  check(
+    seenUserPrompts[1].includes('KONKRETES PRODUKTFORMAT'),
+    'J8b Retry-Prompt nennt die Format-Pflicht wörtlich',
+  );
+  check(
+    seenUserPrompts[1].includes('FORMAT:kategorie-ohne-format-idee'),
+    'J8c Retry-Prompt listet den erkannten Verstoß namentlich (Idee)',
+  );
+  check(
+    seenUserPrompts[1].includes('FORMAT:kategorie-ohne-format-hook'),
+    'J8d Retry-Prompt listet den erkannten Verstoß namentlich (Hook)',
+  );
+  check(
+    categoryFormatViolations(input, r).length === 0,
+    `J8e ausgeliefertes Ergebnis nennt das Format in Idee UND Hook (ist „${r.idea}" / „${r.hook}")`,
+  );
+  check(concreteFormatNames(r.idea).includes('material-gold'), 'J8f Idee nennt das Material konkret');
+  // en
+  const withoutEn = JSON.parse(JSON.stringify(cleanIdea(false))) as unknown as TikTokIdeaResult;
+  withoutEn.idea = 'How to keep your minimalist jewelry clean and shiny.';
+  withoutEn.hook = 'A simple trick that makes your look more elegant.';
+  withoutEn.title = 'Instant elegance boost';
+  const withEn = JSON.parse(JSON.stringify(withoutEn)) as unknown as TikTokIdeaResult;
+  withEn.idea = 'A delicate gold chain with a single circular pendant turns into the light.';
+  withEn.hook = 'This gold chain with a pendant catches the light.';
+  withEn.title = 'Gold chain with circular pendant';
+  reset((a) => JSON.stringify(a === 1 ? withoutEn : withEn));
+  const inputEn = baseInput({ mode: 'concept', topic: 'minimalist jewelry' });
+  const rEn = (await generateTikTok(inputEn, 'en')) as TikTokIdeaResult;
+  check(attemptCounter === 2, `J8g en: exactly 2 attempts (is ${attemptCounter})`);
+  check(
+    seenUserPrompts[1].includes('CONCRETE PRODUCT FORMAT'),
+    'J8h en: retry prompt names the format duty',
+  );
+  check(
+    seenUserPrompts[1].includes('FORMAT:kategorie-ohne-format-idee'),
+    'J8i en: retry prompt lists the detected violation by name',
+  );
+  check(categoryFormatViolations(inputEn, rEn).length === 0, 'J8j en: delivered result names a concrete format');
+  // Dauerhaft ohne Format: 4 Versuche, dann ehrliche bestmögliche Idee (Soft-Reject)
+  reset(() => JSON.stringify(without));
+  const rSoft = (await generateTikTok(input, 'de')) as TikTokIdeaResult;
+  check(attemptCounter === 4, `J8k dauerhaft ohne Format → 4 Versuche (ist ${attemptCounter})`);
+  check(rSoft.idea.length > 0, 'J8l trotzdem wird eine Idee ausgeliefert (kein Hard-Fail für weiche Pflicht)');
+  check(
+    !rSoft.idea.includes('Von Büro') && !rSoft.hook.includes('Von Büro'),
+    'J8m ausgelieferte Idee bleibt frei von erfundenen Nutzungskontexten',
+  );
+}
+
 // ── Ergebnis ────────────────────────────────────────────────────────────────
-console.log(`\nStabilisierung Phase 5g (Test C Nachschärfung, Runde 2): ${passed} passed, ${failed} failed`);
+console.log(`\nStabilisierung Phase 5g (Test C Nachschärfung, Runde 3): ${passed} passed, ${failed} failed`);
 if (failed > 0) {
   console.log('FAILURES:\n - ' + failures.join('\n - '));
   process.exit(1);

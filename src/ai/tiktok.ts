@@ -502,8 +502,8 @@ function ideaSharpeningMandate(de: boolean): string {
    Die Mechanik muss im ersten Bild/Film-Moment TATSÄCHLICH sichtbar sein — nicht nur erklärt werden.
 3. ANTI-GENERIK (harte Regel): Generische, austauschbare Standard-Werbeaussagen sind VERBOTEN — z. B. „Finde deinen Stil", „Der Unterschied ist sofort sichtbar", „Entdecke dein Potenzial", „Das Beste für dich", „Heb dich von der Masse ab". Solche Sätze passen unverändert auf beliebige Produkte und werden verworfen. Formuliere stattdessen eine Aussage, die NUR mit genau diesem Produkt und diesem konkreten Detail funktioniert.
 4. SPEZIFITÄT (Pflicht-Assertion): Die Idee MUSS so spezifisch sein, dass sie NICHT auf beliebige andere Produkte übertragbar ist. Selbstprüfung VOR der Ausgabe: „Wäre diese Idee fast unverändert auf beliebige andere Produkte übertragbar? Wenn ja: verwirf sie und entwickle eine produktspezifische." Nenne mindestens ein konkretes, produktspezifisches Detail aus der Nutzereingabe im Hook, in der ersten Szene ODER im Payoff.
-5. KEINE UNBELEGTEN FAKTEN (harte Regel): Erfinde NIEMALS Fakten, Merkmale, Zahlen, Trends, Zielgruppen-Aussagen oder Zusatznutzen, nur um den Hook stärker zu machen. Verwende ausschließlich, was der Nutzer angegeben hat oder was im MARKENKONTEXT/PROJEKT-KONTEXT steht; fehlt eine Information, entwickle die Idee OHNE diese Behauptung. Das gilt ausdrücklich für DREI Dinge, die NIE erfunden werden dürfen — fehlt die Angabe, LASS DIE BEHAUPTUNG WEG: (a) ANLASS (z. B. „perfekt für dein Vorstellungsgespräch", „das perfekte Weihnachtsgeschenk", „ideal zur Hochzeit", „perfekt zum Valentinstag") — nenne einen Anlass NUR, wenn der Nutzer ihn selbst genannt hat; sonst bleibt der Anlass unbenannt. (b) ZIELGRUPPE (z. B. „stilbewusste Zuschauer", „für modebewusste Frauen", „was alle Fashionistas lieben", „viele Büroangestellte") — nenne, beschreibe oder typisiere eine Zielgruppe NUR, wenn der Nutzer sie genannt hat; sonst sprich die Zuschauer nicht an und schreibe ihnen keine Eigenschaften zu. (c) NUTZUNGSKONTEXT ALS EMPFEHLUNG (z. B. „perfekt für dein Büro", „ideal für die Reise") — nur wenn der Nutzer ihn angegeben hat; eine neutrale Schauplatz-Beschreibung im Szenenplan ohne Behauptung (z. B. „eine Person an einem Schreibtisch") ist erlaubt. Eine erfundene Anlass-, Zielgruppen- oder Kontext-Behauptung ist ein HARTES VERFEHLEN (Owner-Kriterien 4 und 5) → verwirf die Idee und generiere neu.
-6. KONKRETES PRODUKTFORMAT (harte Regel): Bleibe NICHT auf der bloßen Produktkategorie — WÄHLE aus der Nutzereingabe EINE konkrete Ausprägung und baue die Idee darauf auf. Bei offenen Produktkategorien (z. B. „Schmuck", „Kleidung", „Accessoires", „Deko", „Möbel", „Geschenkartikel", „Kosmetik", „Pflegeprodukt", „Sportartikel") MUSS die Idee ein konkretes Produktformat MIT Material/Finish und einem Trage-/Nutzungsdetail nennen — z. B. „eine zarte Goldkette mit einem einzelnen Kreis-Anhänger" oder „schmale Silber-Ohrstecker mit mattem Finish" — statt „ein Schmuckstück"/„ein Accessoire". Dieses eine konkrete Format erscheint in Idee, Hook, erster Szene UND Payoff (keine Aufzählung mehrerer Varianten). Selbstprüfung VOR der Ausgabe: „Nennt die Idee ein konkretes Format/Material (Kette, Anhänger, Ohrstecker, Ring, Armband …) — oder bleibt sie bei der bloßen Kategorie?" Bleibt sie bei der Kategorie („ein Schmuckstück", „ein Teil", „ein Accessoire"), ist die Idee UNGÜLTIG: verwirf sie und generiere neu.`;
+5. KEINE UNBELEGTEN FAKTEN (harte Regel): Erfinde NIEMALS Fakten, Merkmale, Zahlen, Trends, Zielgruppen-Aussagen oder Zusatznutzen, nur um den Hook stärker zu machen. Verwende ausschließlich, was der Nutzer angegeben hat oder was im MARKENKONTEXT/PROJEKT-KONTEXT steht; fehlt eine Information, entwickle die Idee OHNE diese Behauptung. Das gilt ausdrücklich für DREI Dinge, die NIE erfunden werden dürfen — fehlt die Angabe, LASS DIE BEHAUPTUNG WEG: (a) ANLASS (z. B. „perfekt für dein Vorstellungsgespräch", „das perfekte Weihnachtsgeschenk", „ideal zur Hochzeit", „perfekt zum Valentinstag") — nenne einen Anlass NUR, wenn der Nutzer ihn selbst genannt hat; sonst bleibt der Anlass unbenannt. (b) ZIELGRUPPE (z. B. „stilbewusste Zuschauer", „für modebewusste Frauen", „was alle Fashionistas lieben", „viele Büroangestellte") — nenne, beschreibe oder typisiere eine Zielgruppe NUR, wenn der Nutzer sie genannt hat; sonst sprich die Zuschauer nicht an und schreibe ihnen keine Eigenschaften zu. (c) NUTZUNGSKONTEXT ALS EMPFEHLUNG (z. B. „perfekt für dein Büro", „ideal für die Reise") — nur wenn der Nutzer ihn angegeben hat; eine neutrale Schauplatz-Beschreibung im Szenenplan ohne Behauptung (z. B. „eine Person an einem Schreibtisch") ist erlaubt. VERBOTEN sind ebenso alle Konstruktionen, die ein Nutzungsszenario als Produktnutzen behaupten, obwohl der Nutzer es nicht genannt hat: „von <Ort/Kontext> zu <Ort/Kontext>" (z. B. „Von Büro zu Abendessen"), „bereit für <Anlass/Kontext>", „perfekt/ideal für <Anlass/Kontext>", „für dein nächstes <Anlass>" sowie fertige Kontext-Labels wie „<Ort>-Look", „Alltagslook", „Abendlook". Eine erfundene Anlass-, Zielgruppen- oder Kontext-Behauptung ist ein HARTES VERFEHLEN (Owner-Kriterien 4 und 5) → verwirf die Idee und generiere neu.
+6. KONKRETES PRODUKTFORMAT (harte Regel): Bleibe NICHT auf der bloßen Produktkategorie — WÄHLE aus der Nutzereingabe EINE konkrete Ausprägung und baue die Idee darauf auf. Bei offenen Produktkategorien (z. B. „Schmuck", „Kleidung", „Accessoires", „Deko", „Möbel", „Geschenkartikel", „Kosmetik", „Pflegeprodukt", „Sportartikel") MUSS die Idee ein konkretes Produktformat MIT Material/Finish und einem Trage-/Nutzungsdetail nennen — z. B. „eine zarte Goldkette mit einem einzelnen Kreis-Anhänger" oder „schmale Silber-Ohrstecker mit mattem Finish" — statt „ein Schmuckstück"/„ein Accessoire". Dieses eine konkrete Format erscheint in Idee, Hook, erster Szene UND Payoff (keine Aufzählung mehrerer Varianten). IDE und HOOK/TITEL MÜSSEN das konkrete Format WÖRTLICH nennen — der Hook darf nicht bei der bloßen Kategorie bleiben („So bleibt dein Schmuck …" ohne Format ist UNGÜLTIG). Selbstprüfung VOR der Ausgabe: „Nennt die Idee ein konkretes Format/Material (Kette, Anhänger, Ohrstecker, Ring, Armband …) — oder bleibt sie bei der bloßen Kategorie?" Bleibt sie bei der Kategorie („ein Schmuckstück", „ein Teil", „ein Accessoire"), ist die Idee UNGÜLTIG: verwirf sie und generiere neu.`;
   }
   return `CONTENT MANDATE (MANDATORY — sharpened quality standard, owner criteria; applies to EVERY output):
 1. MEANING PRESERVATION (hard rule): concrete product features AND the actual meaning of the user's input must be preserved. NEVER reinterpret the subject. Example: input "personalized mug" → name, photo, text or custom design ARE the central visual element AND the payoff of the video. A reinterpretation such as "the shape of the mug influences the taste of the coffee" is FORBIDDEN — that is a different idea about the same object, not the same meaning. Every concrete attribute the user's input names must visibly reappear in the video (as an object, scene or payoff); if it does not, the idea is invalid and MUST be discarded.
@@ -517,8 +517,8 @@ function ideaSharpeningMandate(de: boolean): string {
    The mechanic must ACTUALLY be visible in the first image/filmed moment — not merely explained.
 3. ANTI-GENERIC (hard rule): generic, interchangeable standard advertising lines are FORBIDDEN — e.g. "Find your style", "The difference is immediately visible", "Discover your potential", "The best for you", "Stand out from the crowd". Such lines fit any product unchanged and are rejected. Instead write a line that works ONLY with exactly this product and this concrete detail.
 4. SPECIFICITY (mandatory assertion): the idea MUST be so specific that it can NOT be transferred to arbitrary other products. Self-check BEFORE output: "Could this idea be used almost unchanged for arbitrary other products? If yes: discard it and develop a product-specific one." Name at least one concrete, product-specific detail from the user's input in the hook, the first scene OR the payoff.
-5. NO UNBACKED FACTS (hard rule): NEVER invent facts, features, numbers, trends, audience claims or extra benefits just to make the hook stronger. Use ONLY what the user provided or what the MARKENKONTEXT/PROJECT CONTEXT contains; if information is missing, build the idea WITHOUT that claim. This applies explicitly to THREE things that must NEVER be invented — if the information is missing, DROP THE CLAIM: (a) OCCASION (e.g. "perfect for your job interview", "the perfect Christmas gift", "ideal for a wedding", "perfect for Valentine's Day") — name an occasion ONLY if the user named it themselves; otherwise leave the occasion unnamed. (b) TARGET AUDIENCE (e.g. "style-conscious viewers", "for fashion-conscious women", "what all fashionistas love", "many office workers") — name, describe or typify an audience ONLY if the user named it; otherwise do not address the viewers and do not attribute any traits to them. (c) USAGE CONTEXT AS A RECOMMENDATION (e.g. "perfect for your office", "ideal for travel") — only if the user provided it; a neutral setting description in the scene plan without a claim (e.g. "a person at a desk") is allowed. An invented occasion/audience/context claim is a HARD FAIL (owner criteria 4 and 5) → discard the idea and regenerate.
-6. CONCRETE PRODUCT FORMAT (hard rule): do NOT stay on the bare product category — CHOOSE ONE concrete form from the user's input and build the idea on it. For open product categories (e.g. "jewelry", "clothing", "accessories", "decor", "furniture", "gift items", "cosmetics", "skincare", "sports gear") the idea MUST name a concrete product format WITH material/finish and a wearing/usage detail — e.g. "a delicate gold chain with a single circular pendant" or "slim silver stud earrings with a matte finish" — instead of "a piece of jewelry"/"an accessory". That one concrete format appears in the idea, the hook, the first scene AND the payoff (no list of variants). Self-check BEFORE output: "Does the idea name a concrete format/material (chain, pendant, stud earrings, ring, bracelet …) — or is it still on the bare category?" If it is still on the category ("a piece of jewelry", "a piece", "an accessory"), the idea is INVALID: discard it and regenerate.`;
+5. NO UNBACKED FACTS (hard rule): NEVER invent facts, features, numbers, trends, audience claims or extra benefits just to make the hook stronger. Use ONLY what the user provided or what the MARKENKONTEXT/PROJECT CONTEXT contains; if information is missing, build the idea WITHOUT that claim. This applies explicitly to THREE things that must NEVER be invented — if the information is missing, DROP THE CLAIM: (a) OCCASION (e.g. "perfect for your job interview", "the perfect Christmas gift", "ideal for a wedding", "perfect for Valentine's Day") — name an occasion ONLY if the user named it themselves; otherwise leave the occasion unnamed. (b) TARGET AUDIENCE (e.g. "style-conscious viewers", "for fashion-conscious women", "what all fashionistas love", "many office workers") — name, describe or typify an audience ONLY if the user named it; otherwise do not address the viewers and do not attribute any traits to them. (c) USAGE CONTEXT AS A RECOMMENDATION (e.g. "perfect for your office", "ideal for travel") — only if the user provided it; a neutral setting description in the scene plan without a claim (e.g. "a person at a desk") is allowed. ALSO FORBIDDEN are all constructions that claim a usage scenario as a product benefit although the user never named it: "from <place/context> to <place/context>" (e.g. "from office to dinner"), "ready for <occasion/context>", "perfect/ideal for <occasion/context>", "for your next <occasion>" and ready-made context labels such as "<place> look". An invented occasion/audience/context claim is a HARD FAIL (owner criteria 4 and 5) → discard the idea and regenerate.
+6. CONCRETE PRODUCT FORMAT (hard rule): do NOT stay on the bare product category — CHOOSE ONE concrete form from the user's input and build the idea on it. For open product categories (e.g. "jewelry", "clothing", "accessories", "decor", "furniture", "gift items", "cosmetics", "skincare", "sports gear") the idea MUST name a concrete product format WITH material/finish and a wearing/usage detail — e.g. "a delicate gold chain with a single circular pendant" or "slim silver stud earrings with a matte finish" — instead of "a piece of jewelry"/"an accessory". That one concrete format appears in the idea, the hook, the first scene AND the payoff (no list of variants). IDEA and HOOK/TITLE MUST name the concrete format LITERALLY — the hook may not stay on the bare category ("how to keep your jewelry shiny" without a format is INVALID). Self-check BEFORE output: "Does the idea name a concrete format/material (chain, pendant, stud earrings, ring, bracelet …) — or is it still on the bare category?" If it is still on the category ("a piece of jewelry", "a piece", "an accessory"), the idea is INVALID: discard it and regenerate.`;
 }
 
 const TODAY_IDEA_EN = `${IDEA_COMMON_EN}
@@ -1432,14 +1432,19 @@ function buildRetryHint(lang: TikTokLang, violations: string[] = [], mode: TikTo
       ? ' ANTI-GENERIK: Die verworfene Idee enthielt austauschbare Standard-Werbesätze (siehe Liste oben) — ersetze sie durch Aussagen, die NUR mit diesem konkreten Produkt/Detail funktionieren. Prüfe: „Wäre diese Idee fast unverändert auf beliebige andere Produkte übertragbar?" Wenn ja: verwirf sie und entwickle eine produktspezifische Idee.'
       : ' ANTI-GENERIC: the rejected idea contained interchangeable standard advertising lines (see the list above) — replace them with lines that work ONLY with this concrete product/detail. Check: "Could this idea be used almost unchanged for arbitrary other products?" If yes: discard it and develop a product-specific one.'
     : '';
+  const formatPart = violations.some((v) => v.startsWith('FORMAT:'))
+    ? lang === 'de'
+      ? ' KONKRETES PRODUKTFORMAT (Owner-Kriterien 1+4): Die verworfene Idee blieb auf der bloßen Produktkategorie bzw. nannte KEIN konkretes Format/Material in der VIDEO-IDEE UND im HOOK/TITEL (siehe Liste oben). Wähle GENAU EIN konkretes Produktformat aus der Nutzereingabe und nenne es WÖRTLICH in der VIDEO-IDEE und im HOOK/TITEL — z. B. Kette, Anhänger, Ring, Ohrring, Ohrstecker, Armband, Perlen, Brosche, Gold, Silber, Edelstahl, Leder, Holz, Keramik. Die bloße Kategorie („ein Schmuckstück", „ein Accessoire", „ein Teil") ist UNGÜLTIG.'
+      : ' CONCRETE PRODUCT FORMAT (owner criteria 1+4): the rejected idea stayed on the bare product category or named NO concrete format/material in the VIDEO IDEA AND in the HOOK/TITLE (see the list above). Choose EXACTLY ONE concrete product format from the user input and name it LITERALLY in the VIDEO IDEA and in the HOOK/TITLE — e.g. chain, pendant, ring, earring, stud earrings, bracelet, pearls, brooch, gold, silver, stainless steel, leather, wood, ceramic. The bare category ("a piece of jewelry", "an accessory", "a piece") is INVALID.'
+    : '';
   const inventedPart = violations.some((v) => v.startsWith('INVENTED:'))
     ? lang === 'de'
-      ? ' ERFUNDENER ANLASS / ERFUNDENE ZIELGRUPPE (Owner-Kriterium 5): Die verworfene Idee nannte einen Anlass, eine Zielgruppe oder einen Nutzungskontext, den der Nutzer NICHT angegeben hat (siehe Liste oben). Lasse diese Behauptung(en) KOMPLETT weg und baue die Idee ohne sie — nennt der Nutzer keinen Anlass und keine Zielgruppe, beschreibe nur das Produkt und was sichtbar damit passiert. Erfinde auch keinen Nutzungskontext als Empfehlung („perfekt für …").'
-      : ' INVENTED OCCASION / INVENTED TARGET AUDIENCE (owner criterion 5): the rejected idea named an occasion, an audience or a usage context that the user did NOT provide (see list above). Omit those claim(s) ENTIRELY and build the idea without them — if the user names no occasion and no audience, describe only the product and what visibly happens with it. Do not invent a usage context as a recommendation ("perfect for …") either.'
+      ? ' ERFUNDENER ANLASS / ERFUNDENE ZIELGRUPPE (Owner-Kriterium 5): Die verworfene Idee nannte einen Anlass, eine Zielgruppe oder einen Nutzungskontext, den der Nutzer NICHT angegeben hat (siehe Liste oben). Lasse diese Behauptung(en) KOMPLETT weg und baue die Idee ohne sie — nennt der Nutzer keinen Anlass und keine Zielgruppe, beschreibe nur das Produkt und was sichtbar damit passiert. Erfinde auch keinen Nutzungskontext als Empfehlung („perfekt für …", „bereit für …", „von <Ort> zu <Ort>", „für dein nächstes …", „<Ort>-Look"/„Alltagslook"/„Abendlook").'
+      : ' INVENTED OCCASION / INVENTED TARGET AUDIENCE (owner criterion 5): the rejected idea named an occasion, an audience or a usage context that the user did NOT provide (see list above). Omit those claim(s) ENTIRELY and build the idea without them — if the user names no occasion and no audience, describe only the product and what visibly happens with it. Do not invent a usage context as a recommendation ("perfect for …", "ready for …", "from <place> to <place>", "for your next …", "<place> look") either.'
     : '';
   return lang === 'de'
-    ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Idee wurde intern verworfen (zu austauschbar / zu werblich / ohne echte Markenfakten oder Challenge-Bezug — oder weil sie ein erfundenes Testimonial / eine zitierte Person / erfundenes Nutzerfeedback enthielt, das nicht im MARKENKONTEXT belegt ist, ODER weil sie ein unbelegtes konkretes Leistungs-/Zeit-Versprechen oder eine vorgegebene künstliche Reaktion/Begeisterung enthielt).' + rulePart + genericPart + inventedPart + ' Erzeuge JETZT eine deutlich bessere, neue Idee: bleibe in der vorgegebenen Content-Richtung und baue sie aus der PERSPEKTIVE DER ZIELGRUPPE (was hilft oder begeistert die Zielgruppe?) — NICHT aus der Produktperspektive. Verboten sind produktzentrierte Selbstreferenz-Ideen („Kann Growimo eine TikTok-Idee erstellen?", „Wir testen unser eigenes Produkt", „Wie gut ist meine TikTok-Idee wirklich?"); das Produkt darf höchstens als Beiwerk/Beispiel vorkommen, niemals als Thema. Erfinde keinerlei Nutzer/Tester/Testimonials/Zitate; zeige stattdessen einen echten, ehrlichen Prozess aus der Zielgruppen-Perspektive. Mache KEINERLEI unbelegtes konkretes Leistungs-/Zeit-/Ergebnis-Versprechen (kein „in nur X Sekunden/Minuten/Tagen/Wochen", kein „+X%", kein „verdoppelt die Reichweite", kein „viral gehen") und KEINE vorgegebene künstliche Reaktion/Begeisterung (kein „Wow!", kein „Da staunen alle", keine aufgesetzte Überraschung — eine Reaktion nur, wenn sie das gezeigte tatsächliche Ergebnis echt erzeugt, sonst ganz weglassen). Setze alle sieben selfCheck-Booleans ehrlich auf bestehen.'
-    : '\n\nQUALITY SELF-CHECK NOTE: The previous idea was internally rejected (too interchangeable / too ad-like / without real brand facts or challenge tie-in — or because it contained an invented testimonial / quoted person / invented user feedback not backed by the BRAND CONTEXT, OR because it contained an unproven concrete performance/time promise or a prescribed artificial reaction/enthusiasm).' + rulePart + genericPart + inventedPart + ' NOW produce a clearly better, NEW idea: stay in the given content direction and build it from the TARGET AUDIENCE\'s perspective (what helps or excites them?) — NOT from the product perspective. Product-centric self-referential ideas are forbidden ("Can Growimo create a TikTok idea?", "We test our own product", "How good is my TikTok idea really?"); the product may appear at most as a supporting element/example, never as the topic. Do not invent any users/testers/testimonials/quotes; instead show a real, honest process from the audience\'s perspective. Make NO unproven concrete performance/time/result promise (no "in just X seconds/minutes/days/weeks", no "+X%", no "doubles your reach", no "go viral") and NO prescribed artificial reaction/enthusiasm (no "Wow!", no "everyone is amazed", no staged surprise — a reaction only if genuinely produced by the shown real result, otherwise omit it entirely). Set all seven selfCheck booleans truthfully to passing.';
+    ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Idee wurde intern verworfen (zu austauschbar / zu werblich / ohne echte Markenfakten oder Challenge-Bezug — oder weil sie ein erfundenes Testimonial / eine zitierte Person / erfundenes Nutzerfeedback enthielt, das nicht im MARKENKONTEXT belegt ist, ODER weil sie ein unbelegtes konkretes Leistungs-/Zeit-Versprechen oder eine vorgegebene künstliche Reaktion/Begeisterung enthielt).' + rulePart + genericPart + inventedPart + formatPart + ' Erzeuge JETZT eine deutlich bessere, neue Idee: bleibe in der vorgegebenen Content-Richtung und baue sie aus der PERSPEKTIVE DER ZIELGRUPPE (was hilft oder begeistert die Zielgruppe?) — NICHT aus der Produktperspektive. Verboten sind produktzentrierte Selbstreferenz-Ideen („Kann Growimo eine TikTok-Idee erstellen?", „Wir testen unser eigenes Produkt", „Wie gut ist meine TikTok-Idee wirklich?"); das Produkt darf höchstens als Beiwerk/Beispiel vorkommen, niemals als Thema. Erfinde keinerlei Nutzer/Tester/Testimonials/Zitate; zeige stattdessen einen echten, ehrlichen Prozess aus der Zielgruppen-Perspektive. Mache KEINERLEI unbelegtes konkretes Leistungs-/Zeit-/Ergebnis-Versprechen (kein „in nur X Sekunden/Minuten/Tagen/Wochen", kein „+X%", kein „verdoppelt die Reichweite", kein „viral gehen") und KEINE vorgegebene künstliche Reaktion/Begeisterung (kein „Wow!", kein „Da staunen alle", keine aufgesetzte Überraschung — eine Reaktion nur, wenn sie das gezeigte tatsächliche Ergebnis echt erzeugt, sonst ganz weglassen). Setze alle sieben selfCheck-Booleans ehrlich auf bestehen.'
+    : '\n\nQUALITY SELF-CHECK NOTE: The previous idea was internally rejected (too interchangeable / too ad-like / without real brand facts or challenge tie-in — or because it contained an invented testimonial / quoted person / invented user feedback not backed by the BRAND CONTEXT, OR because it contained an unproven concrete performance/time promise or a prescribed artificial reaction/enthusiasm).' + rulePart + genericPart + inventedPart + formatPart + ' NOW produce a clearly better, NEW idea: stay in the given content direction and build it from the TARGET AUDIENCE\'s perspective (what helps or excites them?) — NOT from the product perspective. Product-centric self-referential ideas are forbidden ("Can Growimo create a TikTok idea?", "We test our own product", "How good is my TikTok idea really?"); the product may appear at most as a supporting element/example, never as the topic. Do not invent any users/testers/testimonials/quotes; instead show a real, honest process from the audience\'s perspective. Make NO unproven concrete performance/time/result promise (no "in just X seconds/minutes/days/weeks", no "+X%", no "doubles your reach", no "go viral") and NO prescribed artificial reaction/enthusiasm (no "Wow!", no "everyone is amazed", no staged surprise — a reaction only if genuinely produced by the shown real result, otherwise omit it entirely). Set all seven selfCheck booleans truthfully to passing.';
 }
 
 // ── Phase 2 — Ergebnisstruktur: maximal 5 Hashtags (Owner-Vorgabe) ──────────
@@ -1698,8 +1703,275 @@ export function inventedContextViolations(blob: string, groundingBlob: string): 
   for (const { name, re, grounding } of INVENTED_CONTEXT_PATTERNS) {
     if (re.test(blob) && !grounding.test(g)) hits.push('INVENTED:' + name);
   }
+  // Phase 5g Runde 3 — Nutzungskontext ALS EMPFEHLUNG (siehe unten).
+  hits.push(...contextRecommendationViolations(blob, groundingBlob));
   return hits;
 }
+
+// ── Phase 5g Runde 3 (Owner-Auftrag 2026-09-23) — ERFUNDENER NUTZUNGSKONTEXT ─
+// ALS EMPFEHLUNG (deterministisch) ──────────────────────────────────────────
+// Owner-Befund (Runde 2, Lauf 3): „Von Büro zu Abendessen: Ein Accessoire macht
+// den Unterschied!" — ein Nutzungsszenario wurde als Produktnutzen BEHAUPTET,
+// obwohl der Nutzer es nie genannt hatte (Owner-Kriterium 5). Die Runde-2-Muster
+// decken Anlässe („Weihnachten") und Zielgruppen („stilbewusst") ab, aber KEINE
+// Nutzungskontext-Empfehlungen (bewusste Lücke, damit die grüne Tassen-Idee mit
+// Büro-Setting nicht fälschlich abgelehnt wird).
+//
+// Abgrenzung (bewusst scharf): erkannt werden NUR Empfehlungs-/Label-
+// Konstruktionen („von <Kontext> zu <Kontext>", „bereit für <Kontext>",
+// „perfekt/ideal für <Kontext>", „für dein nächstes <Kontext>", „<Kontext>-Look").
+// Eine neutrale SCHAUPLATZ-Kulisse ohne Behauptung („eine Person an einem
+// Schreibtisch", „im Büro") ist KEIN Muster — genau deshalb bleibt der grüne
+// Tassen-Output aus Runde 1 (Büro-Setting, „Büroalltag", „im Alltag") trefferfrei.
+//
+// Grounding: jeder erkannte Kontextbegriff, der in den NUTZERANGABEN steht
+// (z. B. Eingabe „Schmuck fürs Büro"), gilt als genannt → kein Verstoß.
+// Die Wortgruppen sind Synonym-Gruppen: wird EIN Wort einer Gruppe genannt, gilt
+// die Gruppe als belegt („buero"/"büro"/"office" sind derselbe Kontext).
+export const CONTEXT_TERM_GROUPS: string[][] = [
+  ['büro', 'buero', 'office', 'arbeitsplatz', 'workplace', 'schreibtisch', 'desk'],
+  ['alltag', 'alltags', 'alltäglich', 'alltagsleben', 'everyday', 'daily life'],
+  ['abend', 'abends', 'abendessen', 'evening', 'dinner'],
+  ['arbeit', 'work', 'beruf', 'job', 'business'],
+  ['meeting', 'termin', 'appointment', 'konferenz', 'conference'],
+  ['party', 'feier', 'celebration', 'fest', 'ausgehen', 'ausgang', 'night out', 'clubbing'],
+  ['urlaub', 'reise', 'reisen', 'vacation', 'travel', 'trip', 'holiday', 'fernweh'],
+  ['wochenende', 'weekend'],
+  ['sport', 'fitness', 'gym', 'workout', 'training', 'yoga', 'joggen', 'laufen'],
+  ['sommer', 'summer', 'strand', 'beach'],
+  ['winter', 'snow', 'schnee'],
+  ['universität', 'universitat', 'schule', 'school', 'university', 'campus', 'studium', 'vorlesung'],
+  ['restaurant', 'café', 'cafe', 'brunch', 'lounge', 'kneipe', 'imbiss'],
+  ['stadt', 'city', 'urban', 'städtisch', 'downtown'],
+  ['date', 'verabredung', 'romantisch', 'romantic', 'date night'],
+  ['festival', 'konzert', 'concert', 'messe'],
+];
+
+/** Normalisierung für Abgleich (Kleinbuchstaben, Umlaute/ß aufgelöst). */
+function normalizeContextWord(s: string): string {
+  return (s ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9\- ]/g, '')
+    .trim();
+}
+
+const CONTEXT_TERM_INDEX: Map<string, number> = (() => {
+  const m = new Map<string, number>();
+  CONTEXT_TERM_GROUPS.forEach((group, i) => {
+    for (const w of group) m.set(normalizeContextWord(w), i);
+  });
+  return m;
+})();
+
+/** Gruppen-Index des Begriffs (undefined = gar kein Kontextbegriff dieser Liste). */
+function contextTermGroup(term: string): number | undefined {
+  return CONTEXT_TERM_INDEX.get(normalizeContextWord(term));
+}
+
+/** Gilt der Begriff als vom Nutzer genannt? (Nein = erfunden.) Begriffe, die
+ *  nicht in der Liste stehen, sind hier nie ein Verstoß (undefined ⇒ true). */
+function contextTermGrounded(term: string, groundingBlob: string): boolean {
+  const gi = contextTermGroup(term);
+  if (gi === undefined) return true;
+  const g = normalizeContextWord(groundingBlob ?? '');
+  const alt = CONTEXT_TERM_GROUPS[gi].map(normalizeContextWord).filter((w) => w.length > 0);
+  // Wortanfang-Grenze (keine End-Grenze): „büro" muss auch „büroalltag" im
+  // Nutzertext belegen; geprüft wird gegen den normalisierten Nutzer-Blob.
+  const re = new RegExp('(?:^|[^a-z0-9])(' + alt.map(escapeRegex).join('|') + ')', 'i');
+  return re.test(g);
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Konstruktionen: jede Capture-Gruppe ist ein Kandidat für einen Kontextbegriff.
+export const CONTEXT_RECOMMENDATION_PATTERNS: Array<{ name: string; re: RegExp }> = [
+  // „von <Kontext> zu <Kontext>" (Owner-Beispiel: „Von Büro zu Abendessen")
+  {
+    name: 'kontext-von-zu',
+    re: /\bvon\s+(?:dem\s+|der\s+|deinem\s+|deiner\s+|einem\s+|einer\s+)?([a-zäöüß]{3,24})\s+(?:zu|zum|zur)\s+(?:dem\s+|der\s+|deinem\s+|deiner\s+|einem\s+|einer\s+)?([a-zäöüß]{3,24})/i,
+  },
+  {
+    name: 'context-from-to',
+    re: /\bfrom\s+(?:the\s+|your\s+|a\s+|an\s+)?([a-z]{3,24})\s+to\s+(?:the\s+|your\s+|a\s+|an\s+)?([a-z]{3,24})/i,
+  },
+  // „bereit für <Kontext>" („bereit für ein Abendessen")
+  {
+    name: 'kontext-bereit-fuer',
+    re: /\b(?:bereit|gerüstet|gewappnet)\s+(?:für|fuer)\s+(?:dein(?:en|e|em|er|es)?\s+|das\s+|die\s+|den\s+|der\s+|ein(?:en|e|em|er|es)?\s+|im\s+)?([a-zäöüß]{3,24})/i,
+  },
+  {
+    name: 'context-ready-for',
+    re: /\b(?:ready|prepared|set)\s+for\s+(?:your\s+|the\s+|a\s+|an\s+)?([a-z]{3,24})/i,
+  },
+  // „perfekt/ideal/geeignet für <Kontext>"
+  {
+    name: 'kontext-perfekt-fuer',
+    re: /\b(?:perfekt|ideal|geeignet|wie\s+gemacht|schlicht\s+perfekt)\s+(?:für|fuer)\s+(?:dein(?:en|e|em|er|es)?\s+|das\s+|die\s+|den\s+|der\s+|ein(?:en|e|em|er|es)?\s+|im\s+)?([a-zäöüß]{3,24})/i,
+  },
+  {
+    name: 'context-perfect-for',
+    re: /\b(?:perfect|ideal|great|made)\s+for\s+(?:your\s+|the\s+|a\s+|an\s+)?([a-z]{3,24})/i,
+  },
+  // „für <dein> nächstes <Kontext>"
+  {
+    name: 'kontext-fuer-naechstes',
+    re: /\bfür\s+(?:dein(?:en|e|em|er|es)?\s+|das\s+|die\s+)?nächst(?:es|en|er|e)\s+([a-zäöüß]{3,24})/i,
+  },
+  {
+    name: 'context-for-your-next',
+    re: /\bfor\s+(?:your\s+|the\s+)?next\s+([a-z]{3,24})/i,
+  },
+  // „<Ort/Kontext>-Look" / „Alltagslook" / „Abendlook"
+  { name: 'kontext-look', re: /\b([a-zäöüß]{3,24})[\s-]?look\b/i },
+];
+
+/** Liefert die Namen aller erfundenen Nutzungskontext-Empfehlungen (leer = sauber).
+ *  Ein Muster zählt nur, wenn mindestens einer der erkannten Kontextbegriffe NICHT
+ *  in den Nutzerangaben vorkommt; Muster ohne erkannten Kontextbegriff werden
+ *  ignoriert (z. B. „perfekt für empfindliche Haut" → „empfindliche" ist kein
+ *  Kontextbegriff dieser Liste ⇒ kein Verstoß). */
+export function contextRecommendationViolations(blob: string, groundingBlob: string): string[] {
+  const text = blob ?? '';
+  const hits: string[] = [];
+  for (const { name, re } of CONTEXT_RECOMMENDATION_PATTERNS) {
+    const gre = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
+    let m: RegExpExecArray | null;
+    while ((m = gre.exec(text)) !== null) {
+      if (m.index === gre.lastIndex) gre.lastIndex++;
+      const terms = m.slice(1).filter((x): x is string => typeof x === 'string' && x.trim() !== '');
+      const known = terms.filter((t) => contextTermGroup(t) !== undefined);
+      if (known.length === 0) continue;
+      const ungrounded = known.filter((t) => !contextTermGrounded(t, groundingBlob));
+      if (ungrounded.length === 0) continue;
+      const names = [...new Set(ungrounded.map((t) => normalizeContextWord(t)))];
+      hits.push('INVENTED:' + name + '(' + names.join('/') + ')');
+    }
+  }
+  return [...new Set(hits)];
+}
+
+
+// ── Phase 5g Runde 3 (Owner-Auftrag 2026-09-23) — KONKRETES PRODUKTFORMAT in ─
+// IDEE UND HOOK deterministisch erzwingen (Owner-Kriterien 1 und 4) ──────────
+// Runde-2-Befund: Regel 6 („konkretes Format statt bloßer Kategorie") stand nur
+// im Prompt. Das Modell nannte das konkrete Format („Silberring", „Goldkette")
+// in SZENEN/Bildideen, in VIDEO-IDEE und HOOK blieb aber nur die Kategorie
+// („deinen minimalistischen Schmuck") — K1/K4 damit nicht erfüllt. Dieser Check
+// prüft es deshalb deterministisch auf CODE-Ebene: nennt der Nutzer eine OFFENE
+// PRODUKTKATEGORIE, MUSS die Idee UND der Hook/Titel ein KONKRETES Format bzw.
+// Material nennen — sonst Soft-Reject + Retry mit namentlicher Verstoßliste.
+//
+// Geprüft wird NUR, wenn die Kategorie im PRODUKTTEIL der Eingabe steht (Thema/
+// biz/Markenkontext/Projekt). Zielgruppe und Ziel beschreiben das Produkt nicht:
+// eine Zielgruppe „Geschenk-Suchende" erzwingt daher KEIN Format, und die
+// Eingabe „personalisierte Tasse" nennt gar keine Kategorie ⇒ kein Zwang
+// (Grounding/Tassen-Regression).
+export const OPEN_CATEGORY_PATTERNS: Array<{ name: string; re: RegExp }> = [
+  { name: 'schmuck', re: /\b(?:schmuck|schmuckstück\w*|schmuckstueck\w*|jewel(?:lery|ry))\b/i },
+  { name: 'kleidung', re: /\b(?:kleidung|bekleidung|klamotten|clothing|apparel|garments?)\b/i },
+  { name: 'mode', re: /\b(?:mode|fashion)\b/i },
+  { name: 'accessoires', re: /\b(?:accessoires?|accessor(?:y|ies))\b/i },
+  { name: 'deko', re: /\b(?:deko|dekoartikel\w*|dekoration\w*|decor(?:ation)?s?)\b/i },
+  { name: 'moebel', re: /\b(?:möbel\w*|moebel\w*|furniture)\b/i },
+  { name: 'geschenke', re: /\b(?:geschenk(?:artikel\w*|ideen?|en|e|s)?|gift\s?(?:items?|ideas?)|presents?)\b/i },
+  { name: 'kosmetik', re: /\b(?:kosmetik\w*|cosmetics?)\b/i },
+  { name: 'pflegeprodukt', re: /\b(?:pflegeprodukt\w*|pflegeserie|skincare|skin\s?care)\b/i },
+  { name: 'sportartikel', re: /\b(?:sportartikel\w*|sportausrüstung|sports?\s?gear)\b/i },
+];
+
+/** Konkrete Produktformate + Materialien/Finishes (de/en). Ein Treffer in Idee
+ *  bzw. Hook/Titel erfüllt die Format-Pflicht. Bewusst breit und mit
+ *  Kompositum-Varianten („Goldkette", „Silberring", „Lederarmband"): ein
+ *  legitimes konkretes Format darf NIE fälschlich als „bloße Kategorie" gelten.
+ *  Deshalb wird nur ein WORTANFANG verlangt (\b), kein Wortende — deutsche
+ *  Zusammensetzungen sind sonst nicht erkennbar. */
+export const CONCRETE_FORMAT_PATTERNS: Array<{ name: string; re: RegExp }> = [
+  { name: 'kette', re: /\b(?:halskette|gliederkette|perlenkette|goldkette|silberkette|edelstahlkette|lederkette|kette|ketten|kettchen|collier|choker|chain|necklace)/i },
+  { name: 'anhaenger', re: /\b(?:anhänger|anhaenger|perlenanhänger|goldanhänger|silberanhänger|pendant|charm)/i },
+  { name: 'ring', re: /\b(?:ehering|goldring|silberring|edelstahlring|solitärring|solitairring|ring|ringe|ringen|rings|solitär|solitair)/i },
+  { name: 'ohrring', re: /\b(?:ohrring|ohrringe|ohrringen|goldohrring|silberohrring|ohrstecker|ohrhänger|ohrhaenger|earring|studs|hoops)/i },
+  { name: 'armband', re: /\b(?:armband|armbänder|armbaender|lederarmband|goldarmband|silberarmband|perlenarmband|armreif|bracelet|bangle)/i },
+  { name: 'perlen', re: /\b(?:perle|perlen|perlmut|beads|pearls)/i },
+  { name: 'brosche', re: /\b(?:brosche|brooch|manchette|cufflink)/i },
+  { name: 'uhr', re: /\b(?:armbanduhr|uhr|uhren|watch)/i },
+  { name: 'material-gold', re: /\b(?:gold|golden|goldfarben|vergoldet|gold[-\s]?filled|gold[-\s]?plattiert|mattgold)/i },
+  { name: 'material-silber', re: /\b(?:silber|silbern|silberfarben|sterlingsilber|silver)/i },
+  { name: 'material-edelstahl', re: /\b(?:edelstahl|stainless\s?steel|stahl)/i },
+  { name: 'material-leder', re: /\b(?:leder|leather)/i },
+  { name: 'material-holz', re: /\b(?:holz|wood|eiche|eichen|walnuss|birke|oak|walnut)/i },
+  { name: 'material-textil', re: /\b(?:baumwolle|wolle|wollen|leinen|seide|denim|cotton|wool|linen|silk)/i },
+  { name: 'material-keramik', re: /\b(?:keramik|porzellan|steinzeug|ceramic|porcelain)/i },
+  { name: 'material-metall', re: /\b(?:messing|brass|bronze|kupfer|copper|titan|titanium|mattes?\s?finish)/i },
+  { name: 'material-glas-beton', re: /\b(?:glas|beton|terrakotta|terracotta|concrete)/i },
+  { name: 'kleidung-format', re: /\b(?:kleid|kleider|jacke|jacken|mantel|hose|hosen|shirt|t-?shirt|pullover|sweater|hoodie|bluse|rock|röcke|schal|schals|gürtel|guertel|belt|dress|scarf|sneaker|schuhe|schuh)/i },
+  { name: 'moebel-format', re: /\b(?:stuhl|stühle|stuehle|tisch|tische|regal|schrank|sofa|bett|lampe|vase|spiegel|chair|table|shelf|lamp)/i },
+  { name: 'kosmetik-format', re: /\b(?:lippenstift|lipstick|mascara|wimperntusche|lidschatten|eyeshadow|creme|cream|serum|seife|soap|shampoo|balsam|balm)/i },
+  { name: 'sport-format', re: /\b(?:yogamatte|matte|hantel|dumbbell|trinkflasche|flasche|bottle|rucksack|backpack|shaker)/i },
+];
+
+/** Bloße Kategorie-Wörter OHNE Format („ein Schmuckstück", „ein Accessoire",
+ *  „ein Teil") — nur zur BENENNUNG im Retry-Hinweis (Auslöser des Verstoßes ist
+ *  das fehlende konkrete Format, siehe categoryFormatViolations). */
+const BARE_CATEGORY_PATTERNS: Array<{ name: string; re: RegExp }> = [
+  { name: 'schmuckstueck', re: /\b(?:schmuckstück\w*|schmuckstueck\w*|jewelry\s+piece|piece\s+of\s+jewell?ery)\b/i },
+  { name: 'accessoire', re: /\b(?:accessoires?|accessor(?:y|ies))\b/i },
+  { name: 'teil', re: /\b(?:ein(?:e|en)?\s+teil|das\s+teil|the\s+(?:item|piece))\b/i },
+  { name: 'stueck', re: /\b(?:stück|stueck|item)\b/i },
+];
+
+/** Produktteil der Nutzereingabe (NUR hier wird eine Kategorie gesucht):
+ *  Thema + biz + Markenkontext + Projekt-Kontext. Zielgruppe/Ziel bewusst nicht. */
+export function productCategoryBlob(input: TikTokInput): string {
+  const pc = input.projectContext;
+  return [
+    input.topic ?? '',
+    input.biz ?? '',
+    input.brandContext ?? '',
+    pc ? [pc.title ?? '', pc.productIdea ?? '', pc.brief ?? ''].join(' ') : '',
+  ]
+    .join(' ')
+    .toLowerCase();
+}
+
+/** Namen aller erkannten konkreten Formate/Materialien (leer = keine). */
+export function concreteFormatNames(blob: string): string[] {
+  return CONCRETE_FORMAT_PATTERNS.filter((p) => p.re.test(blob)).map((p) => p.name);
+}
+
+/** Phase 5g Runde 3 — Format-Pflicht: nennt der Nutzer eine offene Kategorie,
+ *  müssen Idee UND Hook/Titel ein konkretes Format/Material nennen. Sonst
+ *  Soft-Reject + Retry (namentliche Verstoßliste, s. buildRetryHint). */
+export function categoryFormatViolations(
+  input: TikTokInput,
+  result: Pick<TikTokIdeaResult, 'idea' | 'hook' | 'title'>,
+): string[] {
+  const cats = OPEN_CATEGORY_PATTERNS.filter((p) => p.re.test(productCategoryBlob(input))).map((p) => p.name);
+  if (cats.length === 0) return [];
+  const fields: Array<[string, string]> = [
+    ['idee', result.idea ?? ''],
+    ['hook', [result.hook ?? '', result.title ?? ''].join(' ')],
+  ];
+  const hits: string[] = [];
+  for (const [field, text] of fields) {
+    if (concreteFormatNames(text).length > 0) continue;
+    const bare = BARE_CATEGORY_PATTERNS.filter((p) => p.re.test(text)).map((p) => p.name);
+    hits.push(
+      'FORMAT:kategorie-ohne-format-' +
+        field +
+        '(kategorie:' +
+        cats.join(',') +
+        (bare.length > 0 ? '|nur-kategorie:' + bare.join(',') : '') +
+        ')',
+    );
+  }
+  return hits;
+}
+
 
 /** Letzter Versuch: entfernt jeden SATZ, der eine erfundene Anlass-/
  *  Zielgruppen-Behauptung enthält. Bewusst satzweise statt wortweise — ein
@@ -2182,7 +2454,19 @@ export async function generateTikTok(
         ideaPlaceholderBlob(result),
         inventedGroundingBlob(input),
       );
-      lastViolations = [...violations, ...selfRefs, ...placeholders, ...generic, ...invented];
+      // Phase 5g Runde 3 — KONKRETES PRODUKTFORMAT (Owner-Kriterien 1+4,
+      // deterministisch): nennt der Nutzer eine offene Kategorie, muss Idee UND
+      // Hook/Titel ein konkretes Format/Material nennen → Soft-Reject + Retry
+      // mit namentlicher Verstoßliste (buildRetryHint formatPart).
+      const categoryFormat = categoryFormatViolations(input, result);
+      lastViolations = [
+        ...violations,
+        ...selfRefs,
+        ...placeholders,
+        ...generic,
+        ...invented,
+        ...categoryFormat,
+      ];
       // Phase 1: eigenes Nutzerthema (oder gar kein Markenkontext) ⇒ das Fehlen
       // eines Markenfakts darf die Idee NICHT verwerfen.
       const userSubjectProvided = Boolean(input.topic?.trim()) || !input.brandContext;

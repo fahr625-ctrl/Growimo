@@ -975,3 +975,41 @@ Verbrauch**; Screenshots `e2e-testC2b-0{1,2,3}-…-r2.png`, Log `/tmp/5gr2/final
   schwach; K5 in 1/3 verfehlt. → **Runde 2 hält nicht zuverlässig** (1 von 3 Läufen unverändert im monierten
   Fehlerbild). Der Befund ist damit **nicht grün**, sondern ein grün/schlechter-Mix mit benannter Ursache
   (Prompt-Regel ohne deterministische Durchsetzung für Nutzungskontexte; konkretes Format nicht in Idee/Hook erzwungen).
+
+
+## 5g — Test C Runde 3 (deterministische Durchsetzung, 2026-09-26)
+
+**Auftrag:** die zwei Lücken aus dem eigenen Runde-2-Befund deterministisch schließen —
+(1) erfundener Nutzungskontext als Empfehlung (Runde-2-Lauf 3: „Von Büro zu Abendessen"),
+(2) konkretes Produktformat in Idee UND Hook (Runde 2: Format nur in Szenen/Bildideen).
+
+### Änderungen (`src/ai/tiktok.ts`, de/en konsistent)
+- **Neu: `CONTEXT_TERM_GROUPS` + `CONTEXT_RECOMMENDATION_PATTERNS` + `contextRecommendationViolations()`,** eingehängt in `inventedContextViolations()` → läuft damit durch dieselbe Kette (Soft-Reject + Retry, letzter Versuch satzweise Entfernung via `inventedContextFreeResult`, harter Abbruch unverändert nur bei Regel A/B + Hard-Reject-selfCheck).
+  Erkannt werden NUR Empfehlungs-/Label-Konstruktionen: „von <Kontext> zu <Kontext>" (Owner-Beispiel), „bereit/prepared/ready for …", „perfekt/ideal/perfect/made for …", „für dein nächstes …"/"for your next …", „<Ort>-Look"/„Alltagslook"/„Abendlook". Neutrale Schauplatz-Kulissen („im Büro", „Büroalltag", „Bürolicht", „eine Person am Schreibtisch") sind bewusst KEIN Muster — genau deshalb bleibt der grüne Tassen-Output trefferfrei (Test J3a/J3b gegen den echten Runde-1-Text).
+  Grounding: Begriffe, die in den Nutzerangaben stehen (Thema/biz/Marketing-Kontext/Projekt), gelten als genannt — Synonym-Gruppen (büro/buero/office/arbeitsplatz …), Wortanfang-Grenze für Komposita, halb-belegte Fälle melden nur den erfundenen Teil.
+- **Neu: `OPEN_CATEGORY_PATTERNS` + `CONCRETE_FORMAT_PATTERNS` + `categoryFormatViolations()`** (Regel 6 wird jetzt deterministisch geprüft): nennt der PRODUKTTEIL der Eingabe eine offene Kategorie (Schmuck/Kleidung/Mode/Accessoires/Deko/Möbel/Geschenke/Kosmetik/Pflege/Sportartikel, de/en), MUSS die VIDEO-IDEE und der HOOK/TITEL ein konkretes Format/Material nennen (Wortliste mit Kompositum-Varianten: Kette/Goldkette/Ohrstecker/Anhänger/…, Gold/Silber/Edelstahl/Leder/Holz/Keramik …). Verstoß nennt Feld + Kategorie + bloße Kategorie-Wörter („nur-kategorie:schmuckstueck"). Zielgruppe/Ziel zählen bewusst NICHT als Produktkategorie — die Eingabe „personalisierte Tasse" nennt keine Kategorie und bleibt damit ohne Format-Zwang (Tassen-Regression, Tests J3e–J3h).
+- **Retry-Hinweis** `buildRetryHint`: neuer `formatPart` (de/en) mit der Format-Pflicht und Beispiel-Liste, namentliche Verstoßliste (`FORMAT:kategorie-ohne-format-idee|hook`); `inventedPart` benennt die neuen Konstruktionen.
+- **Prompt** (`ideaSharpeningMandate`, beide Modi de/en): Regel 5(c) listet die verbotenen Nutzungskontext-Konstruktionen auf („von <Ort> zu <Ort>", „bereit für", „perfekt für", „für dein nächstes", „<Ort>-Look"/„Alltagslook"/„Abendlook"), Regel 6 verlangt das konkrete Format WÖRTLICH in IDEE und HOOK/TITEL. Reiner Textzusatz — Stabilitäts-/Navigations-Fixes, Schema und Parser unberührt.
+
+### Gates
+- `stabilisierung-phase5c-test.ts`: **366 passed, 0 failed** (vorher 287; +79 Checks: J1 Muster-Erkennung de/en, J2 Grounding, J3 False-Positive-Schutz Runde-1/2-Outputs + Tassen-Grounding, J4 satzweise Entfernung, J5/J6 Engine-Retry de/en, J7 Format-Pflicht de/en (+Material-Format-Erkennung), J8 Engine-Retry fehlendes Format de/en + Soft-Reject-Fall).
+
+- Regression: tiktok-phase3 91/0, tiktok-phase4 75/0, concept-quality 126/0, diagnose-v2 56/0, stabilisierung 41 47/0, 43 111/0, 43b 89/0 — alle grün. tiktok-phase1 74/1 und tiktok-phase2 89/1 mit **vorbestehenden** Fehlern („Retry auf concept (2 Calls, war 4)", „image-studio.tsx wendet studioSearchPrefill an") — unabhängig von dieser Änderung (Quelltext-Inspektions-Checks; keine Berührung von image-studio.tsx oder der concept-Retry-Semantik).
+- `bunx tsc --noEmit -p tsconfig.gate.json`: 54 Fehler mit und ohne Änderung, **0 neue** (diff der normalisierten Fehlerlisten = 0 Zeilen). Hinweis: Der erste Baseline-Versuch über `git stash` schlug fehl (shallow-Klon/.git-Verlust), die Zahl 54 wurde daher zweimal auf identischem Stand gemessen; die neue Datei selbst erzeugt keinen TS-Fehler.
+- Deploy: `site-2a85pribq-growimo.vercel.app`, Alias https://www.growimo.app — Live-Check `/` = HTTP 200, `/app/tiktok` = HTTP 200.
+- Bundle-Beleg (Server-Bundle `.vercel/output/functions/render.func/index.mjs`, sha256 `2b743359df309e66e65e0117bddbd9595925ce1aa8bc909939b737b6205b9272`): `kategorie-ohne-format`, `kontext-von-zu`, `kontext-bereit-fuer`, `kontext-look`, `context-from-to`, `IDE und HOOK/TITEL`, `owner criteria 1+4` — alle vorhanden.
+
+### Echte Generierungen („minimalistischer Schmuck", 3 Läufe + Tassen-Kontrolllauf)
+Volltexte: `/home/team/shared/tiktok-testC-outputs.md`, Abschnitt „Runde 3". Zähler: usage_monthly 19 → 23 (4 Generierungen = +4, kein Retry-Verbrauch).
+
+| K | L1 | L2 | L3 | KONTROLLE-TASSE |
+|---|---|---|---|---|
+| K1 Bedeutung/konkretes Format in Idee UND Hook | erfüllt („zarte Goldketten" / „verknoteten Goldketten") | erfüllt („minimalistischen Silberring" / „Dein Silberring sieht matt aus?") | s. Zitate unten | erfüllt (Tasse/Gravur, kein Kategorie-Zwang) |
+| K2 echter Scroll-Stop (Mechanik + erste Szene) | erfüllt | erfüllt | s. u. | erfüllt |
+| K3 Anti-Generik (0 GENERIC-Treffer) | erfüllt | erfüllt | s. u. | erfüllt |
+| K4 Spezifität | erfüllt | erfüllt | s. u. | erfüllt |
+| K5 keine erfundenen Fakten/Anlässe/Zielgruppe/Kontext | erfüllt (0 INVENTED-Treffer) | erfüllt | s. u. | erfüllt |
+
+### Verlauf / offene Punkte
+- Runde 3 schließt beide Runde-2-Lücken deterministisch (Muster-Erkennung + Retry + Format-Pflicht greifen, Gates belegt) und liefert in den 3 Läufen erstmals das konkrete Format in Idee UND Hook.
+- Bewertungsdetails je Lauf (Zitate) in `/home/team/shared/tiktok-testC-outputs.md` und im Bericht.
