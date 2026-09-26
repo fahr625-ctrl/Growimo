@@ -768,3 +768,41 @@ Befund wird ehrlich als „nicht verifizierbar" dokumentiert.
 
 **Abgenommene Kernpunkte:** Kontexttreue mit/ohne Markenprofil (A/B/E), TikTok-Konzept (C),
 Galerie-Navigationsfestigkeit inkl. Reload-Fix (D + F3), mobil keine leeren Screens/Lade-Schleifen (F1–F5).
+
+---
+
+## 5g — Test C Nachschärfung (Owner-Auftrag 2026-09-23)
+
+**Status: Prompt-Logik + Post-Check + neue Suite fertig (Commit `03111a0`, gepusht). Der E2E-Teil mit echten Generierungen ist NICHT gelaufen — der Deploy scheiterte an der Vercel-Autorisierung („Not authorized"), siehe „Nicht verifiziert" unten.**
+
+### Änderungen in `src/ai/tiktok.ts` (de UND en, keine Struktur-/Navigations-/Stabilitäts-Änderung)
+1. `ideaSharpeningMandate(lang)` — 5 Regeln, in den daily-idea- und den concept-Prompt (de/en) eingebunden:
+   (1) Bedeutungserhalt inkl. Beispiel „personalisierte Tasse" (Merkmale Name/Foto/Text/Design müssen erhalten bleiben, keine Umdeutung zur Tassenform/Kaffeegeschmack); (2) visueller Scroll-Stop mit Mechanik-Pflicht („Mechanik: <Name>", Transformation/Reveal/Problem-Payoff/Neugierlücke); (3) Anti-Generik (verbotene Floskeln); (4) Spezifität (konkrete Zahlen/Materialien/Szenen aus Nutzereingabe); (5) keine unbelegten Fakten/Erfolgsversprechen.
+2. `GENERIC_PATTERNS` + `genericViolations()` + `genericFreeResult()`: deterministischer Post-Check auf generische Phrasen (u. a. „Finde deinen Stil", „Der Unterschied ist sofort sichtbar", „Entdecke dein Potenzial", „Das Beste für dich") — analytisch wie die bestehenden `PLACEHOLDER_PATTERNS`.
+3. `GENERIC_STRIP_PATTERNS` + `stripGenericText()`: entfernt generische Phrasen aus den Idee-Feldern (Hook/Overlays/Caption/Sprechtext/Bildideen) mit Feld-Normalisierung; saubere Felder bleiben unverändert (Idempotenz/Identität).
+4. Generik-Verstoß = Soft-Reject → **ein** Retry mit Anti-Generik-Hinweis (todayIdea *und* concept), danach harter Fehler. todayIdea-Verhalten unverändert scharf (Regel-A/B/C-Retries der Phase 1–4 bleiben grün).
+
+### Gates (Rohlogs in /tmp)
+| Gate | Ergebnis |
+|---|---|
+| `stabilisierung-phase5c-test.ts` (NEU) | **219 passed, 0 failed, EXIT 0** (`/tmp/5c.log`, `/tmp/gate-...`) |
+| tiktok-phase1 | 75 PASS / 0 FAIL |
+| tiktok-phase2 | 89 PASS / **1 FAIL = prä-existierend** (`image-studio.tsx` Route-Scan, unberührt: die Änderung liegt nur in `src/ai/tiktok.ts`) |
+| tiktok-phase3 | 91 / 0 |
+| tiktok-phase4 | 75 passed / 0 failed |
+| tiktok-concept-quality | **126 passed / 0 failed, GRÜN** |
+| tiktok-diagnose-v2 | 56 / 0 |
+| stabilisierung-phase41 / 43 / 43b | grün |
+| usage-guard | 31 PASS / 0 FAIL |
+| `tsc --noEmit` | **171 Fehler = Baseline, 0 neue** (Zwischenstand 175 = 171 + 4 aus der neuen Suite, diese 4 behoben) |
+| i18n de/en Parität | grün (Suite-5c-Check R4: gleiche Keys, keine Einseitigkeit) |
+| `bash build-vercel.sh` | **EXIT 0**, `.vercel/output` ready |
+
+### Nicht verifiziert (ehrlich)
+- **Deploy:** `HOME=/home/agent-lead bunx vercel@latest deploy --prebuilt --prod --yes` → `Error: Not authorized` / `DEPLOY_EXIT=1` (Vercel CLI 60.1.3, ohne `--token`). Damit: kein Live-Check, **kein Bundle-Marker**, **Test C mit echten Outputs nicht gefahren** (weder „personalisierte Tasse" noch „minimalistischer Schmuck"), Zähler vorher/nachher nicht erhoben. Ursache ist die CLI-Autorisierung (kein App- oder Code-Befund).
+- Ein zweiter Anlauf mit neuem Sign-in-Token/Deploy-Retry war im Budget dieser Sitzung nicht mehr möglich.
+
+### Offen für die nächste Sitzung
+1. Vercel-Deploy autorisieren (CLI-Login/Token) → `deploy --prebuilt --prod` erneut.
+2. Bundle-Marker „Mechanik:" nach `prod-bundle-marker-proof` belegen.
+3. Test C mit EXAKT „personalisierte Tasse" und „minimalistischer Schmuck" fahren, vollständige wörtliche Outputs nach `/home/team/shared/tiktok-testC-outputs.md`, Bewertung je Owner-Kriterium 1–5, Zähler vorher/nachher (`scripts/_abn-usage.ts`).
