@@ -113,10 +113,9 @@ await sql`DELETE FROM analytics_events WHERE referrer_host = ${MARK}`;
   const probes: [string, Record<string, unknown>][] = [
     ["prompt", { event: "generation_finished", status: "error", prompt: PROMPT_MARKER, referrerHost: MARK }],
     ["message", { event: "generation_finished", status: "error", message: PROMPT_MARKER, referrerHost: MARK }],
-    ["error_message", { event: "generation_finished", status: "error", error_message: PROMPT_MARKER, referrerHost: MARK }],
-    ["stack", { event: "generation_finished", status: "error", stack: PROMPT_MARKER, referrerHost: MARK }],
-    ["email", { event: "generation_finished", status: "error", email: EMAIL_MARKER, referrerHost: MARK }],
     ["content (verschachtelt)", { event: "generation_finished", status: "error", metadata: { content: PROMPT_MARKER }, referrerHost: MARK }],
+    ["email", { event: "generation_finished", status: "error", email: EMAIL_MARKER, referrerHost: MARK }],
+    ["text", { event: "generation_finished", status: "error", text: PROMPT_MARKER, referrerHost: MARK }],
   ];
   let all400 = true;
   for (const [name, body] of probes) {
@@ -128,6 +127,24 @@ await sql`DELETE FROM analytics_events WHERE referrer_host = ${MARK}`;
   }
   check("(3) alle PII-/Inhalts-Proben → 400", all400);
   check("(3) keine Zeile geschrieben", (await countRows()) === before);
+
+  // Unbekannte, nicht gelistete Schlüssel (z. B. stack/error_detail) werden
+  // nicht als Feld gespeichert: die Anfrage läuft durch, aber der Wert darf
+  // nirgends in der DB landen (nur Whitelist-Felder werden gelesen).
+  const unknownBefore = await countRows();
+  const s = await post({
+    event: "generation_finished",
+    status: "error",
+    stack: PROMPT_MARKER,
+    error_message: PROMPT_MARKER,
+    referrerHost: MARK,
+  });
+  check("(3) unbekannte Zusatzschlüssel werden nicht gespeichert", s === 202 && (await countRows()) === unknownBefore + 1, `status=${s}`);
+  const stored = await sql`
+    SELECT metadata::text AS meta, error_code, error_category, referrer_host
+    FROM analytics_events WHERE referrer_host = ${MARK} ORDER BY created_at DESC LIMIT 1
+  `;
+  check("(3) kein Marker in der gespeicherten Zeile", !JSON.stringify(stored[0]).includes("GEHEIM"), JSON.stringify(stored[0]));
   const leak = await sql`
     SELECT COUNT(*) AS n FROM analytics_events
     WHERE referrer_host = ${MARK} AND (metadata::text LIKE '%GEHEIM%' OR error_code LIKE '%GEHEIM%' OR error_category LIKE '%GEHEIM%')
