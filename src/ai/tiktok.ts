@@ -503,7 +503,8 @@ function ideaSharpeningMandate(de: boolean): string {
 3. ANTI-GENERIK (harte Regel): Generische, austauschbare Standard-Werbeaussagen sind VERBOTEN — z. B. „Finde deinen Stil", „Der Unterschied ist sofort sichtbar", „Entdecke dein Potenzial", „Das Beste für dich", „Heb dich von der Masse ab". Solche Sätze passen unverändert auf beliebige Produkte und werden verworfen. Formuliere stattdessen eine Aussage, die NUR mit genau diesem Produkt und diesem konkreten Detail funktioniert.
 4. SPEZIFITÄT (Pflicht-Assertion): Die Idee MUSS so spezifisch sein, dass sie NICHT auf beliebige andere Produkte übertragbar ist. Selbstprüfung VOR der Ausgabe: „Wäre diese Idee fast unverändert auf beliebige andere Produkte übertragbar? Wenn ja: verwirf sie und entwickle eine produktspezifische." Nenne mindestens ein konkretes, produktspezifisches Detail aus der Nutzereingabe im Hook, in der ersten Szene ODER im Payoff.
 5. KEINE UNBELEGTEN FAKTEN (harte Regel): Erfinde NIEMALS Fakten, Merkmale, Zahlen, Trends, Zielgruppen-Aussagen oder Zusatznutzen, nur um den Hook stärker zu machen. Verwende ausschließlich, was der Nutzer angegeben hat oder was im MARKENKONTEXT/PROJEKT-KONTEXT steht; fehlt eine Information, entwickle die Idee OHNE diese Behauptung. Das gilt ausdrücklich für DREI Dinge, die NIE erfunden werden dürfen — fehlt die Angabe, LASS DIE BEHAUPTUNG WEG: (a) ANLASS (z. B. „perfekt für dein Vorstellungsgespräch", „das perfekte Weihnachtsgeschenk", „ideal zur Hochzeit", „perfekt zum Valentinstag") — nenne einen Anlass NUR, wenn der Nutzer ihn selbst genannt hat; sonst bleibt der Anlass unbenannt. (b) ZIELGRUPPE (z. B. „stilbewusste Zuschauer", „für modebewusste Frauen", „was alle Fashionistas lieben", „viele Büroangestellte") — nenne, beschreibe oder typisiere eine Zielgruppe NUR, wenn der Nutzer sie genannt hat; sonst sprich die Zuschauer nicht an und schreibe ihnen keine Eigenschaften zu. (c) NUTZUNGSKONTEXT ALS EMPFEHLUNG (z. B. „perfekt für dein Büro", „ideal für die Reise") — nur wenn der Nutzer ihn angegeben hat; eine neutrale Schauplatz-Beschreibung im Szenenplan ohne Behauptung (z. B. „eine Person an einem Schreibtisch") ist erlaubt. VERBOTEN sind ebenso alle Konstruktionen, die ein Nutzungsszenario als Produktnutzen behaupten, obwohl der Nutzer es nicht genannt hat: „von <Ort/Kontext> zu <Ort/Kontext>" (z. B. „Von Büro zu Abendessen"), „bereit für <Anlass/Kontext>", „perfekt/ideal für <Anlass/Kontext>", „für dein nächstes <Anlass>" sowie fertige Kontext-Labels wie „<Ort>-Look", „Alltagslook", „Abendlook". Eine erfundene Anlass-, Zielgruppen- oder Kontext-Behauptung ist ein HARTES VERFEHLEN (Owner-Kriterien 4 und 5) → verwirf die Idee und generiere neu.
-6. KONKRETES PRODUKTFORMAT (harte Regel): Bleibe NICHT auf der bloßen Produktkategorie — WÄHLE aus der Nutzereingabe EINE konkrete Ausprägung und baue die Idee darauf auf. Bei offenen Produktkategorien (z. B. „Schmuck", „Kleidung", „Accessoires", „Deko", „Möbel", „Geschenkartikel", „Kosmetik", „Pflegeprodukt", „Sportartikel") MUSS die Idee ein konkretes Produktformat MIT Material/Finish und einem Trage-/Nutzungsdetail nennen — z. B. „eine zarte Goldkette mit einem einzelnen Kreis-Anhänger" oder „schmale Silber-Ohrstecker mit mattem Finish" — statt „ein Schmuckstück"/„ein Accessoire". Dieses eine konkrete Format erscheint in Idee, Hook, erster Szene UND Payoff (keine Aufzählung mehrerer Varianten). IDE und HOOK/TITEL MÜSSEN das konkrete Format WÖRTLICH nennen — der Hook darf nicht bei der bloßen Kategorie bleiben („So bleibt dein Schmuck …" ohne Format ist UNGÜLTIG). Selbstprüfung VOR der Ausgabe: „Nennt die Idee ein konkretes Format/Material (Kette, Anhänger, Ohrstecker, Ring, Armband …) — oder bleibt sie bei der bloßen Kategorie?" Bleibt sie bei der Kategorie („ein Schmuckstück", „ein Teil", „ein Accessoire"), ist die Idee UNGÜLTIG: verwirf sie und generiere neu.`;
+6. KONKRETES PRODUKTFORMAT (harte Regel): Bleibe NICHT auf der bloßen Produktkategorie — WÄHLE aus der Nutzereingabe EINE konkrete Ausprägung und baue die Idee darauf auf. Bei offenen Produktkategorien (z. B. „Schmuck", „Kleidung", „Accessoires", „Deko", „Möbel", „Geschenkartikel", „Kosmetik", „Pflegeprodukt", „Sportartikel") MUSS die Idee ein konkretes Produktformat MIT Material/Finish und einem Trage-/Nutzungsdetail nennen — z. B. „eine zarte Goldkette mit einem einzelnen Kreis-Anhänger" oder „schmale Silber-Ohrstecker mit mattem Finish" — statt „ein Schmuckstück"/„ein Accessoire". Dieses eine konkrete Format erscheint in Idee, Hook, erster Szene UND Payoff (keine Aufzählung mehrerer Varianten). IDE und HOOK/TITEL MÜSSEN das konkrete Format WÖRTLICH nennen — der Hook darf nicht bei der bloßen Kategorie bleiben („So bleibt dein Schmuck …" ohne Format ist UNGÜLTIG). Selbstprüfung VOR der Ausgabe: „Nennt die Idee ein konkretes Format/Material (Kette, Anhänger, Ohrstecker, Ring, Armband …) — oder bleibt sie bei der bloßen Kategorie?" Bleibt sie bei der Kategorie („ein Schmuckstück", „ein Teil", „ein Accessoire"), ist die Idee UNGÜLTIG: verwirf sie und generiere neu.
+7. KEINE ERFUNDENEN PERSÖNLICHEN GESCHICHTEN ODER PRODUKTEIGENSCHAFTEN ALS TATSACHE (harte Regel): Erfinde NIEMALS eine persönliche Geschichte, eine Herkunft, eine symbolische Bedeutung, eine Produkteigenschaft, eine Wirkung oder eine eigene Erfahrung als TATSACHE, wenn der Nutzer sie nicht angegeben hat. Als Tatsachen-Behauptung VERBOTEN sind insbesondere: Geschenk-/Schenk-Geschichten („als Geschenk", „ein Geschenk von …", „von meiner Oma/Mutter geschenkt bekommen"); Herkunfts-/Erbstück-Behauptungen („geerbt", „seit Generationen", „Familienstück", „das Armband meiner Großmutter"); symbolische Bedeutungen als Fakt („ist ein Glücksbringer", „Begleiter durch schwierige Zeiten", „steht für unsere Freundschaft", „erinnert mich an …", „trägt eine besondere Bedeutung"); Ich-Erfahrungen („ich trage es seit Jahren", „ich habe es geschenkt bekommen"); zeitliche Beständigkeit („seit Jahren", „seit 2019", „jahrelang"); und Provenienz-/Qualitäts-Behauptungen über das Produkt („handgefertigt in Italien", „aus Italien", „echtes Silber", „925er Silber", „höchste Qualität"). Die Material-/Formatwahl der Bildidee bleibt ausdrücklich ERLAUBT (ein „Silberring" ist eine Materialwahl; „echtes Silber" ist eine Herkunfts-/Qualitäts-Behauptung). Reale Aussagen über Produkt, Person, Herkunft, Wirkung oder Erfahrung sind NUR erlaubt, wenn sie aus dem NUTZERKONTEXT (Nutzereingabe/MARKENKONTEXT/PROJEKT-KONTEXT) stammen. Eine solche Idee DARFST du als kreatives Storytelling VORSCHLAGEN — dann aber ausdrücklich als Konzept gekennzeichnet UND als Inszenierungs-Anweisung formuliert: „Story-Idee: Inszeniere das Armband als symbolischen Glücksbringer." Eine so gekennzeichnete Inszenierungs-Anweisung ist ERLAUBT; eine Tatsachen-Behauptung (Indikativ: „ist/war/begleitet/erinnert mich an", oder eine Zuschreibung an eine reale Person) ist VERBOTEN und muss verworfen werden. Fehlt die Angabe, LASS DIE BEHAUPTUNG WEG.`;
   }
   return `CONTENT MANDATE (MANDATORY — sharpened quality standard, owner criteria; applies to EVERY output):
 1. MEANING PRESERVATION (hard rule): concrete product features AND the actual meaning of the user's input must be preserved. NEVER reinterpret the subject. Example: input "personalized mug" → name, photo, text or custom design ARE the central visual element AND the payoff of the video. A reinterpretation such as "the shape of the mug influences the taste of the coffee" is FORBIDDEN — that is a different idea about the same object, not the same meaning. Every concrete attribute the user's input names must visibly reappear in the video (as an object, scene or payoff); if it does not, the idea is invalid and MUST be discarded.
@@ -518,7 +519,8 @@ function ideaSharpeningMandate(de: boolean): string {
 3. ANTI-GENERIC (hard rule): generic, interchangeable standard advertising lines are FORBIDDEN — e.g. "Find your style", "The difference is immediately visible", "Discover your potential", "The best for you", "Stand out from the crowd". Such lines fit any product unchanged and are rejected. Instead write a line that works ONLY with exactly this product and this concrete detail.
 4. SPECIFICITY (mandatory assertion): the idea MUST be so specific that it can NOT be transferred to arbitrary other products. Self-check BEFORE output: "Could this idea be used almost unchanged for arbitrary other products? If yes: discard it and develop a product-specific one." Name at least one concrete, product-specific detail from the user's input in the hook, the first scene OR the payoff.
 5. NO UNBACKED FACTS (hard rule): NEVER invent facts, features, numbers, trends, audience claims or extra benefits just to make the hook stronger. Use ONLY what the user provided or what the MARKENKONTEXT/PROJECT CONTEXT contains; if information is missing, build the idea WITHOUT that claim. This applies explicitly to THREE things that must NEVER be invented — if the information is missing, DROP THE CLAIM: (a) OCCASION (e.g. "perfect for your job interview", "the perfect Christmas gift", "ideal for a wedding", "perfect for Valentine's Day") — name an occasion ONLY if the user named it themselves; otherwise leave the occasion unnamed. (b) TARGET AUDIENCE (e.g. "style-conscious viewers", "for fashion-conscious women", "what all fashionistas love", "many office workers") — name, describe or typify an audience ONLY if the user named it; otherwise do not address the viewers and do not attribute any traits to them. (c) USAGE CONTEXT AS A RECOMMENDATION (e.g. "perfect for your office", "ideal for travel") — only if the user provided it; a neutral setting description in the scene plan without a claim (e.g. "a person at a desk") is allowed. ALSO FORBIDDEN are all constructions that claim a usage scenario as a product benefit although the user never named it: "from <place/context> to <place/context>" (e.g. "from office to dinner"), "ready for <occasion/context>", "perfect/ideal for <occasion/context>", "for your next <occasion>" and ready-made context labels such as "<place> look". An invented occasion/audience/context claim is a HARD FAIL (owner criteria 4 and 5) → discard the idea and regenerate.
-6. CONCRETE PRODUCT FORMAT (hard rule): do NOT stay on the bare product category — CHOOSE ONE concrete form from the user's input and build the idea on it. For open product categories (e.g. "jewelry", "clothing", "accessories", "decor", "furniture", "gift items", "cosmetics", "skincare", "sports gear") the idea MUST name a concrete product format WITH material/finish and a wearing/usage detail — e.g. "a delicate gold chain with a single circular pendant" or "slim silver stud earrings with a matte finish" — instead of "a piece of jewelry"/"an accessory". That one concrete format appears in the idea, the hook, the first scene AND the payoff (no list of variants). IDEA and HOOK/TITLE MUST name the concrete format LITERALLY — the hook may not stay on the bare category ("how to keep your jewelry shiny" without a format is INVALID). Self-check BEFORE output: "Does the idea name a concrete format/material (chain, pendant, stud earrings, ring, bracelet …) — or is it still on the bare category?" If it is still on the category ("a piece of jewelry", "a piece", "an accessory"), the idea is INVALID: discard it and regenerate.`;
+6. CONCRETE PRODUCT FORMAT (hard rule): do NOT stay on the bare product category — CHOOSE ONE concrete form from the user's input and build the idea on it. For open product categories (e.g. "jewelry", "clothing", "accessories", "decor", "furniture", "gift items", "cosmetics", "skincare", "sports gear") the idea MUST name a concrete product format WITH material/finish and a wearing/usage detail — e.g. "a delicate gold chain with a single circular pendant" or "slim silver stud earrings with a matte finish" — instead of "a piece of jewelry"/"an accessory". That one concrete format appears in the idea, the hook, the first scene AND the payoff (no list of variants). IDEA and HOOK/TITLE MUST name the concrete format LITERALLY — the hook may not stay on the bare category ("how to keep your jewelry shiny" without a format is INVALID). Self-check BEFORE output: "Does the idea name a concrete format/material (chain, pendant, stud earrings, ring, bracelet …) — or is it still on the bare category?" If it is still on the category ("a piece of jewelry", "a piece", "an accessory"), the idea is INVALID: discard it and regenerate.
+7. NO INVENTED PERSONAL STORIES OR PRODUCT PROPERTIES STATED AS FACT (hard rule): NEVER invent a personal story, an origin, a symbolic meaning, a product property, an effect or a personal experience AS FACT if the user did not provide it. FORBIDDEN as factual claims in particular: gift stories ("as a gift", "a gift from my grandmother"); origin/heirloom claims ("inherited", "for generations", "family piece", "my grandmother's bracelet"); symbolic meanings as fact ("is a lucky charm", "a companion through hard times", "stands for our friendship", "reminds me of", "carries a special meaning"); first-person experiences ("I have worn it for years", "I got it as a gift"); temporal permanence ("for years", "since 2019"); and provenance/quality claims about the product ("handmade in Italy", "from Italy", "real silver", "925 silver", "highest quality"). Choosing a material/format for the image idea stays explicitly ALLOWED (a "silver ring" is a material choice; "real silver" is a provenance/quality claim). Real statements about product, person, origin, effect or experience are allowed ONLY if they come from the USER CONTEXT (user input/BRAND CONTEXT/PROJECT CONTEXT). You MAY propose such an idea as creative storytelling — but then explicitly labelled as a concept AND phrased as a staging instruction: "Story idea: Stage the bracelet as a symbolic lucky charm." A staging instruction labelled like that is ALLOWED; a factual claim (indicative: "is/was/companions/reminds me of", or an attribution to a real person) is FORBIDDEN and must be discarded. If the information is missing, DROP THE CLAIM.`;
 }
 
 const TODAY_IDEA_EN = `${IDEA_COMMON_EN}
@@ -1442,9 +1444,16 @@ function buildRetryHint(lang: TikTokLang, violations: string[] = [], mode: TikTo
       ? ' ERFUNDENER ANLASS / ERFUNDENE ZIELGRUPPE (Owner-Kriterium 5): Die verworfene Idee nannte einen Anlass, eine Zielgruppe oder einen Nutzungskontext, den der Nutzer NICHT angegeben hat (siehe Liste oben). Lasse diese Behauptung(en) KOMPLETT weg und baue die Idee ohne sie — nennt der Nutzer keinen Anlass und keine Zielgruppe, beschreibe nur das Produkt und was sichtbar damit passiert. Erfinde auch keinen Nutzungskontext als Empfehlung („perfekt für …", „bereit für …", „von <Ort> zu <Ort>", „für dein nächstes …", „<Ort>-Look"/„Alltagslook"/„Abendlook").'
       : ' INVENTED OCCASION / INVENTED TARGET AUDIENCE (owner criterion 5): the rejected idea named an occasion, an audience or a usage context that the user did NOT provide (see list above). Omit those claim(s) ENTIRELY and build the idea without them — if the user names no occasion and no audience, describe only the product and what visibly happens with it. Do not invent a usage context as a recommendation ("perfect for …", "ready for …", "from <place> to <place>", "for your next …", "<place> look") either.'
     : '';
+  // Phase 5g Runde 4 (Owner-Auftrag 2026-09-26) — erfundene persönliche
+  // Geschichte/Produkteigenschaft/Erfahrung als Tatsache (soft reject + Retry).
+  const storyPart = violations.some((v) => v.startsWith('STORY:'))
+    ? lang === 'de'
+      ? ' ERFUNDENE PERSÖNLICHE GESCHICHTE / PRODUKTEIGENSCHAFT / ERFAHRUNG ALS TATSACHE (Owner-Auftrag 2026-09-26): Die verworfene Idee behauptete eine persönliche Geschichte, eine Herkunft, eine symbolische Bedeutung, eine Produkteigenschaft, eine Wirkung oder eine eigene Erfahrung als TATSACHE, obwohl der Nutzer sie NICHT angegeben hat (siehe Liste oben — z. B. „als Geschenk", „Glücksbringer", „Begleiter durch schwierige Zeiten", „von meiner Oma geschenkt", „geerbt/seit Generationen", „handgefertigt in Italien", „echtes Silber", „seit Jahren", „ich trage es seit Jahren"). Verwende solche Aussagen NUR, wenn sie aus dem NUTZERKONTEXT (Nutzereingabe/MARKENKONTEXT/PROJEKT-KONTEXT) stammen. Du DARFST eine solche Idee als kreatives Storytelling VORSCHLAGEN — dann aber ausdrücklich als Konzept gekennzeichnet („Story-Idee:") und als Inszenierungs-ANWEISUNG formuliert („Story-Idee: Inszeniere das Armband als symbolischen Glücksbringer.") und NIEMALS als tatsächlich geschehene Tatsache (kein Indikativ „ist/war/begleitet/erinnert mich an", keine Zuschreibung an eine reale Person).'
+      : ' INVENTED PERSONAL STORY / PRODUCT PROPERTY / EXPERIENCE STATED AS FACT (owner task 2026-09-26): the rejected idea claimed a personal story, an origin, a symbolic meaning, a product property, an effect or a personal experience AS FACT although the user did NOT provide it (see the list above — e.g. "as a gift", "lucky charm", "a companion through hard times", "a gift from my grandmother", "inherited/for generations", "handmade in Italy", "real silver", "for years", "I have worn it for years"). Use such statements ONLY if they come from the USER CONTEXT (user input/BRAND CONTEXT/PROJECT CONTEXT). You MAY propose such an idea as creative storytelling — but then explicitly labelled as a concept ("Story idea:") and phrased as a STAGING INSTRUCTION ("Story idea: Stage the bracelet as a symbolic lucky charm.") and NEVER as a fact that actually happened (no indicative "is/was/companions/reminds me of", no attribution to a real person).'
+    : '';
   return lang === 'de'
-    ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Idee wurde intern verworfen (zu austauschbar / zu werblich / ohne echte Markenfakten oder Challenge-Bezug — oder weil sie ein erfundenes Testimonial / eine zitierte Person / erfundenes Nutzerfeedback enthielt, das nicht im MARKENKONTEXT belegt ist, ODER weil sie ein unbelegtes konkretes Leistungs-/Zeit-Versprechen oder eine vorgegebene künstliche Reaktion/Begeisterung enthielt).' + rulePart + genericPart + inventedPart + formatPart + ' Erzeuge JETZT eine deutlich bessere, neue Idee: bleibe in der vorgegebenen Content-Richtung und baue sie aus der PERSPEKTIVE DER ZIELGRUPPE (was hilft oder begeistert die Zielgruppe?) — NICHT aus der Produktperspektive. Verboten sind produktzentrierte Selbstreferenz-Ideen („Kann Growimo eine TikTok-Idee erstellen?", „Wir testen unser eigenes Produkt", „Wie gut ist meine TikTok-Idee wirklich?"); das Produkt darf höchstens als Beiwerk/Beispiel vorkommen, niemals als Thema. Erfinde keinerlei Nutzer/Tester/Testimonials/Zitate; zeige stattdessen einen echten, ehrlichen Prozess aus der Zielgruppen-Perspektive. Mache KEINERLEI unbelegtes konkretes Leistungs-/Zeit-/Ergebnis-Versprechen (kein „in nur X Sekunden/Minuten/Tagen/Wochen", kein „+X%", kein „verdoppelt die Reichweite", kein „viral gehen") und KEINE vorgegebene künstliche Reaktion/Begeisterung (kein „Wow!", kein „Da staunen alle", keine aufgesetzte Überraschung — eine Reaktion nur, wenn sie das gezeigte tatsächliche Ergebnis echt erzeugt, sonst ganz weglassen). Setze alle sieben selfCheck-Booleans ehrlich auf bestehen.'
-    : '\n\nQUALITY SELF-CHECK NOTE: The previous idea was internally rejected (too interchangeable / too ad-like / without real brand facts or challenge tie-in — or because it contained an invented testimonial / quoted person / invented user feedback not backed by the BRAND CONTEXT, OR because it contained an unproven concrete performance/time promise or a prescribed artificial reaction/enthusiasm).' + rulePart + genericPart + inventedPart + formatPart + ' NOW produce a clearly better, NEW idea: stay in the given content direction and build it from the TARGET AUDIENCE\'s perspective (what helps or excites them?) — NOT from the product perspective. Product-centric self-referential ideas are forbidden ("Can Growimo create a TikTok idea?", "We test our own product", "How good is my TikTok idea really?"); the product may appear at most as a supporting element/example, never as the topic. Do not invent any users/testers/testimonials/quotes; instead show a real, honest process from the audience\'s perspective. Make NO unproven concrete performance/time/result promise (no "in just X seconds/minutes/days/weeks", no "+X%", no "doubles your reach", no "go viral") and NO prescribed artificial reaction/enthusiasm (no "Wow!", no "everyone is amazed", no staged surprise — a reaction only if genuinely produced by the shown real result, otherwise omit it entirely). Set all seven selfCheck booleans truthfully to passing.';
+    ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Idee wurde intern verworfen (zu austauschbar / zu werblich / ohne echte Markenfakten oder Challenge-Bezug — oder weil sie ein erfundenes Testimonial / eine zitierte Person / erfundenes Nutzerfeedback enthielt, das nicht im MARKENKONTEXT belegt ist, ODER weil sie ein unbelegtes konkretes Leistungs-/Zeit-Versprechen oder eine vorgegebene künstliche Reaktion/Begeisterung enthielt ODER weil sie eine erfundene persönliche Geschichte, Produkteigenschaft, Herkunft, Wirkung oder Erfahrung als Tatsache darstellte).' + rulePart + genericPart + inventedPart + formatPart + storyPart + ' Erzeuge JETZT eine deutlich bessere, neue Idee: bleibe in der vorgegebenen Content-Richtung und baue sie aus der PERSPEKTIVE DER ZIELGRUPPE (was hilft oder begeistert die Zielgruppe?) — NICHT aus der Produktperspektive. Verboten sind produktzentrierte Selbstreferenz-Ideen („Kann Growimo eine TikTok-Idee erstellen?", „Wir testen unser eigenes Produkt", „Wie gut ist meine TikTok-Idee wirklich?"); das Produkt darf höchstens als Beiwerk/Beispiel vorkommen, niemals als Thema. Erfinde keinerlei Nutzer/Tester/Testimonials/Zitate; zeige stattdessen einen echten, ehrlichen Prozess aus der Zielgruppen-Perspektive. Mache KEINERLEI unbelegtes konkretes Leistungs-/Zeit-/Ergebnis-Versprechen (kein „in nur X Sekunden/Minuten/Tagen/Wochen", kein „+X%", kein „verdoppelt die Reichweite", kein „viral gehen") und KEINE vorgegebene künstliche Reaktion/Begeisterung (kein „Wow!", kein „Da staunen alle", keine aufgesetzte Überraschung — eine Reaktion nur, wenn sie das gezeigte tatsächliche Ergebnis echt erzeugt, sonst ganz weglassen). Setze alle sieben selfCheck-Booleans ehrlich auf bestehen.'
+    : '\n\nQUALITY SELF-CHECK NOTE: The previous idea was internally rejected (too interchangeable / too ad-like / without real brand facts or challenge tie-in — or because it contained an invented testimonial / quoted person / invented user feedback not backed by the BRAND CONTEXT, OR because it contained an unproven concrete performance/time promise or a prescribed artificial reaction/enthusiasm, OR because it presented an invented personal story, product property, origin, effect or experience as fact).' + rulePart + genericPart + inventedPart + formatPart + storyPart + ' NOW produce a clearly better, NEW idea: stay in the given content direction and build it from the TARGET AUDIENCE\'s perspective (what helps or excites them?) — NOT from the product perspective. Product-centric self-referential ideas are forbidden ("Can Growimo create a TikTok idea?", "We test our own product", "How good is my TikTok idea really?"); the product may appear at most as a supporting element/example, never as the topic. Do not invent any users/testers/testimonials/quotes; instead show a real, honest process from the audience\'s perspective. Make NO unproven concrete performance/time/result promise (no "in just X seconds/minutes/days/weeks", no "+X%", no "doubles your reach", no "go viral") and NO prescribed artificial reaction/enthusiasm (no "Wow!", no "everyone is amazed", no staged surprise — a reaction only if genuinely produced by the shown real result, otherwise omit it entirely). Set all seven selfCheck booleans truthfully to passing.';
 }
 
 // ── Phase 2 — Ergebnisstruktur: maximal 5 Hashtags (Owner-Vorgabe) ──────────
@@ -2021,6 +2030,315 @@ export function inventedContextFreeResult(r: TikTokIdeaResult, groundingBlob: st
   return JSON.stringify(out) === JSON.stringify(r) ? r : out;
 }
 
+// ── Phase 5g Runde 4 (Owner-Auftrag 2026-09-26) — ERFUNDENE PERSÖNLICHE ─────
+// GESCHICHTE / PRODUKTEIGENSCHAFT / ERFAHRUNG ALS TATSACHE (deterministisch) ─
+// Owner-Befund (wörtlich): „Das Silberarmband wird ohne Nutzereingabe als
+// Geschenk, Glücksbringer und Begleiter durch schwierige Zeiten dargestellt.
+// Diese persönliche Geschichte wurde nicht vorgegeben." Solche Ideen DÜRFEN als
+// kreatives Storytelling vorgeschlagen werden — dann aber ausdrücklich als
+// „Story-Idee:"-KONZEPT und als Inszenierungs-ANWEISUNG formuliert („Story-Idee:
+// Inszeniere das Armband als symbolischen Glücksbringer") und NIE als
+// tatsächlich geschehene Tatsache. Diese Prüfung ist REIN ADDITIV zur Runde-3-
+// Logik (CONTEXT_*/OPEN_CATEGORY_*/CONCRETE_FORMAT_* bleiben unverändert).
+//
+// Abgrenzung (bewusst scharf — False-Positive-Schutz; die echten Runde-3-Outputs
+// in /home/team/shared/tiktok-testC-outputs.md bleiben trefferfrei):
+//  - Material-/Formatwahl der Bildidee bleibt erlaubt („Silberring", „Goldkette",
+//    „Handarbeit aus Ton"): geflaggt werden nur Provenienz-/Qualitäts-
+//    BEHAUPTUNGEN („echtes Silber", „925er", „handgefertigt in Italien").
+//  - Anrede-Formen („dein Silberring", „Genieße deine Kette") sind normaler
+//    Werbe-/Anweisungston und KEIN Muster — nur 1.-Person-Erfahrungen („ich
+//    trage es seit Jahren") und Zuschreibungen an reale Personen („ein Geschenk
+//    von meiner Oma") zählen. Reine Werbeformeln („du wirst es lieben") sind
+//    bewusst KEIN Muster (Vorsicht False Positives).
+//  - Grounding: jeder Begriff, der in den NUTZERANGABEN steht (Thema/Produkt/
+//    Zielgruppe/Markenkontext/Projekt), gilt als genannt und wird NIE geflaggt
+//    (Eingabe „Glücksbringer für schwangere Freundin" ⇒ erlaubt).
+const STORY_PLACE_ALT =
+  'italien|italy|deutschland|germany|portugal|spanien|spain|frankreich|france|' +
+  'österreich|oesterreich|austria|schweiz|switzerland|türkei|tuerkei|turkey|' +
+  'marokko|morocco|indien|india|nepal|peru|bali|indonesien|indonesia|china|' +
+  'vietnam|thailand|griechenland|greece|polen|poland|tschechien|mexiko|mexico';
+
+export const PERSONAL_STORY_PATTERNS: Array<{ name: string; re: RegExp; grounding: RegExp }> = [
+  // (1) Geschenk-/Schenk-Kontext als Tatsache
+  { name: 'geschenk-als-geschenk', re: /\bals\s+geschenk\b/i, grounding: /geschenk|gift|schenk/ },
+  { name: 'geschenk-ein-geschenk-von', re: /\bein(?:e|en)?\s+geschenk\s+(?:von|vom)\b/i, grounding: /geschenk|gift/ },
+  {
+    name: 'geschenk-ist-geschenk',
+    re: /\b(?:ist|war|bleibt|wird|is|was)\s+ein(?:e|en)?\s+(?:geschenk|gift)\b/i,
+    grounding: /geschenk|gift|schenk/,
+  },
+  {
+    name: 'geschenk-geschenkt-von',
+    re: /\bgeschenkt\s+(?:von|bekommen|erhalten)\b/i,
+    grounding: /geschenk|gift|schenk/,
+  },
+  {
+    name: 'geschenk-von-person',
+    re: /\bvon\s+mein(?:er|em|es)?\s+(?:oma|opa|großmutter|grossmutter|großvater|grossvater|mutter|mama|vater|papa|schwester|bruder|freundin|freund|frau|mann|partner)\b/i,
+    grounding: /oma|opa|großmutter|grossmutter|großvater|grossvater|mutter|mama|vater|papa|schwester|bruder|freundin|freund|familie|partner/,
+  },
+  { name: 'gift-as-a-gift', re: /\bas\s+a\s+gift\b/i, grounding: /gift|geschenk/ },
+  { name: 'gift-a-gift-from', re: /\ba\s+gift\s+(?:from|of)\b/i, grounding: /gift|geschenk/ },
+  { name: 'gift-gifted-from', re: /\bgifted\s+(?:to\s+me|by|from)\b/i, grounding: /gift|geschenk/ },
+  {
+    name: 'gift-from-relative',
+    re: /\bfrom\s+my\s+(?:grandmother|grandma|grandfather|grandpa|mother|mom|mum|father|dad|sister|brother|best\s+friend|husband|wife|partner)\b/i,
+    grounding: /grandmother|grandma|grandfather|grandpa|mother|mom|mum|father|dad|sister|brother|friend|family|husband|wife|partner/,
+  },
+  // (2) Herkunfts-/Erbstück-/Familien-Behauptungen
+  {
+    name: 'erbstueck',
+    re: /\b(?:erbstück|erbstueck|familienstück|familienstueck|heirloom)\b/i,
+    grounding: /erbstück|erbstueck|familienstück|familienstueck|heirloom|geerbt|erb\w*|familie|family|generation/,
+  },
+  { name: 'geerbt', re: /\b(?:geerbt|inherited)\b/i, grounding: /geerbt|erbstück|erbstueck|heirloom|inherited|erb\w*/ },
+  { name: 'seit-generationen', re: /\b(?:seit\s+generationen|for\s+generations)\b/i, grounding: /generation/ },
+  { name: 'passed-down', re: /\bpass(?:ed)?\s+down\b/i, grounding: /pass(?:ed)?\s+down|inherited|heirloom|generation|vererbt/ },
+  {
+    name: 'familien-besitz',
+    re: /\b(?:in\s+(?:meiner|unserer)\s+familie|familientradition|familienbetrieb|family\s+(?:business|tradition))\b/i,
+    grounding: /familie|family/,
+  },
+  // (3) Symbolische Bedeutung / persönliche Bedeutung als Fakt
+  {
+    name: 'gluecksbringer',
+    re: /\b(?:glücksbringer|gluecksbringer|lucky\s+charm|talisman|good\s+luck\s+charm)\b/i,
+    grounding: /glücksbringer|gluecksbringer|lucky\s+charm|talisman/,
+  },
+  {
+    name: 'begleiter-schwierige-zeiten',
+    re: /\bbegleit\w*\s+(?:mich\s+|dich\s+|sie\s+|ihn\s+|uns\s+|euch\s+)?(?:durch|in)\s+(?:schwierig|schwer|hart|dunkl|stürmisch|sturmisch)\w*\s+zeiten\b/i,
+    grounding: /begleiter|schwierige\s+zeiten|schwere\s+zeiten/,
+  },
+  {
+    name: 'companion-through-times',
+    re: /\bcompanion\s+(?:through|in)\s+(?:hard|difficult|tough|dark|stormy)\s+times\b/i,
+    grounding: /companion|hard\s+times|difficult\s+times/,
+  },
+  {
+    name: 'symbol-fuer-beziehung',
+    re: /\b(?:steht|stand|ist|war)\s+(?:ein\s+)?(?:symbol|zeichen)\s+(?:für|fuer)\s+[^.!?]{0,40}\b(?:freundschaft|liebe|verbundenheit|erinnerung\w*|verlust|vertrauen|verbindung|familie)\b/i,
+    grounding: /freundschaft|liebe|verbundenheit|erinnerung|verlust|vertrauen|verbindung|familie/,
+  },
+  {
+    name: 'symbol-fuer-beziehung-2',
+    re: /\b(?:steht|stand)\s+(?:für|fuer)\s+[^.!?]{0,40}\b(?:freundschaft|liebe|verbundenheit|erinnerung\w*|verlust|vertrauen|verbindung)\b/i,
+    grounding: /freundschaft|liebe|verbundenheit|erinnerung|verlust|vertrauen|verbindung/,
+  },
+  {
+    name: 'symbolisiert-beziehung',
+    re: /\bsymbolisier(?:t|en|te)\s+[^.!?]{0,40}\b(?:freundschaft|liebe|verbundenheit|erinnerung\w*|verlust|vertrauen|verbindung|familie)\b/i,
+    grounding: /freundschaft|liebe|verbundenheit|erinnerung|verlust|vertrauen|verbindung|familie/,
+  },
+  {
+    name: 'symbol-of-relationship',
+    re: /\b(?:stands?|stood|is|was)\s+(?:a\s+)?symbol\s+of\s+[^.!?]{0,40}\b(?:friendship|love|bond|memories|trust|family)\b/i,
+    grounding: /friendship|love|bond|memories|trust|family/,
+  },
+  {
+    name: 'besondere-bedeutung',
+    re: /\b(?:hat|trägt|traegt|besitzt)\s+eine\s+(?:besondere|persönliche|persoenliche|tiefere|spezielle)\s+(?:bedeutung|symbolik|geschichte)\b/i,
+    grounding: /bedeutung|symbolik|geschichte|meaning/,
+  },
+  { name: 'erinnert-mich-an', re: /\b(?:erinnert\s+mich\s+an|reminds?\s+me\s+of)\b/i, grounding: /erinnert|remind/ },
+  {
+    name: 'geteilte-erinnerung',
+    re: /\b(?:erinnerst\s+du\s+dich|weißt\s+du\s+noch|weisst\s+du\s+noch|remember\s+when|do\s+you\s+remember)\b/i,
+    grounding: /erinnerst\s+du\s+dich|weißt\s+du\s+noch|remember/,
+  },
+  {
+    name: 'persoenliche-bedeutung-fuer-mich',
+    re: /\b(?:für|fuer)\s+mich\s+(?:ist|war|bedeutet|bedeutete)\b/i,
+    grounding: /für\s+mich|fuer\s+mich|for\s+me/,
+  },
+  // (4) Erfahrungs-/Besitz-Behauptungen (1. Person bzw. Zuschreibung)
+  {
+    name: 'ich-trage',
+    re: /\bich\s+(?:trage|trug|besitze|besaß|besass|habe\s+[^.!?]{0,30}?\b(?:getragen|besessen|geschenkt\s+bekommen|geerbt))\b/i,
+    grounding: /ich\s+trage|trage|besitze|getragen|geerbt|geschenkt\s+bekommen/,
+  },
+  {
+    name: 'mein-persoenlich',
+    re: /\bmein(?:e|en|er)?\s+(?:eigen(?:e|en|er)?\s+)?(?:armband|kette|ring|anhänger|anhaenger|uhr|schmuckstück|schmuckstueck)\b/i,
+    grounding: /mein\w*\s+(?:armband|kette|ring|anhänger|schmuck)/,
+  },
+  // (5) Zeitliche Beständigkeits-Fakten
+  {
+    name: 'seit-jahren',
+    re: /\bseit\s+(?:vielen\s+|mehreren\s+|einigen\s+)?(?:jahrzehnten|jahren)\b/i,
+    grounding: /jahre|jahrzehnt|years|decades|langjährig/,
+  },
+  { name: 'seit-jahrzahl', re: /\b(?:seit|since)\s+(?:19|20)\d{2}\b/i, grounding: /(?:19|20)\d{2}/ },
+  {
+    name: 'seit-kindheit',
+    re: /\bseit\s+(?:meiner\s+|unserer\s+)?(?:kindheit|jugend|schulzeit)\b/i,
+    grounding: /kindheit|jugend|schulzeit|childhood/,
+  },
+  { name: 'jahrelang', re: /\bjahrelang\w*\b/i, grounding: /jahrelang|jahre|years/ },
+  { name: 'for-years', re: /\bfor\s+(?:many\s+|several\s+)?(?:years|decades)\b/i, grounding: /years|decades|jahr/ },
+  { name: 'year-after-year', re: /\byear\s+after\s+year\b/i, grounding: /year\s+after\s+year|years/ },
+  // (6) Provenienz-/Qualitäts-Behauptungen über das Produkt (nur ohne Nutzerkontext)
+  {
+    name: 'echtes-material',
+    re: /\b(?:echt\w*|rein\w*|authentisch\w*|genuine|real|solid|massiv\w*)\s+(?:silber|gold|leder|holz|edelstahl|perlen|silver|gold|leather|wood|stainless\s+steel)\b/i,
+    grounding: /silber|gold|leder|holz|edelstahl|perle|silver|gold|leather|wood|stainless/,
+  },
+  {
+    name: 'material-feinheit',
+    re: /\b(?:925(?:er)?|585er|750er|sterling|18\s?k|24\s?k)\b/i,
+    grounding: /925|585|750|sterling|karat/,
+  },
+  {
+    name: 'herkunft-ort',
+    re: new RegExp(
+      '\\b(?:handgefertigt|handgemacht|handmade|gefertigt|hergestellt|produziert|made|manufactured|crafted)\\s+(?:in|aus|from)\\s+(?:' +
+        STORY_PLACE_ALT +
+        ')\\b',
+      'i',
+    ),
+    grounding: new RegExp('(?:' + STORY_PLACE_ALT + ')', 'i'),
+  },
+  {
+    name: 'herkunft-aus-land',
+    re: new RegExp('\\b(?:aus|from)\\s+(?:' + STORY_PLACE_ALT + ')\\b', 'i'),
+    grounding: new RegExp('(?:' + STORY_PLACE_ALT + ')', 'i'),
+  },
+  {
+    name: 'qualitaets-behauptung',
+    re: /\b(?:höchste|hoechste|beste|erstklassig\w*|premium)\s+(?:qualität|qualitaet|verarbeitung|material|quality|craftsmanship)\b/i,
+    grounding: /qualität|qualitaet|quality|verarbeitung/,
+  },
+];
+
+/** Erlaubter Fall: explizit als KONZEPT gekennzeichneter Vorschlag. Marker wie
+ *  „Story-Idee:"/„Idee:"/„Konzept:"/„Story concept:"/„Concept:" DIREKT vor der
+ *  Behauptung UND Formulierung als Inszenierungs-ANWEISUNG („Inszeniere das
+ *  Armband als symbolischen Glücksbringer") ⇒ kein Verstoß. Tatsachen-
+ *  Behauptungen (Indikativ, „ist"/„war"/„begleitet") bleiben Verstöße. */
+export const CONCEPT_MARKER_PATTERNS: RegExp[] = [
+  /\bstory[-\s]?idee\s*:/i,
+  /\bstory[-\s]?idea\s*:/i,
+  /\bkonzept\s*:/i,
+  /\bconcept\s*:/i,
+  /\bidee\s*:/i,
+  /\binszenierungs[-\s]?idee\s*:/i,
+  /\bkreativ[-\s]?idee\s*:/i,
+  /\bstorytelling[-\s]?(?:idee|konzept)\s*:/i,
+  /\bcreative\s+(?:idea|concept)\s*:/i,
+  /\bkonzept[-\s]?vorschlag\s*:/i,
+];
+
+/** Anweisungs-/Inszenierungs-Konstruktionen (Imperativ bzw. „… als …" mit
+ *  Inszenierungsverb) — sie machen aus einer Behauptung eine STORY-IDEE. */
+export const STAGING_INSTRUCTION_PATTERNS: RegExp[] = [
+  /\b(?:inszeniere|inszenier|zeige|zeig|stelle|stell|präsentiere|praesentiere|präsentier|erzähle|erzaehle|erzähl|rahme|rahmen|porträtiere|portraitiere|darstellen|darstelle)\b[^.!?]{0,80}?\bals\b[^.!?]{0,80}/i,
+  /\b(?:stage|frame|portray|present|show|tell|position|depict|stylize|style)\b[^.!?]{0,80}?\bas\b[^.!?]{0,80}/i,
+  /\bals\b[^.!?]{0,60}?\b(?:inszenier\w*|darstellen|darstelle|zeigen|zeige|staging|stage|portray|present|frame)\b/i,
+];
+
+/** Marker direkt vor der Behauptung (max. 120 Zeichen Abstand) + Anweisungsform,
+ *  die die Behauptung einschließt ⇒ erlaubter Story-Ideen-Vorschlag. */
+function isMarkedStoryConcept(sentence: string, matchIndex: number): boolean {
+  const markerBefore = CONCEPT_MARKER_PATTERNS.some((re) => {
+    const gre = new RegExp(re.source, 'gi');
+    let m: RegExpExecArray | null;
+    while ((m = gre.exec(sentence)) !== null) {
+      if (m.index === gre.lastIndex) gre.lastIndex++;
+      const end = m.index + m[0].length;
+      if (end <= matchIndex && matchIndex - end <= 120) return true;
+    }
+    return false;
+  });
+  if (!markerBefore) return false;
+  return STAGING_INSTRUCTION_PATTERNS.some((re) => {
+    const gre = new RegExp(re.source, 'gi');
+    let m: RegExpExecArray | null;
+    while ((m = gre.exec(sentence)) !== null) {
+      if (m.index === gre.lastIndex) gre.lastIndex++;
+      if (m.index <= matchIndex && matchIndex <= m.index + m[0].length) return true;
+    }
+    return false;
+  });
+}
+
+/** Zerlegt einen Text in Sätze (Satz-/Zeilenenden) — Grundlage der satzweisen
+ *  Prüfung und Entfernung. */
+function splitStorySentences(s: string): string[] {
+  return (s ?? '').split(/(?<=[.!?…])\s+|\n+/).filter((p) => p.trim() !== '');
+}
+
+/** Liefert die Namen aller erfunden-persönlichen Behauptungen (leer = sauber).
+ *  Ein Muster zählt nur, wenn sein Begriff NICHT in den Nutzerangaben steht und
+ *  die Behauptung nicht als „Story-Idee:"-Konzept formuliert ist. */
+export function personalStoryViolations(blob: string, groundingBlob: string): string[] {
+  if (!blob) return [];
+  const g = (groundingBlob ?? '').toLowerCase();
+  const hits: string[] = [];
+  for (const sentence of splitStorySentences(blob)) {
+    for (const { name, re, grounding } of PERSONAL_STORY_PATTERNS) {
+      if (grounding.test(g)) continue; // vom Nutzer genannt ⇒ nie geflaggt
+      const gre = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
+      let m: RegExpExecArray | null;
+      while ((m = gre.exec(sentence)) !== null) {
+        if (m.index === gre.lastIndex) gre.lastIndex++;
+        if (isMarkedStoryConcept(sentence, m.index)) continue; // erlaubtes Konzept
+        hits.push('STORY:' + name);
+      }
+    }
+  }
+  return [...new Set(hits)];
+}
+
+/** Letzter Versuch: entfernt jeden SATZ, der eine erfundene persönliche
+ *  Behauptung enthält (satzweise statt wortweise — sonst blieben kaputte
+ *  Halbsätze). Bleibt nichts übrig, ist das Feld ehrlich leer. */
+function dropStorySentences(s: string, groundingBlob: string): string {
+  if (!s) return s;
+  const parts = s.split(/(?<=[.!?])\s+/);
+  const kept = parts.filter((part) => personalStoryViolations(part, groundingBlob).length === 0);
+  if (kept.length === parts.length) return s;
+  return kept.join(' ').trim();
+}
+
+/** Phase 5g Runde 4 — Endreinigung: erfundene persönliche Geschichten,
+ *  Produkteigenschaften und Erfahrungen verlassen die Engine NIE (auch nicht als
+ *  letzter Versuch). Saubere Ergebnisse werden unverändert (identisches Objekt)
+ *  zurückgegeben — Pendant zu inventedContextFreeResult. */
+export function personalStoryFreeResult(r: TikTokIdeaResult, groundingBlob: string): TikTokIdeaResult {
+  if (personalStoryViolations(ideaPlaceholderBlob(r), groundingBlob).length === 0) return r;
+  const clean = (s: string) => dropStorySentences(s, groundingBlob);
+  const cleanArr = (a: string[]): string[] => a.map(clean).filter((x) => x.trim() !== '');
+  const out: TikTokIdeaResult = {
+    ...r,
+    idea: clean(r.idea),
+    hook: clean(r.hook),
+    length: clean(r.length),
+    scenes: cleanArr(r.scenes),
+    overlays: cleanArr(r.overlays),
+    spokenText: clean(r.spokenText),
+    caption: clean(r.caption),
+    cta: clean(r.cta),
+    why: clean(r.why),
+  };
+  if (r.scrollStop !== undefined) out.scrollStop = clean(r.scrollStop);
+  if (r.tension !== undefined) out.tension = clean(r.tension);
+  if (r.format !== undefined) out.format = clean(r.format);
+  if (r.title !== undefined) out.title = clean(r.title);
+  if (r.timedScenes !== undefined) {
+    out.timedScenes = r.timedScenes
+      .map((s) => ({ time: s.time, scene: clean(s.scene), text: clean(s.text) }))
+      .filter((s) => s.scene.trim() !== '' || s.text.trim() !== '');
+  }
+  if (r.imageIdeas !== undefined) {
+    out.imageIdeas = r.imageIdeas
+      .map((i) => ({ description: clean(i.description), studioPrompt: clean(i.studioPrompt) }))
+      .filter((i) => i.description.trim() !== '' || i.studioPrompt.trim() !== '');
+  }
+  return JSON.stringify(out) === JSON.stringify(r) ? r : out;
+}
+
 // ── Phase 2 — Vollständigkeitsprüfung („Vollständiges Konzept") ─────────────
 /** Liefert die Liste der fehlenden Phase-2-Konzeptfelder (leer = vollständig).
  *  Nur für die Idee-Modi (todayIdea/concept) relevant; diagnose prüft nicht. */
@@ -2459,6 +2777,18 @@ export async function generateTikTok(
       // Hook/Titel ein konkretes Format/Material nennen → Soft-Reject + Retry
       // mit namentlicher Verstoßliste (buildRetryHint formatPart).
       const categoryFormat = categoryFormatViolations(input, result);
+      // Phase 5g Runde 4 — ERFUNDENE PERSÖNLICHE GESCHICHTE / PRODUKTEIGENSCHAFT /
+      // ERFAHRUNG ALS TATSACHE (Owner-Auftrag 2026-09-26, deterministisch):
+      // „Das Silberarmband wird ohne Nutzereingabe als Geschenk, Glücksbringer und
+      // Begleiter durch schwierige Zeiten dargestellt." → Soft-Reject + Retry mit
+      // namentlicher Verstoßliste (buildRetryHint storyPart); auf dem letzten
+      // Versuch werden die betroffenen Sätze entfernt (personalStoryFreeResult).
+      // Rein ADDITIVE Prüfung — die Runde-3-Logik bleibt unverändert; ein als
+      // „Story-Idee:" gekennzeichneter Inszenierungs-Vorschlag passiert den Check.
+      const stories = personalStoryViolations(
+        ideaPlaceholderBlob(result),
+        inventedGroundingBlob(input),
+      );
       lastViolations = [
         ...violations,
         ...selfRefs,
@@ -2466,6 +2796,7 @@ export async function generateTikTok(
         ...generic,
         ...invented,
         ...categoryFormat,
+        ...stories,
       ];
       // Phase 1: eigenes Nutzerthema (oder gar kein Markenkontext) ⇒ das Fehlen
       // eines Markenfakts darf die Idee NICHT verwerfen.
@@ -2533,8 +2864,11 @@ export async function generateTikTok(
     const cleaned =
       result.mode === 'diagnose'
         ? result
-        : inventedContextFreeResult(
-            genericFreeResult(placeholderFreeResult(result)),
+        : personalStoryFreeResult(
+            inventedContextFreeResult(
+              genericFreeResult(placeholderFreeResult(result)),
+              inventedGroundingBlob(input),
+            ),
             inventedGroundingBlob(input),
           );
     const sanitized = await sanitizeTikTokResult(cleaned, buildSanitizeUserContext(input));

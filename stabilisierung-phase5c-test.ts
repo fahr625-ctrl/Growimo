@@ -58,6 +58,9 @@ import {
   inventedGroundingBlob,
   categoryFormatViolations,
   concreteFormatNames,
+  personalStoryViolations,
+  personalStoryFreeResult,
+  PERSONAL_STORY_PATTERNS,
   OPEN_CATEGORY_PATTERNS,
   type TikTokInput,
   type TikTokIdeaResult,
@@ -1200,6 +1203,284 @@ section('J8 Runde 3: fehlendes konkretes Format → Retry mit namentlicher Verst
   check(
     !rSoft.idea.includes('Von Büro') && !rSoft.hook.includes('Von Büro'),
     'J8m ausgelieferte Idee bleibt frei von erfundenen Nutzungskontexten',
+  );
+}
+
+// ── J9: RUNDE 4 — erfundene PERSÖNLICHE GESCHICHTE / PRODUKTEIGENSCHAFT / ────
+// ERFAHRUNG ALS TATSACHE (deterministisch; Owner-Auftrag 2026-09-26). Rein
+// additive Prüfung zur Runde-3-Logik (CONTEXT_*/FORMAT-Prüfungen unverändert).
+section('J9 Runde 4: erfundene persönliche Geschichte als Tatsache wird erkannt (de/en)');
+{
+  const hit = (s: string, g = '') => personalStoryViolations(s, g);
+  // Owner-Beispiel (wörtlich): Geschenk + Glücksbringer + Begleiter durch schwierige Zeiten
+  const owner = hit('Das Silberarmband ist ein Geschenk, ein Glücksbringer und ein Begleiter durch schwierige Zeiten.');
+  check(owner.length >= 2, `J9a Owner-Beispiel Armband erkannt (ist ${owner.join('|')})`);
+  check(hit('Das Armband ist ein Glücksbringer.').includes('STORY:gluecksbringer'), 'J9b „Glücksbringer" als Tatsache');
+  check(hit('Sie begleitet mich durch schwierige Zeiten.').includes('STORY:begleiter-schwierige-zeiten'), 'J9c „Begleiter durch schwierige Zeiten"');
+  check(hit('Das Armband wurde von meiner Oma geschenkt.').includes('STORY:geschenk-von-person'), 'J9d Geschenk von meiner Oma');
+  check(hit('Es eignet sich als Geschenk.').includes('STORY:geschenk-als-geschenk'), 'J9e „als Geschenk"');
+  check(hit('Ein Erbstück, das seit Generationen in meiner Familie weitergegeben wird.').includes('STORY:erbstueck'), 'J9f Erbstück + seit Generationen');
+  check(hit('Er hat das Armband geerbt.').includes('STORY:geerbt'), 'J9g „geerbt"');
+  check(hit('Der Anhänger steht für unsere Freundschaft.').includes('STORY:symbol-fuer-beziehung-2'), 'J9h symbolische Bedeutung als Fakt');
+  check(hit('Es erinnert mich an den Urlaub.').includes('STORY:erinnert-mich-an'), 'J9i „erinnert mich an"');
+  check(hit('Ich trage es seit Jahren.').includes('STORY:ich-trage'), 'J9j Ich-Erfahrung (1. Person)');
+  check(hit('Ich trage es seit Jahren.').includes('STORY:seit-jahren'), 'J9k „seit Jahren"');
+  check(hit('Handgefertigt in Italien aus Echtleder.').includes('STORY:herkunft-ort'), 'J9l Provenienz „handgefertigt in Italien"');
+  check(hit('Ein Armband aus echtem Silber mit 925er Stempel.').includes('STORY:echtes-material'), 'J9m „echtes Silber"');
+  check(hit('Ein Armband aus echtem Silber mit 925er Stempel.').includes('STORY:material-feinheit'), 'J9n „925er"');
+  // en
+  check(hit('This bracelet was a gift from my grandmother.').includes('STORY:gift-from-relative'), 'J9o en: gift from my grandmother');
+  check(hit('It is a lucky charm.').includes('STORY:gluecksbringer'), 'J9p en: lucky charm');
+  check(hit('A companion through hard times.').includes('STORY:companion-through-times'), 'J9q en: companion through hard times');
+  check(hit('Handmade in Italy from real silver.').includes('STORY:herkunft-ort'), 'J9r en: handmade in Italy');
+  check(hit('Handmade in Italy from real silver.').includes('STORY:echtes-material'), 'J9s en: real silver');
+  check(hit('I have worn it for years.').length > 0, `J9t en: I have worn it for years (ist ${hit('I have worn it for years.').join('|')})`);
+  check(hit('It was inherited and passed down for generations.').includes('STORY:geerbt'), 'J9u en: inherited / passed down');
+}
+
+// ── J10: GROUNDING — vom Nutzer Genanntes wird NIE geflaggt ─────────────────
+section('J10 Runde 4: Grounding — vom Nutzer genannter Kontext bleibt erlaubt');
+{
+  check(
+    personalStoryViolations('Ein Glücksbringer für die Schwangere.', 'glücksbringer für schwangere freundin').length === 0,
+    'J10a Nutzer nannte „Glücksbringer" → erlaubt',
+  );
+  check(
+    personalStoryViolations('Perfekt als Geschenk.', 'geschenk-suchende frauen').length === 0,
+    'J10b Nutzer nannte Geschenk-Kontext → erlaubt',
+  );
+  check(
+    personalStoryViolations('Handgefertigt in Italien.', 'manufaktur in italien').length === 0,
+    'J10c Nutzer nannte „Italien" → erlaubt',
+  );
+  check(
+    personalStoryViolations('Das Armband von meiner Oma.', 'armband für meine oma').length === 0,
+    'J10d Nutzer nannte „Oma" → erlaubt',
+  );
+  check(
+    personalStoryViolations('Seit Jahren bewährt.', 'ein produkt seit jahren').length === 0,
+    'J10e Nutzer nannte „seit Jahren" → erlaubt',
+  );
+  check(
+    personalStoryViolations('Ein Glücksbringer.', '').includes('STORY:gluecksbringer'),
+    'J10f ohne Grounding bleibt dieselbe Aussage ein Verstoß',
+  );
+  check(
+    personalStoryViolations('Als Geschenk verpackt.', '').includes('STORY:geschenk-als-geschenk'),
+    'J10g ohne Grounding „als Geschenk" = Verstoß',
+  );
+}
+
+// ── J11: KEINE False Positives auf den ECHTEN Runde-3-Produktions-Outputs ───
+// Wörtliche Auszüge aus /home/team/shared/tiktok-testC-outputs.md (Runde 3:
+// L1 Goldkette, L2 Silberring, L3 Silberanhänger, KONTROLLE-TASSE) — die neuen
+// Muster dürfen dort NICHTS neu flaggen (dieselbe Gegenprobe wie Runde 3 J3).
+const STORY_L1_BLOB = [
+  'schnelle lösung: so entwirrst du zarte goldketten in sekunden.',
+  'kennst du das problem mit verknoteten goldketten?',
+  'mechnik: problem/payoff — ein knoten in einer zarten goldkette wird in der nahaufnahme gezeigt, was sofort das problem sichtbar macht und neugier auf die lösung weckt.',
+  'tutorial/how-to – schritt für schritt (passt zum ziel: reichweite, da es ein häufiges problem anspricht und eine praktische lösung bietet)',
+  'das video startet mit der nahaufnahme einer verknoteten goldkette, was das problem sofort sichtbar macht. dann wird der schnelle und einfache trick zur lösung gezeigt. der payoff kommt in sekunde 10, wenn die kette vollständig entwirrt ist.',
+  'eine person zeigt die verknotete kette und legt sie auf ein weißes blatt papier.',
+  'die person verwendet zwei stecknadeln, um den knoten vorsichtig zu lösen.',
+  'die kette ist nun vollständig entwirrt und wird in die kamera gehalten. fertig! genieße deine kette.',
+  'goldketten entwirren: der einfache trick',
+  'verknotete ketten? mit diesem trick löst du das problem im handumdrehen! #schmucktrick #goldkette',
+  'hast du schon mal diesen trick ausprobiert?',
+  'diese idee spricht ein häufiges problem bei schmuckträgern an und bietet eine schnelle, praktische lösung, was die zuschauerbindung erhöht und die reichweite steigern kann.',
+  'nahaufnahme, minimalistischer stil, goldene kette mit knoten auf weißem papier, weiches licht, fokus auf den knoten',
+  'porträt, natürlicher stil, person legt goldene kette um den hals, warmes licht, freundlicher ausdruck',
+].join(' ');
+const STORY_L2_BLOB = [
+  'wie du verfärbungen auf deinem minimalistischen silberring mit einem einfachen trick loswirst.',
+  '„dein silberring sieht matt aus? probier das!"',
+  'mechanik: problem/payoff — ein angelaufener silberring wird gezeigt, was sofort das problem sichtbar macht und die zuschauer neugierig auf die lösung für dieses alltägliche problem macht.',
+  'tutorial/how-to – schritt für schritt (passt zum ziel: reichweite durch nützliche tipps)',
+  'eine person zeigt den silberring neben eine schale mit einer einfachen reinigungslösung.',
+  'der ring wird in die reinigungslösung getaucht.',
+  '… und schon glänzt er wieder!',
+  'silberring glänzt wieder mit diesem einfachen trick!',
+  'verabschiede dich von mattem silber! ✨💍 #silberttipps #schmuckpflege',
+].join(' ');
+const STORY_L3_BLOB = [
+  'entdecke die wirkung eines minimalistischen silberanhängers!',
+  'mechanik: reveal — ein zarter silberanhänger wird enthüllt, der sofort das interesse der zuschauer weckt, weil sie wissen wollen, wie dieser kleine schmuck ihr outfit verändern kann.',
+  'before/after – die wirkung eines accessoires auf verschiedene outfits zeigen (passt zum thema: problem/lösung).',
+  'das video beginnt mit der enthüllung eines minimalistischen silberanhängers, gefolgt von der kombination mit verschiedenen outfits, um seine vielseitigkeit zu zeigen.',
+  'ein schlichtes outfit ohne schmuck wird präsentiert.',
+  'der silberanhänger wird angelegt und das outfit wird erneut gezeigt, diesmal mit schmuck.',
+  'ein kleiner anhänger, ein großer unterschied.',
+  'minimalistisch & elegant',
+  'silberanhänger: der kleine unterschied für dein outfit',
+  'ein zarter silberanhänger kann dein outfit im handumdrehen aufwerten. #minimalismus #schmuckliebe',
+  'wie kombinierst du deinen lieblingsschmuck?',
+  'diese idee zeigt, wie ein minimalistischer silberanhänger das potenzial hat, jedes outfit aufzuwerten.',
+  'produktfoto, minimalistischer stil, kühles licht, silberanhänger, nahaufnahme, weicher hintergrund',
+].join(' ');
+const STORY_MUG_CTRL_BLOB = [
+  'zeige, wie kleine persönliche details den morgenkaffee zu einem besonderen moment machen können.',
+  'verwandelt dein morgenkaffee deinen tag?',
+  'mechanik: problem/payoff — sofortiger zusammenhang zwischen einer gewöhnlichen tasse kaffee und der möglichkeit, den tag positiv zu beeinflussen.',
+  'storytelling – erzeugt eine emotionale verbindung und zeigt eine alltägliche herausforderung (der langweilige morgenkaffee) und eine kreative lösung (personalisierte tasse).',
+  'eine person hält eine schlichte, weiße tasse morgens am frühstückstisch.',
+  'nahaufnahme des dampfenden kaffees in der schlichten tasse.',
+  'die tasse wird zur seite gestellt, eine personalisierte tasse mit einem inspirierenden zitat oder bild wird in die kamera gehalten.',
+  'die person lächelt und nimmt einen schluck aus der personalisierten tasse, das zitat ist gut sichtbar.',
+  'mach es besonders!',
+  'wie eine tasse deinen morgen verändern kann',
+  'manchmal macht ein kleines detail den unterschied. ☕️✨',
+  'teile, wie du deinen morgen besonders machst!',
+  'dieses video spricht kaffeeliebhaber an, die nach einer möglichkeit suchen, ihre morgendliche routine zu verbessern.',
+  'produktfoto, heller stil, personalisierte tasse mit zitat, nahaufnahme, gemütlicher hintergrund',
+].join(' ');
+section('J11 Runde 4: keine False Positives auf den echten Runde-3-Produktions-Outputs');
+{
+  check(
+    personalStoryViolations(STORY_L1_BLOB, 'minimalistischer schmuck').length === 0,
+    `J11a Runde-3 L1 (Goldkette) → 0 Treffer (ist ${personalStoryViolations(STORY_L1_BLOB, 'minimalistischer schmuck').join('|')})`,
+  );
+  check(
+    personalStoryViolations(STORY_L2_BLOB, 'minimalistischer schmuck').length === 0,
+    `J11b Runde-3 L2 (Silberring) → 0 Treffer (ist ${personalStoryViolations(STORY_L2_BLOB, 'minimalistischer schmuck').join('|')})`,
+  );
+  check(
+    personalStoryViolations(STORY_L3_BLOB, 'minimalistischer schmuck').length === 0,
+    `J11c Runde-3 L3 (Silberanhänger) → 0 Treffer (ist ${personalStoryViolations(STORY_L3_BLOB, 'minimalistischer schmuck').join('|')})`,
+  );
+  check(
+    personalStoryViolations(STORY_MUG_CTRL_BLOB, 'personalisierte tasse').length === 0,
+    `J11d Runde-3 KONTROLLE-Tasse → 0 Treffer (ist ${personalStoryViolations(STORY_MUG_CTRL_BLOB, 'personalisierte tasse').join('|')})`,
+  );
+  check(
+    personalStoryViolations(MUG_L1_BLOB, 'personalisierte tasse').length === 0,
+    'J11e Tasse Lauf 1 (Büro-Setting) → 0 Treffer',
+  );
+  check(
+    personalStoryViolations(JEWEL_L1_BLOB, 'minimalistischer schmuck').length === 0,
+    'J11f Schmuck Lauf 1 (Silberring-Reinigung) → 0 Treffer',
+  );
+  check(
+    personalStoryViolations(blob(cleanIdea(true) as unknown as TikTokIdeaResult), '').length === 0,
+    'J11g saubere Tassen-Idee (Fixture) → 0 Treffer',
+  );
+  check(
+    personalStoryViolations('Zeige einen Silberring mit mattem Finish. Genieße deine Kette. Dein Silberring sieht matt aus?', '').length === 0,
+    'J11h Materialwahl/Anrede („Silberring", „dein Ring") bleibt erlaubt',
+  );
+}
+
+// ── J12: ERLAUBTER FALL — „Story-Idee:"-Konzept + satzweise Entfernung ──────
+section('J12 Runde 4: explizit gekennzeichnete Story-Idee ist erlaubt, Tatsache nicht');
+{
+  check(
+    personalStoryViolations('Story-Idee: Inszeniere das Armband als symbolischen Glücksbringer.', '').length === 0,
+    'J12a „Story-Idee:" + Inszenierungs-Anweisung → erlaubt',
+  );
+  check(
+    personalStoryViolations('Konzept: Zeige die Kette als Erbstück der Großmutter.', '').length === 0,
+    'J12b „Konzept:" + „als"-Anweisung → erlaubt',
+  );
+  check(
+    personalStoryViolations('Story idea: Stage the bracelet as a symbolic lucky charm.', '').length === 0,
+    'J12c en: „Story idea:" + stage … as → erlaubt',
+  );
+  check(
+    personalStoryViolations('Story-Idee: Das Armband ist ein Glücksbringer.', '').includes('STORY:gluecksbringer'),
+    'J12d „Story-Idee:" + Indikativ („ist") bleibt ein Verstoß',
+  );
+  check(
+    personalStoryViolations('Das Armband ist ein Glücksbringer. Story-Idee: Inszeniere es als Glücksbringer.', '').includes(
+      'STORY:gluecksbringer',
+    ),
+    'J12e Tatsachen-Satz ohne Marker bleibt Verstoß (nur der markierte Satz ist erlaubt)',
+  );
+  // Satzweise Entfernung (letzter Versuch)
+  const dirty = JSON.parse(JSON.stringify(cleanIdea(true))) as unknown as TikTokIdeaResult;
+  dirty.idea = 'Zeig die Gravur in Nahaufnahme. Das Armband ist ein Glücksbringer von meiner Oma.';
+  dirty.hook = 'Ein Glücksbringer für schwierige Zeiten.';
+  dirty.caption = 'Gravur in Keramik #geschenk';
+  const out = personalStoryFreeResult(dirty, '');
+  check(out.idea === 'Zeig die Gravur in Nahaufnahme.', `J12f Idee: erfundener Satz weg, Rest bleibt (ist „${out.idea}")`);
+  check(out.hook.trim() === '', `J12g Ganzfeld-Behauptung → ehrlich leeres Feld (ist „${out.hook}")`);
+  check(out.caption === 'Gravur in Keramik #geschenk', 'J12h unschuldige Felder bleiben unangetastet');
+  check(personalStoryViolations(blob(out), '').length === 0, 'J12i Ergebnis trefferfrei');
+  check(personalStoryViolations(blob(personalStoryFreeResult(out, '')), '').length === 0, 'J12j idempotent');
+  const clean = JSON.parse(JSON.stringify(cleanIdea(true))) as unknown as TikTokIdeaResult;
+  check(personalStoryFreeResult(clean, '') === clean, 'J12k saubere Idee: identisches Objekt (kein Kopieren)');
+}
+
+// ── J13: Engine — erfundene Geschichte → Soft-Reject + Retry (de), kein Hard-Fail
+section('J13 Runde 4: erfundene persönliche Geschichte → Retry mit namentlicher Verstoßliste (de)');
+{
+  const attempt1 = JSON.parse(JSON.stringify(cleanIdea(true))) as unknown as TikTokIdeaResult;
+  attempt1.idea =
+    'Zeig die schmale Goldkette mit Kreis-Anhänger in Nahaufnahme. Das Armband ist ein Glücksbringer von meiner Oma und begleitet sie durch schwierige Zeiten.';
+  attempt1.hook = 'Deine Goldkette — ein Glücksbringer!';
+  attempt1.title = 'Goldkette mit Kreis-Anhänger';
+  const attempt2 = JSON.parse(JSON.stringify(attempt1)) as unknown as TikTokIdeaResult;
+  attempt2.idea = 'Zeig die schmale Goldkette mit Kreis-Anhänger in Nahaufnahme — sie dreht sich in Sekunde 1 ins Licht.';
+  attempt2.hook = 'Deine schmale Goldkette dreht sich in Sekunde 1 ins Licht.';
+  reset((a) => JSON.stringify(a === 1 ? attempt1 : attempt2));
+  const input = baseInput({ mode: 'concept', topic: 'minimalistischer Schmuck' });
+  const r = (await generateTikTok(input, 'de')) as TikTokIdeaResult;
+  check(attemptCounter === 2, `J13a genau 2 Versuche (ist ${attemptCounter})`);
+  check(
+    seenUserPrompts[1].includes('ERFUNDENE PERSÖNLICHE GESCHICHTE'),
+    'J13b Retry-Prompt benennt das Verbot erfundener persönlicher Geschichten',
+  );
+  check(seenUserPrompts[1].includes('STORY:gluecksbringer'), 'J13c Retry-Prompt listet den Verstoß namentlich');
+  check(seenUserPrompts[1].includes('STORY:begleiter-schwierige-zeiten'), 'J13d Retry-Prompt listet alle Verstöße');
+  check(
+    personalStoryViolations(ideaPlaceholderBlob(r), inventedGroundingBlob(input)).length === 0,
+    'J13e ausgeliefertes Ergebnis ohne erfundene persönliche Geschichte',
+  );
+  check(r.idea.includes('schmale Goldkette'), 'J13f Retry-Ergebnis wird ausgegeben');
+}
+
+// ── J14: Engine — derselbe Fall auf Englisch ────────────────────────────────
+section('J14 Runde 4: erfundene persönliche Geschichte → Retry (en)');
+{
+  const attempt1 = JSON.parse(JSON.stringify(cleanIdea(false))) as unknown as TikTokIdeaResult;
+  attempt1.idea = 'A lucky charm from my grandmother. Show the slim gold chain with the circular pendant.';
+  attempt1.hook = 'Your gold chain — a lucky charm!';
+  attempt1.title = 'Gold chain with circular pendant';
+  const attempt2 = JSON.parse(JSON.stringify(attempt1)) as unknown as TikTokIdeaResult;
+  attempt2.idea = 'Show the slim gold chain with the circular pendant — it turns into the light in second one.';
+  attempt2.hook = 'Your slim gold chain turns into the light in second one.';
+  reset((a) => JSON.stringify(a === 1 ? attempt1 : attempt2));
+  const input = baseInput({ mode: 'concept', topic: 'minimalist jewelry' });
+  const r = (await generateTikTok(input, 'en')) as TikTokIdeaResult;
+  check(attemptCounter === 2, `J14a exactly 2 attempts (is ${attemptCounter})`);
+  check(seenUserPrompts[1].includes('INVENTED PERSONAL STORY'), 'J14b retry prompt names the invented-personal-story ban');
+  check(seenUserPrompts[1].includes('STORY:gluecksbringer'), 'J14c retry prompt lists the violation by name');
+  check(
+    personalStoryViolations(ideaPlaceholderBlob(r), inventedGroundingBlob(input)).length === 0,
+    'J14d delivered result free of invented personal stories',
+  );
+}
+
+// ── J15: dauerhaft erfundene Geschichten → kein Hard-Fail, Satz wird entfernt ─
+section('J15 Runde 4: dauerhaft erfundene Geschichte → bestmögliche Idee OHNE die Behauptung');
+{
+  const dirty = JSON.parse(JSON.stringify(cleanIdea(true))) as unknown as TikTokIdeaResult;
+  dirty.idea =
+    'Zeig die schmale Goldkette mit Kreis-Anhänger in Nahaufnahme. Das Armband ist ein Glücksbringer von meiner Oma.';
+  dirty.hook = 'Deine Goldkette mit Kreis-Anhänger — ein Glücksbringer!';
+  dirty.title = 'Goldkette mit Kreis-Anhänger';
+  dirty.cta = 'Ich trage es seit Jahren.';
+  reset(() => JSON.stringify(dirty));
+  const input = baseInput({ mode: 'concept', topic: 'minimalistischer Schmuck' });
+  const r = (await generateTikTok(input, 'de')) as TikTokIdeaResult;
+  check(attemptCounter === 4, `J15a dauerhaft erfunden → 4 Versuche (ist ${attemptCounter})`);
+  check(
+    personalStoryViolations(ideaPlaceholderBlob(r), inventedGroundingBlob(input)).length === 0,
+    `J15b ausgeliefertes Ergebnis frei von erfundenen Geschichten (ist ${personalStoryViolations(ideaPlaceholderBlob(r), inventedGroundingBlob(input)).join('|')})`,
+  );
+  check(r.idea.includes('schmale Goldkette'), 'J15c produktspezifischer Satz bleibt erhalten (kein Blanko-Feld)');
+  check(!r.hook.includes('Glücksbringer') && !r.cta.includes('seit Jahren'), `J15d Hook/CTA ohne die Behauptung (Hook „${r.hook}" / CTA „${r.cta}")`);
+  check(
+    PERSONAL_STORY_PATTERNS.length >= 20,
+    `J15e Musterliste vollständig vorhanden (ist ${PERSONAL_STORY_PATTERNS.length})`,
   );
 }
 
