@@ -1,0 +1,159 @@
+{
+  "id": "evt_1UGGP5CcIt8AuaKqEDTxLfSW",
+  "object": "event",
+  "api_version": "2026-08-26.dahlia",
+  "created": 1789555766,
+  "type": "invoice.paid",
+  "data": {
+    "object": {
+      "id": "in_1UGGP2CcIt8AuaKq5flqCVJk",
+      "object": "invoice",
+      "account_country": "DE",
+      "account_name": "Growimo ",
+      "account_tax_ids": null,
+      "amount_due": 1900,
+      "amount_overpaid": 0,
+      "amount_paid": 1900,
+      "amount_remaining": 0,
+      "amount_shipping": 0,
+      "application": null,
+      "attempt_count": 1,
+      "attempted": true,
+      "auto_advance": false,
+      "automatic_tax": {
+        "disabled_reason": null,
+        "enabled": false,
+        "liability": null,
+        "provider": null,
+        "status": null
+      },
+      "automatically_finalizes_at": null,
+      "billing_reason": "subscription_create",
+      "collection_method": "charge_automatically",
+      "created": 1789555764,
+      "currency": "eur",
+      "custom_fields": null,
+      "customer": "cus_VGo0uqHD0btS4l",
+      "customer_account": null,
+      "customer_address": null,
+      "customer_email": "billing-proof-mu3zak5y@example.com",
+      "customer_name": "Phase 8.4b Testkunde",
+      "customer_phone": null,
+      "customer_shipping": null,
+      "customer_tax_exempt": "none",
+      "customer_tax_ids": [],
+      "default_payment_method": null,
+      "default_source": null,
+      "default_tax_rates": [],
+      "description": null,
+      "discounts": [],
+      "due_date": null,
+      "effective_at": 1789555764,
+      "ending_balance": 0,
+      "footer": null,
+      "from_invoice": null,
+      "hosted_invoice_url": "https://invoice.stripe.com/i/acct_1UFF1vCcIt8AuaKq/test_YWNjdF8xVUZGMXZDY0l0OEF1YUtxLF9WR28xajlPT1VFME5BWnJzUmVjU1NkRnh5VHk0VVp1LDE4MDA5NjU2Nw0200sOMKLU2U?s=ap",
+      "invoice_pdf": "https://pay.stripe.com/invoice/acct_1UFF1vCcIt8AuaKq/test_YWNjdF8xVUZGMXZDY0l0OEF1YUtxLF9WR28xajlPT1VFME5BWnJzUmVjU1NkRnh5VHk0VVp1LDE4MDA5NjU2Nw0200sOMKLU2U/pdf?s=ap",
+      "issuer": {
+        "type": "self"
+      },
+      "last_finalization_error": null,
+      "latest_revision": null,
+      "lines": {
+        "object": "list",
+        "data": [
+          {
+            "id": "il_1UGGP2CcIt8AuaKqT5wB5Ywz",
+            "object": "line_item",
+            "amount": 1900,
+            "currency": "eur",
+            "description": "1 × Growimo Pro (at €19.00 / month)",
+            "discount_amounts": [],
+            "discountable": true,
+            "discounts": [],
+            "invoice": "in_1UGGP2CcIt8AuaKq5flqCVJk",
+            "livemode": false,
+            "metadata": {},
+            "parent": {
+              "invoice_item_details": null,
+              "subscription_item_details": {
+                "invoice_item": null,
+                "proration": false,
+                "proration_details": {
+                  "credited_items": null
+                },
+                "subscription": "sub_1UGGP2CcIt8AuaKqudMA075P",
+                "subscription_item": "si_VGo1a6xamzFkGg"
+              },
+              "type": "subscription_item_details"
+            },
+            "period": {
+              "end": 1792147764,
+              "start": 1789555764
+            },
+            "pretax_credit_amounts": [],
+            "pricing": {
+              "price_details": {
+                "price": "price_1UFcqoCcIt8AuaKqIRIp4gf3",
+                "product": "prod_VG99bnlGJa0Kla"
+              },
+              "type": "price_details",
+              "unit_amount_decimal": "1900"
+            },
+            "quantity": 1,
+            "quantity_decimal": "1",
+            "subtotal": 1900,
+            "taxes": []
+          }
+        ],
+        "has_more": false,
+        "total_count": 1,
+        "url": "/v1/invoices/in_1UGGP2CcIt8AuaKq5flqCVJk/lines"
+      },
+      "livemode": false,
+      "metadata": {},
+      "next_payment_attempt": null,
+      "number": "83SWNKUD-0013",
+      "on_behalf_of": null,
+      "parent": {
+        "quote_details": null,
+        "subscription_details": {
+          "metadata": {},
+          "subscription": "sub_1UGGP2CcIt8AuaKqudMA075P"
+        },
+        "type": "subscription_details"
+      },
+      "payment_settings": {
+        "default_mandate": null,
+        "payment_method_options": null,
+        "payment_method_types": null
+      },
+      "period_end": 1789555764,
+      "period_start": 1789555764,
+      "post_payment_credit_notes_amount": 0,
+      "pre_payment_credit_notes_amount": 0,
+      "receipt_number": null,
+      "rendering": null,
+      "shipping_cost": null,
+      "shipping_details": null,
+      "starting_balance": 0,
+      "statement_descriptor": null,
+      "status": "paid",
+      "status_transitions": {
+        "finalized_at": 1789555764,
+        "marked_uncollectible_at": null,
+        "paid_at": 1789555764,
+        "voided_at": null
+      },
+      "subtotal": 1900,
+      "subtotal_excluding_tax": 1900,
+      "test_clock": null,
+      "total": 1900,
+      "total_discount_amounts": [],
+      "total_excluding_tax": 1900,
+      "total_pretax_credit_amounts": [],
+      "total_taxes": [],
+      "webhooks_delivered_at": 1789555764
+    }
+  }
+}

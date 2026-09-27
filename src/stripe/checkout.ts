@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start';
+import { getOrigin } from './origin';
 
 /**
  * Creates a Stripe Checkout Session for upgrading to Pro.
@@ -88,6 +89,10 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
       promoId = promos.data[0]?.id;
     }
 
+    // Rückkehr-URLs MÜSSEN auf der echten App-Origin enden (Bug 1): die Origin
+    // kommt aus PUBLIC_SITE_URL → Origin/Forwarded-Host/Host des Requests →
+    // https://www.growimo.app. Nie localhost in Production (src/stripe/origin.ts).
+    const origin = await getOrigin();
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       line_items: [
@@ -97,8 +102,8 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
         },
       ],
       client_reference_id: userId,
-      success_url: `${getOrigin()}/app/billing?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${getOrigin()}/app/pricing`,
+      success_url: `${origin}/app/billing?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/app/pricing`,
       ...(isBeta && promoId ? { discounts: [{ promotion_code: promoId }] } : {}),
       metadata: {
         userId,
@@ -107,11 +112,3 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
 
     return { url: session.url, isBeta };
   });
-
-function getOrigin(): string {
-  // In production, derive from the request; fallback for local dev
-  if (typeof process !== 'undefined' && process.env?.PUBLIC_SITE_URL) {
-    return process.env.PUBLIC_SITE_URL;
-  }
-  return 'http://localhost:3000';
-}

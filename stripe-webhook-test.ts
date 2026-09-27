@@ -18,6 +18,9 @@ import {
   processStripeEvent,
   planTierForLookupKey,
   mapSubscriptionStatus,
+  invoiceSubscriptionId,
+  invoicePeriodEnd,
+  invoicePriceLookupKey,
   STRIPE_WEBHOOK_PATH,
   PRO_MONTHLY_LOOKUP_KEY,
   PRO_YEARLY_LOOKUP_KEY,
@@ -27,6 +30,7 @@ import {
   qGetSubscriptionByStripeId,
   qGetSubscriptionForUser,
   qGetRemaining,
+  qUpsertSubscription,
 } from './src/db/queries';
 import { isBetaUserEmail } from './src/api/beta';
 import { limitForPlan, FREE_LIMIT, PRO_LIMIT } from './src/lib/usage-guard';
@@ -245,6 +249,56 @@ async function main() {
     await processStripeEvent(invoicePaidEvent(SUB_A, CUS_A, nextPeriod));
     row = await qGetSubscriptionByStripeId(SUB_A);
     check(row !== null && row.currentPeriodEnd?.getTime() === nextPeriod * 1000, 'invoice.paid verlängert current_period_end');
+
+    // ── Bug 2 (2026-09-27): invoice.paid in der ECHTEN API-Form (dahlia) ────
+    // Die Fixtures oben bauen die ALTE Form (`subscription` auf oberster Ebene,
+    // `lines[].price.lookup_key`) — Stripe sendet sie mit API-Version
+    // 2026-08-26.dahlia nicht mehr, weshalb der Zweig ein stiller No-Op war.
+    // Hier läuft zusätzlich ein VERBATIM abgelegtes, echtes Event-Objekt aus dem
+    // Testkonto durch denselben Handler (Details: stripe-invoice-paid-dahlia-test.ts).
+    const realFixture = (await Bun.file(
+      `${import.meta.dir}/stripe-fixtures/invoice-paid-dahlia-real.json`,
+    ).json()) as { type: string; data: { object: Record<string, unknown> } };
+    const realInvoice = realFixture.data.object as Record<string, any>;
+    const realLineEnd = Number(realInvoice.lines.data[0].period.end);
+    check(realFixture.type === 'invoice.paid', 'echtes Fixture-Event ist invoice.paid');
+    check(!('subscription' in realInvoice), 'echtes Payload hat KEIN Top-Level `subscription` (Ursache des No-Ops)');
+    check(
+      invoiceSubscriptionId(realInvoice) === realInvoice.parent.subscription_details.subscription,
+      'invoiceSubscriptionId liest parent.subscription_details.subscription',
+    );
+    check(invoicePeriodEnd(realInvoice) === realLineEnd, 'invoicePeriodEnd liest den Posten-Pfad (lines[].period.end)');
+    check(invoicePriceLookupKey(realInvoice) === null, 'dahlia-Payload trägt keinen lookup_key → bestehender Tarif bleibt');
+    const realSubForTest = `sub_realform_${RUN}`;
+    // Zeile VOR dem Event anlegen: invoice.paid ist (bewusst) fail-closed und
+    // wirft für unbekannte Subscriptions. Ausgangswert = alter Wert, damit die
+    // Verlängerung messbar ist.
+    await qUpsertSubscription({
+      clerkUserId: TEST_USERS[2],
+      stripeCustomerId: `cus_realform_${RUN}`,
+      stripeSubscriptionId: realSubForTest,
+      planTier: 'pro',
+      status: 'active',
+      currentPeriodEnd: realLineEnd - 30 * 86400,
+    });
+    await processStripeEvent(
+      {
+        type: 'invoice.paid',
+        data: {
+          object: {
+            ...realInvoice,
+            parent: { subscription_details: { subscription: realSubForTest }, type: 'subscription_details' },
+          },
+        },
+      },
+    );
+    const realFormRow = await qGetSubscriptionByStripeId(realSubForTest);
+    check(
+      realFormRow !== null && realFormRow.currentPeriodEnd?.getTime() === realLineEnd * 1000,
+      `invoice.paid in ECHTER Form schreibt die DB (current_period_end = ${realLineEnd})`,
+    );
+    check(realFormRow?.planTier === 'pro', 'echte Form: Tarif bleibt pro (kein lookup_key nötig)');
+    await sql`DELETE FROM subscriptions WHERE stripe_subscription_id = ${realSubForTest}`;
     // dahlia (8.3d-Befund): subscription.updated mit period_end NUR am Item →
     // Item-Pfad lesen (periodEndOfSubscription), DB-Zeile bekommt den Wert.
     const dahliaPeriod = 1_893_700_000;

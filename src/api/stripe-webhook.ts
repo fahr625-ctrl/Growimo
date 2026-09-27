@@ -73,6 +73,64 @@ export interface StripeWebhookDeps {
   }>;
 }
 
+/**
+ * Subscription-ID einer RECHNUNG.
+ *
+ * API-Version 2026-08-26.dahlia (Live-Stand des Testkontos, per echtem
+ * Event-Payload verifiziert): das frühere Top-Level-Feld `invoice.subscription`
+ * existiert NICHT mehr — die Verknüpfung steht unter
+ * `invoice.parent.subscription_details.subscription`. Reihenfolge:
+ * neuer Pfad zuerst, alter Pfad als Rückwärtskompatibilität.
+ */
+export function invoiceSubscriptionId(invoice: Record<string, unknown>): string | null {
+  const parent = invoice.parent as
+    | { subscription_details?: { subscription?: unknown } | null }
+    | null
+    | undefined;
+  return (
+    subscriptionIdOf(parent?.subscription_details?.subscription) ??
+    subscriptionIdOf(invoice.subscription)
+  );
+}
+
+/** Rechnungsposten 0 (typsicher genug für beide API-Formen). */
+function firstInvoiceLine(
+  invoice: Record<string, unknown>,
+): Record<string, unknown> | null {
+  const lines = invoice.lines as { data?: unknown[] } | null | undefined;
+  const first = Array.isArray(lines?.data) ? lines.data[0] : null;
+  return first && typeof first === 'object' ? (first as Record<string, unknown>) : null;
+}
+
+/**
+ * Endzeitpunkt der Abrechnungsperiode aus einer Rechnung (Unix-Sekunden).
+ *
+ * dahlia liefert am Posten `period.end` — das ist die Verlängerung der
+ * Subscription-Periode (verifiziert am echten Event: `lines[0].period.end`
+ * = 1792147764 = `items[0].current_period_end` der Subscription, während
+ * `invoice.period_end` beim Erstkauf 1789555764 = Periodenbeginn war).
+ * Deshalb: Posten-Periodenende zuerst, `invoice.period_end` als Fallback.
+ */
+export function invoicePeriodEnd(invoice: Record<string, unknown>): number | null {
+  const line = firstInvoiceLine(invoice);
+  const lineEnd = (line?.period as { end?: unknown } | null | undefined)?.end;
+  if (typeof lineEnd === 'number') return lineEnd;
+  return typeof invoice.period_end === 'number' ? invoice.period_end : null;
+}
+
+/**
+ * lookup_key des Rechnungspreises — NUR in der alten API-Form vorhanden
+ * (`lines[].price.lookup_key`). In dahlia ist `line.price` entfallen
+ * (`lines[].pricing.price_details.price` trägt nur noch die price-ID, ohne
+ * lookup_key) → dann `null`, und der bestehende DB-Tarif bleibt maßgeblich
+ * (fail-closed: nie aus einer unlesbaren ID einen Tarif erfinden).
+ */
+export function invoicePriceLookupKey(invoice: Record<string, unknown>): string | null {
+  const line = firstInvoiceLine(invoice);
+  const legacy = line?.price as { lookup_key?: string | null } | null | undefined;
+  return legacy?.lookup_key ?? null;
+}
+
 function subscriptionIdOf(id: unknown): string | null {
   if (!id) return null;
   // Stripe-Event-Objekte liefern die Subscription-ID entweder als String
@@ -154,15 +212,18 @@ export async function processStripeEvent(
 
   if (event.type === "invoice.paid") {
     const invoice = event.data.object as Record<string, unknown>;
-    const subscriptionId = subscriptionIdOf(invoice.subscription);
+    // Bug 2 (Bestandsaufnahme 2026-09-27): `invoice.subscription` existiert mit
+    // API-Version 2026-08-26.dahlia nicht mehr — der Zweig war ein stiller
+    // No-Op (kein DB-Zugriff, Antwort 200). Verknüpfung jetzt über
+    // `parent.subscription_details.subscription`, alter Pfad als Fallback.
+    const subscriptionId = invoiceSubscriptionId(invoice);
     if (!subscriptionId) return;
     const existing = await qGetSubscriptionByStripeId(subscriptionId);
     if (!existing || !existing.clerkUserId) {
       // Reihenfolge: Session-Event noch nicht verarbeitet → 500, Stripe retried.
       throw new Error(`invoice.paid for unknown subscription ${subscriptionId}`);
     }
-    const lookupKey = (invoice.lines as { data?: { price?: { lookup_key?: string | null } | null }[] } | undefined)
-      ?.data?.[0]?.price?.lookup_key ?? null;
+    const lookupKey = invoicePriceLookupKey(invoice);
     await qUpsertSubscription({
       clerkUserId: existing.clerkUserId,
       stripeCustomerId:
@@ -171,8 +232,9 @@ export async function processStripeEvent(
       stripeSubscriptionId: subscriptionId,
       planTier: planTierForLookupKey(lookupKey) ?? existing.planTier,
       status: "active",
-      currentPeriodEnd:
-        typeof invoice.period_end === "number" ? invoice.period_end : null,
+      // Posten-Periodenende (dahlia: lines[].period.end = echte Subscription-
+      // Periode) zuerst, invoice.period_end als Fallback für ältere Formen.
+      currentPeriodEnd: invoicePeriodEnd(invoice),
     });
     return;
   }

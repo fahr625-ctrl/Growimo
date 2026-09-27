@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start';
+import { getOrigin } from './origin';
 
 /**
  * Creates a Stripe Customer Portal session for managing billing.
@@ -7,6 +8,10 @@ import { createServerFn } from '@tanstack/react-start';
  * userId aufgelöst (subscriptions-Tabelle) — die ID kommt nie vertrauenswürdig
  * vom Client. Fail-closed: ohne STRIPE_SECRET_KEY oder ohne verknüpften
  * Kunden wird eine saubere Fehlermeldung geworfen (nie ein Fallback-Portal).
+ *
+ * `return_url` kommt aus der echten App-Origin (Bug 1: früher localhost in
+ * Production, siehe src/stripe/origin.ts) und wird deshalb erst im Handler
+ * gebildet — dort steht der laufende Request als Kontext zur Verfügung.
  */
 export const createPortalSession = createServerFn({ method: 'POST' })
   .validator((data: unknown) => {
@@ -17,7 +22,6 @@ export const createPortalSession = createServerFn({ method: 'POST' })
     return {
       userId: d.userId,
       customerId: d.customerId,
-      returnUrl: `${getOrigin()}/app/billing`,
     };
   })
   .handler(async ({ data }) => {
@@ -45,17 +49,15 @@ export const createPortalSession = createServerFn({ method: 'POST' })
     const { default: Stripe } = await import('stripe');
     const stripe = new Stripe(secretKey);
 
+    // Rückkehr-URL MUSS auf der echten App-Origin enden (Bug 1): Origin aus
+    // PUBLIC_SITE_URL → Origin/Forwarded-Host/Host des Requests →
+    // https://www.growimo.app. Nie localhost in Production.
+    const returnUrl = `${await getOrigin()}/app/billing`;
+
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: data.returnUrl,
+      return_url: returnUrl,
     });
 
     return { url: session.url };
   });
-
-function getOrigin(): string {
-  if (typeof process !== 'undefined' && process.env?.PUBLIC_SITE_URL) {
-    return process.env.PUBLIC_SITE_URL;
-  }
-  return 'http://localhost:3000';
-}
