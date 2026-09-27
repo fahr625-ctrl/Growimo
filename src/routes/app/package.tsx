@@ -20,6 +20,7 @@ import { saveProject, updateChannel } from '~/store/projects';
 import { canGenerate, recordGeneration } from '~/store/subscriptions';
 import { trackEvent } from '~/store/analytics';
 import { trackAnalytics } from '~/lib/analytics-client';
+import { classifyGenerationError } from '~/lib/analytics-error';
 import { track } from '~/lib/tracking-client';
 import { resolveInitialIdea } from '~/lib/idea-priority';
 import { getBrandContext } from '~/store/brand';
@@ -271,11 +272,15 @@ function PackageContent() {
       console.error('Package generation failed:', error);
       setErrorMessage(t.common_unknown_error);
       // Admin-Analytics MVP Phase 1 (additive): package run error.
+      // Phase Analytics-Erweiterung: Kategorie/Code (nur Kurzfelder).
       try {
+        const cls = classifyGenerationError(error);
         trackAnalytics('generation_finished', {
           channel: 'package',
           status: 'error',
           durationMs: Date.now() - startedAt,
+          errorCategory: cls.category,
+          errorCode: cls.code,
         });
       } catch {
         // analytics must never surface errors

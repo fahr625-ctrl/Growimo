@@ -5,6 +5,7 @@ import { ProtectedRoute } from '~/components/ProtectedRoute';
 import BrandProfileToggle from '~/components/BrandProfileToggle';
 import { useTranslation } from '~/i18n';
 import { trackAnalytics } from '~/lib/analytics-client';
+import { classifyGenerationError } from '~/lib/analytics-error';
 import { track } from '~/lib/tracking-client';
 import type { TikTokDiagnoseResult, TikTokIdeaResult, TikTokMode, TikTokResult } from '~/ai/tiktok';
 import { generateTikTokServer } from '~/ai/server';
@@ -730,7 +731,8 @@ function TikTokContent() {
       const reason = runGuardRef.current?.reason();
       setErrorMessage(reason === 'user' ? t.tiktok_error_aborted : reason === 'timeout' ? t.tiktok_error_timeout : t.tiktok_error);
       // Admin-Analytics MVP Phase 1 (additive): tiktok run finished/error.
-      try { trackAnalytics(tiktokEvent, { channel: 'tiktok', status: 'error', durationMs: Date.now() - tiktokStart }); } catch { /* never block */ }
+      // Phase Analytics-Erweiterung: Guard-Grund (Abbruch/Timeout) + Kategorie.
+      try { const cls = classifyGenerationError(error, reason); trackAnalytics(tiktokEvent, { channel: 'tiktok', status: 'error', durationMs: Date.now() - tiktokStart, errorCategory: cls.category, errorCode: cls.code }); } catch { /* never block */ }
     } finally {
       runGuardRef.current = null;
       setLoading(false);

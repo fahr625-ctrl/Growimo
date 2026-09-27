@@ -174,10 +174,30 @@ CREATE TABLE IF NOT EXISTS analytics_events (
   referrer_host TEXT,
   utm_source TEXT,
   metadata JSONB DEFAULT '{}',
+  visitor_key TEXT,
+  visitor_new BOOLEAN,
+  error_category TEXT,
+  error_code TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_analytics_event_created ON analytics_events(event, created_at);
 CREATE INDEX IF NOT EXISTS idx_analytics_user_created ON analytics_events(user_pseudonym, created_at);
+
+-- ── Phase Analytics-Erweiterung (Owner-Auftrag 2026-09-27, Variante A) ────────
+-- Additiv, idempotent, KEIN Backfill (die Daten existieren für Altzzeilen nicht):
+--  - visitor_key   : pseudonymer Besucher-Schlüssel EINES Events
+--                    (= user_pseudonym wenn eingeloggt, sonst der zufällige
+--                    Cookie-Wert growimo_vid — nur nach Einwilligung).
+--                    Grundlage für COUNT(DISTINCT visitor_key) je Zeitraum.
+--  - visitor_new   : true, wenn für dieses Event ein frischer Schlüssel
+--                    ausgegeben wurde (Transparenz „davon neu").
+--  - error_category/error_code : Fehleranalyse (Whitelist + strikter Code).
+--                    Nie Meldung/Stacktrace/Prompt.
+ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS visitor_key TEXT;
+ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS visitor_new BOOLEAN;
+ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS error_category TEXT;
+ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS error_code TEXT;
+CREATE INDEX IF NOT EXISTS idx_analytics_visitor_created ON analytics_events(visitor_key, created_at);
 
 -- ── Phase 8.2 Usage-/Limit-System (Kostenschutz, Owner-Entscheidung 2026-09-12) ──
 -- usage_monthly: serverseitiger Monatszähler je Nutzer. period = 'YYYY-MM'

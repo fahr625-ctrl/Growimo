@@ -8,6 +8,12 @@
 // (route/referrer-host/utm/channel/status/duration) is sent. Never throws,
 // never blocks the calling feature.
 import type { AnalyticsChannel, AnalyticsEvent, AnalyticsStatus } from "./analytics";
+import { analyticsConsentHeader } from "./analytics-consent";
+import {
+  isAnalyticsErrorCategory,
+  isAnalyticsErrorCode,
+  type AnalyticsErrorCategory,
+} from "./analytics-error";
 
 export interface TrackAnalyticsOptions {
   channel?: AnalyticsChannel;
@@ -16,6 +22,10 @@ export interface TrackAnalyticsOptions {
   referrerHost?: string;
   utmSource?: string;
   route?: string;
+  /** Nur bei status === 'error': Kategorie aus der Owner-Whitelist. */
+  errorCategory?: AnalyticsErrorCategory;
+  /** Nur bei status === 'error': kurzer technischer Code (nie eine Meldung). */
+  errorCode?: string;
 }
 
 function currentReferrerHost(): string | undefined {
@@ -65,10 +75,24 @@ export function trackAnalytics(
     if (utmSource) payload.utmSource = utmSource;
     const route = opts.route ?? currentRoute();
     if (route) payload.metadata = { route };
+    // Fehleranalyse (additiv): NUR die zwei Kurzfelder, nur bei status='error'.
+    // Server validiert Whitelist/Regex und lehnt Meldungen/Inhalte ab.
+    if (opts.status === "error") {
+      if (opts.errorCategory && isAnalyticsErrorCategory(opts.errorCategory)) {
+        payload.errorCategory = opts.errorCategory;
+      }
+      if (opts.errorCode && isAnalyticsErrorCode(opts.errorCode)) {
+        payload.errorCode = opts.errorCode;
+      }
+    }
+    // Consent-Gate (additiv): nur bei ausdrücklicher Zustimmung sendet der
+    // Client den Header, der serverseitig das Setzen der Besucher-Kennung
+    // erlaubt. Ohne Zustimmung läuft der Request unverändert weiter (nur ohne
+    // Cookie) — bestehendes Tracking wird nicht beeinflusst.
     void fetch("/api/analytics-events", {
       method: "POST",
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...analyticsConsentHeader() },
       body: JSON.stringify(payload),
     }).catch(() => {
       /* analytics must never surface errors */

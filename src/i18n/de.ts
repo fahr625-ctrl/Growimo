@@ -1603,7 +1603,7 @@ export const de = {
   analytics_kpi_today: 'Besuche heute',
   analytics_kpi_unique: 'Eingeloggte Besucher',
   analytics_unique_note: 'Pseudonymisiert, ohne Anonyme',
-  analytics_kpi_anon: 'Anonyme Besuche',
+  analytics_kpi_anon: 'Anonyme Seitenaufrufe (ohne Login)',
   analytics_kpi_reg: 'Registrierungen',
   analytics_kpi_active: 'Aktive Nutzer',
   analytics_trend_title: 'Besuche je Tag',
@@ -1646,4 +1646,46 @@ export const de = {
   image_studio_gallery_restored_hint: 'Aus deiner Sitzung wiederhergestellt: %s Bilder — als Vorschau, damit beim Navigieren nichts verloren geht.',
   image_studio_gallery_preview_badge: 'Vorschau',
   image_studio_gallery_preview_hint: 'Wiederhergestellte Vorschau — das Original stand nur in der laufenden Sitzung zur Verfügung.',
+  // ── Phase Analytics-Erweiterung (Owner-Auftrag 2026-09-27, Variante A) ────
+  // Unique Visitors (Consent-gated) + Owner-Bereich „Fehleranalyse".
+  analytics_range_today: 'Heute',
+  analytics_kpi_unique_visitors: 'Eindeutige Besucher',
+  analytics_unique_visitors_note:
+    'Je Zeitraum einmal gezählt — Kennung nur mit Einwilligung, ohne IP und ohne Fingerprinting.',
+  analytics_unique_since: 'Kennung erfasst seit %s',
+  analytics_unique_no_data:
+    'Noch keine eindeutigen Besucher messbar — die Kennung wird erst seit Einführung erfasst (kein Rückgriff auf ältere Daten).',
+  analytics_kpi_new_visitors: 'Davon neu',
+  analytics_new_visitors_note: 'Kennung im Zeitraum zum ersten Mal gesehen',
+  analytics_err_title: 'Fehleranalyse',
+  analytics_err_note:
+    'Ursachen werden erst seit %s erfasst. Ältere Fehler haben keine Kategorie und stehen ohne Zuordnung — es wird nichts geraten.',
+  analytics_err_note_no_data:
+    'Fehlerkategorien werden ab Einführung erfasst. Für ältere Fehler liegt keine Ursache vor.',
+  analytics_err_empty: 'Keine Fehler im Zeitraum.',
+  analytics_err_total: 'Fehler im Zeitraum: %d',
+  analytics_err_channel: 'Kanal/Modul',
+  analytics_err_when: 'Zeitpunkt',
+  analytics_err_category: 'Kategorie',
+  analytics_err_code: 'Code',
+  analytics_err_before_intro: 'vor Einführung',
+  analytics_err_by_category: 'Fehler je Kategorie',
+  analytics_err_all: 'Alle',
+  analytics_err_cat_timeout: 'Timeout',
+  analytics_err_cat_provider: 'Anbieter',
+  analytics_err_cat_quota: 'Kontingent',
+  analytics_err_cat_rate_limit: 'Rate-Limit',
+  analytics_err_cat_validation: 'Validierung',
+  analytics_err_cat_network: 'Netzwerk',
+  analytics_err_cat_aborted: 'Abgebrochen',
+  analytics_err_cat_server: 'Server',
+  analytics_err_cat_unknown: 'Unbekannt (nicht erfasst)',
+  consent_analytics_title: 'Anonyme Reichweitenmessung',
+  consent_analytics_text:
+    'Wir messen eindeutige Besucher mit einer zufälligen Kennung (keine IP, kein Fingerprinting, keine personenbezogenen Daten).',
+  consent_analytics_accept: 'Einverstanden',
+  consent_analytics_decline: 'Ablehnen',
+  consent_analytics_note:
+    'Ohne Einwilligung zählen Besuche weiterhin anonym als Seitenaufrufe.',
 } as const;
+

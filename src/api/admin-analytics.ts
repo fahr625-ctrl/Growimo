@@ -19,7 +19,11 @@ import { OWNER_USER_ID } from "../lib/tracking";
 
 const PATH = "/api/admin-analytics";
 
-/** Allowed rangeDays values: 7 | 30 | 90 | all (null = all-time). Default 30. */
+/**
+ * Allowed rangeDays values: today | 7 | 30 | 90 | all.
+ * `today` → 0 (Kalendertag, gleiche Definition wie viewsToday), null = all-time.
+ * Default 30. Die alten Werte bleiben unverändert gültig.
+ */
 export function parseAdminAnalyticsRange(
   raw: unknown,
 ): { ok: true; rangeDays: number | null } | { ok: false } {
@@ -27,6 +31,7 @@ export function parseAdminAnalyticsRange(
     return { ok: true, rangeDays: 30 };
   }
   if (raw === "all") return { ok: true, rangeDays: null };
+  if (raw === "today") return { ok: true, rangeDays: 0 };
   const n = typeof raw === "number" ? raw : Number(String(raw).trim());
   if (n === 7 || n === 30 || n === 90) return { ok: true, rangeDays: n };
   return { ok: false };
@@ -69,7 +74,7 @@ export async function handleAdminAnalyticsApi(
   const parsed = parseAdminAnalyticsRange(rawRange);
   if (!parsed.ok) {
     return Response.json(
-      { error: "Invalid rangeDays (expected 7|30|90|all)" },
+      { error: "Invalid rangeDays (expected today|7|30|90|all)" },
       { status: 400 },
     );
   }

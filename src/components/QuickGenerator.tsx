@@ -22,6 +22,7 @@ import { canGenerate, recordGeneration } from '~/store/subscriptions';
 import { trackEvent } from '~/store/analytics';
 import { analyticsChannelForContentType } from '~/lib/analytics';
 import { trackAnalytics } from '~/lib/analytics-client';
+import { classifyGenerationError } from '~/lib/analytics-error';
 import { track } from '~/lib/tracking-client';
 import { TONES, toneLabel } from '~/lib/tones';
 
@@ -278,12 +279,17 @@ function QuickGeneratorContent({
       const message = error instanceof Error ? error.message : t.common_unknown_error;
       setErrorMessage(message);
       // Admin-Analytics MVP Phase 1 (additive): quick generation error.
+      // Phase Analytics-Erweiterung: Kategorie/Code zusaetzlich (nur Kurzfelder,
+      // niemals die Fehlermeldung).
       try {
         if (analyticsChannel) {
+          const cls = classifyGenerationError(error);
           trackAnalytics('generation_finished', {
             channel: analyticsChannel,
             status: 'error',
             durationMs: Date.now() - analyticsStart,
+            errorCategory: cls.category,
+            errorCode: cls.code,
           });
         }
       } catch {

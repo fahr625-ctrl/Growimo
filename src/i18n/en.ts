@@ -1600,7 +1600,7 @@ export const en: EnShape = {
   analytics_kpi_today: 'Visits today',
   analytics_kpi_unique: 'Logged-in visitors',
   analytics_unique_note: 'Pseudonymised, excluding anonymous',
-  analytics_kpi_anon: 'Anonymous visits',
+  analytics_kpi_anon: 'Anonymous page views (logged out)',
   analytics_kpi_reg: 'Registrations',
   analytics_kpi_active: 'Active users',
   analytics_trend_title: 'Visits per day',
@@ -1643,4 +1643,45 @@ export const en: EnShape = {
   image_studio_gallery_restored_hint: 'Restored from your session: %s images — as previews, so nothing is lost while navigating.',
   image_studio_gallery_preview_badge: 'Preview',
   image_studio_gallery_preview_hint: 'Restored preview — the original was only available in the live session.',
+  // ── Phase "Analytics extension" (owner request 2026-09-27, variant A) ─────
+  // Unique visitors (consent-gated) + owner section "Error analysis".
+  analytics_range_today: 'Today',
+  analytics_kpi_unique_visitors: 'Unique visitors',
+  analytics_unique_visitors_note:
+    'Counted once per period — identifier only with consent, no IP, no fingerprinting.',
+  analytics_unique_since: 'Identifier recorded since %s',
+  analytics_unique_no_data:
+    'No reliable unique visitors yet — the identifier is only recorded from introduction onwards (older data cannot be reconstructed).',
+  analytics_kpi_new_visitors: 'New in period',
+  analytics_new_visitors_note: 'Identifier seen for the first time in this period',
+  analytics_err_title: 'Error analysis',
+  analytics_err_note:
+    'Causes are only recorded since %s. Older errors carry no category and stay unassigned — nothing is guessed.',
+  analytics_err_note_no_data:
+    'Error categories are recorded from introduction onwards. Older errors have no recorded cause.',
+  analytics_err_empty: 'No errors in this period.',
+  analytics_err_total: 'Errors in period: %d',
+  analytics_err_channel: 'Channel/module',
+  analytics_err_when: 'Time',
+  analytics_err_category: 'Category',
+  analytics_err_code: 'Code',
+  analytics_err_before_intro: 'before introduction',
+  analytics_err_by_category: 'Errors per category',
+  analytics_err_all: 'All',
+  analytics_err_cat_timeout: 'Timeout',
+  analytics_err_cat_provider: 'Provider',
+  analytics_err_cat_quota: 'Quota',
+  analytics_err_cat_rate_limit: 'Rate limit',
+  analytics_err_cat_validation: 'Validation',
+  analytics_err_cat_network: 'Network',
+  analytics_err_cat_aborted: 'Aborted',
+  analytics_err_cat_server: 'Server',
+  analytics_err_cat_unknown: 'Unknown (not recorded)',
+  consent_analytics_title: 'Anonymous audience measurement',
+  consent_analytics_text:
+    'We measure unique visitors with a random identifier (no IP, no fingerprinting, no personal data).',
+  consent_analytics_accept: 'Agree',
+  consent_analytics_decline: 'Decline',
+  consent_analytics_note:
+    'Without consent, visits still count anonymously as page views.',
 }

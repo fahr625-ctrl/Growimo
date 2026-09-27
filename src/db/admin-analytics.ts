@@ -53,6 +53,29 @@ export interface AdminAnalyticsKpi {
   viewsToday: number;
   registrations: number;
   activeUsers: number;
+  /**
+   * Phase Analytics-Erweiterung (additiv): COUNT(DISTINCT visitor_key) der
+   * Pageviews im Fenster. visitor_key = HMAC-Pseudonym (eingeloggt) oder der
+   * zufällige, nur mit Einwilligung gesetzte Cookie-Wert. Altzzeilen (vor
+   * Einführung) haben NULL und zählen hier nicht mit. Jeder Schlüssel zählt je
+   * Fenster genau einmal — die Zahlen der Fenster sind NICHT addierbar.
+   */
+  uniqueVisitors: number;
+  /** Erstmalig ausgegebene Besucher-Schlüssel im Fenster (Transparenz). */
+  newVisitors: number;
+}
+
+export interface AdminAnalyticsErrorEvent {
+  /** Modul/Kanal (NULL möglich, z. B. wenn kein Kanal gesetzt war). */
+  channel: string | null;
+  /** ISO-Zeitstempel des Fehlers. */
+  at: string;
+  /** Whitelist-Kategorie; nicht erfasste Altzfehler erscheinen als `unknown`. */
+  category: string;
+  /** Kurzer technischer Code (nie eine Meldung/Stacktrace). */
+  code: string | null;
+  /** true = Kategorie/Code wurden bei diesem Event wirklich erfasst. */
+  recorded: boolean;
 }
 
 export interface AdminAnalyticsReport {
@@ -97,6 +120,33 @@ export interface AdminAnalyticsReport {
     source: "tracking" | "analytics";
     events: string[];
   }[];
+  /**
+   * Phase Analytics-Erweiterung: erster Zeitstempel, an dem überhaupt ein
+   * Besucher-Schlüssel erfasst wurde (ISO) — null = noch keine Daten. Die UI
+   * weist damit ehrlich darauf hin, dass Zeiträume davor keine belastbare
+   * Unique-Visitor-Zahl haben (kein Backfill möglich).
+   */
+  visitorsSince: string | null;
+  /** Neueste Fehler (max. 100) OHNE Pseudonym/Route/Rohzeile/Prompt. */
+  errorEvents: AdminAnalyticsErrorEvent[];
+  /** Zählung je Kategorie im Fenster (inkl. 'unknown' für nicht erfasste). */
+  errorsByCategory: { category: string; count: number }[];
+  /** Erster Zeitstempel mit erfasster Fehlerkategorie (ISO) — null = keine. */
+  errorDataSince: string | null;
+  /** Gesamtzahl der Fehler im Fenster (gleiche Definition wie generationByChannel.errors, aber inkl. TikTok-Events). */
+  errorsTotal: number;
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Zeitstempel → ISO-String (oder null). Neon liefert timestamptz je nach
+ * Treiberversion als Date oder String — beide Formen werden korrekt behandelt.
+ */
+function toIso(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  const d = value instanceof Date ? value : new Date(String(value));
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
 // ── Exclusion helpers ────────────────────────────────────────────────────────
@@ -144,10 +194,15 @@ export async function qGetAdminAnalyticsReport(
     ? sql`(user_pseudonym IS NULL OR user_pseudonym <> ALL(${EXCLP}))`
     : sql`(TRUE)`;
 
+  // Zeitfenster. NEU (additiv): rangeDays === 0 bedeutet „heute" = Kalendertag
+  // in DB-Zeit (identische Definition wie die bestehende viewsToday-Zahl,
+  // Z. oben). 7/30/90/all bleiben unverändert (rollierend bzw. ohne Filter).
   const windowed =
     rangeDays == null
       ? sql``
-      : sql`AND created_at >= NOW() - make_interval(days => ${rangeDays})`;
+      : rangeDays === 0
+        ? sql`AND created_at::date = CURRENT_DATE`
+        : sql`AND created_at >= NOW() - make_interval(days => ${rangeDays})`;
 
   // ── KPI: pageviews (analytics_events) ──
   const kpiRows = await sql`
@@ -155,7 +210,9 @@ export async function qGetAdminAnalyticsReport(
       COUNT(*) FILTER (WHERE event = 'pageview') AS views,
       COUNT(DISTINCT user_pseudonym) FILTER (WHERE event = 'pageview') AS uniques,
       COUNT(*) FILTER (WHERE event = 'pageview' AND user_pseudonym IS NULL) AS anon,
-      COUNT(*) FILTER (WHERE event = 'pageview' AND created_at::date = CURRENT_DATE) AS today
+      COUNT(*) FILTER (WHERE event = 'pageview' AND created_at::date = CURRENT_DATE) AS today,
+      COUNT(DISTINCT visitor_key) FILTER (WHERE event = 'pageview' AND visitor_key IS NOT NULL) AS uniq_visitors,
+      COUNT(*) FILTER (WHERE event = 'pageview' AND visitor_new IS TRUE) AS new_visitors
     FROM analytics_events
     WHERE ${pseudoKept}
       ${windowed}
@@ -176,7 +233,8 @@ export async function qGetAdminAnalyticsReport(
   `;
 
   // ── Trend: pageviews per day, zero-filled via generate_series (capped 30) ──
-  const trendDays = Math.min(rangeDays ?? 30, 30);
+  // „heute" (0) → genau ein Tag; 7/30/90/all → unverändert min(N,30).
+  const trendDays = Math.min(Math.max(rangeDays ?? 30, 1), 30);
   const trendRows = await sql`
     SELECT to_char(d, 'YYYY-MM-DD') AS day, COUNT(a.id) AS n
     FROM generate_series(
@@ -295,6 +353,40 @@ export async function qGetAdminAnalyticsReport(
     });
   }
 
+  // ── Phase Analytics-Erweiterung: Unique Visitors ────────────────────────────
+  // Erster Zeitstempel, an dem überhaupt eine Besucher-Kennung erfasst wurde.
+  // BEWUSST ohne Zeitfenster (die Aussage „messbar seit" ist fensterunabhängig)
+  // und OHNE Backfill — ältere Zeilen haben keine Kennung, das bleibt so.
+  const visitorsSinceRows = await sql`
+    SELECT MIN(created_at) AS since FROM analytics_events
+    WHERE visitor_key IS NOT NULL AND ${pseudoKept}
+  `;
+
+  // ── Phase Analytics-Erweiterung: Fehleranalyse ──────────────────────────────
+  // Nur NICHT-sensible Felder: Kanal, Zeitpunkt, Whitelist-Kategorie, Kurzcode.
+  // NIE Pseudonym, Route, Meldung, Stacktrace, Prompt, E-Mail.
+  const errorRows = await sql`
+    SELECT channel, created_at, error_category, error_code
+    FROM analytics_events
+    WHERE status = 'error' AND ${pseudoKept} ${windowed}
+    ORDER BY created_at DESC
+    LIMIT 100
+  `;
+  const errorCatRows = await sql`
+    SELECT COALESCE(error_category, 'unknown') AS category, COUNT(*) AS n
+    FROM analytics_events
+    WHERE status = 'error' AND ${pseudoKept} ${windowed}
+    GROUP BY 1 ORDER BY n DESC
+  `;
+  const errorTotalRows = await sql`
+    SELECT COUNT(*) AS n FROM analytics_events
+    WHERE status = 'error' AND ${pseudoKept} ${windowed}
+  `;
+  const errorSinceRows = await sql`
+    SELECT MIN(created_at) AS since FROM analytics_events
+    WHERE error_category IS NOT NULL AND ${pseudoKept}
+  `;
+
   const k = kpiRows[0];
   return {
     rangeDays,
@@ -310,6 +402,8 @@ export async function qGetAdminAnalyticsReport(
       viewsToday: Number(k.today),
       registrations: Number(regRows[0].n),
       activeUsers: Number(activeRows[0].n),
+      uniqueVisitors: Number(k.uniq_visitors),
+      newVisitors: Number(k.new_visitors),
     },
     trend: trendRows.map((r) => ({ day: String(r.day), views: Number(r.n) })),
     topReferrers: refRows.map((r) => ({ host: String(r.host), count: Number(r.n) })),
@@ -324,6 +418,22 @@ export async function qGetAdminAnalyticsReport(
       medianMs: r.median_ms === null ? null : Number(r.median_ms),
     })),
     usersPerFunction,
+    visitorsSince: toIso(visitorsSinceRows[0]?.since),
+    errorEvents: errorRows.map((r) => ({
+      channel: r.channel === null || r.channel === undefined ? null : String(r.channel),
+      at: toIso(r.created_at) ?? "",
+      category: r.error_category === null || r.error_category === undefined
+        ? "unknown"
+        : String(r.error_category),
+      code: r.error_code === null || r.error_code === undefined ? null : String(r.error_code),
+      recorded: r.error_category !== null && r.error_category !== undefined,
+    })),
+    errorsByCategory: errorCatRows.map((r) => ({
+      category: String(r.category),
+      count: Number(r.n),
+    })),
+    errorDataSince: toIso(errorSinceRows[0]?.since),
+    errorsTotal: Number(errorTotalRows[0].n),
   };
 }
 

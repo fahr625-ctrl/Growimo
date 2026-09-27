@@ -9,7 +9,8 @@ export const Route = createFileRoute("/app/admin-analytics")({
   component: AdminAnalyticsPage,
 });
 
-type RangeKey = 7 | 30 | 90 | "all";
+type RangeKey = 0 | 7 | 30 | 90 | "all";
+const RANGE_ORDER: RangeKey[] = [0, 7, 30, 90, "all"];
 
 // Local report shape (counts only — never user ids). Mirrors
 // AdminAnalyticsReport in src/db/admin-analytics.ts; defined locally so the
@@ -28,6 +29,8 @@ interface AnalyticsReport {
     viewsToday: number;
     registrations: number;
     activeUsers: number;
+    uniqueVisitors: number;
+    newVisitors: number;
   };
   trend: { day: string; views: number }[];
   topReferrers: { host: string; count: number }[];
@@ -47,7 +50,30 @@ interface AnalyticsReport {
     source: "tracking" | "analytics";
     events: string[];
   }[];
+  visitorsSince: string | null;
+  errorEvents: {
+    channel: string | null;
+    at: string;
+    category: string;
+    code: string | null;
+    recorded: boolean;
+  }[];
+  errorsByCategory: { category: string; count: number }[];
+  errorDataSince: string | null;
+  errorsTotal: number;
 }
+
+const ERROR_CATEGORY_LABEL_KEYS: Record<string, string> = {
+  timeout: "analytics_err_cat_timeout",
+  provider: "analytics_err_cat_provider",
+  quota: "analytics_err_cat_quota",
+  rate_limit: "analytics_err_cat_rate_limit",
+  validation: "analytics_err_cat_validation",
+  network: "analytics_err_cat_network",
+  aborted: "analytics_err_cat_aborted",
+  server: "analytics_err_cat_server",
+  unknown: "analytics_err_cat_unknown",
+};
 
 const EVENT_LABEL_KEYS: Record<string, string> = {
   pageview: "analytics_event_pageview",
@@ -126,6 +152,8 @@ function AdminAnalyticsContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [forbidden, setForbidden] = useState(false);
+  /** Kategorie-Filter der Fehleranalyse (rein clientseitig). */
+  const [errFilter, setErrFilter] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,7 +163,9 @@ function AdminAnalyticsContent() {
     (async () => {
       try {
         const res = await fetch(
-          `/api/admin-analytics?rangeDays=${range === "all" ? "all" : range}`,
+          `/api/admin-analytics?rangeDays=${
+            range === "all" ? "all" : range === 0 ? "today" : range
+          }`,
         );
         if (res.status === 401 || res.status === 403) {
           if (!cancelled) {
@@ -189,6 +219,38 @@ function AdminAnalyticsContent() {
       ? Math.max(...report.trend.map((d) => d.views), 1)
       : 1;
 
+  const dateLocale = locale === "en" ? "en-GB" : "de-DE";
+  // Phase Analytics-Erweiterung: „Kennung erfasst seit …" (ehrlich, ohne
+  // Rückrechnung älterer Daten) + Fehleranalyse-Ableitungen.
+  const visitorsSince = report?.visitorsSince ?? null;
+  const visitorsSinceLabel = visitorsSince
+    ? new Date(visitorsSince).toLocaleDateString(dateLocale, {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
+    : "";
+  const errorDataSince = report?.errorDataSince ?? null;
+  const errorDataSinceLabel = errorDataSince
+    ? new Date(errorDataSince).toLocaleDateString(dateLocale, {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
+    : "";
+  const errorEvents = report?.errorEvents ?? [];
+  const visibleErrorEvents = errFilter
+    ? errorEvents.filter((e) => (e.recorded ? e.category : "unknown") === errFilter)
+    : errorEvents;
+  const categoryLabel = (cat: string): string =>
+    tAny[ERROR_CATEGORY_LABEL_KEYS[cat] ?? ""] ?? cat;
+  const chipClass = (active: boolean): string =>
+    `rounded-full px-3 py-1 text-xs font-semibold transition ${
+      active
+        ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow"
+        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+    }`;
+
   const functionLabel = (fn: string): string => {
     if (fn.startsWith("generierung:")) {
       const channel = fn.slice("generierung:".length);
@@ -207,7 +269,7 @@ function AdminAnalyticsContent() {
         </div>
         {/* Zeitraum-Umschalter */}
         <div className="flex flex-wrap items-center gap-1 rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
-          {([7, 30, 90, "all"] as RangeKey[]).map((r) => (
+          {RANGE_ORDER.map((r) => (
             <button
               key={String(r)}
               type="button"
@@ -220,7 +282,9 @@ function AdminAnalyticsContent() {
             >
               {r === "all"
                 ? t.tracking_range_all
-                : t.tracking_range_days.replace("{n}", String(r)).replace("%d", String(r))}
+                : r === 0
+                  ? t.analytics_range_today
+                  : t.tracking_range_days.replace("{n}", String(r)).replace("%d", String(r))}
             </button>
           ))}
         </div>
@@ -253,7 +317,28 @@ function AdminAnalyticsContent() {
             <StatCard label={t.analytics_kpi_anon} value={kpi?.anonymousViews ?? 0} icon="🕵️" />
             <StatCard label={t.analytics_kpi_reg} value={kpi?.registrations ?? 0} icon="🆕" />
             <StatCard label={t.analytics_kpi_active} value={kpi?.activeUsers ?? 0} icon="🚀" />
+            {/* Phase Analytics-Erweiterung: eindeutige Besucher (Kennung nur
+                mit Einwilligung, je Zeitraum genau einmal gezählt). */}
+            <StatCard
+              label={t.analytics_kpi_unique_visitors}
+              value={kpi?.uniqueVisitors ?? 0}
+              icon="🧭"
+              note={
+                visitorsSince
+                  ? t.analytics_unique_since.replace("%s", visitorsSinceLabel)
+                  : t.analytics_unique_no_data
+              }
+            />
+            <StatCard
+              label={t.analytics_kpi_new_visitors}
+              value={kpi?.newVisitors ?? 0}
+              icon="✨"
+              note={t.analytics_new_visitors_note}
+            />
           </section>
+          <p className="-mt-3 text-center text-[11px] text-gray-400">
+            {t.analytics_unique_visitors_note}
+          </p>
 
           {/* Trend: Besuche je Tag */}
           <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
@@ -413,6 +498,105 @@ function AdminAnalyticsContent() {
                         </td>
                         <td className="px-3 py-2 text-right text-gray-600">
                           {formatMs(g.medianMs, "–")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          {/* Fehleranalyse (Phase Analytics-Erweiterung) — direkt unter
+              „Generierung je Kanal", das unverändert bleibt. Gezeigt werden nur
+              harmlose Felder: Kanal, Zeitpunkt, Whitelist-Kategorie, Kurzcode.
+              Kein Pseudonym, keine Route, keine Meldung, kein Prompt. */}
+          <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">{t.analytics_err_title}</h2>
+                <p className="mt-1 text-xs text-gray-400">
+                  {errorDataSince
+                    ? t.analytics_err_note.replace("%s", errorDataSinceLabel)
+                    : t.analytics_err_note_no_data}
+                </p>
+              </div>
+              <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
+                {t.analytics_err_total.replace("%d", String(report.errorsTotal))}
+              </span>
+            </div>
+
+            {report.errorsByCategory.length > 0 && (
+              <div className="mt-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  {t.analytics_err_by_category}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setErrFilter(null)}
+                    className={chipClass(errFilter === null)}
+                  >
+                    {t.analytics_err_all}
+                  </button>
+                  {report.errorsByCategory.map((c) => (
+                    <button
+                      key={c.category}
+                      type="button"
+                      onClick={() => setErrFilter(c.category)}
+                      className={chipClass(errFilter === c.category)}
+                    >
+                      {categoryLabel(c.category)} · {c.count}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {errorEvents.length === 0 ? (
+              <p className="py-6 text-center text-sm text-gray-400">{t.analytics_err_empty}</p>
+            ) : (
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="text-xs uppercase tracking-wide text-gray-500">
+                    <tr>
+                      <th className="px-3 py-2">{t.analytics_err_channel}</th>
+                      <th className="px-3 py-2">{t.analytics_err_when}</th>
+                      <th className="px-3 py-2">{t.analytics_err_category}</th>
+                      <th className="px-3 py-2">{t.analytics_err_code}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {visibleErrorEvents.map((e, i) => (
+                      <tr key={`${e.at}-${i}`}>
+                        <td className="px-3 py-2 font-medium text-gray-900">
+                          {e.channel
+                            ? (tAny[CHANNEL_LABEL_KEYS[e.channel] ?? ""] ?? e.channel)
+                            : "–"}
+                        </td>
+                        <td className="px-3 py-2 text-gray-600">
+                          {e.at
+                            ? new Date(e.at).toLocaleString(dateLocale, {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "2-digit",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "–"}
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700">
+                            {categoryLabel(e.category)}
+                          </span>
+                          {!e.recorded && (
+                            <span className="ml-2 text-[11px] text-gray-400">
+                              {t.analytics_err_before_intro}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 font-mono text-xs text-gray-500">
+                          {e.code ?? "–"}
                         </td>
                       </tr>
                     ))}

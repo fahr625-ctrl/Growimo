@@ -8,6 +8,7 @@ import {
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { ClerkAuthProvider } from "~/auth/clerk";
+import { AnalyticsConsent } from "~/components/AnalyticsConsent";
 import { I18nProvider, useTranslation } from "~/i18n";
 import { trackAnalytics } from "~/lib/analytics-client";
 
@@ -73,6 +74,10 @@ function RootComponent() {
         <ClerkAuthProvider>
           <PageviewTracker />
           <Outlet />
+          {/* Consent-Gate (additiv, non-blocking): erscheint nur ohne
+              gespeicherte Entscheidung und beeinflusst das bestehende Tracking
+              nicht — es steuert ausschließlich die neue Besucherkennung. */}
+          <AnalyticsConsent />
         </ClerkAuthProvider>
       </RootDocument>
     </I18nProvider>

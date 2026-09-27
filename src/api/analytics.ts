@@ -11,14 +11,62 @@
 // user_pseudonym = HMAC-SHA256(ANALYTICS_SALT, clerk_id) gespeichert, sonst
 // NULL (anonym). Ohne ANALYTICS_SALT → ebenfalls NULL (nie unsalted hashen,
 // nie Clerk-ID im Klartext speichern).
-import { createHmac } from "node:crypto";
+//
+// Phase Analytics-Erweiterung (2026-09-27, additiv):
+//  - visitor_key/visitor_new: pseudonymer Besucher-Schlüssel (HMAC-Pseudonym
+//    wenn eingeloggt, sonst zufälliger Cookie-Wert `growimo_vid`) — Cookie nur
+//    bei Einwilligung (Header x-analytics-consent: granted). Kein Fingerprint,
+//    keine IP, kein User-Agent, keine PII.
+//  - error_category/error_code: Fehleranalyse (Whitelist + strikter Code).
+//    Nur bei status='error'; nie Meldung/Stacktrace/Prompt.
+import { createHmac, randomUUID } from "node:crypto";
 import { qInsertAnalyticsEvent } from "../db/analytics";
 import {
   isAnalyticsChannel,
   isAnalyticsEvent,
   isAnalyticsStatus,
 } from "../lib/analytics";
+import {
+  isAnalyticsErrorCategory,
+  isAnalyticsErrorCode,
+} from "../lib/analytics-error";
 import { verifySessionSubject } from "./tracking";
+
+// ── Besucher-Kennung (Phase Analytics-Erweiterung, Owner-Auftrag 2026-09-27) ──
+// Variante A: zufällige, pseudonyme Kennung im Cookie `growimo_vid` —
+// ausschließlich nach ausdrücklicher Einwilligung (TTDSG §25 Abs. 1 /
+// ePrivacy Art. 5(3): eine Analytics-Kennung ist nicht „unbedingt erforderlich").
+// Der Client signalisiert die Entscheidung per Header `x-analytics-consent:
+// granted`; ohne diesen Header wird NIE ein Cookie gesetzt (fail-closed).
+// Keine IP: kein Fingerprinting, keine User-Agent-Ableitung, kein PII.
+export const VISITOR_COOKIE_NAME = "growimo_vid";
+/** 90 Tage = ANALYTICS_TTL_DAYS (gleiche Aufbewahrung wie die Events). */
+export const VISITOR_COOKIE_MAX_AGE = 7_776_000;
+export const VISITOR_COOKIE_RE = /^[0-9a-f]{32}$/;
+
+/** Cookie-Kopfzeile auslesen (nur der Besucher-Cookie, sonst nichts). */
+export function readVisitorCookie(req: Request): string | null {
+  const raw = req.headers.get("cookie");
+  if (!raw) return null;
+  for (const part of raw.split(";")) {
+    const [name, ...rest] = part.trim().split("=");
+    if (name === VISITOR_COOKIE_NAME) {
+      const value = rest.join("=").trim();
+      return VISITOR_COOKIE_RE.test(value) ? value : null;
+    }
+  }
+  return null;
+}
+
+/** Set-Cookie-Kopfzeile für einen frisch ausgegebenen Besucher-Schlüssel. */
+export function visitorCookieHeader(value: string): string {
+  return `${VISITOR_COOKIE_NAME}=${value}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${VISITOR_COOKIE_MAX_AGE}`;
+}
+
+/** Frischer, rein zufälliger Besucher-Schlüssel (32 hex, keine Bindestriche). */
+function newVisitorKey(): string {
+  return randomUUID().replace(/-/g, "");
+}
 
 // ── Limits ───────────────────────────────────────────────────────────────────
 /** Max request body accepted (~1 KB). Enforced via Content-Length + body size. */
@@ -203,6 +251,31 @@ export async function handleAnalyticsApi(
     return Response.json({ error: "Invalid utmSource" }, { status: 400 });
   }
 
+  // Fehleranalyse (additiv): Whitelist-Kategorie + strikter Code, NUR bei
+  // status='error'. Unbekannt/zu lang/Leerzeichen → 400. Meldungen,
+  // Stacktraces, Prompts, Produktideen sind nie Teil dieses Endpunkts.
+  let errorCategory: string | null = null;
+  let errorCode: string | null = null;
+  const hasErrorCategory = b.errorCategory !== undefined && b.errorCategory !== null;
+  const hasErrorCode = b.errorCode !== undefined && b.errorCode !== null;
+  if (hasErrorCategory || hasErrorCode) {
+    if (status !== "error") {
+      return Response.json({ error: "Invalid error fields" }, { status: 400 });
+    }
+    if (hasErrorCategory) {
+      if (!isAnalyticsErrorCategory(b.errorCategory)) {
+        return Response.json({ error: "Unknown errorCategory" }, { status: 400 });
+      }
+      errorCategory = b.errorCategory;
+    }
+    if (hasErrorCode) {
+      if (!isAnalyticsErrorCode(b.errorCode)) {
+        return Response.json({ error: "Invalid errorCode" }, { status: 400 });
+      }
+      errorCode = b.errorCode;
+    }
+  }
+
   // metadata: only the harmless { route } key, strictly guarded.
   let metadata: Record<string, unknown> = {};
   if (b.metadata !== undefined && b.metadata !== null) {
@@ -241,6 +314,34 @@ export async function handleAnalyticsApi(
   }
   const userPseudonym = pseudonymFor(clerkId);
 
+  // ── Besucher-Schlüssel (Phase Analytics-Erweiterung, Variante A) ────────────
+  // Reihenfolge: eingeloggtes Pseudonym gewinnt IMMER (konsistent zur bisherigen
+  // Pseudonym-Struktur, keine Doppelzählung derselben Session). Sonst — und nur
+  // mit Einwilligung — der zufällige Cookie-Wert. Ohne Einwilligung bleibt der
+  // Schlüssel NULL: solche Aufrufe zählen weiter als Pageviews, aber nicht in
+  // „Eindeutige Besucher".
+  const consentGranted = req.headers.get("x-analytics-consent") === "granted";
+  const cookieKey = consentGranted ? readVisitorCookie(req) : null;
+  let issuedCookie: string | null = null;
+  let visitorKey: string | null = userPseudonym;
+  let visitorNew: boolean | null = userPseudonym ? false : null;
+  if (!userPseudonym && consentGranted) {
+    if (cookieKey) {
+      visitorKey = cookieKey;
+      visitorNew = false;
+    } else {
+      const fresh = newVisitorKey();
+      visitorKey = fresh;
+      visitorNew = true;
+      issuedCookie = fresh;
+    }
+  } else if (userPseudonym && consentGranted && !cookieKey) {
+    // Eingeloggt + Einwilligung, aber noch kein Cookie: Kennung einmalig
+    // ausgeben, damit auch spätere ausgeloggte Aufrufe derselben Person
+    // zusammenfallen. Der Pseudonym-Schlüssel bleibt maßgeblich.
+    issuedCookie = newVisitorKey();
+  }
+
   await qInsertAnalyticsEvent({
     userPseudonym,
     event,
@@ -250,6 +351,17 @@ export async function handleAnalyticsApi(
     referrerHost,
     utmSource,
     metadata,
+    visitorKey,
+    visitorNew,
+    errorCategory,
+    errorCode,
   });
-  return Response.json({ ok: true }, { status: 202 });
+  return Response.json(
+    { ok: true },
+    {
+      status: 202,
+      // Set-Cookie NUR bei Einwilligung (issuedCookie ist andernfalls null).
+      ...(issuedCookie ? { headers: { "Set-Cookie": visitorCookieHeader(issuedCookie) } } : {}),
+    },
+  );
 }

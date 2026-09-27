@@ -20,6 +20,7 @@ import { canGenerate, recordGeneration, getRemainingGenerations } from '~/store/
 import { trackEvent } from '~/store/analytics';
 import { analyticsChannelForContentType } from '~/lib/analytics';
 import { trackAnalytics } from '~/lib/analytics-client';
+import { classifyGenerationError } from '~/lib/analytics-error';
 
 // ── Tone options ──────────────────────────────────────────────────────────────
 
@@ -520,10 +521,20 @@ function NewProjectContent() {
       setResults([]);
       setErrorMessage(message);
       // Admin-Analytics MVP Phase 1 (additive): finished/error per channel.
+      // Phase Analytics-Erweiterung: EINE Klassifizierung für den gesamten
+      // fehlgeschlagenen Lauf — alle Kanäle desselben Fehlers erhalten dieselbe
+      // Kategorie/denselben Code (keine N-fachen Rateverfahren).
       try {
         const durationMs = Date.now() - analyticsStart;
+        const cls = classifyGenerationError(error);
         for (const channel of analyticsChannels) {
-          trackAnalytics('generation_finished', { channel, status: 'error', durationMs });
+          trackAnalytics('generation_finished', {
+            channel,
+            status: 'error',
+            durationMs,
+            errorCategory: cls.category,
+            errorCode: cls.code,
+          });
         }
       } catch {
         // analytics must never surface errors

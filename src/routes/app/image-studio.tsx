@@ -5,6 +5,7 @@ import { useUser } from '@clerk/clerk-react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { useTranslation } from '~/i18n';
 import { trackAnalytics } from '~/lib/analytics-client';
+import { classifyGenerationError } from '~/lib/analytics-error';
 import { track } from '~/lib/tracking-client';
 import { getProjectsByUser, type Project } from '~/store/projects';
 import type { GeneratedImage } from '~/ai/image-providers/types';
@@ -215,7 +216,7 @@ function ImageStudioContent() {
     const guard = guardImageRun((signal) => generateImageServer({ data: { prompt: text, aspectRatio: selectedRatio }, signal }));
     runGuardRef.current = guard;
     try { const result = await guard.promise; addImage({ id: crypto.randomUUID(), url: result.url, prompt: text, aspectRatio: selectedRatio, createdAt: new Date() }); track('image_generated', user?.id, { aspectRatio: selectedRatio }); try { trackAnalytics('generation_finished', { channel: 'image', status: 'done', durationMs: Date.now() - imageStart }); } catch { /* never block */ } }
-    catch (e) { const reason = guard.reason(); setErrorKind(reason ?? 'generic'); setUsageError(reason ? null : friendlyServerError(e)); setError(true); try { trackAnalytics('generation_finished', { channel: 'image', status: 'error', durationMs: Date.now() - imageStart }); } catch { /* never block */ } } finally { runGuardRef.current = null; setLoading(false); }
+    catch (e) { const reason = guard.reason(); setErrorKind(reason ?? 'generic'); setUsageError(reason ? null : friendlyServerError(e)); setError(true); try { const cls = classifyGenerationError(e, reason); trackAnalytics('generation_finished', { channel: 'image', status: 'error', durationMs: Date.now() - imageStart, errorCategory: cls.category, errorCode: cls.code }); } catch { /* never block */ } } finally { runGuardRef.current = null; setLoading(false); }
   };
   // Per-card gallery action (Variation / Neu generieren): shows immediate
   // feedback on the card itself, keeps the original image, prepends the new
@@ -254,7 +255,7 @@ function ImageStudioContent() {
           ? t.image_studio_error_timeout.replace('%s', String(IMAGE_CLIENT_TIMEOUT_MS / 1000))
           : reason ? t.image_studio_error_aborted : t.image_studio_card_error,
       });
-      try { trackAnalytics('generation_finished', { channel: 'image', status: 'error', durationMs: Date.now() - cardStart }); } catch { /* never block */ }
+      try { const cls = classifyGenerationError(e, reason); trackAnalytics('generation_finished', { channel: 'image', status: 'error', durationMs: Date.now() - cardStart, errorCategory: cls.category, errorCode: cls.code }); } catch { /* never block */ }
     } finally {
       runGuardRef.current = null;
       setBusy(null);
