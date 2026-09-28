@@ -51,43 +51,40 @@ Vorher trug jede App-Session `http://localhost:3000/…`. Kein localhost mehr.
 
 **Beta-50 % im Prod-Pfad:** beide Testnutzer (Beta-E-Mail in `beta_signups approved`, und Nicht-Beta) erhielten `amount_total=1900` / `discount=0`. Grund (kein Code-Fehler): der Checkout liest die Nutzer-E-Mail aus `users`; bei einem frisch in Clerk angelegten Nutzer ist die Zeile noch nicht synchronisiert → `isBeta=false`. Der Rabatt greift erst nach dem ersten App-Kontakt (Login). **Offener Restpunkt: BETA50 im Prod-Klickpfad noch nicht mit 950 ct belegt.**
 
-## 6. Testmodus-Klickdurchlauf (Teil 3) — Rohprotokoll, Ergebnis offen
+## 6. Testmodus-Klickdurchlauf (Teil 3) — ABGESCHLOSSEN (Nacharbeit 2026-09-28)
+Nutzer: `stripe-ct-k8fa1f@ctomail.io` (Clerk `user_3JvPQaw88kW1uuNrD34EveW7hPR`, `users.id` `e06c195b-4f0a-4f94-9315-8e4e5fdc5b8d`, `beta_signups approved`).
 
-Nutzer: `stripe-ct-k8fa1f@ctomail.io` (Clerk, beta_signups approved). Ablauf: Sign-in-Token auf App-Origin → `/app/billing` → Upgrade → `checkout.stripe.com` → Testkarte 4242 … → Rückkehr.
-Das Skript lief am Ende des Zeitbudgets; Rohprotokoll (`/tmp/ct.log`) und Screenshots (`/tmp/ct-0*.png`) liegen vor, **die Zahlung und die DB-Zeile sind in dieser Runde nicht mehr verifiziert**.
+**Ausgangslage der Nacharbeit (read-only geprueft):** Der Durchlauf vom 2026-09-27 endete nach „Zahlung abgeschickt" — die Zahlung war **nicht** durch: keine `subscriptions`-Zeile, keine neue Zeile in der letzten Stunde; im Testkonto lag die Prod-Session `cs_test_a124nSrx…` mit `amount_total=950` (BETA50) aber `status=open / payment_status=unpaid`. Also wurde **neu bezahlt** (max. 1 Versuch).
 
+**Ablauf (echter Klickpfad auf www.growimo.app, Testmodus):** Clerk sign-in token auf App-Origin → `/app/billing` (Plan Free, „0 von 5") → Button **„Zu Pro wechseln"** (Prod-ServerFn `createCheckoutSession`, also App-generierte Session) → `checkout.stripe.com` Session `cs_test_a1In8I8n…` → EUR-Ansicht: Growimo Pro **€19,00** − **BETA50 €9,50** = **Total due today €9,50** (Screenshot `docs/stripe-ct-checkout-eur.png`) → Testkarte 4242 4242 4242 4242, 12/34, CVC 123, US 10001, Telefon (201) 555-0123 → **Subscribe**.
+
+**Ergebnis (Stripe-Testkonto `acct_1UFF1vCcIt8AuaKq`, read-only verifiziert):**
 ```
-poll1 url=https://www.growimo.app/app/billing
-poll2 url=https://www.growimo.app/app/billing
-poll3 url=https://www.growimo.app/app/billing
-poll4 url=https://www.growimo.app/app/billing
-poll5 url=https://www.growimo.app/app/billing
-poll6 url=https://www.growimo.app/app/billing
-poll7 url=https://www.growimo.app/app/billing
-poll8 url=https://www.growimo.app/app/billing
-poll9 url=https://www.growimo.app/app/billing
-poll10 url=https://www.growimo.app/app/billing
-poll11 url=https://www.growimo.app/app/billing
-poll12 url=https://www.growimo.app/app/billing
-poll13 url=https://www.growimo.app/app/billing
-poll14 url=https://www.growimo.app/app/billing
-poll15 url=https://www.growimo.app/app/billing
-poll16 url=https://www.growimo.app/app/billing
-poll17 url=https://www.growimo.app/app/billing
-poll18 url=https://www.growimo.app/app/billing
-poll19 url=https://www.growimo.app/app/billing
-poll20 url=https://www.growimo.app/app/billing
-== STEP3 checkout url=https://www.growimo.app/app/billing
-pay-poll1 url=https://www.growimo.app/app/billing
-== STEP4 after-pay url=https://www.growimo.app/app/billing
-== STEP5 verified
-SCRIPT-EXIT=0
+SESS cs_test_a1In8I8n… status=complete payment_status=paid amount_total=950 currency=eur sub=sub_1UKjHiCcIt8AuaKqtAp2445d
+EVT customer.subscription.created  2026-09-28T18:28:18Z
+EVT invoice.payment_succeeded      2026-09-28T18:28:18Z
+EVT checkout.session.completed     2026-09-28T18:28:19Z
+EVT invoice_payment.paid           2026-09-28T18:28:28Z
 ```
 
-DB-Blick auf die Testnutzer:
+**DB-Zeile (`subscriptions`, Neon) — der Webhook hat geschrieben:**
 ```
-[]
+id                     = 9d5c2707-f910-4ed1-aa4c-bd5e24ec4872
+user_id                = e06c195b-4f0a-4f94-9315-8e4e5fdc5b8d   (= user_3JvPQaw88kW1uuNrD34EveW7hPR)
+plan_tier              = pro
+status                 = active
+stripe_subscription_id = sub_1UKjHiCcIt8AuaKqtAp2445d
+current_period_end     = 2026-10-28T18:28:15Z   (+1 Monat ab Abschluss)
+created_at             = 2026-09-28T18:28:20Z
 ```
+
+**BETA50-Beleg:** `amount_total = 950` (EUR) an der echten Prod-Checkout-Session; Rabatt-Coupon 50 % `forever`, Promotion-Code **BETA50** (`promo_1UFdHLCcIt8AuaKqodlSkHtD`); UI zeigt €19,00 → −€9,50 → €9,50 (`docs/stripe-ct-checkout-eur.png`). Damit ist der offene Restpunkt aus §5 („BETA50 im Prod-Klickpfad noch nicht mit 950 ct belegt") **erledigt**.
+
+**Browser-End-Verifikation:** `/app/billing` nach der Rückkehr: „Aktueller Plan: **Pro** / Aktiv", „Pro-Tarif: 200 KI-Generierungen pro Monat", „Aktueller Zeitraum endet: **28. Okt.**", Nutzung „0 von 200" (Screenshot `docs/stripe-ct-final.png`). Button **„Abonnement verwalten"** führt auf `https://billing.stripe.com/p/session?secret=test_…` mit „Growimo Pro €9.50 per month · Your next billing date is October 28, 2026" (Screenshot `docs/stripe-ct-portal.png`).
+
+**usage_monthly:** für `e06c195b-…` existiert keine Zeile (`[]`) — vor und nach dem Kauf unverändert, **0 Generierungen verbraucht** (Kauf/Portal zählen nicht).
+
+**Ehrliche Einschränkung:** Der erste „Subscribe"-Klick lief ins Leere, weil das Telefonfeld (Link-Opt-in) noch leer war; nach dem Ausfüllen ging die Zahlung durch. Kein App-Befund, kein Retry eines zweiten Checkouts.
 
 ## 7. Was Owner-pflichtig bleibt
 Nur Stripe Connect / Live-Keys + echte Zahlungen (Businessplan 8.1/8.3). Der Testmodus-Pfad selbst ist ohne Owner-Aktion.
