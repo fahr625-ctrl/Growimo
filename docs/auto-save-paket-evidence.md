@@ -104,3 +104,11 @@ Baseline-Zähler VOR dem Lauf (bun+pg):
 - `scripts/_autosave-e2e-count.ts <clerkId> [label]` (read-only Zähler: projects / generated_content / usage_monthly)
 - `/tmp/e2e-autosave.sh` (Browser-Ablauf), `/tmp/bundle-proof.sh` (Marker-Beleg)
 - Beide Skripte sind Helfer und **nicht** Teil des Commits.
+
+### Nachtrag DB-Zähler (nach dem abgebrochenen Browser-Lauf)
+
+```json
+{"label":"after_run","clerkId":"user_3KC3rE9VU1DSNmqDawicCwt15CT","internalUserId":"88501a29-5622-403b-9dd7-340a495cbdc4","projectRows":0,"contentRows":0,"usage":[]}
+```
+
+Kein abgeschlossener Lauf ⇒ planmäßig kein Auto-Save, kein Verbrauch. Der Live-Nachweis (a)-(e) bleibt offen.
