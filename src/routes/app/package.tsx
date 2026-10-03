@@ -24,6 +24,13 @@ import { classifyGenerationError } from '~/lib/analytics-error';
 import { track } from '~/lib/tracking-client';
 import { resolveInitialIdea } from '~/lib/idea-priority';
 import { getBrandContext } from '~/store/brand';
+import {
+  LAST_SAVED_PACKAGE_STORAGE_KEY,
+  parseLastSavedPackage,
+  shouldAutoSavePackage,
+  type LastSavedPackage,
+  type PackageAutoSaveStatus,
+} from '~/lib/package-autosave';
 
 export const Route = createFileRoute('/app/package')({
   // Phase 1 (C3): optionales ?idea= (frische Nutzeridee) — schlägt den Entwurf.
@@ -45,6 +52,25 @@ const CHANNEL_META: Array<{
   { key: 'social', contentType: 'social_post', icon: '📱', color: 'bg-pink-100 text-pink-700' },
   { key: 'newsletter', contentType: 'email_newsletter', icon: '📧', color: 'bg-yellow-100 text-yellow-700' },
 ];
+
+// Kanal-Assets → persistierbare generated_content-Einträge. Bewusst IDENTISCH für
+// „Als Projekt speichern" und den Auto-Save (Owner-Auftrag 2026-10-01: Auto-Save
+// nutzt dieselbe Speicherlogik, nur automatisch ausgelöst). Pure Funktion.
+function buildPackageContents(channels: MarketingPackage['channels']) {
+  return CHANNEL_META.map(({ key, contentType }) => {
+    const c = channels[key];
+    if (!c) return null;
+    return {
+      contentType,
+      title: c.title,
+      body: c.body,
+      metadata: {
+        ...(c.metadata ?? {}),
+        score: c.score ?? undefined,
+      },
+    };
+  }).filter((c): c is NonNullable<typeof c> => c !== null);
+}
 
 // ── Section parsing for structured AI output (same as QuickGenerator) ─────────
 
@@ -108,6 +134,15 @@ function PackageContent() {
   const [pkg, setPkg] = useState<MarketingPackage | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
+  // Auto-Save (Owner-Entscheid 2026-10-01): Status + Merker für den UI-Hinweis.
+  const [autoSaveStatus, setAutoSaveStatus] = useState<PackageAutoSaveStatus>('idle');
+  const [lastSaved, setLastSaved] = useState<LastSavedPackage | null>(null);
+  // Refs: die Auto-Save-Entscheidung muss IMMER den aktuellen Stand sehen — ein
+  // während des Laufs geklicktes manuelles Speichern darf kein Duplikat erzeugen.
+  const runSeqRef = useRef(0);
+  const autoSavedRunRef = useRef<number | null>(null);
+  const savedProjectRef = useRef<string | null>(null);
+  const saveInFlightRef = useRef(false);
   const [showUpsell, setShowUpsell] = useState(false);
   // Server-side beta-tracking (additive): package page opened.
   useEffect(() => { track('package_or_pricing_opened', user?.id, { page: 'package' }); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user?.id]);
@@ -147,6 +182,16 @@ function PackageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Auto-Save-Hinweis: merken, welches Paket zuletzt gesichert wurde (nur UI —
+  // die Persistenz selbst liegt in der DB). Fail-closed bei kaputtem Storage.
+  useEffect(() => {
+    try {
+      setLastSaved(parseLastSavedPackage(localStorage.getItem(LAST_SAVED_PACKAGE_STORAGE_KEY)));
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem('growimo_package_draft', JSON.stringify({ productIdea, brief }));
@@ -177,6 +222,68 @@ function PackageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading]);
 
+  // ── Speichern (manuell UND automatisch — derselbe Pfad) ────────────────────
+  // EIN Pfad für beide Auslöser: identische Tabellen/Struktur (projects +
+  // generated_content) und KEIN usage-guard/-increment — Speichern kostet
+  // weiterhin 0 Generierungen (bestehende Zähl-Regel). `auto` steuert nur den
+  // UI-Merker, nicht die Persistenz.
+  const persistPackage = useCallback(
+    async (channels: MarketingPackage['channels'], auto: boolean): Promise<boolean> => {
+      const uid = user?.id ?? 'anonymous';
+      const title = productIdea.length > 50 ? productIdea.slice(0, 50) + '...' : productIdea;
+      const contents = buildPackageContents(channels);
+      if (contents.length === 0) return false;
+      // Duplikat-Schutz: kein zweiter Speichervorgang, solange einer läuft.
+      if (saveInFlightRef.current) return false;
+      saveInFlightRef.current = true;
+      try {
+        const saved = await saveProject(
+          uid,
+          {
+            userId: uid,
+            title,
+            productIdea,
+            contentTypes: contents.map((c) => c.contentType),
+            status: 'completed',
+            // F6: Strategie-Brief wird mit dem Projekt persistiert (metadata.brief).
+            metadata: hasBriefAnswers(brief) ? { brief } : undefined,
+          },
+          contents,
+        );
+        savedProjectRef.current = saved.id;
+        setSavedProjectId(saved.id);
+        const entry: LastSavedPackage = {
+          projectId: saved.id,
+          title,
+          savedAt: new Date().toISOString(),
+          auto,
+        };
+        setLastSaved(entry);
+        try {
+          localStorage.setItem(LAST_SAVED_PACKAGE_STORAGE_KEY, JSON.stringify(entry));
+        } catch {
+          // ignore storage errors — der DB-Eintrag ist der eigentliche Beleg
+        }
+        return true;
+      } finally {
+        saveInFlightRef.current = false;
+      }
+    },
+    [productIdea, user?.id, brief],
+  );
+
+  // Manuell: „Als Projekt speichern" bleibt funktional, ist aber nicht mehr
+  // Voraussetzung. Ist schon gespeichert (manuell ODER per Auto-Save), entsteht
+  // KEIN zweites Projekt (Idempotenz, Owner-Auftrag 2026-10-01).
+  const handleSaveProject = useCallback(async () => {
+    if (!pkg || savedProjectRef.current) return;
+    try {
+      await persistPackage(pkg.channels, false);
+    } catch (err) {
+      console.error('saveProject failed:', err);
+    }
+  }, [pkg, persistPackage]);
+
   // ── Generate the package ────────────────────────────────────────────────
   const handleGenerate = useCallback(async () => {
     if (!productIdea.trim()) return;
@@ -189,6 +296,10 @@ function PackageContent() {
     setIsLoading(true);
     setPkg(null);
     setSavedProjectId(null);
+    // Neuer Lauf: Auto-Save-Zustand zurücksetzen (je Lauf genau eine Chance).
+    const runId = ++runSeqRef.current;
+    savedProjectRef.current = null;
+    setAutoSaveStatus('idle');
     const startedAt = Date.now();
     // Admin-Analytics MVP Phase 1 (additive): package run started.
     try {
@@ -246,6 +357,29 @@ function PackageContent() {
       setPkg((p) => p ? { ...p, prioritized } : p);
       const okCount = Object.values(acc).filter(Boolean).length;
       recordGeneration(uid);
+      // ── AUTO-SAVE nach vollständigem Paket-Lauf (Owner-Entscheid 2026-10-01) ──
+      // Erst hier ist der Lauf fertig (alle 5 Kanäle settled) — nicht nach
+      // einzelnen Kanälen, nicht bei Teilergebnissen. Der Aufruf läuft NICHT
+      // durch den usage-guard und kostet daher 0 Generierungen.
+      if (
+        shouldAutoSavePackage({
+          runFinished: true,
+          successfulChannels: okCount,
+          alreadySaved:
+            savedProjectRef.current !== null || autoSavedRunRef.current === runId,
+          saveInFlight: saveInFlightRef.current,
+        })
+      ) {
+        autoSavedRunRef.current = runId;
+        setAutoSaveStatus('saving');
+        try {
+          const stored = await persistPackage(acc, true);
+          setAutoSaveStatus(stored ? 'saved' : 'idle');
+        } catch (err) {
+          console.error('[package] auto-save failed:', err);
+          setAutoSaveStatus('idle');
+        }
+      }
       // Admin-Analytics MVP Phase 1 (additive): package run finished.
       try {
         trackAnalytics('generation_finished', {
@@ -288,50 +422,8 @@ function PackageContent() {
     } finally {
       setIsLoading(false);
     }
-  }, [productIdea, user?.id, locale, brief]);
+  }, [productIdea, user?.id, locale, brief, persistPackage]);
 
-
-  // ── Save package as a project (all channels persisted like QuickGenerator) ──
-  const handleSaveProject = useCallback(async () => {
-    if (!pkg) return;
-    const uid = user?.id ?? 'anonymous';
-    const title = productIdea.length > 50 ? productIdea.slice(0, 50) + '...' : productIdea;
-
-    const contents = CHANNEL_META.map(({ key, contentType }) => {
-      const c = pkg.channels[key];
-      if (!c) return null;
-      return {
-        contentType,
-        title: c.title,
-        body: c.body,
-        metadata: {
-          ...(c.metadata ?? {}),
-          score: c.score ?? undefined,
-        },
-      };
-    }).filter((c): c is NonNullable<typeof c> => c !== null);
-
-    if (contents.length === 0) return;
-
-    try {
-      const saved = await saveProject(
-        uid,
-        {
-          userId: uid,
-          title,
-          productIdea,
-          contentTypes: contents.map((c) => c.contentType),
-          status: 'completed',
-          // F6: Strategie-Brief wird mit dem Projekt persistiert (metadata.brief).
-          metadata: hasBriefAnswers(brief) ? { brief } : undefined,
-        },
-        contents,
-      );
-      setSavedProjectId(saved.id);
-    } catch (err) {
-      console.error('saveProject failed:', err);
-    }
-  }, [pkg, productIdea, user?.id, brief]);
 
   // ── F2: apply improved asset to state + persisted project ───────────────
   const handleImproved = useCallback(
@@ -431,6 +523,27 @@ function PackageContent() {
         <p className="mt-2 text-sm text-gray-500 sm:text-base">{t.package_subtitle}</p>
       </div>
 
+      {/* Auto-Save-Merker: nach Reload/Neuaufruf bleibt sichtbar, dass das Paket
+          gesichert ist (die Persistenz selbst liegt in der DB) */}
+      {lastSaved && !pkg && (
+        <div
+          data-testid="package-last-saved"
+          className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4"
+        >
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-emerald-800">{t.package_last_saved_title}</p>
+            <p className="mt-0.5 truncate text-xs text-emerald-700">{lastSaved.title}</p>
+          </div>
+          <Link
+            to="/app/projects/$projectId"
+            params={{ projectId: lastSaved.projectId }}
+            className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm transition-all hover:bg-emerald-100"
+          >
+            {t.package_saved_link}
+          </Link>
+        </div>
+      )}
+
       {/* Input card */}
       <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <label htmlFor="package-idea" className="mb-2 block text-sm font-semibold text-gray-700">
@@ -516,10 +629,28 @@ function PackageContent() {
               <button
                 type="button"
                 onClick={handleSaveProject}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-purple-700 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-fuchsia-200 transition-all hover:from-fuchsia-700 hover:to-purple-800 hover:shadow-lg hover:-translate-y-0.5"
+                disabled={Boolean(savedProjectId) || autoSaveStatus === 'saving'}
+                className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 ${
+                  savedProjectId
+                    ? 'bg-emerald-600 shadow-emerald-200'
+                    : 'bg-gradient-to-r from-fuchsia-600 to-purple-700 shadow-fuchsia-200 hover:from-fuchsia-700 hover:to-purple-800 hover:shadow-lg hover:-translate-y-0.5'
+                }`}
               >
-                {t.package_save_project}
+                {savedProjectId ? t.package_saved_done : t.package_save_project}
               </button>
+              {autoSaveStatus === 'saving' && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-fuchsia-200 bg-fuchsia-50 px-3 py-1.5 text-xs font-semibold text-fuchsia-700">
+                  {t.package_autosaving}
+                </span>
+              )}
+              {autoSaveStatus === 'saved' && (
+                <span
+                  data-testid="package-autosave-hint"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700"
+                >
+                  {t.package_autosaved}
+                </span>
+              )}
               {savedProjectId && (
                 <button
                   type="button"
