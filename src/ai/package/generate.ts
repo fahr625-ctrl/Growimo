@@ -44,12 +44,18 @@ export async function generatePackageChannel(
   /** Phase 4.2 — MARKENKONTEXT-Block (leer bei AUSgeschaltetem Profil). */
   brandContext?: string,
 ): Promise<ContentResult> {
+  // Owner-Entscheid 2026-10-01 (Teil 2): Der Paket-Flow aktiviert den
+  // deterministischen Fakten-Check (ai/fact-guard.ts). Grounding = NUR die
+  // Nutzerangaben (Idee + Markenprofil + Brief), NICHT der LLM-generierte Kernel.
+  const userGrounding = [productIdea, brandContext, briefContext].filter(Boolean).join('\n');
   const request: ContentRequest = {
     contentType,
     productIdea,
     additionalContext: [kernelContext(kernel), brandContext, briefContext, perfContext, learnContext]
       .filter(Boolean)
       .join('\n\n'),
+    enforceFacts: true,
+    factGrounding: userGrounding,
   };
   const { generateContent } = await import('../generate');
   return generateContent(request);

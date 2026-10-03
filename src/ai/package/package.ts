@@ -245,9 +245,13 @@ export async function generatePackageChannelWithContext(
   context: string,
 ): Promise<ContentResult> {
   const { generateContent } = await import('../generate');
+  // Owner-Entscheid 2026-10-01 (Teil 2): Fakten-Schutz im Package-Flow. Das
+  // Grounding (Idee + Brief + Markenprofil) wird in generate.ts aus dem Kontext
+  // abgeleitet — der LLM-generierte Strategie-Kern ist davon ausgenommen.
   return generateContent({
     contentType,
     productIdea,
     additionalContext: context,
+    enforceFacts: true,
   });
 }

@@ -43,6 +43,10 @@ export interface ContextLoyaltyRun {
   attempts: number;
   /** true = erst der korrigierte Versuch war konform. */
   corrected: boolean;
+  /** Owner-Entscheid 2026-10-01 (Teil 2): true = Korrekturversuch wegen Fakten-Verstoß. */
+  factCorrected?: boolean;
+  /** true = faktenfrei erst nach Satz-Eliminierung (letzte Instanz, TikTok-Muster). */
+  factSanitized?: boolean;
 }
 
 /**
@@ -67,36 +71,95 @@ export async function runWithContextLoyalty(
   request: ContentRequest,
   run: (req: ContentRequest) => Promise<ContentResult>,
 ): Promise<ContextLoyaltyRun> {
-  const first = await run(request);
   const { resultLoyaltyViolations, contextLoyaltyCorrection, CONTEXT_LOYALTY_ERROR } =
     await import('./context-loyalty');
+  // Owner-Entscheid 2026-10-01 (Teil 2): Fakten-Schutz NUR für den Paket-Flow
+  // (`enforceFacts`), alle anderen Pfade bleiben byte-gleich wie vorher.
+  const enforceFacts = request.enforceFacts === true;
+  const { resultFactViolations, factGuardCorrection, sanitizeFactResult, FACT_GUARD_ERROR, buildFactGrounding } =
+    await import('./fact-guard');
+  const grounding = enforceFacts ? buildFactGrounding(request) : '';
+
+  const first = await run(request);
   const violations = resultLoyaltyViolations(request, first);
-  if (violations.length === 0) return { result: first, attempts: 1, corrected: false };
-  console.warn(
-    '[generate] Kontexttreue-Verstoss:',
-    violations.join('|'),
-    'fuer',
-    request.contentType,
-    '— ein korrigierender Versuch.',
-  );
-  // Korrektur-Hinweis zweisprachig (der Server kennt die UI-Sprache nicht).
+  const firstFact = enforceFacts ? resultFactViolations(first, grounding) : [];
+  if (violations.length === 0 && firstFact.length === 0) {
+    return { result: first, attempts: 1, corrected: false };
+  }
+  if (violations.length > 0) {
+    console.warn(
+      '[generate] Kontexttreue-Verstoss:',
+      violations.join('|'),
+      'fuer',
+      request.contentType,
+      '— ein korrigierender Versuch.',
+    );
+  }
+  if (firstFact.length > 0) {
+    console.warn(
+      '[generate] Fakten-Verstoss:',
+      firstFact.join('|'),
+      'fuer',
+      request.contentType,
+      '— ein korrigierender Versuch.',
+    );
+  }
+  // Korrektur-Hinweis zweisprachig (der Server kennt die UI-Sprache nicht) und
+  // bei Fakten-Verstoß zusätzlich die konkret benannten Kategorien.
   const retryRequest: ContentRequest = {
     ...request,
-    correctionNote: [request.correctionNote, contextLoyaltyCorrection('de'), contextLoyaltyCorrection('en')]
+    correctionNote: [
+      request.correctionNote,
+      violations.length > 0 ? contextLoyaltyCorrection('de') : '',
+      violations.length > 0 ? contextLoyaltyCorrection('en') : '',
+      firstFact.length > 0 ? factGuardCorrection(firstFact) : '',
+    ]
       .filter(Boolean)
       .join('\n\n'),
   };
   const retry = await run(retryRequest);
   const retryViolations = resultLoyaltyViolations(request, retry);
-  if (retryViolations.length === 0) return { result: retry, attempts: 2, corrected: true };
-  console.error(
-    '[generate] Kontexttreue-Verstoss auch nach Korrektur:',
-    retryViolations.join('|'),
+  const retryFact = enforceFacts ? resultFactViolations(retry, grounding) : [];
+  if (retryViolations.length === 0 && retryFact.length === 0) {
+    return { result: retry, attempts: 2, corrected: violations.length > 0, factCorrected: firstFact.length > 0 };
+  }
+  // Kontexttreue bleibt hart (Stabilisierung 4.2): unbegründeter Selbstbezug
+  // auch nach der Korrektur ⇒ ehrlicher Fehler, nichts wird still geliefert.
+  if (retryViolations.length > 0) {
+    console.error(
+      '[generate] Kontexttreue-Verstoss auch nach Korrektur:',
+      retryViolations.join('|'),
+      'fuer',
+      request.contentType,
+      '— Ausgabe wird abgelehnt.',
+    );
+    throw new Error(CONTEXT_LOYALTY_ERROR);
+  }
+  // Fakten-Schutz: letzte Instanz ist die Satz-Eliminierung (Muster TikTok
+  // `dropStorySentences`) — erfundene Behauptungen verlassen die Engine NIE.
+  console.warn(
+    '[generate] Fakten-Verstoss auch nach Korrektur:',
+    retryFact.join('|'),
     'fuer',
     request.contentType,
-    '— Ausgabe wird abgelehnt.',
+    '— Saetze werden eliminiert.',
   );
-  throw new Error(CONTEXT_LOYALTY_ERROR);
+  const cleaned = sanitizeFactResult(retry, grounding);
+  // Ist der Titel komplett weggefallen, traegt die Produktidee (Nutzerdaten)
+  // weiterhin einen belegten Titel — das Asset bleibt so nutzbar.
+  const safeTitle =
+    cleaned.title.trim() === '' ? request.productIdea.trim().split('\n')[0].slice(0, 80) : cleaned.title;
+  if (cleaned.body.trim() === '') {
+    console.error('[generate] Fakten-Verstoss nicht bereinbar — Ausgabe wird abgelehnt:', request.contentType);
+    throw new Error(FACT_GUARD_ERROR);
+  }
+  return {
+    result: { ...cleaned, title: safeTitle },
+    attempts: 2,
+    corrected: false,
+    factCorrected: true,
+    factSanitized: true,
+  };
 }
 
 async function generateWithContextLoyalty(

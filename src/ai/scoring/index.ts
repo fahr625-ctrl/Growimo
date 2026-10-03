@@ -8,6 +8,7 @@
 import type { ContentResult, ContentRequest, ContentScore, ScoreDimension, ScoreSubScore } from '../types';
 import { dimensionLabel, ruleDimensionScores, runRules } from './rules';
 import { judgeContent, type LlmJudgment } from './llm';
+import { sanitizeFactText } from '../fact-guard';
 
 export const RULE_VERSION = 1;
 
@@ -114,12 +115,38 @@ function buildSummary(
 }
 
 /**
+ * Owner-Entscheid 2026-10-01 (Teil 2) — FAKTEN-SCHUTZ für Hinweis-Texte.
+ * Verbesserungshinweise (Score-Issues) sind der Pfad, über den der Fremd-Slug
+ * „/trauerkarten-gestalten-persoenlich" sichtbar wurde: Jeder Hinweistext läuft
+ * deshalb durch den deterministischen Fakten-Check (ai/fact-guard.ts). Sätze mit
+ * erfundenen Fakten (Lieferzeit, Preis, Trend, fremder Slug/Link …) werden
+ * entfernt; bleibt nichts übrig, steht ein neutraler, faktenfreier Hinweis.
+ */
+const FACT_SAFE_HINT_FALLBACK =
+  'Formuliere diesen Punkt ausschließlich mit Angaben aus deiner Produktidee bzw. deinem Markenprofil (keine erfundenen Fakten wie Lieferzeit, Preis, Trend oder fremde Beispiel-Links).';
+
+function sanitizeHintText(text: string, grounding: string): string {
+  if (typeof text !== 'string' || text.trim() === '') return text;
+  const cleaned = sanitizeFactText(text, grounding).trim();
+  return cleaned === '' ? FACT_SAFE_HINT_FALLBACK : cleaned;
+}
+
+/** Hinweis-Pfad des Fakten-Schutzes (Meldung + Fix-Vorschlag). */
+function factSafeIssues(issues: ContentScore['issues'], grounding: string): ContentScore['issues'] {
+  return issues.map((issue) => ({
+    ...issue,
+    message: sanitizeHintText(issue.message, grounding),
+    fix: { ...issue.fix, suggestion: sanitizeHintText(issue.fix.suggestion, grounding) },
+  }));
+}
+
+/**
  * Score one generated asset: deterministic rules (always) + one LLM judgment
  * pass (optional). Never throws — on any error the rules-only score is returned
  * and the issue list carries a single warning.
  */
 export async function scoreContent(
-  request: Pick<ContentRequest, 'contentType' | 'productIdea'>,
+  request: Pick<ContentRequest, 'contentType' | 'productIdea'> & { additionalContext?: string },
   result: ContentResult,
 ): Promise<ContentScore> {
   let rules;
@@ -142,12 +169,15 @@ export async function scoreContent(
   const ruleScores = ruleDimensionScores(rules.outcomes);
   const subScores = buildSubScores(result.contentType, ruleScores, llm);
   const total = clamp100(subScores.reduce((sum, s) => sum + s.score * s.weight, 0));
-  const summary = buildSummary(result.contentType, subScores, rules.issues, request.productIdea);
+  // Fakten-Schutz der Hinweise: Grounding = Nutzerangaben (Idee + Zusatzkontext).
+  const grounding = [request.productIdea ?? '', request.additionalContext ?? ''].filter(Boolean).join('\n');
+  const issues = factSafeIssues(rules.issues, grounding);
+  const summary = buildSummary(result.contentType, subScores, issues, request.productIdea);
 
   return {
     total,
     subScores,
-    issues: rules.issues,
+    issues,
     summary,
     ruleVersion: RULE_VERSION,
   };

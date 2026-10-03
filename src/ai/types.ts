@@ -23,6 +23,23 @@ export interface ContentRequest {
    * NICHT von der UI/den Server-Fn-Validatoren durchgereicht.
    */
   correctionNote?: string;
+  /**
+   * Owner-Entscheid 2026-10-01 (Teil 2) — FAKTEN-SCHUTZ im Package-Flow: true =
+   * die Ausgabe läuft durch den deterministischen Package-Fakten-Check
+   * (ai/fact-guard.ts): 1 Korrekturversuch mit benanntem Verstoß, danach
+   * Satz-Eliminierung (bzw. harter Fehler, wenn nichts Faktenfreies übrig bleibt).
+   * Wird NUR vom Paket-Flow gesetzt (`package/generate.ts`,
+   * `package/package.ts#generatePackageChannelWithContext`) — Einzel-Kanäle,
+   * TikTok und Stabilisierungs-Pfade bleiben unverändert.
+   */
+  enforceFacts?: boolean;
+  /**
+   * Owner-Entscheid 2026-10-01 (Teil 2) — optionaler Grounding-Blob des
+   * Paket-Flows (Nutzerangaben: Produktidee + Brief + Markenprofil). Nur
+   * serverseitig gesetzt (wie `correctionNote`), NICHT von der UI durchgereicht.
+   * Fehlt er, leitet `buildFactGrounding()` ihn aus Idee + Zusatzkontext ab.
+   */
+  factGrounding?: string;
 }
 
 export interface ContentResult {

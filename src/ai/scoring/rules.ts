@@ -279,7 +279,7 @@ const etsyRules: RuleCheck[] = [
     const cta = blockByHeading(ctx.blocks, ['Jetzt gehört es dir', 'Jetzt gehört es Dir']);
     if (!cta || charCount(cta.content) < 20) {
       return issue(false, 'cta', 'Der persönliche CTA-Abschnitt fehlt.',
-        { field: 'cta', action: 'add', suggestion: 'Ergänze einen freundlichen, direkten CTA mit Vorfreude auf die Lieferung (z. B. „Ich packe jedes Stück persönlich ein — in 3–5 Tagen hältst du es in den Händen.").' }, 'critical');
+        { field: 'cta', action: 'add', suggestion: 'Ergänze einen freundlichen, direkten CTA mit Vorfreude auf das Produkt (ohne erfundene Lieferzeit, Versand- oder Rückgabezusage — solche Angaben nur, wenn der Nutzer sie genannt hat).' }, 'critical');
     }
     return issue(true, 'cta', 'Persönlicher CTA vorhanden.', { field: 'cta', action: 'keep', suggestion: '' });
   },
@@ -395,7 +395,7 @@ const blogRules: RuleCheck[] = [
     const slug = ctx.result.metadata?.slug ? String(ctx.result.metadata.slug) : '';
     if (!slug || !slug.startsWith('/')) {
       return issue(false, 'structure', 'Der URL-Slug fehlt oder ist ungültig.',
-        { field: 'slug', action: 'add', suggestion: 'Erstelle einen kurzen URL-Slug mit dem Fokus-Keyword, ohne Sonderzeichen (z. B. /trauerkarten-gestalten-persoenlich).' });
+        { field: 'slug', action: 'add', suggestion: 'Erstelle einen kurzen URL-Slug, der nur aus dem Fokus-Keyword des Nutzerthemas gebildet wird (kleingeschrieben, Bindestriche, ohne Sonderzeichen) — keinen fremden Beispiel-Slug übernehmen.' });
     }
     return issue(true, 'structure', `URL-Slug vorhanden (${slug}).`, { field: 'slug', action: 'keep', suggestion: '' });
   },
@@ -476,7 +476,7 @@ const socialRules: RuleCheck[] = [
   (ctx) => {
     if (!SOCIAL_CTA_RE.test(ctx.result.body)) {
       return issue(false, 'cta', 'Kein Engagement-CTA (Frage/Aufforderung) in den Captions gefunden.',
-        { field: 'captions', action: 'add', suggestion: 'Ergänze mindestens eine Frage oder Aufforderung, die zum Kommentieren animiert (z. B. „Was ist euer liebstes Material — Leinen oder Baumwolle?") und einen klaren Handlungs-CTA.' });
+        { field: 'captions', action: 'add', suggestion: 'Ergänze mindestens eine Frage oder Aufforderung zum Kommentieren, die sich auf das Nutzerthema bezieht (keine fremden Beispielprodukte/Materialien), und einen klaren Handlungs-CTA.' });
     }
     return issue(true, 'cta', 'Engagement-CTA vorhanden.', { field: 'captions', action: 'keep', suggestion: '' });
   },

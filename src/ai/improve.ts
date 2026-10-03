@@ -73,6 +73,9 @@ function buildPrompt(
   return `=== AUFGABE ===
 Verbessere den folgenden ${channelLabel} gezielt. Wende AUSSCHLIESSLICH die unten gelisteten Fixes an — nichts anderes. Ändere KEINE Sektion, die nicht in der Fix-Liste steht, und erfinde KEINE neuen Produktdetails, die nicht in der Produktidee stehen.
 
+=== FAKTEN-SCHUTZ (harte Regel) ===
+Jedes Faktum muss aus den Nutzerangaben stammen. Entferne bzw. erfinde NICHTS von: persönlichen Ich-Erzählungen/Anekdoten des Verkäufers, Lieferzeiten, Versand- oder Rückgaberegeln, Preisen, Zertifikaten/Materialversprechen, Trend-/Beliebtheits-Behauptungen („Trend", „alle lieben") und fremden Beispiel-Slugs/URLs. Beispiel-Slugs nur aus dem Nutzerthema ableiten.
+
 === PRODUKTIDEE (Kontext, bitte einhalten) ===
 ${(productIdea || 'Nicht angegeben — arbeite nur mit dem vorhandenen Inhalt.').slice(0, 800)}
 
