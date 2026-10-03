@@ -91,3 +91,21 @@ gemessen ist.
 ## 6. Nachtrag
 
 _(wird nach dem Live-Lauf ergänzt — Muster-grep, Screenshots, DB-Zähler, Bundle-Marker)_
+
+## 6. Stand Live-Verifikation (ehrlich)
+
+- **Deployt:** `bash build-vercel.sh && bunx vercel deploy --prebuilt --prod --yes` → `DEPLOY_EXIT=0`,
+  Production `https://site-bnzjozwp7-growimo.vercel.app`, aliasiert auf `https://www.growimo.app`.
+- **Frischer synthetischer Nutzer** für den Live-Lauf angelegt: `user_3KC94CxNyNFUvD3FZlGuELVbF4d`
+  (`e2e-autosave-p7u09@ctomail.io`, Beta-Signup 200). DB-Baseline vor dem Lauf: `projects 0`,
+  `contentRows 0`, `usage []`.
+- **Offen (nicht behauptet):** Der 5-Kanal-Live-Lauf wurde gestartet (Login per Clerk-Ticket, `/app/package?idea=`,
+  Klick auf „Paket generieren", Marker-Polling, DOM-Muster-grep, Screenshots, DB-Zähler nach dem Lauf —
+  Harness `/tmp/fs/run.sh`, Logs `/tmp/fs/run.log`, `/tmp/fs/extract1.json`). **Innerhalb des Session-Budgets
+  lag das Ergebnis noch nicht vor** — DOM-grep, „kein Fremd-Slug im Verbesserungshinweis", Verbrauch exakt 5
+  Generierungen und Auto-Save-Regression sind **noch nicht live belegt**. Dieser Abschnitt ist bewusst leer
+  geblieben statt mit Vermutungen gefüllt: der Lauf muss aus `/tmp/fs/run.log` + `/tmp/fs/extract1.json`
+  ausgewertet werden (Nutzer `user_3KC94CxNyNFUvD3FZlGuELVbF4d` ist nach einem Lauf am Free-Limit → für eine
+  Wiederholung neuen Nutzer über `scripts/_autosave-e2e-setup.ts` anlegen).
+- **Deckung bis dahin:** 66/66 deterministische Fakten-Check-Tests (inkl. der 4 Beleg-Muster de+en),
+  Kontexttreue-Suiten 50/47/81 PASS, Bundle im Production-Build enthält die Fakten-Regel.
