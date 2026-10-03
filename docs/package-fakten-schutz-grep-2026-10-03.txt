@@ -1,0 +1,41 @@
+# Fakten-Grep der 5 Paket-Assets (Live-DB, read-only)
+Nutzer: user_3KC94CxNyNFUvD3FZlGuELVbF4d / d7a5aa59-d845-47a1-b22c-4be03ad9fcd2 — Projekt(e): 1 — Assets: 5
+
+## Projekt a159c47e-34c8-4f17-a615-8c5292690d48 — "Personalisierte Geburtstagskerzen aus Bienenwachs ..."
+Produktidee: Personalisierte Geburtstagskerzen aus Bienenwachs für Kinder
+Grounding (Idee + Projekt-Metadaten): 63 Zeichen
+
+── PINTEREST_PIN (d5cdc4a5-cc6d-48cf-9f36-9709e1dc918b) — 2630 Zeichen body
+TITEL: „Der Trick für strahlende Kinderaugen: Personalisierte Bienenwachskerzen 🎂"
+factViolations (grounded, ECHTER Check): 0 — KEIN Verstoß
+factViolations (ohne Grounding, Literal-Gegenprobe): 0
+Literal-Muster (18 Kategorien + 4 Demo-Belege): KEIN Treffer
+HINWEISE (metadata): [{"fix":{"field":"title","action":"insert_keyword","suggestion":"Integriere das Keyword mit dem höchsten Suchvolumen direkt in den Pin-Titel, z. B. als Subjekt der Headline."},"message":"Kein Fokus-Keyword steckt im Pin-Titel.","category":"keywords","severity":"warning"}]
+
+── ETSY_LISTING (6a418b9f-7daa-4a29-9ec8-4e83a4f265b2) — 6078 Zeichen body
+TITEL: Personalisierte Geburtstagskerzen Kinder | Bienenwachskerzen | Nachhaltige Geburtstagsdeko
+factViolations (grounded, ECHTER Check): 0 — KEIN Verstoß
+factViolations (ohne Grounding, Literal-Gegenprobe): 0
+Literal-Muster (18 Kategorien + 4 Demo-Belege): KEIN Treffer
+HINWEISE (metadata): [{"fix":{"field":"cta","action":"add","suggestion":"Ergänze einen freundlichen, direkten CTA mit Vorfreude auf das Produkt (ohne erfundene Lieferzeit, Versand- oder Rückgabezusage — solche Angaben nur, wenn der Nutzer sie genannt hat)."},"message":"Der persönliche CTA-Abschnitt fehlt.","category":"cta","severity":"critical"},{"fix":{"field":"tags","action":"add","suggestion":"Fülle ALLE 13 Etsy-Tags aus (aktuell 10). Nutze Longtail-Phrasen, wie Käufer wirklich suchen — maximal 20 Zeichen pro Tag."},"message":"Nur 10 von 13 Etsy-Tags ausgefüllt.","category":"structure","severity":"warning"},{"fix":{"field":"faq","action":"add","suggestion":"Formuliere diesen Punkt ausschließlich mit Angaben aus deiner Produktidee bzw. deinem Markenprofil (keine erfundenen Fakten wie Lieferzeit, Preis, Trend oder fremde Beispiel-Links)."},"message":"FAQ fehlt oder hat nur 0 Frage(n) (Ziel: 5).","category":"structure","severity":"warning"},{"fix":{"field":"altText","action":"rewrite","suggestion":"Passe den Alt-Text auf 90–130 Zeichen an (aktuell 0) — Farbe, Material, Stil und Nutzungskontext in einem Satz."},"message":"SEO-Alt-Text hat 0 Zeichen (Ziel: 90–130).","category":"image","severity":"warning"}]
+
+── SEO_BLOG (9f23def3-79ed-4a99-91f3-25609ba6c564) — 7000 Zeichen body
+TITEL: (H1)
+factViolations (grounded, ECHTER Check): 0 — KEIN Verstoß
+factViolations (ohne Grounding, Literal-Gegenprobe): 0
+Literal-Muster (18 Kategorien + 4 Demo-Belege): KEIN Treffer
+HINWEISE (metadata): [{"fix":{"field":"body","action":"expand","suggestion":"Baue den Artikel auf mindestens 1.500 Wörter aus (aktuell 880)."},"message":"Der Blogartikel hat 880 Wörter (Ziel: 1.500–2.500).","category":"length","severity":"warning"},{"fix":{"field":"title","action":"insert_keyword","suggestion":"Setze das Fokus-Keyword „Personalisierte Geburtstagskerzen\" an den Anfang des SEO-Titels (H1)."},"message":"Das Fokus-Keyword fehlt im H1-Titel.","category":"keywords","severity":"warning"},{"fix":{"field":"slug","action":"add","suggestion":"Erstelle einen kurzen URL-Slug, der nur aus dem Fokus-Keyword des Nutzerthemas gebildet wird (kleingeschrieben, Bindestriche, ohne Sonderzeichen) — keinen fremden Beispiel-Slug übernehmen."},"message":"Der URL-Slug fehlt oder ist ungültig.","category":"structure","severity":"warning"},{"fix":{"field":"lsiKeywords","action":"add","suggestion":"Ergänze 12–18 semantisch verwandte Keywords (aktuell 1) und streue sie natürlich in den Text."},"message":"Nur 1 LSI-Keywords (Ziel: 12–18).","category":"keywords","severity":"warning"}]
+
+── SOCIAL_POST (96706d96-aa8e-46bd-bd37-379c12bdc12f) — 992 Zeichen body
+TITEL: **Licht der Freude**
+factViolations (grounded, ECHTER Check): 0 — KEIN Verstoß
+factViolations (ohne Grounding, Literal-Gegenprobe): 0
+Literal-Muster (18 Kategorien + 4 Demo-Belege): KEIN Treffer
+HINWEISE (metadata): [{"fix":{"field":"captions","action":"add","suggestion":"Ergänze mindestens eine Frage oder Aufforderung zum Kommentieren, die sich auf das Nutzerthema bezieht (keine fremden Beispielprodukte/Materialien), und einen klaren Handlungs-CTA."},"message":"Kein Engagement-CTA (Frage/Aufforderung) in den Captions gefunden.","category":"cta","severity":"warning"}]
+
+── EMAIL_NEWSLETTER (497fae30-2586-4be0-ad77-8acd524c1e87) — 1522 Zeichen body
+TITEL: Betreffzeile 1 (Neugier):
+factViolations (grounded, ECHTER Check): 0 — KEIN Verstoß
+factViolations (ohne Grounding, Literal-Gegenprobe): 0
+Literal-Muster (18 Kategorien + 4 Demo-Belege): KEIN Treffer
+HINWEISE (metadata): []
