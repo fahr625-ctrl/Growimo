@@ -123,3 +123,168 @@ committet und gepusht:
   OpenAI-Key in der Shell), nicht durch diesen Schritt verursacht; `f10`/`f2-1`/`brand-profile`/
   `guard-metric`/`improve-deadzone`/`package-autosave`/`stabilisierung-phase3|4|41|43` waren beim
   Session-Ende noch nicht durchgelaufen (`/tmp/gates.txt`).
+
+---
+
+## Deploy + Live-Verifikation (2026-10-04, Nachzug zum Session-Ende 387ad0f)
+
+**Beleg-Stand:** `b4d1733` (HEAD = origin/master).
+
+### 1. Deploy
+
+- Build: `bash build-vercel.sh` → `BUILD_OK`
+  - Server-Funktion `.vercel/output/functions/render.func/index.mjs`: **4.581.792 Bytes**,
+    SHA-256 `83c6724f04f16b08a71e06d3d4fc218dd9b9f039ac392368f5fc4ae3300d3e15`
+- Deploy: `bunx vercel deploy --prebuilt --prod --yes` — **Erfolg im 1. Versuch**
+  (kein „Not authorized"; die Retry-Schleife lief nicht an).
+- Deployment: **`dpl_E75Q2g4Gen6aZBEYQyyxaVcXRtk8`** · Projekt `site` · target `production` ·
+  status `● Ready` · URL `https://site-2sc6h4bqd-growimo.vercel.app` ·
+  Alias `https://www.growimo.app` · created 2026-10-04 18:37:24 UTC.
+- URL-Status (`curl -o /dev/null -w '%{http_code} %{size_download}'`):
+
+| URL | HTTP | Bytes |
+| --- | --- | --- |
+| `https://www.growimo.app/` | 200 | 44.727 |
+| `https://www.growimo.app/app/package` | 200 | 14.188 |
+| `https://site-2sc6h4bqd-growimo.vercel.app/` | 200 | 44.727 |
+
+### 2. Bundle-Beleg (b4d1733 ist wirklich live)
+
+**Server-Bundle** (lokal, aus genau dem Lauf, dessen `.vercel/output` hochgeladen wurde;
+HTTP-Abruf ist nicht möglich — deshalb Datei + Hash + Byte-Offsets, Skill `prod-bundle-marker-proof`):
+
+| Marker (neu in Schritt 2) | Fundstelle(n) im Server-Bundle (Byte-Offset) |
+| --- | --- |
+| `AUSSCHLIESSLICH aus den Nutzerangaben` | 2.070.223 · 4.399.441 |
+| `invented product measurement/quantity (number + unit)` | 2.058.669 · 4.376.157 |
+| `erfundener Lieferumfang/Verpackungsangabe` | 2.059.063 · 4.376.551 |
+| `300 ml` (Negativ-Beispiel im Prompt-Text) | 2.070.595 · 4.399.813 |
+
+**Abgrenzung zum Baseline-Commit** (die Strings sind neu, nicht im Vorgängerstand):
+
+```
+git show be91507:src/ai/providers/openai.ts | grep -c "AUSSCHLIESSLICH aus den Nutzerangaben"  → 0
+git show be91507:src/ai/fact-guard.ts       | grep -c "invented product measurement"          → 0
+```
+
+**Byte-Identität Live ↔ lokaler Build-Output** (Beweis, dass der hochgeladene Build der ist, dessen
+Server-Funktion die Marker trägt): 20 JS-Chunks aus `/` und `/app/package` von `www.growimo.app`
+geladen und gegen `.vercel/output/static/assets/` ge-SHA-256-t:
+
+```
+assets=20  identical=20  mismatched_or_missing=0
+index-CekKyrpN.js   e7b6848068343f717e24213c1b7bcc30afdf38e6f5612c20d6bb8563e721cc6e  (live = lokal)
+package-Dr6JDncm.js b0ae6acb04ff1e58b208b86cb0df07a3d85adbc0139c9a79a42980bd966dec59  (live = lokal)
+index-DvA7B1j-.js   21dfe653be9e7385aafd59a380c515efe0018bf6bb8818d86e1ba1e79b8d6a6a  (live = lokal)
+```
+
+⇒ Client-Chunks live byte-identisch zum lokalen Prebuilt; dieses Prebuilt entstand in **einem**
+`build-vercel.sh`-Lauf mit der Server-Funktion, die die vier Marker enthält.
+
+### 3. Gates (nachgemessen 2026-10-04)
+
+- **`bun package-fakten-schutz-test.ts` → 118 PASS, 0 FAIL, exit 0** (Abschlusslauf, identisch zur
+  Erstmessung in `b340b36`).
+- **`bun i18n-scan.ts` (HEAD):** `de = 1555 / en = 1555` Schlüssel, **✅ KEY-PARITY identische
+  Schlüsselmengen**; ✅ keine hartkodierten EN-UI-Strings; ✅ keine deutschen Token in EN-Werten.
+  Unverändert bestehende Befunde (Vergleich mit demselben Scan auf `be91507`, `/tmp/basewt`):
+  ❌ `USED-KEYS FAIL — tiktok_result_`, ❌ 5 DE-Werte mit englischem Wort
+  (`brand_website: „Website"`, `usage_limit_exhausted: „Free-Plan"`, `analytics_err_code: „Code"`,
+  `analytics_kpi_anon: „ohne Login"`, `tiktok_result_scroll_stop: „Scroll-Stop-Moment"`).
+  Server-LIT: 356 (Baseline) → 359 (HEAD); die Differenz sind ausschließlich die **neuen
+  Server-/Prompt-Texte** aus `ai/providers/openai.ts` und `ai/fact-guard.ts` (nie gerendert,
+  dev-facing). Schritt 2 hat **keine** neuen UI-Strings und **keinen** neuen i18n-Befund erzeugt.
+- **`bunx tsc --noEmit`:** HEAD (b4d1733) **194 `error TS` in 46 Dateien**;
+  Baseline `be91507` (Git-Worktree `/tmp/basewt`, `node_modules` per Symlink) **176 `error TS` in 39
+  Dateien**. Aufschlüsselung der Differenz von +18:
+  - **22 Fehler stammen aus 8 untracked Ad-hoc-Skripten**, die nur im Arbeitsbaum liegen und im
+    Baseline-Checkout nicht existieren: `scripts/mint-session-file.ts` (6),
+    `scripts/mint-ticket-file.ts` (6), `scripts/e2e-cleanup.ts` (3),
+    `scripts/_repro-detail.tmp.tsx` (2), `scripts/_wh-e2e/idem-probe.ts` (2),
+    `scripts/_mini-studio.tmp.tsx` (1), `scripts/_wh-e2e/audit.ts` (1), `scripts/e2e-setup.ts` (1).
+    Sie sind **nicht getrackt** (nicht Teil von b4d1733) und nicht im Deploy.
+  - **Keine NEUE getrackte Fehlerdatei.** Alle getrackten Deltas sind **Verbesserungen**:
+    `serve.ts` 9 → 8, `stripe83-local-server.ts` 5 → 4, `transport-regression-test.ts` 6 → 5,
+    `vercel-entry.ts` 1 → 0. `src/ai/server.ts` unverändert **7 → 7** (ServerFn-Generik, vorbestehend).
+  - **Alle 13 von Schritt 2 berührten Dateien sind fehlerfrei bzw. unverändert:**
+    `fact-guard.ts`, `generate.ts`, `stream.ts`, `types.ts`, `package/package.ts`,
+    `package/generate.ts`, `providers/openai.ts`, `api/generate-stream.ts`,
+    `routes/app/new-project.tsx`, `routes/app/package.tsx` — **0 Fehler** in beiden Ständen
+    (nur `server.ts` mit den vorbestehenden 7).
+- **`f5-test.ts` → exit 0** („ALL F5 CHECKS PASSED"). **`f8-test.ts` → exit 0**
+  („✅ F8 alle Prüfungen bestanden", inkl. `publish_plan`-Persistenz). **`f9-test.ts` → siehe
+  Suite-Log unten.**
+- **`f6-test.ts` / `f7-test.ts`: NICHT gefahren** — sie brauchen einen echten OpenAI-Key in der
+  Shell; in dieser Umgebung ist `OPENAI_API_KEY` ein maskierter Platzhalter (Vorgänger-Session:
+  `generateVariants returned null`). Das ist ein Umgebungs-/Kontingentbefund, kein Schritt-2-Befund.
+
+### 4. Live-E2E auf www.growimo.app (2026-10-04, 5 Kanäle, synthetischer Nutzer)
+
+**Warum möglich:** Der Server-Pfad in Production nutzt den OpenAI-Key aus den Vercel-Env-Variablen
+(nicht die Shell). Der Lauf war daher trotz des maskierten Shell-Keys durchführbar.
+
+- Synthetischer Clerk-Nutzer `user_3KF2gCuO5FL7ZGgpckXwGNJiG6A` (Beta freigeschaltet über die
+  öffentliche `POST /api/beta-signup`), Login per Sign-in-Token am App-Origin (`cp:false`,
+  `signedIn:true`).
+- Eingabe (bewusst **ohne** Maße/Material-Angaben, damit Erfindungen überhaupt möglich wären):
+  „Handbemalte Keramiktasse mit Wunschname als personalisiertes Geschenk" über
+  `/app/package?idea=…`, Klick auf „Paket generieren".
+- Laufzeit: Klick 18:39:19 UTC → „✅ Automatisch gespeichert" (`package-autosave-hint`)
+  um **18:40:05 UTC**, also ~46 s für alle 5 Kanäle inkl. Auto-Save.
+
+**DB-Zähler (`scripts/_autosave-e2e-count.ts`, echte Neon-Datenbank):**
+
+| Label | projectRows | contentRows | usage_monthly |
+| --- | --- | --- | --- |
+| baseline (vor dem Lauf) | 0 | 0 | `[]` |
+| after_run | **1** (`176085bf-4a8d-4b1c-a7d1-79006a3ed6b9`) | **5** | **`[{period:"2026-10", count:5}]`** |
+
+**Fakten-Grep in den 5 generierten Kanälen** (`scripts/_etsy-fakten-grep.ts`, read-only über die
+generierten Inhalte der DB):
+
+```
+rows: 5   totalHits: 0
+pinterest_pin    „Der Trick für ein Lächeln am Morgen: Deine personalisierte Tasse"   0 Treffer
+etsy_listing     „Personalisierte Tasse | Geschenk mit Namen | Handbemalte Keramik …" 0 Treffer
+seo_blog         „(H1)"                                                               0 Treffer
+social_post      „… Unvergessliche Momente aus Keramik"                               0 Treffer
+email_newsletter „Betreffzeile 1 (Neugier):"                                          0 Treffer
+```
+
+Geprüfte Muster: `\d+ (ml|cl|l|g|kg|cm|mm|Zoll|Stück|Packung)`, `ein-/beidseitig|one-sided`,
+`persönliche Verpackung|Geschenkverpackung|gift wrap`, `spülmaschinenfest|dishwasher-safe`,
+`3–5 Werktage/Tage/days`. **Keines der fünf vom Owner gemeldeten Muster tritt in irgendeinem Kanal
+auf.**
+
+**Positiv-Beleg im Etsy-Listing (die neue Prompt-Regel greift sichtbar):**
+
+- Produktdetails: „Details zur Größe und weiteren Varianten **auf Anfrage**." (keine erfundenen Maße)
+- Pflege-FAQ: „Die **Pflegehinweise und Reinigungsempfehlungen findest du direkt im Shop**. Bei
+  handbemalten Produkten empfehlen wir generell eine sanfte Handwäsche…" → die Frage nennt zwar die
+  „Spülmaschine", es wird aber **keine** Eignung behauptet (kein „spülmaschinenfest").
+- Verpackung: „Die **Verpackungsoptionen werden bei der Bestellung angezeigt**." (keine erfundene
+  „persönliche Verpackung")
+- Lieferzeit: keine Zeitzusage im gesamten Listing; Personalisierung wird als „braucht oft etwas
+  mehr Zeit" ohne Zahl beschrieben.
+
+**Restlücke (ehrlich):** Der Auto-Save-Hinweis (`package-autosave-hint`) ist belegt, der
+Reload-/Projektansicht-Teil des Auto-Save-Skills (Merker-Karte, `/app/projects/<id>`, zweiter
+DB-Zähler) wurde in diesem Lauf **nicht** gefahren (Budget) — er ist nicht Teil des Fakten-Auftrags
+und war in `docs/auto-save-paket-evidence.md` bereits belegt. Der UI-Text-Dump aus dem Browser
+(`/tmp/etsy/dump.txt`) entstand nicht (Eval-Schritt lief nach dem Screenshot nicht mehr durch);
+der Inhaltsbeleg kommt stattdessen direkt aus den 5 DB-Zeilen — die sind die Quelle der UI.
+
+### 5. Zusammenfassung
+
+| Punkt | Ergebnis |
+| --- | --- |
+| Deploy b4d1733 | `dpl_E75Q2g4Gen6aZBEYQyyxaVcXRtk8`, Ready, 1. Versuch |
+| www.growimo.app `/` + `/app/package` | **200 / 200** |
+| Server-Bundle-Marker (4) | in `render.func/index.mjs` (4.581.792 B, SHA-256 `83c6724f…`), Byte-Offsets dokumentiert |
+| Live-Chunks ↔ lokaler Build | **20/20 byte-identisch** |
+| package-fakten-schutz-test | **118 PASS / 0 FAIL** |
+| f5 / f8 / f9 | **exit 0 / 0 / 0** |
+| f6 / f7 | nicht gefahren (Shell-Key maskiert, Kontingent) — Umgebungsbefund |
+| tsc --noEmit | HEAD 194 / Baseline be91507 176; **keine neue getrackte Fehlerdatei** |
+| i18n-Scan | Parität ✅ (1555 = 1555); keine neuen Befunde, Server-LIT 356 → 359 (nur Prompt-Texte) |
+| Live-E2E 5 Kanäle | **gelaufen**: 5 contentRows, usage=5, **0/5 Fakten-Muster-Treffer** |
