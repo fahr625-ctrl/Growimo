@@ -43,6 +43,15 @@ export type ScoreCardActions = {
 /** A total score at or above this means the asset is already strong. */
 export const ALREADY_STRONG_TOTAL = 90;
 
+/**
+ * Ziel-Score des Produkts — muss der Engine-Schwelle SCORE_TARGET
+ * (src/ai/scoring/index.ts) entsprechen. Der Wert steht hier zusätzlich, weil
+ * diese Datei im Client-Bundle liegt; ein Test prüft die Gleichheit beider
+ * Konstanten (varianten-scoring-konsistenz-test.ts), damit die zentrale Wahrheit
+ * nicht auseinanderläuft.
+ */
+export const SCORE_TARGET_TOTAL = 80;
+
 export type ImproveDeltaTitleKey =
   | 'improve_delta_title'
   | 'improve_delta_title_flat'
@@ -85,7 +94,12 @@ export function resolveScoreCardActions(
   // error — never a second message next to one.
   const quiet = state.hasContent && !state.busy && !state.hasOutcome && !state.hasError;
 
-  const showStrongNoActionHint = quiet && score.issues.length === 0 && score.total >= target;
+  // „Bereits stark — keine offenen Punkte" darf nie unter dem Produkt-Ziel
+  // stehen, auch wenn ein Aufrufer ein kleineres Ziel übergibt (Punkt 2: keine
+  // Stärke-Behauptung bei vorhandenen Schwächen).
+  const strongFloor = Math.max(target, SCORE_TARGET_TOTAL);
+
+  const showStrongNoActionHint = quiet && score.issues.length === 0 && score.total >= strongFloor;
   const showTopRangeNoActionHint = quiet && score.issues.length > 0 && score.total >= ALREADY_STRONG_TOTAL;
 
   return { canImprove, canImproveToTarget, showStrongNoActionHint, showTopRangeNoActionHint };

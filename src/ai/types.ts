@@ -129,7 +129,7 @@ export interface ImproveOutcome {
   /** true when a regenerated, re-scored version was produced. */
   improved: boolean;
   /** Machine-readable reason when improved === false. */
-  reason?: 'already_strong' | 'no_issues' | 'no_score' | 'failed';
+  reason?: 'already_strong' | 'no_issues' | 'no_score' | 'failed' | 'no_progress';
   /** The regenerated content with its fresh score (improved === true). */
   improvedContent?: ContentResult;
   /** Score of the original asset. */
@@ -197,6 +197,15 @@ export interface VariantAsset {
   body: string;
   /** F1 Qualitäts-Score (0–100) of this variant; null when scoring failed. */
   score: ContentScore | null;
+  /**
+   * Owner 2026-10-03 (Schritt 1, Punkt 1a): der Variante ZUGEWIESENE Strategie
+   * ('emotional_gift' | 'benefit_focus' | 'fact_seo'). Die drei Varianten
+   * unterscheiden sich in Strategie/Ansprache/Fokus — nicht in erfundenen
+   * Produktfakten. Fehlt das Feld (Alt-Daten), leitet die UI nichts ab.
+   */
+  angle?: string;
+  /** Ein Satz des Modells, WIE der Ansatz umgesetzt wurde (UI-Zusatzzeile). */
+  strategyNote?: string;
 }
 
 /** Result of generateVariants(): exactly the request language + 1–3 scored variants. */

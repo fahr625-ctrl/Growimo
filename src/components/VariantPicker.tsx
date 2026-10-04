@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { ContentResult, VariantAsset, VariantsResult } from '~/ai/types';
 import { generateVariantsServer } from '~/ai/server';
 import { useTranslation } from '~/i18n';
 import { ScoreCard } from './ScoreCard';
+import { rankVariants } from './variantRanking';
 
 const VARIANT_LETTERS = ['A', 'B', 'C', 'D'];
 
@@ -83,6 +84,9 @@ export function VariantPicker({
     setVariants(null);
   }, []);
 
+  // 1c: Sortierung nach echter Bewertung + Empfehlung + Abstand zur zweitbesten.
+  const ranking = useMemo(() => (variants ? rankVariants(variants) : null), [variants]);
+
   const adopt = useCallback(
     (variant: VariantAsset) => {
       onAdopt(variant);
@@ -154,6 +158,11 @@ export function VariantPicker({
               <p className="mt-0.5 text-[11px] leading-relaxed text-gray-500">
                 {tLookup.variant_subtitle}
               </p>
+              {ranking && ranking.bestTotal != null && (
+                <p className="mt-0.5 text-[11px] font-semibold text-emerald-700">
+                  {tLookup.variant_ranked_note}
+                </p>
+              )}
             </div>
             <button
               type="button"
@@ -164,34 +173,68 @@ export function VariantPicker({
             </button>
           </div>
           <div className="space-y-4 p-4">
-            {variants.map((variant, idx) => (
-              <div key={idx} className="rounded-xl border border-gray-200 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-2.5 py-0.5 text-[11px] font-bold text-indigo-800">
-                      {((tLookup.variant_letter ?? '') as string).replace('%s', VARIANT_LETTERS[idx] ?? String(idx + 1))}
-                    </span>
-                    <h4 className="mt-1.5 text-sm font-bold text-gray-900">{variant.title}</h4>
+            {ranking && ranking.tie && (
+              <p className="rounded-lg border border-gray-200 bg-gray-50/70 px-3 py-2 text-[11px] leading-relaxed text-gray-600">
+                {tLookup.variant_tie_note}
+              </p>
+            )}
+            {ranking?.ranked.map(({ index: idx, variant }) => {
+              const recommended = ranking.recommendedIndex === idx;
+              const angleKey = variant.angle ? `variant_angle_${variant.angle}` : '';
+              const angleLabel = (angleKey && tLookup[angleKey]) || '';
+              return (
+                <div
+                  key={idx}
+                  className={`rounded-xl border p-4 ${recommended ? 'border-emerald-300 bg-emerald-50/40' : 'border-gray-200'}`}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <span className="inline-flex flex-wrap items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-2.5 py-0.5 text-[11px] font-bold text-indigo-800">
+                          {((tLookup.variant_letter ?? '') as string).replace('%s', VARIANT_LETTERS[idx] ?? String(idx + 1))}
+                        </span>
+                        {/* 1c: echte Empfehlung nur bei echtem Vorsprung */}
+                        {recommended && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-0.5 text-[11px] font-bold text-white">
+                            ★ {tLookup.variant_recommended}
+                          </span>
+                        )}
+                        {/* 1c: Punkte-Vorsprung zur zweitbesten Variante */}
+                        {recommended && ranking.deltaToRunnerUp != null && ranking.deltaToRunnerUp > 0 && (
+                          <span className="inline-flex items-center rounded-full bg-white px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 shadow-sm">
+                            {((tLookup.variant_score_delta ?? '') as string).replace('%d', String(ranking.deltaToRunnerUp))}
+                          </span>
+                        )}
+                      </span>
+                      <h4 className="mt-1.5 text-sm font-bold text-gray-900">{variant.title}</h4>
+                      {/* 1a/1c: der Ansatz, der dieser Variante zugewiesen wurde */}
+                      {angleLabel && (
+                        <p className="mt-1 text-[11px] font-semibold text-indigo-700">{angleLabel}</p>
+                      )}
+                      {variant.strategyNote && (
+                        <p className="mt-0.5 text-[11px] leading-relaxed text-gray-500">{variant.strategyNote}</p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => adopt(variant)}
+                      className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
+                    >
+                      ✓ {tLookup.variant_adopt}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => adopt(variant)}
-                    className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
-                  >
-                    ✓ {tLookup.variant_adopt}
-                  </button>
-                </div>
 
-                <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap rounded-lg border border-gray-100 bg-gray-50/60 p-3 font-sans text-[11px] leading-relaxed text-gray-700">
-                  {variant.body}
-                </pre>
+                  <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap rounded-lg border border-gray-100 bg-gray-50/60 p-3 font-sans text-[11px] leading-relaxed text-gray-700">
+                    {variant.body}
+                  </pre>
 
-                {/* F1 score + sub-scores (ScoreCard pattern, no improve buttons) */}
-                <div className="mt-3">
-                  <ScoreCard score={variant.score} defaultExpanded />
+                  {/* F1 score + sub-scores (ScoreCard pattern, no improve buttons) */}
+                  <div className="mt-3">
+                    <ScoreCard score={variant.score} defaultExpanded />
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

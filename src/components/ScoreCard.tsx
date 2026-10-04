@@ -6,7 +6,7 @@ import { isAutoImproveFieldSupported } from '~/ai/auto-improve/support';
 import { useTranslation } from '~/i18n';
 import { ScoreBadge, TONE_CLASSES, scoreTone } from './ScoreBadge';
 import { AssetFeedback } from './AssetFeedback';
-import { improveDeltaTitleKey, resolveScoreCardActions } from './scoreCardActions';
+import { improveDeltaTitleKey, resolveScoreCardActions, SCORE_TARGET_TOTAL } from './scoreCardActions';
 
 const DIM_KEY: Record<string, string> = {
   title: 'score_dim_title',
@@ -461,18 +461,22 @@ export function ScoreCard({
         </div>
       )}
 
-      {/* F2: already-strong / no-issues state */}
+      {/* F2: already-strong / no-issues / no-progress state */}
       {!isImproving && lastOutcome && !lastOutcome.improved && !lastOutcome.error && (
         <div className="border-t border-emerald-100 bg-emerald-50/60 px-4 py-3">
           <p className="text-xs font-semibold text-emerald-700">
             {lastOutcome.reason === 'already_strong'
               ? tLookup.improve_already_strong
-              : tLookup.improve_no_issues}
+              : lastOutcome.reason === 'no_progress'
+                ? tLookup.improve_no_progress
+                : tLookup.improve_no_issues}
           </p>
           <p className="mt-0.5 text-[11px] leading-relaxed text-emerald-700/80">
             {lastOutcome.reason === 'already_strong'
               ? tLookup.improve_already_strong_desc
-              : tLookup.improve_no_issues_desc}
+              : lastOutcome.reason === 'no_progress'
+                ? tLookup.improve_no_progress_desc
+                : tLookup.improve_no_issues_desc}
           </p>
         </div>
       )}
@@ -607,7 +611,18 @@ export function ScoreCard({
               {tLookup.score_issues_title}
             </p>
             {score.issues.length === 0 ? (
-              <p className="text-xs font-medium text-emerald-700">{tLookup.score_issues_empty}</p>
+              /* Owner 2026-10-03 (Punkt 2): Die zentrale Ableitung garantiert,
+                 dass unterhalb des Ziels immer ein offener Punkt existiert. Für
+                 den unwahrscheinlichen Restfall (Alt-Daten/dimensionen ohne Fix)
+                 wird NICHTS gelobt — kein „starke Arbeit" bei einem Score unter
+                 dem Ziel, sondern der ehrliche Zustand. */
+              score.total >= SCORE_TARGET_TOTAL ? (
+                <p className="text-xs font-medium text-emerald-700">{tLookup.score_issues_empty}</p>
+              ) : (
+                <p className="text-xs font-medium text-amber-700">
+                  {(tLookup.score_issues_empty_below ?? '').replace('%d', String(score.total))}
+                </p>
+              )
             ) : (
               <ul className="space-y-2.5">
                 {score.issues.map((issue, idx) => {

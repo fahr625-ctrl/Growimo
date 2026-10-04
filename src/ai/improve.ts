@@ -21,7 +21,7 @@ import type {
   ImproveOutcome,
   ScoreIssue,
 } from './types';
-import { scoreContent } from './scoring';
+import { scoreContent, actionableIssues, SCORE_TARGET } from './scoring';
 import { parseResponse } from './providers/openai';
 
 const CHANNEL_LABELS: Record<string, string> = {
@@ -122,8 +122,13 @@ export async function improveByScore(
     return { ...base, reason: 'no_score' };
   }
 
-  const fixes = score.issues.filter((i) => i.fix.action !== 'keep');
+  // 2a (Owner 2026-10-03): Die Fix-Liste kommt aus der EINEN Ableitung
+  // (actionableIssues). Bei Score < 80 ist sie nie leer — deshalb kann „Auf 80+
+  // verbessern" nicht mehr sofort mit no_issues abbrechen, obwohl der Score
+  // unter dem Ziel liegt.
+  const fixes = actionableIssues(score);
   if (fixes.length === 0) {
+    // Nur oberhalb des Ziels erreichbar (score.total >= SCORE_TARGET).
     return { ...base, reason: 'no_issues' };
   }
   if (score.total >= ALREADY_STRONG_TOTAL) {
@@ -195,7 +200,7 @@ export async function improveByScore(
  * Default target = 80 (weak assets are the ones below it); 0 rounds happen when
  * the asset is already at/above target or has no score.
  */
-export const IMPROVE_TARGET_DEFAULT = 80;
+export const IMPROVE_TARGET_DEFAULT = SCORE_TARGET;
 export const IMPROVE_MAX_LOOPS = 3;
 
 export async function improveToScore(
@@ -232,7 +237,6 @@ export async function improveToScore(
   let current = original;
   let currentScore = score;
   const appliedFixes: ScoreIssue[] = [];
-  let improvedEver = false;
   let lastReason: ImproveOutcome['reason'] | undefined;
   // Always keep the BEST round (highest re-scored total) — never let repeated
   // improveByScore rounds drag the result below where we started.
@@ -242,7 +246,6 @@ export async function improveToScore(
   for (let i = 0; i < IMPROVE_MAX_LOOPS; i++) {
     const outcome = await improveByScore(request, current, currentScore);
     if (outcome.improved && outcome.improvedContent && outcome.newScore) {
-      improvedEver = true;
       if (outcome.appliedFixes) appliedFixes.push(...outcome.appliedFixes);
       current = outcome.improvedContent;
       currentScore = outcome.newScore;
@@ -263,9 +266,12 @@ export async function improveToScore(
   // Best round is the one to keep; if the best is still not better than the
   // starting score we keep the original (never return something worse).
   if (!best || best.bestScore.total <= score.total) {
-    const reason: ImproveOutcome['reason'] | undefined = !improvedEver
-      ? (lastReason ?? 'no_issues')
-      : 'no_issues';
+    // 2a: Der Score liegt hier immer unter dem Ziel (sonst wäre oben
+    // abgebrochen worden). „no_issues" wäre eine Falschaussage — die Engine hat
+    // es versucht und keinen besseren Stand erreicht (Plateau) bzw. ist
+    // gescheitert.
+    const reason: ImproveOutcome['reason'] | undefined =
+      lastReason === 'failed' ? 'failed' : 'no_progress';
     const outcome: ImproveOutcome = {
       improved: false,
       oldScore: score,

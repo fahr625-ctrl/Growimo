@@ -1323,7 +1323,10 @@ export const en: EnShape = {
   score_summary_title: 'Why this score?',
   score_details: 'Details',
   score_issues_title: 'Concrete improvements',
-  score_issues_empty: 'No open issues — great work!',
+  score_issues_empty: 'No open issues — strong work!',
+  // Owner 2026-10-03 (point 2): below the target this may never claim strong work.
+  score_issues_empty_below:
+    'Not at full score yet: %d/100. No single rule check is flagged as failing — look at the dimensions above to see which one is weakest.',
   score_strong_no_actions: 'Already strong — %d/100, no open items',
   score_strong_no_actions_desc: 'Growimo has checked every criterion: there is nothing left that could be fixed automatically. The content is ready to use — for a different angle, generating again with more specific details (audience, benefit, unique feature) helps.',
   score_top_range_no_actions: 'Already in the top range — %d/100',
@@ -1355,6 +1358,11 @@ export const en: EnShape = {
   improve_already_strong_desc: 'Growimo checked every point: nothing is open and the score is already strong. No regeneration needed.',
   improve_no_issues: 'No open issues',
   improve_no_issues_desc: 'Every checked criterion is met. Growimo currently finds nothing that needs changing.',
+  // Owner 2026-10-03 (point 2): below the target the engine tried and did not get
+  // to a better state — that is not "no open issues".
+  improve_no_progress: 'No progress in this round',
+  improve_no_progress_desc:
+    'Growimo worked on the open points but did not reach a better state. Your content stays unchanged — make the points more specific (audience, occasion, unique feature) and start a new generation.',
   improve_error: 'Improvement failed',
   improve_error_desc: 'The content stays unchanged. Please try again.',
   improve_retry: 'Try again',
@@ -1490,6 +1498,16 @@ export const en: EnShape = {
     '3 alternatives, each with its own quality score. Adopt the best variant — it replaces the current content (including its score).',
   variant_adopt: 'Adopt this variant',
   variant_letter: 'Variant %s',
+  // Owner 2026-10-03 (step 1, point 1c): the real evaluation on display
+  variant_recommended: 'Recommended',
+  variant_score_delta: '+%d points ahead of the runner-up',
+  variant_ranked_note: 'Sorted by real score — the recommendation is on top.',
+  variant_tie_note:
+    'Several variants score equally well — Growimo does not dress up a lead. Pick the one that fits your channel.',
+  // Owner 2026-10-03 (step 1, point 1a): the three strategy approaches
+  variant_angle_emotional_gift: 'Approach A: Emotional & gift-focused',
+  variant_angle_benefit_focus: 'Approach B: Benefits & advantages',
+  variant_angle_fact_seo: 'Approach C: Facts & SEO',
   // ── F9 Performance Feedback Loop ───────────────────────────────────────────
   perf_nav: '📈 Performance',
   perf_title: '📈 Performance',

@@ -1,12 +1,15 @@
 // ── F7 A/B-Varianten mit Score-Vergleich (decision layer) ─────────────────────
 // The user requests "A/B-Varianten" for a generated asset (title + body):
-//  1. ONE GPT-4o call (json_object) returns 3 clearly different variants
-//     {title, body} — different angles (emotional / nutzenorientiert /
-//     faktisch), each internally consistent and in the SAME parser-compatible
-//     structure as the original (same numbered section headings).
-//  2. Every variant is scored through the EXISTING F1 pipeline
-//     (scoreContent — no new scoring path), so each variant carries a
-//     0–100 total + sub-scores.
+//  1. ONE GPT-4o call (json_object) returns 3 variants {angle, strategyNote,
+//     title, body}. Each variant carries a REAL strategy assignment (see
+//     ./angles.ts): A emotional/gift-led, B benefit-led, C fact/SEO-led —
+//     different positioning, sub-audience and CTA mechanics on the SAME user
+//     facts (never invented product facts).
+//  2. Every variant is scored SEPARATELY through the EXISTING F1 pipeline
+//     (scoreContent — no new scoring path, never the original's score) and then
+//     checked deterministically against its own approach (applyAngleFit), so the
+//     three scores differ by content and approach — even when the LLM judge is
+//     unavailable (rules-only degradation).
 //  3. Never blocks: any failure (API, JSON parse, scoring) returns null —
 //     the original asset is untouched and the UI shows an error + retry.
 //
@@ -22,6 +25,13 @@ import type {
 } from '../types';
 import { scoreContent } from '../scoring';
 import { parseResponse } from '../providers/openai';
+import {
+  VARIANT_ANGLES,
+  applyAngleFit,
+  angleForIndex,
+  resolveAngleAssignments,
+  type VariantAngleKey,
+} from './angles';
 
 const CHANNEL_LABELS: Record<string, string> = {
   pinterest_pin: 'Pinterest-Pin',
@@ -132,19 +142,25 @@ function repairJsonString(raw: string): string {
 }
 
 /** Collect variant entries from the parsed JSON in the most defensive way:
- *  preferred key "variants" (array of {title, body}); fallback: any array
- *  value; last resort: object entries whose value is {title, body}. */
+ *  preferred key "variants" (array of {angle, strategyNote, title, body});
+ *  fallback: any array value; last resort: object entries whose value is
+ *  {title, body}. "angle"/"strategyNote" are optional — the caller assigns the
+ *  approach positionally when the model omits them. */
 function collectVariantEntries(
   obj: Record<string, unknown>,
-): Array<{ title: string; body: string }> {
-  const entries: Array<{ title: string; body: string }> = [];
+): Array<{ title: string; body: string; angle?: string; strategyNote?: string }> {
+  const entries: Array<{ title: string; body: string; angle?: string; strategyNote?: string }> = [];
 
   const push = (v: unknown): void => {
     if (v && typeof v === 'object' && !Array.isArray(v)) {
       const rec = v as Record<string, unknown>;
       const title = typeof rec.title === 'string' ? rec.title.trim() : '';
       const body = typeof rec.body === 'string' ? rec.body.trim() : '';
-      if (title && body) entries.push({ title, body });
+      if (title && body) {
+        const angle = typeof rec.angle === 'string' ? rec.angle.trim() : undefined;
+        const strategyNote = typeof rec.strategyNote === 'string' ? rec.strategyNote.trim().slice(0, 240) : undefined;
+        entries.push({ title, body, angle, strategyNote });
+      }
     }
   };
 
@@ -185,22 +201,42 @@ function buildPrompt(opts: {
       ? 'Write in English, unless the original content is German — then keep the German text style.'
       : 'Schreibe auf Deutsch.';
 
-  return `=== AUFGABE ===
-Erstelle GENAU 3 alternative Varianten des folgenden ${channelLabel}. Jede Variante besteht aus:
-- "title": der neue Titel (1 Zeile, max. 100 Zeichen, direkt zum Punkt)
-- "body": der KOMPLETTE Inhalt der Variante — exakt dieselbe nummerierte Sektions-Struktur und dieselben Überschriften wie das Original, nur mit dem jeweiligen Angle umgeschrieben.
+  // Owner 2026-10-03 (Schritt 1, Punkt 1a): drei ECHT verschiedene
+  // Strategie-Aufträge statt kosmetischer Angle-Zeilen. Die Differenz liegt in
+  // Strategie, Ansprache, Positionierung, CTA-Mechanik und Fokus — niemals in
+  // erfundenen Produktfakten.
+  const assignments = VARIANT_ANGLES.map(
+    (a) => `Variante ${a.letter} (${a.key}):\n${a.instruction[lang === 'en' ? 'en' : 'de']}`,
+  ).join('\n\n');
 
-Die 3 Varianten müssen sich KLAR voneinander unterscheiden (verschiedene Angle):
-- Variante A: emotional & atmosphärisch (Gefühle, Story, Bildsprache)
-- Variante B: nutzenorientiert (konkrete Benefits, Ergebnisse, pragmatisch)
-- Variante C: faktisch & klar (direkt, glaubwürdig, kompakt, wenig Beiwerk)
-Jede Variante ist für sich vollständig und konsistent. Übernimm die Fakten des Originals (Produkt, Features, Zielgruppe) — erfinde nichts Neues und widersprich dem Original nicht.
+  const structureRule =
+    lang === 'en'
+      ? `STRUCTURE (this is where the three variants may and should differ):
+- You may change the ORDER of the sections, the wording of headings, the narrative build-up and you may add approach-specific extra sections. Each variant must follow the beats of its own approach.
+- BUT: keep every field heading that carries structured data (e.g. "SEO Pin-Titel", "Fokus-Keywords", "Hashtags", "Pinterest Alt-Text", "Pin-Beschreibung", "Call to Action", "KI-Bild-Prompt", "SEO-Titel", "13 Etsy-Tags", "URL-Slug", "FAQ" …). Growimo reads those values out of your text — without the headings the variant cannot be used.
+- Same facts, different strategy: take product, features and audience ONLY from the product idea / original. Invent nothing and do not contradict the original.`
+      : `STRUKTUR (hier dürfen und sollen sich die drei Varianten unterscheiden):
+- Reihenfolge der Abschnitte, Formulierung der Überschriften, Story-Aufbau und ansatzspezifische Zusatz-Abschnitte darfst du frei setzen. Jede Variante folgt den Schritten ihres eigenen Auftrags.
+- ABER: Behalte jede Feld-Überschrift bei, die strukturierte Angaben trägt (z. B. „SEO Pin-Titel", „Fokus-Keywords", „Hashtags", „Pinterest Alt-Text", „Pin-Beschreibung", „Call to Action", „KI-Bild-Prompt", „SEO-Titel", „13 Etsy-Tags", „URL-Slug", „FAQ" …). Growimo liest diese Werte aus deinem Text — ohne die Überschriften ist die Variante nicht verwendbar.
+- Gleiche Fakten, andere Strategie: Produkt, Eigenschaften und Zielgruppe NUR aus der Produktidee/dem Original. Erfinde nichts und widersprich dem Original nicht.`;
+
+  return `=== AUFGABE ===
+Erstelle GENAU 3 alternative Varianten des folgenden ${channelLabel}. Jede Variante hat einen FEST ZUGEWIESENEN Strategie-Auftrag — sie ist kein Sprachstil, sondern ein anderer Marketing-Ansatz (Positionierung, Ansprache, CTA-Mechanik, Fokus). Jede Variante besteht aus:
+- "angle": die Kennung des zugewiesenen Auftrags (exakt einer der drei unten genannten Werte)
+- "strategyNote": EIN Satz, wie dieser Ansatz in der Variante umgesetzt wurde (max. 120 Zeichen)
+- "title": der neue Titel (1 Zeile, max. 100 Zeichen, direkt zum Punkt)
+- "body": der KOMPLETTE Inhalt der Variante
+
+=== DIE DREI UNABHÄNGIGEN STRATEGIE-AUFTRÄGE (verbindlich, je Variante genau einer) ===
+${assignments}
 
 === STRATEGIE-KONTEXT (verbindlich einhalten — Produkt und Tonalität) ===
 Produktidee: ${(productIdea || 'Nicht angegeben — arbeite nur mit dem vorhandenen Inhalt.').slice(0, 800)}
 ${(strategyContext || '').slice(0, 1200)}
 
-=== ORIGINAL (Vorlage — Struktur, Überschriften und Sektions-Reihenfolge exakt übernehmen) ===
+=== ${structureRule}
+
+=== ORIGINAL (Faktenbasis und Vorlage — nicht 1:1 kopieren) ===
 Titel: ${originalTitle.slice(0, 300)}
 ${originalBody.slice(0, 14000)}
 
@@ -208,15 +244,16 @@ ${originalBody.slice(0, 14000)}
 Antworte ausschließlich mit einem JSON-Objekt, das GENAU dieses Schema hat:
 {
   "variants": [
-    { "title": "…", "body": "…" },
-    { "title": "…", "body": "…" },
-    { "title": "…", "body": "…" }
+    { "angle": "emotional_gift", "strategyNote": "…", "title": "…", "body": "…" },
+    { "angle": "benefit_focus", "strategyNote": "…", "title": "…", "body": "…" },
+    { "angle": "fact_seo", "strategyNote": "…", "title": "…", "body": "…" }
   ]
 }
 Regeln:
 1. GENAU 3 Einträge in "variants", jeder mit nicht-leerem "title" und "body".
-2. Jede "body" enthält exakt dieselben nummerierten Überschriften in derselben Reihenfolge wie das Original — Parser-Kompatibilität ist Pflicht.
-3. Zeilenumbrüche in "body" als \\n escaped. Keine Einleitung, kein Kommentar, kein Markdown-Rahmen — nur das JSON-Objekt.
+2. "angle" ist exakt einer der drei Werte (emotional_gift, benefit_focus, fact_seo) — jeder genau einmal, in der Reihenfolge A, B, C.
+3. Die drei "body"-Texte müssen sich in Aufbau, Einstieg, Positionierung und Abschluss klar unterscheiden — nicht nur in einzelnen Wörtern.
+4. Zeilenumbrüche in "body" als \\n escaped. Keine Einleitung, kein Kommentar, kein Markdown-Rahmen — nur das JSON-Objekt.
 ${langRule}`;
 }
 
@@ -279,9 +316,14 @@ export async function generateVariants(
     if (raw.length === 0) throw new Error('no variant entries in JSON response');
     // Cap at 3 (the contract) — never return more.
     const selected = raw.slice(0, 3);
+    // 1a: Ansatz je Variante festnageln (Angabe des Modells zuerst, sonst
+    // Position A/B/C) — jeder Ansatz genau einmal.
+    const angles = resolveAngleAssignments(selected.map((e) => e.angle));
 
     const variants: VariantAsset[] = [];
-    for (const entry of selected) {
+    for (let i = 0; i < selected.length; i++) {
+      const entry = selected[i];
+      const angle: VariantAngleKey = angles[i];
       // Parse with the SAME parser as generation (F2 contract): the parsed
       // title is the parser-compatible one (section 1 of the body).
       let title = entry.title;
@@ -303,25 +345,57 @@ export async function generateVariants(
         metadata,
       };
 
-      // F1 pipeline — reuse existing scoring, never a new path. scoreContent
-      // itself never throws (degrades to rules-only), but guard anyway.
+      // 1b: Jede Variante wird EINZELN neu bewertet (nie der Score des
+      // Ausgangsergebnisses). Der zugewiesene Ansatz geht als additionalContext
+      // in die Bewertung und wird danach deterministisch gegen den Inhalt
+      // geprüft (applyAngleFit) — so bleiben die Varianten auch dann
+      // unterscheidbar, wenn der LLM-Judge ausfällt (Regeln-only).
       let score: ContentScore | null = null;
+      let fitScore: number | null = null;
       try {
-        score = await scoreContent(
-          { contentType: request.contentType, productIdea: request.productIdea ?? '' },
+        const angleInstruction = VARIANT_ANGLES.find((a) => a.key === angle);
+        const scored = await scoreContent(
+          {
+            contentType: request.contentType,
+            productIdea: request.productIdea ?? '',
+            additionalContext: [
+              `Zugewiesener Varianten-Ansatz: ${angleInstruction?.labelDe ?? angle}`,
+              entry.strategyNote ?? '',
+            ].filter(Boolean).join('\n'),
+          },
           variantResult,
         );
+        const fitted = applyAngleFit(scored, variantResult, angle);
+        score = fitted.score;
+        fitScore = fitted.fit.score;
       } catch (err) {
         console.error('[variants] scoring failed for variant (kept as null):', err);
         score = null;
       }
-      variants.push({ title, body: entry.body, score });
+      variants.push({
+        title,
+        body: entry.body,
+        score,
+        angle,
+        strategyNote: entry.strategyNote ?? undefined,
+      });
+      console.log(
+        '[variants]',
+        angleForIndex(i).letter,
+        angle,
+        'Ansatz-Treffer:',
+        fitScore == null ? 'n/a' : `${fitScore}/100`,
+        'Score:',
+        score?.total ?? 'n/a',
+      );
     }
 
     console.log(
       '[variants]',
       request.contentType,
       `${variants.length} Varianten`,
+      'Angles:',
+      variants.map((v) => v.angle ?? '?').join(' / '),
       'Scores:',
       variants.map((v) => v.score?.total ?? 'n/a').join(' / '),
     );

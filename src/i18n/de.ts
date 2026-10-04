@@ -1327,6 +1327,11 @@ export const de = {
   score_details: 'Details',
   score_issues_title: 'Konkrete Verbesserungen',
   score_issues_empty: 'Keine offenen Punkte — starke Arbeit!',
+  // Owner 2026-10-03 (Punkt 2): Bei einem Score unter dem Ziel darf hier nie
+  // „starke Arbeit" stehen — die zentrale Ableitung garantiert dafür einen
+  // offenen Punkt; dieser Text deckt nur den unwahrscheinlichen Restfall ab.
+  score_issues_empty_below:
+    'Noch kein voller Score: %d/100. Growimo hat keinen einzelnen Regel-Check als Fehler markiert — schau oben bei den Dimensionen, welche am schwächsten abschneidet.',
   score_strong_no_actions: 'Bereits stark — %d/100, keine offenen Punkte',
   score_strong_no_actions_desc: 'Growimo hat alle geprüften Kriterien abgehakt: es gibt nichts, das automatisch behoben werden könnte. Der Inhalt ist so verwendbar — für einen anderen Zuschnitt hilft eine neue Generierung mit konkreteren Vorgaben (Zielgruppe, Nutzen, Besonderheit).',
   score_top_range_no_actions: 'Bereits im Top-Bereich — %d/100',
@@ -1358,6 +1363,11 @@ export const de = {
   improve_already_strong_desc: 'Growimo hat alle Punkte geprüft: nichts ist offen, der Score ist schon stark. Keine Regeneration nötig.',
   improve_no_issues: 'Keine offenen Punkte',
   improve_no_issues_desc: 'Alle geprüften Kriterien sind erfüllt. Growimo findet aktuell nichts, das geändert werden müsste.',
+  // Owner 2026-10-03 (Punkt 2): Unterhalb des Ziels hat die Engine es versucht und
+  // keinen besseren Stand erreicht — das ist kein "keine offenen Punkte".
+  improve_no_progress: 'Kein Fortschritt in dieser Runde',
+  improve_no_progress_desc:
+    'Growimo hat die offenen Punkte bearbeitet, aber keinen besseren Stand erreicht. Dein Inhalt bleibt unverändert — formuliere die Punkte konkreter (Zielgruppe, Anlass, Besonderheit) und starte eine neue Generierung.',
   improve_error: 'Verbesserung fehlgeschlagen',
   improve_error_desc: 'Der Inhalt bleibt unverändert. Bitte versuche es noch einmal.',
   improve_retry: 'Erneut versuchen',
@@ -1493,6 +1503,16 @@ export const de = {
     '3 Alternativen, jede mit eigenem Qualitäts-Score. Übernimm die beste Variante — sie ersetzt den aktuellen Inhalt (inklusive Score).',
   variant_adopt: 'Diese Variante übernehmen',
   variant_letter: 'Variante %s',
+  // Owner 2026-10-03 (Schritt 1, Punkt 1c): echte Bewertungsanzeige
+  variant_recommended: 'Empfehlung',
+  variant_score_delta: '+%d Punkte zur zweitbesten Variante',
+  variant_ranked_note: 'Nach echtem Score sortiert — die Empfehlung steht oben.',
+  variant_tie_note:
+    'Mehrere Varianten sind gleich gut bewertet — Growimo schönt keinen Vorsprung. Wähle die, die zu deinem Kanal passt.',
+  // Owner 2026-10-03 (Schritt 1, Punkt 1a): die drei Strategie-Ansätze
+  variant_angle_emotional_gift: 'Ansatz A: Emotional & geschenk-orientiert',
+  variant_angle_benefit_focus: 'Ansatz B: Nutzen & Vorteil',
+  variant_angle_fact_seo: 'Ansatz C: Fakten & SEO',
   // ── F9 Performance-Feedback-Loop ───────────────────────────────────────────
   perf_nav: '📈 Performance',
   perf_title: '📈 Performance',
