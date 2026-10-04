@@ -103,3 +103,23 @@ committet und gepusht:
    („free") großzügig sein — beobachtet, nicht als Fehler relevant.
 6. **Baseline-`tsc`-Zahlen** müssen aus `bunx tsc --noEmit` (HEAD) vs. Worktree `be91507` noch in
    diese Datei nachgetragen werden (peinlich ehrlich: Der Lauf lief, als die Session endete).
+
+## Nachtrag Gates (Session-Ende)
+
+- **`bunx tsc --noEmit` (HEAD mit Schritt 2): 194 `error TS`.** Kein Fehler in
+  `src/ai/fact-guard.ts`, `src/ai/generate.ts`, `src/ai/stream.ts`, `src/ai/types.ts`,
+  `src/ai/package/*`, `src/api/generate-stream.ts`.
+  In `src/ai/server.ts` stehen 7 Fehler desselben Typs
+  (`TS2345 … is not assignable to parameter of type 'ServerFn<…>'`, TanStack-ServerFn-Generik):
+  Zeilen 105, 141, 220, 282, 351, 823, 922 — davon **4 in unveränderten Funktionen**
+  (improveByScore 220, improveToScore 282, autoImproveSection 351, fetchPackageKernel 823).
+  Es ist also der vorbestehende Befund der ServerFn-Generik (Baseline-Vorgabe der Lead), nicht
+  ein neuer Fehlerpfad; die Baseline-Zählung im Worktree `be91507` konnte nicht mehr abgeschlossen
+  werden (Session-Ende) — **nachzutragen**.
+  Weitere Befunde in berührten UI-Dateien sind ebenfalls vorbestehend und unabhängig:
+  `new-project.tsx(13,29) TS6133 'AnalysisPlaceholder' unused`, `package.tsx(402) 'package_created'`.
+- Übrige Suiten (Lauf zum Session-Ende): `f5` grün, `f8` grün, `f9` grün; `f6` und `f7` exit=1 mit
+  **API-/JSON-Fehler** (`generateVariants returned null`) — Umgebungsbefund (kein nutzbarer
+  OpenAI-Key in der Shell), nicht durch diesen Schritt verursacht; `f10`/`f2-1`/`brand-profile`/
+  `guard-metric`/`improve-deadzone`/`package-autosave`/`stabilisierung-phase3|4|41|43` waren beim
+  Session-Ende noch nicht durchgelaufen (`/tmp/gates.txt`).
