@@ -35,14 +35,49 @@
  * Alle Funktionen sind rein (keine Netzwerk-/DB-Zugriffe) — ohne API-Aufruf testbar.
  */
 
+/**
+ * Strukturierte Nutzerangaben (Stabilisierung Schritt 2, Punkt 4): Produktdetails,
+ * Brief-Antworten, Markenprofil-Angebote, Produktidee. Der Fakten-Check nutzt sie
+ * als ERLAUBTE WERTELISTE — jede Zahl/Einheit bzw. jede Eigenschafts-Aussage im
+ * Output muss dort (zahl-normalisiert) vorkommen. Rein additiv: fehlt das Feld,
+ * gilt weiter die alte Extraktion aus Produktidee + Kontext.
+ */
+export interface DeclaredFacts {
+  size?: string;
+  material?: string;
+  price?: string;
+  shipping?: string;
+  special?: string;
+  /** Weitere wörtliche Nutzerangaben (Brief-Antworten, Markenprofil-Angebote). */
+  extra?: string[];
+}
+
 /** Ein Muster mit optionalem Grounding gegen die Nutzerangaben. */
 export interface FactPattern {
   name: string;
   re: RegExp;
-  /** Treffer im Nutzerkontext ⇒ nie flaggen (Nutzerangabe ist belegt). */
+  /**
+   * Treffer im Nutzerkontext ⇒ nie flaggen (Nutzerangabe ist belegt).
+   * Nur noch für Muster OHNE Wert-Prüfung (Anekdoten, Trend, Themen-Checks).
+   */
   grounding?: RegExp;
   /** true = der gefundene Slug/die Domain muss wörtlich im Nutzerkontext stehen. */
   literal?: boolean;
+  /**
+   * Grounding-Verengung (Schritt 2, Punkt 2): die gefundene Aussage muss WÖRTLICH
+   * im Nutzerkontext stehen (z. B. „spülmaschinenfest" nur, wenn der Nutzer das
+   * selbst geschrieben hat). Ein bloßes Themen-Keyword entwaffnet nicht mehr.
+   */
+  claimLiteral?: boolean;
+  /**
+   * Grounding-Verengung (Schritt 2, Punkt 1+2): der konkrete Wert der Behauptung
+   * (Zahl + Einheit bzw. Preis) wird aus dem Satz extrahiert und muss
+   * zahl-normalisiert im Nutzerkontext vorkommen. „300 ml" im Output ist also nur
+   * belegt, wenn der Nutzer „300 ml" (o. ä.) genannt hat — nicht bei „500 ml".
+   */
+  valueRe?: RegExp;
+  /** true = ohne belegten Wert gilt die Aussage selbst dann als erfunden. */
+  valueRequired?: boolean;
 }
 
 /** Kategorie-Präfix der Verstoß-Meldungen. */
@@ -54,13 +89,14 @@ export const FACT_VIOLATION_PREFIX = 'FACT:';
  * gehängt (5 Paket-Kanäle + Einzel-Kanäle + Strategie-Stream).
  */
 export const FACT_PROTECTION_CONSTRAINT = `⚠️ FAKTEN-SCHUTZ (harte Regel): JEDES Faktum deiner Ausgabe muss aus den NUTZERANGABEN stammen (Produktidee, Strategie-Brief, Markenprofil, Projektdaten). Erlaubt ist ausschließlich, was dort steht oder sich zwingend daraus ergibt. VERBOTEN ist alles, was du selbst hinzuerfindest — insbesondere:
-(1) persönliche Erlebnisse/Anekdoten des Verkäufers in der Ich-Form („Letztes Jahr habe ich …", „Als ich …", „Mein Sohn …", „Ein Beispiel aus der Praxis") — schreibe in der Du-Ansprache oder neutral, ohne eigene Erlebnisse;
-(2) Lieferzeiten, Versand- und Rückgabe-/Umtauschregeln („in 3–5 Werktagen", „in wenigen Tagen hältst du sie in den Händen", „14 Tage Rückgaberecht", „versandkostenfrei", „Bearbeitungszeit");
-(3) Preise, Zertifikate/Sicherheitsversprechen und Material-/Wirkversprechen („wasserfest", „lebensmittelecht", „100 % Bienenwachs", „garantiert"), die der Nutzer nicht genannt hat;
-(4) Trend-/Beliebtheits-Behauptungen („Trend", „im Trend", „alle lieben …", „beliebteste", „Bestseller", „2026");
-(5) erfundene Fremd-URLs, Beispiel-Slugs oder Links zu anderen Shops/Artikeln.
-Bei Unsicherheit gilt: den Punkt WEGLASSEN oder allgemein formulieren (ohne Zahl, ohne Zusage, ohne Namen) — NIEMALS erfinden. Beispiel-Slugs/URLs nur verwenden, wenn der Nutzer sie selbst genannt hat; sonst den Slug ausschließlich aus dem Fokus-Keyword des Nutzerthemas ableiten. Keine Vorher-/Nachher-Beispiele mit erfundenen Personen, Zahlen oder Ergebnissen.
- EN: Every fact in your output must come from the USER INPUT (product idea, brief, brand profile, project data) — nothing else. Never invent: first-person seller anecdotes or experiences; delivery/shipping/return/processing times or promises; prices, certifications, material or effect claims; trend/popularity claims ("trending", "everyone loves it", "bestseller", "2026"); or foreign example URLs/slugs. If you are unsure, omit the point or phrase it generally (no number, no promise, no name) — never make it up. Reuse an example slug/URL only if the user supplied it; otherwise derive the slug solely from the user's own focus keyword.`;
+(1) persönliche Erlebnisse/Anekdoten des Verkäufers in der Ich-Form — schreibe in der Du-Ansprache oder neutral, ohne eigene Erlebnisse;
+(2) Lieferzeiten, Versand- und Rückgabe-/Umtausch-Angaben ohne Nutzerbeleg — keine Frist, keine Versandkosten- und keine Bearbeitungszeit-Zusage;
+(3) Preise, Zertifikate/Sicherheitsversprechen und Material-/Wirkversprechen, die der Nutzer nicht genannt hat;
+(4) Produktmaße, Mengen, Füllmengen, Gewichte, Motiv-/Druckseiten und Lieferumfang/Verpackung: jede Zahl mit Einheit (ml, cl, l, g, kg, cm, mm, m, Zoll, Stück, Packung, %) sowie jede Aussage über ein- oder beidseitigen Druck, Geschenk- oder „persönliche" Verpackung NUR, wenn der Nutzer sie genannt hat;
+(5) Trend-/Beliebtheits-Behauptungen ohne Nutzerbeleg;
+(6) erfundene Fremd-URLs, Beispiel-Slugs oder Links zu anderen Shops/Artikeln.
+Bei Unsicherheit gilt: den Punkt WEGLASSEN, „Auf Anfrage"/„Nicht angegeben" schreiben oder allgemein formulieren (ohne Zahl, ohne Zusage, ohne Namen) — NIEMALS erfinden. Beispiel-Slugs/URLs nur verwenden, wenn der Nutzer sie selbst genannt hat; sonst den Slug ausschließlich aus dem Fokus-Keyword des Nutzerthemas ableiten. Keine Vorher-/Nachher-Beispiele mit erfundenen Personen, Zahlen oder Ergebnissen.
+ EN: Every fact in your output must come from the USER INPUT (product idea, brief, brand profile, project data) — nothing else. Never invent: first-person seller anecdotes or experiences; delivery/shipping/return/processing times or promises; prices, certifications, material or effect claims; product measurements/quantities, print-side or packaging/scope-of-delivery claims; trend/popularity claims ("trending", "everyone loves it", "bestseller", "2026"); or foreign example URLs/slugs. If you are unsure, omit the point or phrase it generally (no number, no promise, no name) — never make it up. Reuse an example slug/URL only if the user supplied it; otherwise derive the slug solely from the user's own focus keyword.`;
 
 /** Muster-Kategorien (de+en) des Package-Fakten-Checks. */
 export const FACT_PATTERNS: FactPattern[] = [
@@ -198,6 +234,191 @@ export const FACT_PATTERNS: FactPattern[] = [
   },
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Stabilisierung Schritt 2 (Owner-Vorgabe 2026-10-02): KEINE erfundenen
+// Produktfakten. Zwei Mechanismen, beide deterministisch (kein Prompt):
+//   (1) NEUE KATEGORIE (f) „Produktmaße/-eigenschaften/-lieferumfang" de+en:
+//       Zahlen+Einheiten, Motiv-/Druckseiten, Verpackung/Lieferumfang.
+//   (2) GROUNDING-VERENGUNG: statt Keyword-Grounding über den Gesamtblob wird
+//       pro Behauptung geprüft, ob der Nutzer den KONKRETEN Wert/Wort geliefert
+//       hat. „USP=Schnelle Lieferung" oder „Preis=20–60 €" im Brief entwaffnen
+//       damit keine Versand-/Preis-Behauptung mehr global.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Einheiten für Mengen/Maße (Reihenfolge: längste Form zuerst). */
+const MEASURE_UNIT_ALT =
+  'milliliter|zentiliter|kilogramm|gramm|zentimeter|millimeter|milligramm|liter|litre|meter|metre|ml|cl|kg|cm|mm|mg|stueck|stück|stk|packung(?:en)?|pkg|inch|zoll|g|l|m|%';
+
+/** Alle Einheiten incl. Zeitdauern (für die Wert-Normalisierung). */
+const UNIT_ALT = `werktage?n?|arbeitstage?n?|business\\s+days?|working\\s+days?|wochen?|tage?n?|days?|weeks?|stunden?|std\\.?|hours?|${MEASURE_UNIT_ALT}`;
+
+/** Menge/Maß im Text (kategorie f, Basis) — Zahl + Einheit. */
+const MEASURE_RE = new RegExp(
+  `(?:^|[^a-z0-9äöüß])(\\d{1,5}(?:[.,]\\d+)?(?:\\s*[-–—]\\s*\\d{1,5}(?:[.,]\\d+)?)?\\s*(?:${MEASURE_UNIT_ALT}))(?![\\wäöüß])`,
+  'gi',
+);
+
+/** Dauer („in 3–5 Werktagen", „7 Tage", „2 business days"). */
+const DURATION_VALUE_RE =
+  /(\d{1,3}(?:[.,]\d+)?(?:\s*[-–—]\s*\d{1,3}(?:[.,]\d+)?)?)\s*(werktag\w*|arbeitstag\w*|business\s+days?|working\s+days?|wochen?|tage?n?|days?|weeks?|stunden?|std\.?|hours?)/i;
+
+/** Preis („29 EUR", „29,90 €", "$29"). */
+const PRICE_VALUE_RE =
+  /(\d{1,5}(?:[.,]\d{1,2})?\s*(?:€|eur\b|euro\b|usd\b|dollar\b)|\$\s?\d{1,5}(?:[.,]\d{1,2})?)/i;
+
+/** Kanonische Einheit — damit „500 ml" ⇔ „500ml" und „3-5 Tagen" ⇔ „3–5 Tage". */
+function canonUnit(raw: string): string {
+  const s = raw.toLowerCase().replace(/\.$/, '').trim();
+  if (s.startsWith('werktag')) return 'werktag';
+  if (s.startsWith('arbeitstag')) return 'arbeitstag';
+  if (s.startsWith('business')) return 'businessday';
+  if (s.startsWith('working')) return 'workingday';
+  if (s.startsWith('woche')) return 'woche';
+  if (s.startsWith('tag')) return 'tag';
+  if (s === 'day' || s === 'days') return 'day';
+  if (s === 'week' || s === 'weeks') return 'week';
+  if (s.startsWith('stunde') || s === 'std' || s.startsWith('hour')) return 'stunde';
+  if (s === 'ml' || s.startsWith('milliliter')) return 'ml';
+  if (s === 'cl' || s.startsWith('zentiliter')) return 'cl';
+  if (s === 'kg' || s.startsWith('kilogramm')) return 'kg';
+  if (s === 'g' || s.startsWith('gramm')) return 'g';
+  if (s === 'mg' || s.startsWith('milligramm')) return 'mg';
+  if (s === 'l' || s.startsWith('liter') || s === 'litre') return 'l';
+  if (s === 'cm' || s.startsWith('zentimeter')) return 'cm';
+  if (s === 'mm' || s.startsWith('millimeter')) return 'mm';
+  if (s === 'm' || s.startsWith('meter') || s.startsWith('metre')) return 'm';
+  if (s.startsWith('stueck') || s.startsWith('stück') || s === 'stk') return 'stück';
+  if (s.startsWith('packung') || s === 'pkg') return 'packung';
+  if (s === 'zoll') return 'zoll';
+  if (s === 'inch') return 'inch';
+  return s;
+}
+
+/** Zahl-normalisierter Schlüssel eines Wertes („300 ml" → `300|ml`). */
+export function factValueKey(raw: string): string {
+  const nums = (raw.match(/\d+(?:[.,]\d+)?/g) ?? []).map((n) => n.replace(',', '.'));
+  const text = raw.toLowerCase();
+  let unit: string;
+  if (/€|eur\b|euro\b/.test(text)) unit = 'eur';
+  else if (/\$|usd\b|dollar\b/.test(text)) unit = 'usd';
+  else {
+    const um = text.match(new RegExp(UNIT_ALT));
+    unit = um ? canonUnit(um[0]) : 'x';
+  }
+  return `${nums.join('~')}|${unit}`;
+}
+
+/** Alle belegten Werte des Nutzerkontexts (Zahl-normalisiert, als Set). */
+export function declaredFactValues(blob: string): Set<string> {
+  const out = new Set<string>();
+  const scan = (re: RegExp): void => {
+    re.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(blob)) !== null) {
+      if (m.index === re.lastIndex) re.lastIndex++;
+      out.add(factValueKey(m[1] ?? m[0]));
+    }
+  };
+  scan(new RegExp(DURATION_VALUE_RE.source, 'gi'));
+  scan(new RegExp(PRICE_VALUE_RE.source, 'gi'));
+  scan(new RegExp(MEASURE_RE.source, 'gi'));
+  return out;
+}
+
+/** Umlaut-/Schreibvarianten-tolerant (spuelmaschinenfest ⇔ spülmaschinenfest). */
+function normalizeClaim(raw: string): string {
+  return (raw || '')
+    .toLowerCase()
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Leichte deutsche Stammform — damit „persönlicher Verpackung" im Output durch
+ * „Persönliche Verpackung" des Nutzers belegt ist (Flexion egal). Es werden nur
+ * Wortendungen abgeschnitten, nie Wortanfänge: der Stamm bleibt als Teilstring
+ * in jeder flektierten Form des Nutzerworts enthalten.
+ */
+function claimStem(word: string): string {
+  const w = normalizeClaim(word).replace(/[^a-z0-9%]/g, '');
+  if (w.length <= 5) return w;
+  for (const suffix of ['ungen', 'ung', 'lich', 'isch', 'ig', 'ern', 'ers', 'en', 'er', 'es', 'em', 'e', 's']) {
+    if (w.endsWith(suffix) && w.length - suffix.length >= 4) return w.slice(0, w.length - suffix.length);
+  }
+  return w;
+}
+
+/** Stämme eines Ausdrucks (≥4 Zeichen) für den wörtlichen Beleg-Check. */
+function claimStems(phrase: string): string[] {
+  return normalizeClaim(phrase)
+    .replace(/[^a-z0-9% ]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(claimStem)
+    .filter((s) => s.length >= 4);
+}
+
+/**
+ * Kategorie (f) — Produktmaße/-eigenschaften/-lieferumfang (de+en).
+ * Jede Behauptung braucht einen WERT im Nutzerkontext oder das wörtliche Wort.
+ */
+FACT_PATTERNS.push(
+  {
+    // Zahlen + Einheiten: „300 ml", „20 cm", „250 g", „30 %", „2 Stück".
+    name: 'produktmass-einheit',
+    re: MEASURE_RE,
+    valueRe: MEASURE_RE,
+    valueRequired: true,
+  },
+  {
+    // Motiv-/Druckseiten: erfindet, wie das Motiv auf dem Produkt sitzt.
+    name: 'motivseite',
+    re: /\b(?:ein|zwei|beid|doppel)seitig\w*|\bvorder-?\s*und\s*rückseite\w*|\bsingle[- ]sided\b|\bdouble[- ]sided\b|\bone[- ]sided\b|\btwo[- ]sided\b|\bprinted\s+on\s+(?:one|both)\s+sides\b/i,
+    claimLiteral: true,
+  },
+  {
+    // Verpackungs-/Personalisierungs-Zusage („persönliche Verpackung").
+    name: 'verpackungs-zusage',
+    re: /persönlich\w*\s+verpack\w*|personalisiert\w*\s+verpack\w*|(?:hübsch|schön|liebevoll|aufwendig|handverpackt)\w*\s+verpack\w*|geschenkverpackung\w*|gift[- ]?wrap\w*|gift\s+packaging\b|free\s+gift\s+wrap\b/i,
+    claimLiteral: true,
+  },
+  {
+    // Lieferumfang/Zubehör-Zusage ohne Nutzerangabe.
+    name: 'lieferumfang',
+    re: /\bim\s+lieferumfang\b|\blieferumfang\s*:|\bwas\s+du\s+bekommst\b|\bwhat'?s\s+included\b|\binklusive\s+(?:geschenkverpackung|verpackung|anhänger|zubehör|zubehoer)\b|\bincluded\s+in\s+(?:the\s+)?(?:box|package|set)\b/i,
+    grounding: /lieferumfang|was\s+du\s+bekommst|what'?s\s+included|inklusive\s+(?:geschenkverpackung|verpackung|anhänger|zubehör|zubehoer)|zubehör|zubehoer/i,
+  },
+);
+
+/**
+ * Grounding-Verengung (Schritt 2, Punkt 2): pro Kategorie festlegen, WELCHER
+ * Beleg entwaffnet. `grounding: undefined` entfernt bewusst das alte
+ * Keyword-Grounding (Themen-Treffer entwaffnete sonst die ganze Kategorie).
+ */
+const PATTERN_VERIFICATION: Record<string, Partial<FactPattern>> = {
+  // (b) Lieferzeit/Versand: nur ein konkreter, vom Nutzer genannter Wert zählt.
+  lieferzeit: { valueRe: DURATION_VALUE_RE, valueRequired: false, grounding: undefined },
+  'in-x-tagen-wochen': { valueRe: DURATION_VALUE_RE, valueRequired: true, grounding: undefined },
+  'versand-zusage': { valueRe: DURATION_VALUE_RE, valueRequired: false, grounding: undefined },
+  versandkostenfrei: { claimLiteral: true, grounding: undefined },
+  bearbeitungszeit: { claimLiteral: true, valueRe: DURATION_VALUE_RE, valueRequired: false, grounding: undefined },
+  // Rückgabe: Themenwort des Nutzers UND (falls eine Zahl fällt) der belegte Wert.
+  rueckgaberecht: { valueRe: DURATION_VALUE_RE, valueRequired: false },
+  // (c) Preis: nur der WÖRTLICH genannte Preis entwaffnet (keine Preisspanne).
+  'preis-ohne-grundlage': { valueRe: PRICE_VALUE_RE, valueRequired: true, grounding: undefined },
+  'zertifikat-wirkung': { claimLiteral: true, grounding: undefined },
+  'garantie-versprechen': { claimLiteral: true, grounding: undefined },
+  'absolutes-materialversprechen': { claimLiteral: true, grounding: undefined },
+};
+for (const pattern of FACT_PATTERNS) {
+  const override = PATTERN_VERIFICATION[pattern.name];
+  if (override) Object.assign(pattern, override);
+}
+
 /** Satz-Zerlegung (Satzenden + Zeilenumbrüche), wie im TikTok-Story-Check. */
 function splitSentences(text: string): string[] {
   return text
@@ -206,12 +427,57 @@ function splitSentences(text: string): string[] {
     .filter(Boolean);
 }
 
+/** Strukturierte Nutzerangaben als Textblob (Teil des erlaubten Kontexts). */
+export function declaredFactBlob(declared?: DeclaredFacts): string {
+  if (!declared) return '';
+  const extra = Array.isArray(declared.extra) ? declared.extra : [];
+  return [declared.size, declared.material, declared.price, declared.shipping, declared.special, ...extra]
+    .filter((v): v is string => typeof v === 'string' && v.trim() !== '')
+    .join('\n');
+}
+
+/** Prüf-Kontext = freier Grounding-Blob + strukturierte Nutzerangaben. */
+export function buildCheckContext(groundingBlob: string, declared?: DeclaredFacts): string {
+  const blob = typeof groundingBlob === 'string' ? groundingBlob : '';
+  return [blob, declaredFactBlob(declared)].filter(Boolean).join('\n');
+}
+
+/**
+ * MENGEN-PRÜFUNG (Schritt 2, Punkt 3) — analog zum Slug-literal-Mechanismus:
+ * jede Zahl+Einheit im Output (ml|cl|l|g|kg|cm|mm|m|Zoll|Stück|%) muss
+ * zahl-normalisiert in den Nutzerdaten vorkommen, sonst ist sie eine Erfindung.
+ * Liefert die ungedeckten Werte (leer = konform) — die Namen der Verstöße
+ * kommen aus `factViolations()` (`FACT:produktmass-einheit`).
+ */
+export function quantityViolations(
+  text: string,
+  groundingBlob: string,
+  declared?: DeclaredFacts,
+): string[] {
+  if (typeof text !== 'string' || text.trim() === '') return [];
+  const allowed = declaredFactValues(buildCheckContext(groundingBlob, declared));
+  const out: string[] = [];
+  const re = new RegExp(MEASURE_RE.source, 'gi');
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index === re.lastIndex) re.lastIndex++;
+    const token = (m[1] ?? m[0]).trim();
+    if (!allowed.has(factValueKey(token))) out.push(token);
+  }
+  return [...new Set(out)];
+}
+
 /** Satz mit einer erfundenen Behauptung? (Grounding + literal-Prüfung). */
-function matchViolationsInSentence(sentence: string, groundingBlob: string): string[] {
+function matchViolationsInSentence(
+  sentence: string,
+  groundingBlob: string,
+  declaredValues: Set<string>,
+): string[] {
   const hits: string[] = [];
   // Grounding-Muster sind kleingeschrieben (TikTok-Konvention) — der Vergleich
   // läuft deshalb gegen den kleingeschriebenen Nutzerkontext.
   const blob = (groundingBlob || '').toLowerCase();
+  const claimBlob = normalizeClaim(groundingBlob || '');
   for (const pattern of FACT_PATTERNS) {
     const re = new RegExp(
       pattern.re.source,
@@ -220,19 +486,7 @@ function matchViolationsInSentence(sentence: string, groundingBlob: string): str
     let m: RegExpExecArray | null;
     while ((m = re.exec(sentence)) !== null) {
       if (m.index === re.lastIndex) re.lastIndex++;
-      if (pattern.literal) {
-        // Slug/Domain: nur erlaubt, wenn der Fund im Nutzerkontext steht.
-        // Slugs werden wortweise geprüft (Bindestriche/Leerzeichen egal), damit
-        // ein aus dem Nutzerthema gebildeter Slug nie geflaggt wird.
-        const token = (m[1] ?? m[0]).trim().replace(/^[/\s(„"'’]+/, '').replace(/\/$/, '');
-        if (token) {
-          const lower = token.toLowerCase();
-          const words = lower.split(/[-/.]/).filter((w) => w.length > 2);
-          if (blob.includes(lower) || (words.length > 0 && words.every((w) => blob.includes(w)))) continue;
-        }
-      } else if (pattern.grounding && pattern.grounding.test(blob)) {
-        continue; // vom Nutzer genannt ⇒ belegt, nie flaggen
-      }
+      if (isGrounded(pattern, m, sentence, blob, claimBlob, declaredValues)) continue;
       hits.push(FACT_VIOLATION_PREFIX + pattern.name);
     }
   }
@@ -240,16 +494,81 @@ function matchViolationsInSentence(sentence: string, groundingBlob: string): str
 }
 
 /**
- * Deterministischer Fakten-Check (satzweise, de+en): liefert die Namen aller
- * Verstöße (leer = konform). `groundingBlob` = alle Nutzerangaben
- * (Produktidee + Brief + Markenprofil + Projekt) — daraus belegte Begriffe
- * werden nie geflaggt.
+ * Entwaffnet eine Behauptung? ALLE vorhandenen Prüfmechanismen müssen bestehen:
+ *   - `literal`      = Slug/Domain steht wörtlich im Nutzerkontext (wortweise).
+ *   - `claimLiteral` = der gefundene Ausdruck steht wörtlich im Nutzerkontext.
+ *   - `valueRe`      = der konkrete Wert (Zahl+Einheit/Preis) des Satzes kommt
+ *                      zahl-normalisiert in den Nutzerdaten vor.
+ *   - `grounding`    = Themen-Keyword (nur noch bei Mustern ohne Wert-Prüfung).
  */
-export function factViolations(text: string, groundingBlob: string): string[] {
+function isGrounded(
+  pattern: FactPattern,
+  m: RegExpExecArray,
+  sentence: string,
+  blob: string,
+  claimBlob: string,
+  declaredValues: Set<string>,
+): boolean {
+  if (pattern.literal) {
+    // Slug/Domain: nur erlaubt, wenn der Fund im Nutzerkontext steht.
+    // Slugs werden wortweise geprüft (Bindestriche/Leerzeichen egal), damit
+    // ein aus dem Nutzerthema gebildeter Slug nie geflaggt wird.
+    const token = (m[1] ?? m[0]).trim().replace(/^[/\s(„"'’]+/, '').replace(/\/$/, '');
+    if (!token) return false;
+    const lower = token.toLowerCase();
+    const words = lower.split(/[-/.]/).filter((w) => w.length > 2);
+    return blob.includes(lower) || (words.length > 0 && words.every((w) => blob.includes(w)));
+  }
+  let verified = false;
+  if (pattern.claimLiteral) {
+    // Wörtlicher Beleg: der Nutzer muss die Aussage selbst formuliert haben.
+    // Zahlen im Ausdruck (z. B. „100 %") zählen dabei wörtlich, Wörter stammweise
+    // (Flexion egal) — ein bloßes Themen-Keyword entwaffnet NICHT mehr.
+    const matched = normalizeClaim(m[0]);
+    const digits = matched.match(/\d+(?:[.,]\d+)?/g) ?? [];
+    const stems = claimStems(matched);
+    if (digits.length === 0 && stems.length === 0) return false;
+    if (digits.some((d) => !claimBlob.includes(d))) return false;
+    if (stems.some((s) => !claimBlob.includes(s))) return false;
+    verified = true;
+  }
+  if (pattern.valueRe) {
+    const valueMatch = sentence.match(pattern.valueRe);
+    if (!valueMatch) {
+      // Kein konkreter Wert im Satz: Pflicht-Wert-Muster ⇒ Verstoß,
+      // sonst (valueRequired false) reicht der Themen-/Wort-Beleg.
+      if (pattern.valueRequired) return false;
+    } else if (!declaredValues.has(factValueKey(valueMatch[1] ?? valueMatch[0]))) {
+      return false; // Wert genannt, aber NICHT vom Nutzer — z. B. 300 vs 500 ml
+    }
+    verified = true;
+  }
+  if (pattern.grounding) {
+    if (!pattern.grounding.test(blob)) return false;
+    verified = true;
+  }
+  return verified;
+}
+
+/**
+ * Deterministischer Fakten-Check (satzweise, de+en): liefert die Namen aller
+ * Verstöße (leer = konform).
+ *
+ * `groundingBlob` = alle Nutzerangaben (Produktidee + Brief + Markenprofil +
+ * Projekt + declaredFacts). Belegt ist nur, was dort steht — bei Wert-Mustern
+ * zusätzlich nur der KONKRETE genannte Wert (zahl-normalisiert).
+ */
+export function factViolations(
+  text: string,
+  groundingBlob: string,
+  declared?: DeclaredFacts,
+): string[] {
   if (typeof text !== 'string' || text.trim() === '') return [];
+  const ctx = buildCheckContext(groundingBlob, declared);
+  const values = declaredFactValues(ctx);
   const hits: string[] = [];
   for (const sentence of splitSentences(text)) {
-    hits.push(...matchViolationsInSentence(sentence, groundingBlob));
+    hits.push(...matchViolationsInSentence(sentence, ctx, values));
   }
   return [...new Set(hits)];
 }
@@ -258,16 +577,25 @@ export function factViolations(text: string, groundingBlob: string): string[] {
 export function resultFactViolations(
   result: { title?: string; body?: string },
   groundingBlob: string,
+  declared?: DeclaredFacts,
 ): string[] {
   const blob = `${result.title ?? ''}\n${result.body ?? ''}`;
-  return factViolations(blob, groundingBlob);
+  return factViolations(blob, groundingBlob, declared);
 }
 
 /** Letzte Instanz: entfernt jeden Satz mit einer erfundenen Behauptung. */
-export function sanitizeFactText(text: string, groundingBlob: string): string {
+export function sanitizeFactText(
+  text: string,
+  groundingBlob: string,
+  declared?: DeclaredFacts,
+): string {
   if (typeof text !== 'string' || text.trim() === '') return text;
+  const ctx = buildCheckContext(groundingBlob, declared);
+  const values = declaredFactValues(ctx);
   const parts = text.split(/(?<=[.!?])\s+|\n+/);
-  const kept = parts.filter((part) => part.trim() === '' || matchViolationsInSentence(part, groundingBlob).length === 0);
+  const kept = parts.filter(
+    (part) => part.trim() === '' || matchViolationsInSentence(part, ctx, values).length === 0,
+  );
   if (kept.length === parts.length) return text;
   return kept.join(' ').replace(/\s{2,}/g, ' ').trim();
 }
@@ -276,9 +604,10 @@ export function sanitizeFactText(text: string, groundingBlob: string): string {
 export function sanitizeFactResult<T extends { title: string; body: string }>(
   result: T,
   groundingBlob: string,
+  declared?: DeclaredFacts,
 ): T {
-  const title = sanitizeFactText(result.title, groundingBlob).trim();
-  const body = sanitizeFactText(result.body, groundingBlob).trim();
+  const title = sanitizeFactText(result.title, groundingBlob, declared).trim();
+  const body = sanitizeFactText(result.body, groundingBlob, declared).trim();
   if (title === result.title && body === result.body) return result;
   return { ...result, title, body };
 }
@@ -301,6 +630,22 @@ const VIOLATION_LABELS: Record<string, { de: string; en: string }> = {
   'versand-zusage': { de: 'erfundene Versandzusage', en: 'invented shipping promise' },
   preis: { de: 'erfundener Preis', en: 'invented price' },
   'preis-ohne-grundlage': { de: 'erfundener Preis', en: 'invented price' },
+  'produktmass-einheit': {
+    de: 'erfundene Produktmaße/-menge (Zahl + Einheit)',
+    en: 'invented product measurement/quantity (number + unit)',
+  },
+  motivseite: {
+    de: 'erfundene Motiv-/Druckseiten-Angabe (einseitig/beidseitig)',
+    en: 'invented print-side claim (one/two-sided)',
+  },
+  'verpackungs-zusage': {
+    de: 'erfundene Verpackungs-/Personalisierungszusage',
+    en: 'invented packaging/personalisation promise',
+  },
+  lieferumfang: {
+    de: 'erfundener Lieferumfang/Verpackungsangabe',
+    en: 'invented scope-of-delivery/packaging claim',
+  },
   zertifikat: { de: 'erfundenes Zertifikat/Material- oder Wirkversprechen', en: 'invented certification or material/effect claim' },
   garantie: { de: 'erfundenes Garantieversprechen', en: 'invented guarantee' },
   'absolutes-materialversprechen': {
@@ -336,29 +681,66 @@ export function factViolationLabels(violations: string[]): string[] {
 export function factGuardCorrection(violations: string[]): string {
   const labels = factViolationLabels(violations);
   const list = labels.length > 0 ? labels.join('; ') : 'erfundene Fakten / invented facts';
-  return `⚠️ FAKTEN-KORREKTUR (der vorherige Versuch wurde verworfen): Die vorherige Ausgabe enthielt erfundene Fakten, die NICHT in den Nutzerangaben stehen: ${list}. Schreibe die Ausgabe neu und entferne diese Angaben vollständig (kein Ich-Erzähler, keine Lieferzeit, keine Rückgaberegel, keinen Preis, keine Trend-Behauptung, keinen fremden Slug/Link). Nutze ausschließlich Fakten aus den Nutzerangaben; wenn du keine belegte Angabe hast, lasse den Punkt weg oder formuliere allgemein ohne Zahl, Zusage und Namen. — EN: The previous output contained invented facts not present in the user input (${list}). Rewrite it without them: no first-person seller anecdotes, no delivery/return promises, no prices, no trend claims, no foreign slugs/links — use only facts from the user input, otherwise omit or phrase generally.`;
+  return `⚠️ FAKTEN-KORREKTUR (der vorherige Versuch wurde verworfen): Die vorherige Ausgabe enthielt erfundene Fakten, die NICHT in den Nutzerangaben stehen: ${list}. Schreibe die Ausgabe neu und entferne diese Angaben vollständig (kein Ich-Erzähler, keine Lieferzeit, kein Preis, keine Produktmaße/-mengen, keine Motiv-/Druckseiten- oder Verpackungsangabe ohne Nutzerbeleg, keine Trend-Behauptung, keinen fremden Slug/Link). Nutze ausschließlich Fakten aus den Nutzerangaben; wenn du keine belegte Angabe hast, schreibe „Auf Anfrage"/„Nicht zutreffend" oder lass den Punkt weg (ohne Zahl, Zusage und Namen). — EN: The previous output contained invented facts not present in the user input (${list}). Rewrite it without them: no first-person seller anecdotes, no delivery/return promises, no prices, no measurements/quantities, no print-side/packaging claims without user input, no trend claims, no foreign slugs/links — use only facts from the user input, otherwise answer "on request" or omit.`;
 }
 
 /**
- * Ehrliche Fehlermeldung, wenn ein Paket-Kanal auch nach der Satz-Eliminierung
- * keine faktenfreie Ausgabe hergibt: es wird NICHTS erfunden ausgeliefert.
+ * Ehrliche Fehlermeldung, wenn ein Kanal auch nach der Satz-Eliminierung keine
+ * faktenfreie Ausgabe hergibt: es wird NICHTS erfunden ausgeliefert.
  */
 export const FACT_GUARD_ERROR =
-  'Die Ausgabe enthielt erfundene Angaben (z. B. Lieferzeit, Rückgaberegel, Preis, Trend-Behauptung oder einen fremden Slug), die nicht aus deinen Angaben stammen, und konnte nicht bereinigt werden. Bitte ergänze die fehlenden Fakten (z. B. Lieferzeit, Versand, Preis) in deiner Produktidee oder im Markenprofil und starte die Generierung erneut. — EN: The output contained invented facts (e.g. delivery time, return policy, price, trend claim or a foreign slug) that were not part of your input and could not be cleaned. Please add the missing facts (e.g. delivery time, shipping, price) to your product idea or brand profile and generate again.';
+  'Die Ausgabe enthielt Angaben (z. B. Lieferzeit, Preis, Produktmaße/-mengen, Motiv-/Druckseiten, Verpackung, Rückgaberegel, Trend-Behauptung oder einen fremden Slug), die nicht aus deinen Angaben stammen, und konnte nicht bereinigt werden. Bitte ergänze die fehlenden Fakten (z. B. Maße, Material, Lieferzeit, Versand, Preis) in deiner Produktidee, in den Produktdetails oder im Markenprofil und starte die Generierung erneut. — EN: The output contained claims (e.g. delivery time, price, measurements/quantities, print sides, packaging, return policy, trend claim or a foreign slug) that were not part of your input and could not be cleaned. Please add the missing facts (e.g. size, material, delivery time, shipping, price) to your product idea, product details or brand profile and generate again.';
 
 /**
- * Grounding-Blob aus dem Paket-Kontext bauen: Nutzerangaben sind belegt.
- * Der „Gemeinsame Strategie-Kern" ist LLM-generiert und wird bewusst entfernt
- * (sonst könnte ein vom Modell formulierter Hook wie „Trend" den Check
- * versehentlich entwaffnen).
+ * Grounding-Blob aus dem Kontext bauen: Nutzerangaben sind belegt.
+ *
+ * LLM-/Maschinen-generierte Blöcke werden bewusst entfernt, sonst könnte ein vom
+ * Modell formulierter Kernel-Hook (z. B. „Trend") den Check entwaffnen. Entfernt
+ * werden: „Gemeinsamer Strategie-Kern" (Paket), F9-Performance-Kontext (📈) und
+ * F10-Lernprofil (🧠) — die dürfen NIE ins Grounding rutschen.
+ *
+ * `factGroundingStrict` (Progressive-Paket-Pfad): es zählen AUSSCHLIESSLICH die
+ * explizit übergebenen Nutzerangaben (`factGrounding` + `declaredFacts` + Idee),
+ * nicht der gemischte Kanal-Kontext.
  */
 export function buildFactGrounding(request: {
   productIdea?: string;
   additionalContext?: string;
   factGrounding?: string;
+  declaredFacts?: DeclaredFacts;
+  factGroundingStrict?: boolean;
 }): string {
   const explicit = typeof request.factGrounding === 'string' ? request.factGrounding.trim() : '';
   const context = typeof request.additionalContext === 'string' ? request.additionalContext : '';
-  const withoutKernel = context.replace(/^Gemeinsamer Strategie-Kern[\s\S]*?(?=\n\n|$)/, '');
-  return [request.productIdea ?? '', explicit, withoutKernel].filter(Boolean).join('\n');
+  const withoutGenerated = stripGeneratedBlocks(context);
+  const declared = declaredFactBlob(request.declaredFacts);
+  const parts = request.factGroundingStrict
+    ? [request.productIdea ?? '', declared, explicit]
+    : [request.productIdea ?? '', declared, explicit, withoutGenerated];
+  return parts.filter(Boolean).join('\n');
+}
+
+/** Marker der generierten (nicht-belegbaren) Kontextblöcke. */
+const GENERATED_BLOCK_MARKERS = [
+  'Gemeinsamer Strategie-Kern',
+  '📈',
+  '🧠',
+  'What works for you',
+  'Your learned preferences',
+];
+
+/**
+ * Entfernt LLM-/maschinen-generierte Kontext-Absätze: der Check darf sich nur auf
+ * Nutzerangaben stützen (Stabilisierung Schritt 2, Punkt 5).
+ */
+export function stripGeneratedBlocks(context: string): string {
+  if (!context) return '';
+  return context
+    .split(/\n{2,}/)
+    .filter((para) => {
+      const head = para.trim();
+      if (!head) return false;
+      return !GENERATED_BLOCK_MARKERS.some((marker) => head.startsWith(marker));
+    })
+    .join('\n\n');
 }

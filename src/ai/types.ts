@@ -1,3 +1,9 @@
+// Stabilisierung Schritt 2: strukturierte Nutzerangaben für den Fakten-Check.
+// Nur ein TYP-Import — `fact-guard.ts` bleibt ohne Laufzeit-Abhängigkeit.
+import type { DeclaredFacts } from './fact-guard';
+
+export type { DeclaredFacts };
+
 export type ContentType =
   | 'pinterest_pin'
   | 'etsy_listing'
@@ -34,12 +40,28 @@ export interface ContentRequest {
    */
   enforceFacts?: boolean;
   /**
-   * Owner-Entscheid 2026-10-01 (Teil 2) — optionaler Grounding-Blob des
-   * Paket-Flows (Nutzerangaben: Produktidee + Brief + Markenprofil). Nur
-   * serverseitig gesetzt (wie `correctionNote`), NICHT von der UI durchgereicht.
+   * Owner-Entscheid 2026-10-01 (Teil 2) — optionaler Grounding-Blob (Nutzerangaben:
+   * Produktidee + Brief + Markenprofil). Nur serverseitig gesetzt (wie
+   * `correctionNote`), NICHT von der UI durchgereicht.
    * Fehlt er, leitet `buildFactGrounding()` ihn aus Idee + Zusatzkontext ab.
    */
   factGrounding?: string;
+  /**
+   * Stabilisierung Schritt 2 (Owner 2026-10-02) — strukturierte Nutzerangaben
+   * (Produktdetails, Brief-Antworten, Markenprofil-Angebote, Produktidee). Der
+   * Fakten-Check nutzt sie als ERLAUBTE WERTELISTE: jede Zahl+Einheit bzw. jede
+   * Eigenschafts-Aussage im Output muss zahl-normalisiert darin vorkommen, sonst
+   * gilt sie als erfunden. Rein additiv/optional — fehlt das Feld, greift die
+   * alte Extraktion aus Idee + `additionalContext`.
+   */
+  declaredFacts?: DeclaredFacts;
+  /**
+   * Stabilisierung Schritt 2, Punkt 5 — true = der Fakten-Check stützt sich
+   * AUSSCHLIESSLICH auf `factGrounding` + `declaredFacts` + Produktidee; die
+   * maschinen-/LLM-generierten Kontextblöcke (Strategie-Kern, F9-Performance,
+   * F10-Lernprofil) dürfen ihn nicht entwaffnen. Nur für den Paket-Flow.
+   */
+  factGroundingStrict?: boolean;
 }
 
 export interface ContentResult {
