@@ -377,7 +377,7 @@ FACT_PATTERNS.push(
   {
     // Motiv-/Druckseiten: erfindet, wie das Motiv auf dem Produkt sitzt.
     name: 'motivseite',
-    re: /\b(?:ein|zwei|beid|doppel)seitig\w*|\bvorder-?\s*und\s*rückseite\w*|\bsingle[- ]sided\b|\bdouble[- ]sided\b|\bone[- ]sided\b|\btwo[- ]sided\b|\bprinted\s+on\s+(?:one|both)\s+sides\b/i,
+    re: /\b(?:ein|zwei|beid|doppel)seitig\w*|\bvorder-?\s*und\s*rückseite\w*|\bsingle[- ]sided\b|\bdouble[- ]sided\b|\bone[- ]sided\b|\btwo[- ]sided\b|\bprinted\s+on\s+(?:one|both)\s+sides?\b|\bprint(?:ed)?\s+on\s+one\s+side\b/i,
     claimLiteral: true,
   },
   {

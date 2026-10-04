@@ -82,7 +82,7 @@ export async function runWithContextLoyalty(
 
   const first = await run(request);
   const violations = resultLoyaltyViolations(request, first);
-  const firstFact = enforceFacts ? resultFactViolations(first, grounding) : [];
+  const firstFact = enforceFacts ? resultFactViolations(first, grounding, request.declaredFacts) : [];
   if (violations.length === 0 && firstFact.length === 0) {
     return { result: first, attempts: 1, corrected: false };
   }
@@ -119,7 +119,7 @@ export async function runWithContextLoyalty(
   };
   const retry = await run(retryRequest);
   const retryViolations = resultLoyaltyViolations(request, retry);
-  const retryFact = enforceFacts ? resultFactViolations(retry, grounding) : [];
+  const retryFact = enforceFacts ? resultFactViolations(retry, grounding, request.declaredFacts) : [];
   if (retryViolations.length === 0 && retryFact.length === 0) {
     return { result: retry, attempts: 2, corrected: violations.length > 0, factCorrected: firstFact.length > 0 };
   }
@@ -144,7 +144,7 @@ export async function runWithContextLoyalty(
     request.contentType,
     '— Saetze werden eliminiert.',
   );
-  const cleaned = sanitizeFactResult(retry, grounding);
+  const cleaned = sanitizeFactResult(retry, grounding, request.declaredFacts);
   // Ist der Titel komplett weggefallen, traegt die Produktidee (Nutzerdaten)
   // weiterhin einen belegten Titel — das Asset bleibt so nutzbar.
   const safeTitle =
