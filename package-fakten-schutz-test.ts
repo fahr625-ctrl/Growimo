@@ -57,6 +57,7 @@ import {
   factGuardCorrection,
   factViolationLabels,
   factViolations,
+  quantityViolations,
   resultFactViolations,
   sanitizeFactResult,
   sanitizeFactText,
@@ -432,6 +433,215 @@ async function main(): Promise<void> {
       return sanitizeFactResult(clean, GROUNDING_DE) === clean;
     })(),
   );
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // G. Schritt 2 (Owner 2026-10-02): KEINE erfundenen Etsy-Produktfakten
+  //    (Kategorie f) + Grounding-Verengung + Mengen-Prüfung + declaredFacts
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log('\n── G. Schritt 2: Produktfakten-Schutz (Kategorie f) ────────────');
+  const TASSE_IDEA = 'Personalisierte Tasse mit Foto für den Vatertag';
+
+  // G1: Die 5 gemeldeten Erfindungen OHNE Nutzereingabe = Pflicht-Verstöße (de)
+  const beleg5: Array<[string, string, string]> = [
+    ['„300 ml"', 'Die Tasse fasst 300 ml.', 'produktmass-einheit'],
+    ['„spülmaschinenfest"', 'Die Tasse ist spülmaschinenfest.', 'zertifikat-wirkung'],
+    ['„einseitiges Motiv"', 'Das Motiv wird einseitig gedruckt.', 'motivseite'],
+    ['„Versand in 3–5 Tagen"', 'Der Versand dauert in 3–5 Tagen.', 'in-x-tagen-wochen'],
+    ['„persönliche Verpackung"', 'Jede Tasse kommt in persönlicher Verpackung.', 'verpackungs-zusage'],
+  ];
+  for (const [label, text, category] of beleg5) {
+    const v = factViolations(text, TASSE_IDEA);
+    check(`G1 Erfindung erkannt (de): ${label}`, v.some((x) => x.includes(category)), v.join('|'));
+  }
+  // G1b: dieselben Erfindungen im englischen Output
+  const enErfindungen: Array<[string, string]> = [
+    ['300 ml', 'The mug holds 300 ml.'],
+    ['dishwasher safe', 'The mug is dishwasher safe.'],
+    ['printed on one side', 'The design is printed on one side.'],
+    ['ships in 3-5 days', 'It ships in 3-5 days.'],
+    ['gift wrapping', 'Every mug comes with free gift wrap.'],
+  ];
+  for (const [label, text] of enErfindungen) {
+    check(`G1b Erfindung erkannt (en): ${label}`, factViolations(text, 'Personalized mug with photo').length > 0);
+  }
+  // G1c: kompletter Etsy-FAQ-Block mit allen 5 Erfindungen
+  {
+    const block =
+      'Die Tasse fasst 300 ml und ist spülmaschinenfest. Das Motiv ist einseitig. Der Versand dauert 3–5 Tage. Du erhältst sie in persönlicher Verpackung.';
+    const v = factViolations(block, TASSE_IDEA);
+    check(
+      'G1c FAQ-Block: alle 4 Kategorien erkannt (Maß/Zertifikat/Motivseite/Verpackung)',
+      ['produktmass-einheit', 'zertifikat-wirkung', 'motivseite', 'verpackungs-zusage'].every((c) => v.some((x) => x.includes(c))),
+      v.join('|'),
+    );
+  }
+
+  // G2: Gegenproben — nennt der Nutzer die Angaben WÖRTLICH, ist nichts ein Verstoß
+  const TASSE_FACTS =
+    'Tasse mit Foto. Fassungsvermögen 300 ml. Material Keramik, spülmaschinenfest. Motiv einseitig bedruckt. Versand 3–5 Tage. Persönliche Verpackung inklusive.';
+  const gegenproben: Array<[string, string]> = [
+    ['300 ml', 'Die Tasse fasst 300 ml.'],
+    ['spülmaschinenfest', 'Die Tasse ist spülmaschinenfest.'],
+    ['einseitig', 'Das Motiv ist einseitig.'],
+    ['3–5 Tage', 'Der Versand dauert 3–5 Tage.'],
+    ['persönliche Verpackung', 'Du bekommst sie in persönlicher Verpackung.'],
+  ];
+  for (const [label, text] of gegenproben) {
+    check(`G2 Gegenprobe (Nutzer nennt es): ${label}`, factViolations(text, TASSE_FACTS).length === 0, factViolations(text, TASSE_FACTS).join('|'));
+  }
+  check(
+    'G2b Gegenprobe Gesamtblock (de) = 0 Verstöße',
+    factViolations(
+      'Die Tasse fasst 300 ml und ist spülmaschinenfest. Das Motiv ist einseitig. Der Versand dauert 3–5 Tage. Du bekommst sie in persönlicher Verpackung.',
+      TASSE_FACTS,
+    ).length === 0,
+  );
+  check(
+    'G2c Gegenprobe (en) = 0 Verstöße',
+    factViolations(
+      'The mug holds 300 ml and is dishwasher safe. Printed on one side. It ships in 3-5 days.',
+      'Mug with photo. Size 300 ml. Material ceramic, dishwasher safe. Printed on one side. Shipping 3-5 days.',
+    ).length === 0,
+  );
+
+  // G3: Grounding-Verengung — ein Themen-Keyword entwaffnet NICHT mehr global
+  const briefGrounding = buildFactGrounding({ productIdea: TASSE_IDEA, factGrounding: 'USP=Schnelle Lieferung\nPreis=20–60 €' });
+  check(
+    'G3 „USP=Schnelle Lieferung" entwaffnet „Versand in 3–5 Tagen" NICHT',
+    factViolations('Der Versand dauert in 3–5 Tagen.', briefGrounding).length > 0,
+  );
+  check(
+    'G3b Preis-Spanne 20–60 € belegt KEINEN konkreten Preis (29 €)',
+    factViolations('Der Preis liegt bei 29 €.', briefGrounding).length > 0,
+  );
+  check(
+    'G3c derselbe Preis bleibt belegt, wenn der Nutzer ihn nennt',
+    factViolations('Der Preis liegt bei 29 €.', 'Mug, Preis 29 €').length === 0,
+  );
+  check(
+    'G3d reine Themen-Nennung („Verpackung") belegt keine Packungs-Zusage',
+    factViolations('Jede Tasse kommt in persönlicher Verpackung.', 'Tasse mit Verpackung, 1 Stück').length > 0,
+  );
+
+  // G4: 300 vs 500 ml — zahl-normalisierte Prüfung
+  check(
+    'G4 Nutzer nennt 500 ml, Output sagt 300 ml → Verstoß',
+    factViolations('Die Tasse fasst 300 ml.', 'Flasche mit 500 ml Fassungsvermögen').length > 0,
+  );
+  check(
+    'G4b Nutzer nennt 500 ml, Output sagt 500 ml → konform',
+    factViolations('Die Tasse fasst 500 ml.', 'Flasche mit 500 ml Fassungsvermögen').length === 0,
+  );
+  check(
+    'G4c Mengen-Prüfung (quantityViolations) liefert den ungedeckten Wert',
+    quantityViolations('300 ml und 500 ml.', 'Flasche mit 500 ml').join('|').includes('300'),
+  );
+  check(
+    'G4d Mengen-Prüfung: alle Werte belegt → leer',
+    quantityViolations('300 ml und 500 ml.', 'Flasche mit 500 ml und 300 ml').length === 0,
+  );
+  check(
+    'G4e Zähl-Semantik: „10 Stück" ohne Nutzerbeleg wird erkannt',
+    factViolations('Enthalten sind 10 Stück.', 'Tasse mit Foto').some((v) => v.includes('produktmass-einheit')),
+  );
+
+  // G5: declaredFacts (Punkt 4) = erlaubte Werteliste
+  {
+    const declared = { size: '300 ml', material: 'Keramik, spülmaschinenfest', shipping: '3–5 Tage' };
+    check(
+      'G5 declaredFacts belegen Maße/Material/Versand',
+      factViolations('Die Tasse fasst 300 ml, ist spülmaschinenfest und kommt in 3–5 Tagen.', TASSE_IDEA, declared).length === 0,
+      factViolations('Die Tasse fasst 300 ml, ist spülmaschinenfest und kommt in 3–5 Tagen.', TASSE_IDEA, declared).join('|'),
+    );
+    check(
+      'G5b declaredFacts belegen KEINE anderen Werte (400 ml bleibt Verstoß)',
+      factViolations('Die Tasse fasst 400 ml.', TASSE_IDEA, declared).length > 0,
+    );
+    check('G5c buildFactGrounding nimmt declaredFacts auf', /300 ml/.test(buildFactGrounding({ productIdea: TASSE_IDEA, declaredFacts: declared })));
+  }
+
+  // G6: F9/F10-Kontexte dürfen NIE ins Grounding rutschen (Punkt 5)
+  {
+    const g = buildFactGrounding({
+      productIdea: 'Testidee',
+      additionalContext: [
+        'Gemeinsamer Strategie-Kern (für dieses Paket verbindlich):\n- Keywords: Trend, Bestseller\n',
+        '📈 Was bei dir funktioniert (aus deinen Performance-Daten):\n- Pinterest: 300 ml Motive funktionieren',
+        '🧠 Deine gelernten Präferenzen (aus deinem Feedback):\n- Bevorzugter Ton: warm',
+      ].join('\n\n'),
+    });
+    check('G6 Strategie-Kern nicht im Grounding', !/Strategie-Kern|Bestseller/.test(g), g.slice(0, 90));
+    check('G6b F9-Performance-Kontext nicht im Grounding', !/300 ml|Performance-Daten/.test(g));
+    check('G6c F10-Lernprofil nicht im Grounding', !/gelernten Präferenzen/.test(g));
+  }
+
+  // G7: Verdrahtung — kein Kanal-Pfad ohne Post-Check (Punkt 5, Statik)
+  const serverSrc = src('src/ai/server.ts');
+  const streamSrc = src('src/ai/stream.ts');
+  const newProjectSrc = src('src/routes/app/new-project.tsx');
+  const packageUiSrc = src('src/routes/app/package.tsx');
+  const apiStreamSrc = src('src/api/generate-stream.ts');
+  check('G7 Einzelkanal-ServerFn setzt enforceFacts serverseitig', /enforceFacts: shouldEnforceFacts\(data\.contentType\)/.test(serverSrc));
+  check('G7b Strategie-Stream setzt enforceFacts für Kanäle', /enforceFacts: true/.test(streamSrc) && /FACT_GUARDED_CONTENT_TYPES/.test(streamSrc));
+  check('G7c Verbessern-Pfad setzt enforceFacts + strict Grounding', /enforceFacts: true/.test(serverSrc) && /factGroundingStrict: true/.test(serverSrc));
+  check('G7d progressiver Paket-Kanal nutzt strict Grounding', /factGroundingStrict: true/.test(src('src/ai/package/package.ts')));
+  check('G7e Paket-Batch nutzt strict Grounding', /factGroundingStrict: true/.test(src('src/ai/package/generate.ts')));
+  check('G7f UI (Projekt-Flow) übergibt declaredFacts', /declaredFacts/.test(newProjectSrc));
+  check('G7g UI (Paket-Flow) übergibt das Nutzer-Grounding', /grounding: prep\.grounding/.test(packageUiSrc));
+  check('G7h SSE-Route reicht declaredFacts durch', /declaredFacts/.test(apiStreamSrc));
+  check(
+    'G7i generate.ts nutzt declaredFacts im Check',
+    (src('src/ai/generate.ts').match(/request\.declaredFacts/g) ?? []).length >= 3,
+  );
+
+  // G8: Prompt-Umkehr (Punkt 6)
+  const promptTasse = buildSystemPrompt('etsy_listing');
+  check('G8 Etsy-Prompt: Produktdetails nur aus Nutzerangaben', /Produktdetails AUSSCHLIESSLICH aus den Nutzerangaben/.test(promptTasse));
+  check('G8b Etsy-Prompt: Materialliste nur belegt („Nicht zutreffend")', /Nicht zutreffend/.test(promptTasse));
+  check('G8c Etsy-Prompt: FAQ nur mit belegten Antworten', /Formuliere NUR Fragen, deren Antwort in den Nutzerangaben belegt ist/.test(promptTasse));
+  check('G8d Etsy-Prompt: keine erfundene Verpackungs-/Personalisierungszusage', /keine Verpackungs-\/Personalisierungszusage/.test(promptTasse));
+  check(
+    'G8e globale Fakten-Regel nennt die neue Kategorie (Maße/Mengen/Verpackung)',
+    /Produktmaße, Mengen, Füllmengen/.test(FACT_PROTECTION_CONSTRAINT),
+  );
+  check(
+    'G8f globale Regel enthält keine konkreten Negativ-Beispiele mehr',
+    !/in 3–5 Werktagen|14 Tage Rückgaberecht|300 ml/.test(FACT_PROTECTION_CONSTRAINT),
+  );
+
+  // G9: Satz-Eliminierung entfernt die Erfindung, Rest bleibt nutzbar
+  {
+    const cleaned = sanitizeFactText(
+      'Diese Tasse wird mit deinem Foto personalisiert. Sie fasst 300 ml und ist spülmaschinenfest.',
+      TASSE_IDEA,
+    );
+    check('G9 Erfundene Fakten-Sätze entfernt, belegter Satz bleibt', !/300 ml|spülmaschinenfest/.test(cleaned) && /Foto personalisiert/.test(cleaned), cleaned);
+  }
+  check(
+    'G9b Labels der neuen Kategorien sind lesbar (de+en)',
+    (() => {
+      const labels = factViolationLabels(['FACT:produktmass-einheit', 'FACT:motivseite', 'FACT:verpackungs-zusage']).join(' | ');
+      return /maße/i.test(labels) && /Motiv/.test(labels) && /Verpackung/.test(labels) && /measurement/.test(labels);
+    })(),
+  );
+  check(
+    'G9c FAKTEN-KORREKTUR nennt die neuen Kategorien',
+    /Produktmaße|Maße/.test(factGuardCorrection(['FACT:produktmass-einheit'])) &&
+      /measurements/.test(factGuardCorrection(['FACT:produktmass-einheit'])),
+  );
+
+  // G10: Retry-Kette (1 Korrektur → Eliminierung → harter Fehler) mit Erfindung
+  {
+    let call = 0;
+    const run = async (): Promise<ContentResult> => {
+      call++;
+      return call === 1
+        ? resultOf('Personalisierte Tasse', 'Die Tasse fasst 300 ml.', 'etsy_listing')
+        : resultOf('Personalisierte Tasse', 'Diese Tasse wird mit deinem Foto personalisiert.', 'etsy_listing');
+    };
+    const out = await runWithContextLoyalty({ contentType: 'etsy_listing', productIdea: TASSE_IDEA, enforceFacts: true }, run);
+    check('G10 Erfundenes „300 ml" löst genau 1 Korrekturversuch aus', out.attempts === 2 && call === 2 && out.factCorrected === true);
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // F. Regression: bestehende Regeln bleiben grün
