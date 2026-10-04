@@ -1291,7 +1291,7 @@ export const en: EnShape = {
   image_studio_strategy_project: 'Project',
   image_studio_strategy_reference: 'Product image',
   image_studio_strategy_reference_none: 'No product image available — the image is created from the prompt.',
-  image_studio_prompt_line_concept: 'Image idea',
+  image_studio_prompt_line_concept: 'Image idea', image_studio_prompt_line_product: 'Product idea',
   image_studio_prompt_line_overlay: 'Text overlay',
   image_studio_prompt_line_platform: 'Platform',
   image_studio_prompt_line_brand: 'Brand context',

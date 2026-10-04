@@ -222,7 +222,7 @@ function ImageStudioContent() {
       // vorher waren sie reine Anzeige-Chips.
       const brandInfo = strategy.brandInfo || formatStrategyBrandContext(getBrandProfile());
       setPrompt(
-        composeStrategyStudioPrompt(strategy, {
+        composeStrategyStudioPrompt({ ...strategy, brandInfo }, {
           product: t.image_studio_prompt_line_product,
           concept: t.image_studio_prompt_line_concept,
           overlay: t.image_studio_prompt_line_overlay,

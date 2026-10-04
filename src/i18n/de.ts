@@ -1294,7 +1294,7 @@ export const de = {
   image_studio_strategy_project: 'Projekt',
   image_studio_strategy_reference: 'Produktbild',
   image_studio_strategy_reference_none: 'Kein Produktbild vorhanden — das Bild wird aus dem Prompt erstellt.',
-  image_studio_prompt_line_concept: 'Bildidee',
+  image_studio_prompt_line_concept: 'Bildidee', image_studio_prompt_line_product: 'Produktidee',
   image_studio_prompt_line_overlay: 'Text-Overlay',
   image_studio_prompt_line_platform: 'Plattform',
   image_studio_prompt_line_brand: 'Markenkontext',

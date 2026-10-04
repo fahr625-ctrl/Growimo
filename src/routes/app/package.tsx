@@ -23,7 +23,10 @@ import { trackAnalytics } from '~/lib/analytics-client';
 import { classifyGenerationError } from '~/lib/analytics-error';
 import { track } from '~/lib/tracking-client';
 import { resolveInitialIdea } from '~/lib/idea-priority';
-import { getBrandContext } from '~/store/brand';
+import { getBrandContext, getBrandProfile } from '~/store/brand';
+// Stabilisierung Schritt 3 (Punkt 5) — „🎨 Bild jetzt erstellen" auch im Paket-Flow.
+import { extractStrategyImage, saveStrategyPrefill } from '~/lib/strategy-image';
+import { formatStrategyBrandContext } from '~/lib/studio-deeplink';
 import {
   LAST_SAVED_PACKAGE_STORAGE_KEY,
   parseLastSavedPackage,
@@ -963,6 +966,33 @@ function ChannelCard({
               }}
             />
           </div>
+
+          {/* Stabilisierung Schritt 3 (Punkt 5): „🎨 Bild jetzt erstellen" direkt
+              unter dem fertigen Pinterest-/Bildprompt dieses Kanals. Ein Klick
+              legt den Prefill (Prompt, Format, Produktidee, Markeninfo,
+              vorhandenes Produktbild) ab und öffnet das Bild-Studio. */}
+          {(() => {
+            const strategyImage = extractStrategyImage(display.body, contentType, {
+              productIdea,
+              brandInfo: formatStrategyBrandContext(getBrandProfile()),
+            });
+            if (!strategyImage) return null;
+            return (
+              <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50/60 p-4" data-testid="package-create-image">
+                <button
+                  type="button"
+                  onClick={() => {
+                    saveStrategyPrefill(strategyImage);
+                    window.location.href = '/app/image-studio?fromStrategy=1';
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:opacity-95 hover:shadow-lg"
+                >
+                  {t.image_studio_create_image_now}
+                </button>
+                <p className="mt-2 text-xs text-blue-700">{t.image_studio_create_image_now_hint}</p>
+              </div>
+            );
+          })()}
 
           {sections ? (
             <div className="space-y-3">
