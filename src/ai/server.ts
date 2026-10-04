@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start';
-import type { AutoImproveSectionOutcome, ContentRequest, ContentResult, ContentScore, ContentType, ImproveOutcome, PerformanceEntry, PerformanceOverview, PrioritizeAsset, PrioritizeOutcome, PublishPlanItem, UserPreferencesView, VariantsResult } from './types';
+import type { AutoImproveSectionOutcome, ContentRequest, ContentResult, ContentScore, ContentType, DeclaredFacts, ImproveOutcome, PerformanceEntry, PerformanceOverview, PrioritizeAsset, PrioritizeOutcome, PublishPlanItem, UserPreferencesView, VariantsResult } from './types';
 import type { MarketingPackage } from './package/package';
 import type { TikTokInput, TikTokMode, TikTokResult } from './tiktok';
 import { diagnoseRetentionGaps } from './tiktok';
@@ -21,6 +21,51 @@ async function guardUserId(payloadFallback?: string): Promise<string> {
     throw new Error('Keine gültige Sitzung — bitte neu anmelden.');
   }
   return uid;
+}
+
+/**
+ * Stabilisierung Schritt 2, Punkt 5: Die 5 publizierbaren Kanäle laufen
+ * serverseitig IMMER durch den Fakten-Post-Check ("kein Kanal-Pfad ohne
+ * Post-Check"). Nicht-Kanal-Typen (Analyse/Strategie-Hilfstexte) bleiben
+ * bewusst unverändert, damit bestehende Ausgaben nicht verschlechtert werden.
+ */
+const FACT_GUARDED_CONTENT_TYPES = [
+  'pinterest_pin',
+  'etsy_listing',
+  'seo_blog',
+  'social_post',
+  'email_newsletter',
+];
+function shouldEnforceFacts(contentType: unknown): boolean {
+  return typeof contentType === 'string' && FACT_GUARDED_CONTENT_TYPES.includes(contentType);
+}
+
+/**
+ * Sanitize declared facts (Stabilisierung Schritt 2, Punkt 4) — nur Strings,
+ * Längen gedeckelt, leere Werte fallen weg (fail-safe). */
+function sanitizeDeclaredFacts(input: unknown): DeclaredFacts | undefined {
+  if (!input || typeof input !== 'object') return undefined;
+  const raw = input as Record<string, unknown>;
+  const take = (key: string): string | undefined => {
+    const v = raw[key];
+    return typeof v === 'string' && v.trim() ? v.trim().slice(0, 1200) : undefined;
+  };
+  const extra = Array.isArray(raw.extra)
+    ? (raw.extra as unknown[])
+        .filter((v): v is string => typeof v === 'string' && v.trim() !== '')
+        .slice(0, 40)
+        .map((v) => v.trim().slice(0, 600))
+    : undefined;
+  const facts: DeclaredFacts = {
+    size: take('size'),
+    material: take('material'),
+    price: take('price'),
+    shipping: take('shipping'),
+    special: take('special'),
+    extra: extra && extra.length > 0 ? extra : undefined,
+  };
+  const hasAny = Object.values(facts).some((v) => (Array.isArray(v) ? v.length > 0 : Boolean(v)));
+  return hasAny ? facts : undefined;
 }
 
 /**
@@ -52,6 +97,9 @@ export const generateContentServer = createServerFn({ method: 'POST' })
       productIdea: d.productIdea,
       tone: d.tone,
       additionalContext: d.additionalContext,
+      // Stabilisierung Schritt 2, Punkt 4/5: strukturierte Nutzerangaben
+      // (Produktdetails) als erlaubte Werteliste für den Fakten-Check.
+      declaredFacts: sanitizeDeclaredFacts(d.declaredFacts),
     };
   })
   .handler(async ({ data }): Promise<ContentResult> => {
@@ -61,7 +109,12 @@ export const generateContentServer = createServerFn({ method: 'POST' })
     // Phase 8.2 — Drossel (2 s) + Guard: Einzel-Asset = 1 Generierung.
     await g.assertRateOk(userId);
     const { generateContent } = await import('./generate');
-    return g.withGenerationGuard(userId, () => generateContent(data));
+    // Stabilisierung Schritt 2, Punkt 5: JEDER Kanal-Pfad (QuickGenerator,
+    // Projekt-Flow, Kanal-Paket) läuft durch den Fakten-Post-Check. Server-seitig
+    // gesetzt (nicht vom Client manipulierbar). Nicht-Kanal-Typen bleiben wie bisher.
+    return g.withGenerationGuard(userId, () =>
+      generateContent({ ...data, enforceFacts: shouldEnforceFacts(data.contentType) }),
+    );
   });
 
 /**
@@ -80,7 +133,10 @@ export const improveContentServer = createServerFn({ method: 'POST' })
     if (!d.contentType) throw new Error('contentType is required');
     if (!d.currentContent) throw new Error('currentContent is required');
     if (!d.analysisFeedback) throw new Error('analysisFeedback is required');
-    return d;
+    return {
+      ...d,
+      declaredFacts: sanitizeDeclaredFacts((d as { declaredFacts?: unknown }).declaredFacts),
+    };
   })
   .handler(async ({ data }): Promise<ContentResult> => {
     console.log('[server.improveContent] Improving:', data.contentType);
@@ -110,6 +166,13 @@ ${data.analysisFeedback}
 
 === ANWEISUNG ===
 Generiere eine verbesserte Version des ${channelLabel}. Behalte das gleiche Format und die gleiche Struktur bei. Setze JEDEN konkreten Verbesserungsvorschlag aus der Analyse um. Optimiere Keywords, emotionale Trigger, Lesbarkeit und Conversion-Elemente. Antworte vollständig auf Deutsch.`,
+      // Stabilisierung Schritt 2, Punkt 5: auch der Verbessern-Pfad läuft durch
+      // den Fakten-Post-Check. `factGroundingStrict` + Grounding = Idee/Produktdaten:
+      // der bisherige Content im Prompt ist KEIN Beleg (er könnte selbst erfunden sein).
+      enforceFacts: true,
+      factGrounding: data.productIdea || '',
+      factGroundingStrict: true,
+      declaredFacts: (data as { declaredFacts?: DeclaredFacts }).declaredFacts,
     };
 
     const { generateContent } = await import('./generate');
@@ -835,7 +898,7 @@ export const fetchPackageKernelServer = createServerFn({ method: 'POST' })
   });
 export const generatePackageChannelServer = createServerFn({ method: 'POST' })
   .validator((input: unknown) => {
-    const d = input as { productIdea?: unknown; contentType?: unknown; context?: unknown; brandContext?: unknown };
+    const d = input as { productIdea?: unknown; contentType?: unknown; context?: unknown; brandContext?: unknown; grounding?: unknown };
     if (!d || typeof d !== 'object') throw new Error('data is required');
     if (typeof d.productIdea !== 'string' || !d.productIdea.trim()) throw new Error('productIdea is required');
     const ct = d.contentType;
@@ -846,10 +909,14 @@ export const generatePackageChannelServer = createServerFn({ method: 'POST' })
     // gilt). Leer = kein Markenprofil aktiv.
     const brandContext =
       typeof d.brandContext === 'string' && d.brandContext.trim() ? d.brandContext.slice(0, 8000) : '';
+    // Stabilisierung Schritt 2, Punkt 5: NUR die Nutzerangaben aus dem Kernel-Prep
+    // (Idee + Markenprofil + F6-Brief) sind Grounding — Kernel/F9/F10 nicht.
+    const grounding = typeof d.grounding === 'string' && d.grounding.trim() ? d.grounding.slice(0, 12000) : '';
     return {
       productIdea: d.productIdea.trim(),
       contentType: ct as ContentType,
       context: [brandContext, typeof d.context === 'string' ? d.context : ''].filter(Boolean).join('\n\n'),
+      grounding: [d.productIdea.trim(), grounding, brandContext].filter(Boolean).join('\n'),
     };
   })
   .handler(async ({ data }) => {
@@ -861,7 +928,7 @@ export const generatePackageChannelServer = createServerFn({ method: 'POST' })
     const userId = await guardUserId();
     const { generatePackageChannelWithContext } = await import('./package/package');
     return g.withGenerationGuard(userId, () =>
-      generatePackageChannelWithContext(data.contentType, data.productIdea, data.context),
+      generatePackageChannelWithContext(data.contentType, data.productIdea, data.context, data.grounding),
     );
   });
 export const finalizePackagePrioritiesServer = createServerFn({ method: 'POST' })

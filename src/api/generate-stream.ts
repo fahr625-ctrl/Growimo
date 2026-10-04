@@ -57,11 +57,32 @@ function parseBody(body: unknown): ParsedStreamBody | { error: string } {
     const r = item as Record<string, unknown>;
     if (typeof r.contentType !== "string" || !r.contentType) return { error: "contentType is required" };
     if (typeof r.productIdea !== "string" || !r.productIdea) return { error: "productIdea is required" };
+    // Stabilisierung Schritt 2, Punkt 4: strukturierte Nutzerangaben
+    // (Produktdetails) durchreichen — sie sind die erlaubte Werteliste des
+    // Fakten-Checks. Defensiv validiert wie im Server-Fn-Validator.
+    const rawFacts = r.declaredFacts;
+    let declaredFacts: Record<string, unknown> | undefined;
+    if (rawFacts && typeof rawFacts === "object") {
+      const rf = rawFacts as Record<string, unknown>;
+      const take = (key: string): string | undefined =>
+        typeof rf[key] === "string" && (rf[key] as string).trim()
+          ? (rf[key] as string).trim().slice(0, 1200)
+          : undefined;
+      const facts: Record<string, unknown> = {
+        size: take("size"),
+        material: take("material"),
+        price: take("price"),
+        shipping: take("shipping"),
+        special: take("special"),
+      };
+      if (Object.values(facts).some(Boolean)) declaredFacts = facts as Record<string, unknown>;
+    }
     requests.push({
       contentType: r.contentType as ContentType,
       productIdea: r.productIdea,
       tone: typeof r.tone === "string" ? r.tone : undefined,
       additionalContext: typeof r.additionalContext === "string" ? r.additionalContext : undefined,
+      declaredFacts: declaredFacts as ContentRequest["declaredFacts"],
     });
   }
   const dummy = b.dummy === true;

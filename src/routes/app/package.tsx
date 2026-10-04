@@ -335,7 +335,15 @@ function PackageContent() {
         CHANNEL_META.map(async ({ key, contentType }) => {
           try {
             const res = (await generatePackageChannelServer({
-              data: { productIdea, contentType, context: prep.context, brandContext: packageBrandContext },
+              data: {
+                productIdea,
+                contentType,
+                context: prep.context,
+                brandContext: packageBrandContext,
+                // Stabilisierung Schritt 2, Punkt 5: Nutzerangaben-Grounding aus
+                // dem Kernel-Prep (Idee + Marke + F6-Brief) — NUR das belegt Fakten.
+                grounding: prep.grounding,
+              },
             })) as ContentResult;
             acc[key] = res;
           } catch (err) {

@@ -84,13 +84,13 @@ Baue die Beschreibung in diesen Abschnitten auf — mit kurzen, einladenden Zwis
 
 a) ✨ Das Besondere daran – Starte mit einem sensorischen Einstieg: Wie fühlt sich das Material an? Was macht das Produkt anders als alle anderen? 2–3 Sätze, die das Produkt in den Händen der Leserin zum Leben erwecken. KEIN „Dieses Produkt ist…" — sondern „Manchmal hält man etwas in den Händen und spürt sofort…".
 
-b) 📋 Auf einen Blick – Alle Produktdetails präzise und vollständig: Maße, Materialien, Farben, Gewicht, Varianten, Personalisierungsoptionen. Im Fließtext, nicht als stumpfe Liste. Jede Angabe, die der Käufer für seine Kaufentscheidung braucht.
+b) 📋 Auf einen Blick – Produktdetails AUSSCHLIESSLICH aus den Nutzerangaben (Produktidee, Produktdetails, Strategie-Brief, Markenprofil): Maße, Materialien, Farben, Gewicht, Varianten, Personalisierungsoptionen nur nennen, wenn sie dort belegt sind. Fehlt eine Angabe, schreibe „Auf Anfrage" oder lass sie weg — KEINE Maß-, Mengen-, Gewichts-, Material- oder Füllmengen-Angabe ohne Nutzerbeleg (kein „300 ml", kein „spülmaschinenfest", kein „einseitiges Motiv"). Im Fließtext, nicht als stumpfe Liste.
 
 c) 🎯 Perfekt für dich, wenn… – Beschreibe 2–3 konkrete Persona-Szenarien, keine demografischen Daten. Nicht „Frauen 30–45", sondern „Du liebst es, wenn dein Zuhause nach einem langen Tag eine Umarmung ist — warm, einladend, mit Charakter. Genau dafür ist dieses Produkt gemacht." (KEINE fremde Beispiel-Produktkategorie — Produkt und Anlass kommen ausschließlich aus den Nutzerangaben.)
 
 d) 🎁 Die besondere Geschenkidee – Warum dieses Produkt ein Geschenk ist, das in Erinnerung bleibt (nicht nur eines, das man aus Verlegenheit kauft). Konkrete Anlässe MIT Begründung, warum das Produkt dafür passt — Anlässe und Begründung ausschließlich aus den Nutzerangaben (kein fremdes Beispielprodukt, keine erfundene Marktaussage).
 
-e) 💛 Jetzt gehört es dir – 2 Sätze freundlicher, direkter CTA. Erzeuge Vorfreude auf das PRODUKT SELBST — niemals auf Lieferzeit, Versand oder Rückgabe. ERFINDE KEINE Lieferzeit und keine Dauer (kein „in 3–5 Tagen", kein „in wenigen Tagen hältst du es in den Händen"), keine Versandkosten-Zusage und keine Rückgabe-/Umtauschregel: solche Angaben NUR übernehmen, wenn der Nutzer sie in seinen Produktdetails genannt hat — sonst ohne Zeit-, Kosten- und Rückgabe-Aussage formulieren.
+e) 💛 Jetzt gehört es dir – 2 Sätze freundlicher, direkter CTA. Erzeuge Vorfreude auf das PRODUKT SELBST — niemals auf Lieferzeit, Versand, Rückgabe oder Verpackung. KEINE Lieferzeit- und keine Dauer-Aussage, keine Versandkosten-Zusage, keine Rückgabe-/Umtauschregel und keine Verpackungs-/Personalisierungszusage (keine „persönliche Verpackung", keine Geschenkverpackung): solche Angaben NUR übernehmen, wenn der Nutzer sie in seinen Produktdetails genannt hat — sonst ohne Zeit-, Kosten-, Zusatz- und Verpackungs-Aussage formulieren.
 
 4. 13 Etsy-Tags
 Genau 13 kommagetrennte Tags, jeder maximal 20 Zeichen. Sortiert nach realistischen Suchvolumen (höchste zuerst). Genau null Wiederholungen. Keine Sonderzeichen außer Bindestrich. Formuliert wie das, was Käufer TATSÄCHLICH in die Etsy-Suche eingeben. Mindestens 3 Tags, die spezifische Longtail-Anfragen abdecken, und mindestens 2 saisonale Tags, wenn passend.
@@ -120,7 +120,7 @@ Die 2–3 wichtigsten Kaufanlässe, kommagetrennt. Sortiert nach Häufigkeit fü
 2–3 Sätze, die die ideale Käuferin BESCHREIBEN, nicht demografisch klassifizieren. Male ein Bild: Was liebt sie? Was stört sie an anderen Produkten? Wonach sucht sie? Warum wird genau DIESES Produkt ihr Problem lösen? Formel: Schmerzpunkt → Wunsch → Lösung.
 
 13. Materialien
-Die Hauptmaterialien als kommagetrennte Liste. Mit sensorischen Adjektiven, wo sinnvoll („weiches Leinen" statt „Leinen"). Nur aufführen, was relevant ist — sonst „Nicht zutreffend".
+Die Hauptmaterialien als kommagetrennte Liste. Mit sensorischen Adjektiven, wo sinnvoll („weiches Leinen" statt „Leinen"). Nur aufführen, was in den Nutzerangaben belegt ist — sonst „Nicht zutreffend". Keine erfundenen Material-, Pflege- oder Eigenschaftsversprechen (kein „wasserfest", kein „spülmaschinenfest", kein „100 %"-Versprechen ohne Nutzerbeleg).
 
 14. Dateiname Produktbild
 Suchmaschinenfreundlicher Dateiname: kleingeschrieben, Bindestriche, enthält 3–4 Hauptkeywords, endet mit .jpg. Bilde den Dateinamen ausschließlich aus den Hauptkeywords des Nutzerthemas (kein fremdes Beispielprodukt).
@@ -129,7 +129,7 @@ Suchmaschinenfreundlicher Dateiname: kleingeschrieben, Bindestriche, enthält 3�
 90–130 Zeichen. Beschreibt Farbe, Material, Stil, Nutzungskontext in EINEM natürlich klingenden Satz. Optimiert für Etsy-SEO UND Barrierefreiheit. Enthält das Hauptkeyword natürlich eingebettet.
 
 16. FAQ
-5 häufige Käuferfragen mit ausführlichen, vertrauensbildenden Antworten (je 3–5 Sätze). Die Fragen MÜSSEN echte, wiederkehrende Bedenken widerspiegeln: Pflege („Kann ich das waschen?"), Größe („Passt das in meine Wohnung?"), Material („Ist das wirklich aus…?"), Lieferung („Wie schnell kommt es an?"), Rückgabe („Was, wenn es mir nicht gefällt?") — diese Fragen nur mit BELEGTEN Angaben des Nutzers beantworten; ohne Nutzerangabe ehrlich allgemein bleiben (z. B. „Die aktuellen Liefer- und Rückgabebedingungen findest du im Shop") und KEINE erfundene Frist, keinen Preis und keine Bedingung nennen. Jede Antwort: sachlich korrekt, beruhigend, persönlich. KEIN generischer Support-Ton — sondern das Gefühl, dass der Inhaber selbst antwortet.
+5 häufige Käuferfragen mit ausführlichen, vertrauensbildenden Antworten (je 3–5 Sätze). Formuliere NUR Fragen, deren Antwort in den Nutzerangaben belegt ist (Pflege, Größe/Maße, Material, Lieferung, Rückgabe sind typische Themen — nimm nur die, zu denen der Nutzer etwas gesagt hat); belegte Themen in dieser Reihenfolge zuerst. Fehlt zu einem Thema jede Angabe, stelle die Frage nicht (oder beantworte sie ausdrücklich allgemein, z. B. „Die aktuellen Liefer- und Rückgabebedingungen findest du im Shop") und nenne KEINE erfundene Frist, keinen Preis, keine Bedingung und keine Verpackungs-/Personalisierungszusage. Jede Antwort: sachlich korrekt, beruhigend, persönlich. KEIN generischer Support-Ton — sondern das Gefühl, dass der Inhaber selbst antwortet.
 
 17. Cross-Selling-Ideen
 5–7 konkrete Ergänzungsprodukte. Jede Idee MIT kurzer Ein-Satz-Begründung, warum genau dieses Produkt den Warenkorbwert erhöht und den Kunden glücklicher macht. Sortiert nach Cross-Selling-Wahrscheinlichkeit (das Offensichtlichste zuerst, dann kreativere Kombinationen). Z. B. „Keramikuntersetzer im gleichen Farbton — wer eine handgemachte Tasse kauft, will sie auch richtig in Szene setzen."

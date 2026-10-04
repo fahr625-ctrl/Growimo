@@ -194,6 +194,12 @@ export interface PreparedPackage {
   lang: 'de' | 'en';
   /** Combined channel additionalContext (kernel + F6 brief + F9 perf + F10 learn). */
   context: string;
+  /**
+   * Stabilisierung Schritt 2, Punkt 5: NUR die Nutzerangaben (Idee + Markenprofil
+   * + F6-Brief) als Grounding für den Fakten-Check. Der LLM-Kernel, F9-Performance
+   * und F10-Lernprofil dürfen ihn NICHT entwaffnen.
+   */
+  grounding: string;
 }
 export async function preparePackageContext(
   productIdea: string,
@@ -236,22 +242,30 @@ export async function preparePackageContext(
   const context = [kernelContext(kernel), brandContext, briefContext, perfContext, learnContext]
     .filter(Boolean)
     .join('\n\n');
-  return { kernel, kernelFallback, lang, context };
+  // Stabilisierung Schritt 2, Punkt 5: Grounding = ausschließlich Nutzerangaben.
+  const grounding = [productIdea, brandContext, briefContext].filter(Boolean).join('\n');
+  return { kernel, kernelFallback, lang, context, grounding };
 }
 /** Generate ONE package channel with the shared precombined context. */
 export async function generatePackageChannelWithContext(
   contentType: ContentType,
   productIdea: string,
   context: string,
+  /** Nutzerangaben-Grounding (aus preparePackageContext); fehlt es, gilt die Idee. */
+  grounding?: string,
 ): Promise<ContentResult> {
   const { generateContent } = await import('../generate');
-  // Owner-Entscheid 2026-10-01 (Teil 2): Fakten-Schutz im Package-Flow. Das
-  // Grounding (Idee + Brief + Markenprofil) wird in generate.ts aus dem Kontext
-  // abgeleitet — der LLM-generierte Strategie-Kern ist davon ausgenommen.
+  // Owner-Entscheid 2026-10-01 (Teil 2): Fakten-Schutz im Package-Flow.
+  // Stabilisierung Schritt 2 (2026-10-02): `factGroundingStrict` — der Check
+  // stützt sich nur auf Nutzerangaben (Idee + Marke + Brief), nicht auf den
+  // LLM-generierten Strategie-Kern, F9-Performance oder F10-Lernprofil.
+  const userGrounding = typeof grounding === 'string' && grounding.trim() ? grounding.trim() : productIdea;
   return generateContent({
     contentType,
     productIdea,
     additionalContext: context,
     enforceFacts: true,
+    factGrounding: userGrounding,
+    factGroundingStrict: true,
   });
 }

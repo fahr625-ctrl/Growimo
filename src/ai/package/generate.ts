@@ -46,7 +46,8 @@ export async function generatePackageChannel(
 ): Promise<ContentResult> {
   // Owner-Entscheid 2026-10-01 (Teil 2): Der Paket-Flow aktiviert den
   // deterministischen Fakten-Check (ai/fact-guard.ts). Grounding = NUR die
-  // Nutzerangaben (Idee + Markenprofil + Brief), NICHT der LLM-generierte Kernel.
+  // Nutzerangaben (Idee + Markenprofil + Brief), NICHT der LLM-generierte Kernel,
+  // F9-Performance oder F10-Lernprofil (`factGroundingStrict`, Schritt 2).
   const userGrounding = [productIdea, brandContext, briefContext].filter(Boolean).join('\n');
   const request: ContentRequest = {
     contentType,
@@ -56,6 +57,7 @@ export async function generatePackageChannel(
       .join('\n\n'),
     enforceFacts: true,
     factGrounding: userGrounding,
+    factGroundingStrict: true,
   };
   const { generateContent } = await import('../generate');
   return generateContent(request);

@@ -49,6 +49,18 @@ function newRunId(): string {
   );
 }
 
+/**
+ * Stabilisierung Schritt 2, Punkt 5: Die 5 publizierbaren Kanäle laufen im
+ * Stream IMMER durch den Fakten-Post-Check; Nicht-Kanal-Typen bleiben unverändert.
+ */
+const FACT_GUARDED_CONTENT_TYPES = [
+  'pinterest_pin',
+  'etsy_listing',
+  'seo_blog',
+  'social_post',
+  'email_newsletter',
+];
+
 export interface RunStrategyStreamOptions {
   /** Override the run id (tests / determinism). */
   runId?: string;
@@ -82,7 +94,12 @@ export async function runStrategyStream(
     (async (req: ContentRequest) => {
       // Dynamic import keeps the client bundle free of the server-side engine.
       const { generateContent } = await import("./generate");
-      return generateContent(req);
+      // Stabilisierung Schritt 2, Punkt 5: kein Kanal-Pfad ohne Fakten-Post-Check
+      // — auch der Strategie-/Projekt-Stream (5 Kanäle) läuft durch den
+      // deterministischen Check. Grounding = Nutzerangaben; Kernel/F9/F10 werden
+      // von buildFactGrounding gestrippt.
+      const facts = FACT_GUARDED_CONTENT_TYPES.includes(req.contentType as string);
+      return generateContent(facts ? { ...req, enforceFacts: true } : req);
     });
 
   emit({ type: "started", runId, totalSteps: requests.length });

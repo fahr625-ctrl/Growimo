@@ -305,6 +305,22 @@ function NewProjectContent() {
     ].filter(Boolean).join('\n');
   }, [productDetails]);
 
+  // Stabilisierung Schritt 2, Punkt 4 — dieselben Angaben STRUKTURIERT als
+  // declaredFacts: der Fakten-Check nutzt sie als erlaubte Werteliste (Maße,
+  // Material, Preis, Versand, Besonderheiten). Ohne Eingaben bleibt es leer.
+  const declaredFacts = useMemo(() => {
+    const f = productDetails;
+    const facts = {
+      size: f.size.trim() || undefined,
+      material: f.material.trim() || undefined,
+      price: f.price.trim() || undefined,
+      shipping: f.shipping.trim() || undefined,
+      special: f.special.trim() || undefined,
+    };
+    const hasAny = Object.values(facts).some(Boolean);
+    return hasAny ? facts : undefined;
+  }, [productDetails]);
+
 // ── Generate all selected content types ────────────────────────────────────
   const handleGenerate = useCallback(async () => {
     if (selectedTypes.length === 0) return;
@@ -356,6 +372,8 @@ function NewProjectContent() {
         productIdea,
         tone: tone || undefined,
         additionalContext: [brandContext, buildAdditionalContext()].filter(Boolean).join('\n\n') || undefined,
+        // Stabilisierung Schritt 2, Punkt 4: Produktdetails strukturiert mitgeben.
+        declaredFacts,
       }));
 
       let generated: ContentResult[];
