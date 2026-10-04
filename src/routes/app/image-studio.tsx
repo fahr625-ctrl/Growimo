@@ -12,7 +12,23 @@ import type { GeneratedImage } from '~/ai/image-providers/types';
 import { readStrategyPrefill, type StrategyImagePayload } from '~/lib/strategy-image';
 import { getBrandProfile } from '~/store/brand';
 import { contentTypeLabel } from '~/lib/content-types';
-import { resolveStudioPrefill } from '~/lib/studio-deeplink';
+import {
+  composeStrategyStudioPrompt,
+  formatStrategyBrandContext,
+  resolveStudioPrefill,
+} from '~/lib/studio-deeplink';
+// Stabilisierung Schritt 3 (Punkt 3) — Referenzbild-Kette.
+import {
+  composePromptWithReferenceLock,
+  sanitizeReferenceImageData,
+  type ImageRunMode,
+} from '~/ai/image-providers/reference';
+import {
+  pickStrategyReferenceImage,
+  readFileAsDataUrl,
+  shrinkReferenceImage,
+  type UploadEntry,
+} from '~/lib/image-reference';
 import {
   capGallery,
   guardImageRun,
@@ -28,7 +44,19 @@ import { persistGallery, readGallery } from '~/lib/image-gallery';
  *  (nicht das Original-Datenbild der laufenden Sitzung). */
 type StudioImage = GeneratedImage & { preview?: boolean };
 
-const generateImageServer = createServerFn({ method: 'POST' }).validator((input: unknown) => input as { prompt: string; aspectRatio: string }).handler(async ({ data }) => {
+// Stabilisierung Schritt 3 (Punkt 3): Der Validator akzeptiert jetzt zusätzlich
+// `referenceImageData` (data-URL des Produkt-/Vorlagenbilds). Ein ungültiger
+// Wert wird auf `undefined` normalisiert (fail-closed → Text→Bild statt eines
+// kaputten Requests an OpenAI). Damit kann die Bildidentität überhaupt erst
+// durch die ServerFn reisen — vorher war sie hier hart abgeschnitten.
+const generateImageServer = createServerFn({ method: 'POST' }).validator((input: unknown) => {
+  const raw = (input ?? {}) as { prompt?: unknown; aspectRatio?: unknown; referenceImageData?: unknown };
+  return {
+    prompt: typeof raw.prompt === 'string' ? raw.prompt : '',
+    aspectRatio: typeof raw.aspectRatio === 'string' ? raw.aspectRatio : '1:1',
+    referenceImageData: sanitizeReferenceImageData(raw.referenceImageData),
+  };
+}).handler(async ({ data }) => {
   // Phase 8.2 — 1 Bild = 1 Generierung (nur bei erfolgreichem Bild); Identität
   // aus der Session (Cookie), fail-closed ohne gültige Sitzung.
   const guard = await import('~/lib/usage-guard');
@@ -36,7 +64,11 @@ const generateImageServer = createServerFn({ method: 'POST' }).validator((input:
   if (!userId) throw new Error('Keine gültige Sitzung — bitte neu anmelden.');
   await guard.assertRateOk(userId);
   const { generateImage } = await import('~/ai/image-providers/generate');
-  return guard.withGenerationGuard(userId, () => generateImage(data.prompt, data.aspectRatio));
+  // Mit Referenz läuft `generateImage` über images.edit (Produkt bleibt
+  // identisch) — die Entscheidung selbst liegt in imageRunMode (testbar).
+  return guard.withGenerationGuard(userId, () =>
+    generateImage(data.prompt, data.aspectRatio, data.referenceImageData),
+  );
 });
 
 export const Route = createFileRoute('/app/image-studio')({ component: ImageStudioPage });
@@ -81,16 +113,25 @@ function StrategyStamp({ t, prefill }: { t: ReturnType<typeof useTranslation>['t
       <p className="mt-1.5 text-xs text-emerald-700">{t.image_studio_from_strategy_info}</p>
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
         {infoChip(t.image_studio_strategy_platform, prefill.platform)}
+        {prefill.productIdea && infoChip(t.image_studio_strategy_product, prefill.productIdea)}
         {prefill.overlay && infoChip(t.image_studio_strategy_overlay, prefill.overlay)}
+        {/* Schritt 3 (Punkt 5): Wird ein Produktbild als Referenz mitgegeben,
+            steht das sichtbar hier — kein stiller Edit-Pfad. */}
+        <div className="min-w-0 rounded-lg bg-white/70 px-3 py-2" data-testid="image-studio-strategy-reference">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">{t.image_studio_strategy_reference}</p>
+          <p className="mt-0.5 break-words text-xs text-gray-700">
+            {prefill.referenceImage ? t.image_studio_reference_sent_hint : t.image_studio_strategy_reference_none}
+          </p>
+        </div>
         <div className="min-w-0 rounded-lg bg-white/70 px-3 py-2 sm:col-span-2">
           <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">{t.image_studio_strategy_concept}</p>
           <p className="mt-0.5 break-words whitespace-pre-wrap text-xs text-gray-700">{prefill.concept || '—'}</p>
         </div>
-        {profile?.brandName || profile?.brandColors ? (
+        {(prefill.brandInfo || profile?.brandName || profile?.brandColors) ? (
           <div className="min-w-0 rounded-lg bg-white/70 px-3 py-2 sm:col-span-2">
             <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">{t.image_studio_strategy_brand}</p>
             <p className="mt-0.5 break-words text-xs text-gray-700">
-              {[profile?.brandName, profile?.brandColors].filter(Boolean).join(' · ') || '—'}
+              {prefill.brandInfo || [profile?.brandName, profile?.brandColors].filter(Boolean).join(' · ') || '—'}
             </p>
           </div>
         ) : null}
@@ -129,9 +170,14 @@ function ImageStudioContent() {
   const [usageError, setUsageError] = useState<string | null>(null);
   const [busy, setBusy] = useState<{ id: string; action: 'variation' | 'regenerate' } | null>(null);
   const [cardError, setCardError] = useState<{ id: string; message: string } | null>(null);
-  const [uploads, setUploads] = useState<{ name: string; url: string }[]>([]);
+  const [uploads, setUploads] = useState<UploadEntry[]>([]);
+  // Stabilisierung Schritt 3 (Punkt 3): Der Upload hält jetzt den ECHTEN
+  // Bildinhalt (data-URL) — vorher nur { name, url } (reine Anzeige-URL).
   const [selectedProject, setSelectedProject] = useState('');
   const [strategyPrefill, setStrategyPrefill] = useState<StrategyImagePayload | null>(null);
+  // Schritt 3 (Punkt 3): letzter gelaufener Bildpfad — steuert den ehrlichen
+  // Hinweis „Referenz wurde mitgesendet" (nie stillschweigend Text→Bild).
+  const [lastRunMode, setLastRunMode] = useState<ImageRunMode | null>(null);
   // Deterministic rotation across the variation directions so that consecutive
   // "Variation" clicks never request the same direction (and thus never converge
   // to the same composition via gpt-image-1's similar-prompt fold).
@@ -168,11 +214,27 @@ function ImageStudioContent() {
     // fällt die Auflösung auf ?prompt=/?idea= zurück (reine, getestete Funktion).
     const resolved = resolveStudioPrefill(window.location.search, readStrategyPrefill());
     if (resolved.strategy) {
-      setStrategyPrefill(resolved.strategy);
-      setRatio(resolved.strategy.ratio);
+      const strategy = resolved.strategy;
+      setStrategyPrefill(strategy);
+      setRatio(strategy.ratio);
+      // Schritt 3 (Punkt 5): Prompt + Bildidee + Text-Overlay + Plattform +
+      // Produktidee + Markeninfo fließen jetzt in den GENERIERTEN Prompt ein —
+      // vorher waren sie reine Anzeige-Chips.
+      const brandInfo = strategy.brandInfo || formatStrategyBrandContext(getBrandProfile());
+      setPrompt(
+        composeStrategyStudioPrompt(strategy, {
+          product: t.image_studio_prompt_line_product,
+          concept: t.image_studio_prompt_line_concept,
+          overlay: t.image_studio_prompt_line_overlay,
+          platform: t.image_studio_prompt_line_platform,
+          brand: t.image_studio_prompt_line_brand,
+        }),
+      );
+      // Projektkontext (Punkt 5): Projekt automatisch vorauswählen.
+      if (strategy.projectId) setSelectedProject(strategy.projectId);
     }
     setFromTikTok(resolved.fromTikTok);
-    if (resolved.prompt) setPrompt(resolved.prompt);
+    if (resolved.prompt && !resolved.strategy) setPrompt(resolved.prompt);
   }, []);
   useEffect(() => { if (user?.id) getProjectsByUser(user.id).then(setProjects).catch(() => setProjects([])); }, [user?.id]);
   // Server-side beta-tracking (additive): Image Studio opened.
@@ -203,9 +265,18 @@ function ImageStudioContent() {
     : errorKind === 'user'
       ? t.image_studio_error_aborted
       : t.image_studio_error;
-  const generate = async (text = prompt, selectedRatio = ratio) => {
+  const generate = async (text = prompt, selectedRatio = ratio, referenceImageData?: string) => {
     if (!text.trim()) return;
+    // Schritt 3 (Punkt 3): Referenz prüfen, harten Produkttreue-Baustein anhängen
+    // und den Modus FESTHALTEN — „Variation" ohne Referenz gibt es nicht mehr.
+    const reference = sanitizeReferenceImageData(referenceImageData);
+    const finalPrompt = composePromptWithReferenceLock(
+      text,
+      t.image_studio_prompt_reference_lock,
+      Boolean(reference),
+    );
     setLoading(true); setError(false); setErrorKind(null); setUsageError(null);
+    setLastRunMode(reference ? 'edit' : 'generate');
     // Admin-Analytics MVP Phase 1 (additive): image generation started/finished.
     const imageStart = Date.now();
     try { trackAnalytics('generation_started', { channel: 'image', status: 'started' }); } catch { /* never block */ }
@@ -213,9 +284,9 @@ function ImageStudioContent() {
     // die Promise settelt IMMER (nach 120 s Timeout, bei „Abbrechen“ oder
     // regulär), deshalb endet der Ladezustand garantiert im finally — kein
     // unendlicher Skeleton mehr.
-    const guard = guardImageRun((signal) => generateImageServer({ data: { prompt: text, aspectRatio: selectedRatio }, signal }));
+    const guard = guardImageRun((signal) => generateImageServer({ data: { prompt: finalPrompt, aspectRatio: selectedRatio, referenceImageData: reference }, signal }));
     runGuardRef.current = guard;
-    try { const result = await guard.promise; addImage({ id: crypto.randomUUID(), url: result.url, prompt: text, aspectRatio: selectedRatio, createdAt: new Date() }); track('image_generated', user?.id, { aspectRatio: selectedRatio }); try { trackAnalytics('generation_finished', { channel: 'image', status: 'done', durationMs: Date.now() - imageStart }); } catch { /* never block */ } }
+    try { const result = await guard.promise; addImage({ id: crypto.randomUUID(), url: result.url, prompt: finalPrompt, aspectRatio: selectedRatio, createdAt: new Date() }); track('image_generated', user?.id, { aspectRatio: selectedRatio, mode: reference ? 'edit' : 'generate' }); try { trackAnalytics('generation_finished', { channel: 'image', status: 'done', durationMs: Date.now() - imageStart }); } catch { /* never block */ } }
     catch (e) { const reason = guard.reason(); setErrorKind(reason ?? 'generic'); setUsageError(reason ? null : friendlyServerError(e)); setError(true); try { const cls = classifyGenerationError(e, reason); trackAnalytics('generation_finished', { channel: 'image', status: 'error', durationMs: Date.now() - imageStart, errorCategory: cls.category, errorCode: cls.code }); } catch { /* never block */ } } finally { runGuardRef.current = null; setLoading(false); }
   };
   // Per-card gallery action (Variation / Neu generieren): shows immediate
@@ -231,20 +302,32 @@ function ImageStudioContent() {
     const cardPrompt = (action === 'variation'
       ? `${image.prompt}. ${t.image_studio_prompt_variation.replace('%s', t[directionKey])}`
       : image.prompt).trim();
-    if (cardPrompt) variationCounter.current += 1;
-    if (!cardPrompt) return;
+    // Schritt 3 (Punkt 3): Eine Karten-Variation variiert ein VORHANDENES Bild.
+    // Genau dieses Bild (data-URL aus der Generierung bzw. der wiederhergestellten
+    // Vorschau) geht jetzt als verbindliche Referenz mit — vorher wurde das Motiv
+    // aus dem Prompt-Text neu erfunden. „Neu generieren" bleibt bewusst ohne
+    // Referenz (es reproduziert den ursprünglichen Prompt).
+    const reference = action === 'variation' ? sanitizeReferenceImageData(image.url) : undefined;
+    const finalPrompt = composePromptWithReferenceLock(
+      cardPrompt,
+      t.image_studio_prompt_reference_lock,
+      Boolean(reference),
+    );
+    if (finalPrompt) variationCounter.current += 1;
+    if (!finalPrompt) return;
     setBusy({ id: image.id, action });
     setCardError(null);
+    setLastRunMode(reference ? 'edit' : 'generate');
     // Admin-Analytics MVP Phase 1 (additive): card action started/finished.
     const cardStart = Date.now();
     try { trackAnalytics('generation_started', { channel: 'image', status: 'started' }); } catch { /* never block */ }
     // Phase 3.1 — auch Karten-Aktionen laufen über die Guard (kein Hänger).
-    const guard = guardImageRun((signal) => generateImageServer({ data: { prompt: cardPrompt, aspectRatio: image.aspectRatio }, signal }));
+    const guard = guardImageRun((signal) => generateImageServer({ data: { prompt: finalPrompt, aspectRatio: image.aspectRatio, referenceImageData: reference }, signal }));
     runGuardRef.current = guard;
     try {
       const result = await guard.promise;
-      addImage({ id: crypto.randomUUID(), url: result.url, prompt: cardPrompt, aspectRatio: image.aspectRatio, createdAt: new Date() });
-      track('image_generated', user?.id, { aspectRatio: image.aspectRatio, action });
+      addImage({ id: crypto.randomUUID(), url: result.url, prompt: finalPrompt, aspectRatio: image.aspectRatio, createdAt: new Date() });
+      track('image_generated', user?.id, { aspectRatio: image.aspectRatio, action, mode: reference ? 'edit' : 'generate' });
       try { trackAnalytics('generation_finished', { channel: 'image', status: 'done', durationMs: Date.now() - cardStart }); } catch { /* never block */ }
     } catch (e) {
       const reason = guard.reason();
@@ -268,7 +351,10 @@ function ImageStudioContent() {
     if (!m) return null;
     if (
       m.includes('Limit') || m.includes('warte') || m.includes('Sitzung') ||
-      m.includes('Too many') || m.includes('session') || m.includes('monthly')
+      m.includes('Too many') || m.includes('session') || m.includes('monthly') ||
+      // Schritt 3: Referenz-Fehler ehrlich anzeigen statt „Fehler bei der
+      // Bildgenerierung" — sonst sucht der Nutzer den Fehler an der falschen Stelle.
+      m.includes('Referenzbild')
     ) return m;
     return null;
   };
@@ -291,14 +377,64 @@ function ImageStudioContent() {
       setError(true);
     }
   };
-  const handleFiles = (files: FileList | null) => { if (!files) return; setUploads((prev) => [...prev, ...Array.from(files).map((file) => ({ name: file.name, url: URL.createObjectURL(file) }))]); };
+  // Stabilisierung Schritt 3 (Punkt 3) — UPLOAD mit echtem Bildinhalt.
+  // Vorher: `{ name, url: URL.createObjectURL(file) }` → keine Bildidentität,
+  // die „Variation" war eine Neuerfindung aus dem Dateinamen. Jetzt wird der
+  // Inhalt als data-URL gelesen (nur im State, nie in der sessionStorage) und
+  // bei Bedarf für den Request verkleinert.
+  const handleFiles = (files: FileList | null) => {
+    if (!files) return;
+    for (const file of Array.from(files)) {
+      const url = URL.createObjectURL(file);
+      const entry: UploadEntry = {
+        name: file.name,
+        url,
+        dataUrl: null,
+        mime: file.type || 'image/png',
+        status: 'reading',
+      };
+      setUploads((prev) => [...prev, entry]);
+      void readFileAsDataUrl(file)
+        .then((raw) => shrinkReferenceImage(raw))
+        .then((prepared) => {
+          const usable = sanitizeReferenceImageData(prepared);
+          setUploads((prev) =>
+            prev.map((u) =>
+              u.url === url
+                ? { ...u, dataUrl: usable ?? null, status: usable ? 'ready' : 'failed' }
+                : u,
+            ),
+          );
+        })
+        .catch(() => {
+          setUploads((prev) =>
+            prev.map((u) => (u.url === url ? { ...u, dataUrl: null, status: 'failed' } : u)),
+          );
+        });
+    }
+  };
+  // Schritt 3 (Punkt 3): Der Upload-Variations-Knopf ist NUR mit echtem
+  // Bildinhalt aktiv. Ohne brauchbare Referenz wird nichts als „Variation"
+  // verkauft (kein stiller Text→Bild-Pfad) — der Grund steht am Knopf.
+  const uploadVariationPrompt = (): string => {
+    const directionKey = variationDirectionKeys[variationCounter.current % variationDirectionKeys.length];
+    variationCounter.current += 1;
+    return `${t.image_studio_prompt_upload_variation}: ${t[directionKey]}`;
+  };
+  // Schritt 3 (Punkt 5): vorhandenes Produktbild für die Strategie-Generierung —
+  // Referenz aus dem Prefill, sonst das erste im Studio hochgeladene Produktbild.
+  const strategyReference = pickStrategyReferenceImage(
+    strategyPrefill?.referenceImage,
+    uploads,
+  );
   return <div className="mx-auto max-w-5xl space-y-8">
     <header><div className="mb-2 flex items-center gap-3"><Link to="/app" className="text-sm text-blue-600 hover:underline">← {t.nav_dashboard}</Link>{fromTikTok && <Link to="/app/tiktok" className="text-sm text-blue-600 hover:underline">← {t.image_studio_back_to_tiktok}</Link>}</div><h1 className="text-3xl font-bold text-gray-900">{t.image_studio_page_title}</h1><p className="mt-2 text-gray-500">{t.image_studio_page_subtitle}</p></header>
     {strategyPrefill && <StrategyStamp t={t} prefill={strategyPrefill} />}
-    <section className="rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white shadow-lg"><label className="mb-2 block text-sm font-semibold">{t.image_studio_prompt_label}</label><div className="flex flex-col gap-3 sm:flex-row"><input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={t.image_studio_prompt_placeholder} className="min-w-0 flex-1 rounded-xl border-0 px-4 py-3 text-gray-900 outline-none ring-2 ring-transparent focus:ring-white" /><button onClick={() => void generate()} disabled={loading || !prompt.trim()} className="rounded-xl bg-white px-6 py-3 font-bold text-blue-700 transition hover:bg-blue-50 disabled:opacity-60">{loading ? <span className="inline-block animate-spin">◌</span> : '✨'} {loading ? t.image_studio_generating : t.image_studio_generate_btn}</button>{loading && <button type="button" onClick={() => runGuardRef.current?.abort('user')} className="rounded-xl border border-white/70 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/20">{t.image_studio_abort}</button>}</div><p className="mt-5 text-xs font-semibold uppercase tracking-wide text-blue-100">{t.image_studio_templates_label}</p><div className="mt-2 flex flex-wrap gap-2">{templates.map(([r, key, baseKey]) => <button key={r} onClick={() => { setRatio(r); setPrompt(`${t[baseKey]} ${prompt || t.image_studio_prompt_fallback_product}${t.image_studio_prompt_suffix}`); }} className="rounded-full bg-white/15 px-3 py-2 text-xs font-semibold transition hover:bg-white/30">{t[key]} </button>)}</div></section>
+    <section className="rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white shadow-lg"><label className="mb-2 block text-sm font-semibold">{t.image_studio_prompt_label}</label><div className="flex flex-col gap-3 sm:flex-row"><input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={t.image_studio_prompt_placeholder} className="min-w-0 flex-1 rounded-xl border-0 px-4 py-3 text-gray-900 outline-none ring-2 ring-transparent focus:ring-white" /><button onClick={() => void generate(prompt, ratio, strategyReference)} disabled={loading || !prompt.trim()} className="rounded-xl bg-white px-6 py-3 font-bold text-blue-700 transition hover:bg-blue-50 disabled:opacity-60">{loading ? <span className="inline-block animate-spin">◌</span> : '✨'} {loading ? t.image_studio_generating : t.image_studio_generate_btn}</button>{loading && <button type="button" onClick={() => runGuardRef.current?.abort('user')} className="rounded-xl border border-white/70 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/20">{t.image_studio_abort}</button>}</div><p className="mt-5 text-xs font-semibold uppercase tracking-wide text-blue-100">{t.image_studio_templates_label}</p><div className="mt-2 flex flex-wrap gap-2">{templates.map(([r, key, baseKey]) => <button key={r} onClick={() => { setRatio(r); setPrompt(`${t[baseKey]} ${prompt || t.image_studio_prompt_fallback_product}${t.image_studio_prompt_suffix}`); }} className="rounded-full bg-white/15 px-3 py-2 text-xs font-semibold transition hover:bg-white/30">{t[key]} </button>)}</div></section>
     <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"><h2 className="text-lg font-bold text-gray-900">{t.image_studio_from_strategy}</h2><select value={selectedProject} onChange={(e) => setSelectedProject(e.target.value)} className="mt-3 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"><option value="">{t.image_studio_select_project}</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}</select>{strategyPrompts.length > 0 && <><p className="mt-4 text-sm font-semibold text-gray-700">{t.image_studio_prompts_generated}</p><div className="mt-2 flex flex-wrap gap-2">{strategyPrompts.map((p) => <button key={p} onClick={() => setPrompt(p)} className="rounded-full bg-blue-50 px-3 py-2 text-left text-xs text-blue-700 transition hover:bg-blue-100">{p}</button>)}</div></>}</section>
-    {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{usageError ?? errorText} <button onClick={() => void generate()} className="ml-3 font-bold underline">{t.analysis_retry}</button></div>}
+    {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{usageError ?? errorText} <button onClick={() => void generate(prompt, ratio, strategyReference)} className="ml-3 font-bold underline">{t.analysis_retry}</button></div>}
+    {(strategyReference || lastRunMode === 'edit') && <p data-testid="image-studio-reference-hint" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs text-emerald-800">{t.image_studio_reference_sent_hint}</p>}
     <section><h2 className="mb-4 text-xl font-bold text-gray-900">{t.image_studio_gallery_title}</h2>{restoredCount > 0 && <p data-testid="image-gallery-restored-hint" className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs text-blue-800">{t.image_studio_gallery_restored_hint.replace('%s', String(restoredCount))}</p>}{generatedCount > IMAGE_GALLERY_MAX && <p data-testid="image-gallery-cap-hint" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">{t.image_studio_gallery_cap_hint.replace('%s', String(IMAGE_GALLERY_MAX))}</p>}{images.length === 0 && !loading ? <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center text-sm text-gray-500">{t.image_studio_empty}</div> : <div className="grid grid-cols-1 gap-6 md:grid-cols-2">{loading && <article className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"><div className={`relative ${aspectClass(ratio)} bg-gray-100`}><div className="h-full w-full animate-pulse bg-gray-200" /></div><p className="px-4 py-4 text-sm font-semibold text-gray-500"><span>{t.image_studio_generating}</span> · {elapsed}s</p></article>}{images.map((image) => <article key={image.id} className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md"><div className={`relative ${aspectClass(image.aspectRatio)} bg-gray-100`}><img src={image.url} alt={image.prompt} className="h-full w-full object-cover" /><span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-gray-700">{image.aspectRatio}</span>{image.preview && <span data-testid="image-preview-badge" title={t.image_studio_gallery_preview_hint} className="absolute right-3 top-3 rounded-full bg-amber-500/90 px-3 py-1 text-xs font-bold text-white">⚠ {t.image_studio_gallery_preview_badge}</span>}</div>{cardError?.id === image.id && <div className="border-t border-red-200 bg-red-50 px-4 py-2.5 text-xs font-semibold text-red-700">{cardError.message}</div>}<div className="grid grid-cols-2 gap-2 p-4"><button onClick={() => download(image)} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200">⬇ {t.image_studio_download}</button><button onClick={() => void copy(image.prompt)} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200">📋 {t.image_studio_copy_prompt}</button><button onClick={() => void runCardAction(image, 'regenerate')} disabled={busy?.id === image.id} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200 disabled:opacity-60">{busy?.id === image.id && busy.action === 'regenerate' ? <span className="inline-block animate-spin">◌</span> : '🔄'} {busy?.id === image.id && busy.action === 'regenerate' ? t.image_studio_regenerate_generating : t.image_studio_regenerate}</button><button onClick={() => void runCardAction(image, 'variation')} disabled={busy?.id === image.id} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200 disabled:opacity-60">{busy?.id === image.id && busy.action === 'variation' ? <span className="inline-block animate-spin">◌</span> : '✨'} {busy?.id === image.id && busy.action === 'variation' ? t.image_studio_variation_generating : t.image_studio_variation}</button></div></article>)}</div>}</section>
-    <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"><h2 className="text-lg font-bold text-gray-900">{t.image_studio_upload_title}</h2><label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/50 p-8 text-center transition hover:bg-blue-50"><span className="text-3xl">⬆️</span><span className="mt-2 text-sm font-semibold text-blue-700">{t.image_studio_upload_dropzone}</span><input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} /></label>{uploads.length > 0 && <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">{uploads.map((file) => <div key={file.url} className="overflow-hidden rounded-xl border"><img src={file.url} className="aspect-square w-full object-cover" alt={file.name} /><p className="truncate p-2 text-xs text-gray-600">{file.name}</p><button onClick={() => void generate(`${t.image_studio_prompt_upload_variation} ${file.name}`, '1:1')} className="m-2 rounded-lg bg-blue-600 px-2 py-1 text-xs font-semibold text-white">✨ {t.image_studio_variation}</button></div>)}</div>}</section>
+    <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"><h2 className="text-lg font-bold text-gray-900">{t.image_studio_upload_title}</h2><label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/50 p-8 text-center transition hover:bg-blue-50"><span className="text-3xl">⬆️</span><span className="mt-2 text-sm font-semibold text-blue-700">{t.image_studio_upload_dropzone}</span><input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} /></label>{uploads.length > 0 && <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">{uploads.map((file) => <div key={file.url} className="overflow-hidden rounded-xl border" data-testid="upload-card"><img src={file.url} className="aspect-square w-full object-cover" alt={file.name} /><p className="truncate p-2 text-xs text-gray-600">{file.name}</p>{file.status === 'ready' ? <><button type="button" data-testid="upload-variation-btn" disabled={loading} onClick={() => void generate(uploadVariationPrompt(), '1:1', file.dataUrl ?? undefined)} className="m-2 rounded-lg bg-blue-600 px-2 py-1 text-xs font-semibold text-white disabled:opacity-60">✨ {t.image_studio_upload_variation_btn}</button><p className="mx-2 mb-2 text-[10px] leading-snug text-emerald-700">{t.image_studio_upload_reference_active}</p></> : <><button type="button" data-testid="upload-variation-btn" disabled className="m-2 cursor-not-allowed rounded-lg bg-gray-300 px-2 py-1 text-xs font-semibold text-white">✨ {t.image_studio_variation}</button><p className="mx-2 mb-2 text-[10px] leading-snug text-gray-500" data-testid="upload-no-reference">{file.status === 'reading' ? t.image_studio_upload_reading : t.image_studio_upload_reference_missing}</p></>}</div>)}</div>}</section>
   </div>;
 }

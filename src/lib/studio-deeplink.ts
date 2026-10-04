@@ -63,3 +63,59 @@ export function resolveStudioPrefill(
   if (p.idea) return { prompt: p.idea, strategy: null, fromTikTok: false };
   return { prompt: '', strategy: null, fromTikTok: false };
 }
+
+// ── „Bild jetzt erstellen": Prompt-Bau + Markenkontext (Schritt 3, Punkt 5) ───
+//
+// Der Owner verlangt, dass beim Klick die fünf Felder automatisch ankommen:
+// Prompt, Format, Projekt-/Produktkontext, Produktbild, Markeninfos. Prompt und
+// Format wurden bisher übernommen; Bildkonzept, Text-Overlay, Plattform,
+// Produktidee und Marke waren reine Anzeige-Chips und beeinflussten die
+// Generierung NICHT. Diese beiden reinen Funktionen schließen die Lücke und
+// sind ohne DOM/Storage testbar.
+
+export interface StrategyPromptLineLabels {
+  product: string;
+  concept: string;
+  overlay: string;
+  platform: string;
+  brand: string;
+}
+
+function oneLine(text: string | undefined): string {
+  return String(text ?? '').replace(/\s+/g, ' ').trim();
+}
+
+/** Baut den Studio-Prompt: Strategie-Prompt + Kontextzeilen (leere entfallen). */
+export function composeStrategyStudioPrompt(
+  payload: Pick<
+    StrategyImagePayload,
+    'prompt' | 'concept' | 'overlay' | 'platform' | 'productIdea' | 'brandInfo'
+  >,
+  labels: StrategyPromptLineLabels,
+): string {
+  const entries: Array<[string, string]> = [
+    [labels.product, oneLine(payload.productIdea)],
+    [labels.concept, oneLine(payload.concept)],
+    [labels.overlay, oneLine(payload.overlay)],
+    [labels.platform, oneLine(payload.platform)],
+    [labels.brand, oneLine(payload.brandInfo)],
+  ];
+  const lines = entries.filter(([, value]) => value).map(([label, value]) => `${label}: ${value}`);
+  const head = String(payload.prompt ?? '').trim();
+  if (lines.length === 0) return head;
+  return head ? `${head}\n\n${lines.join('\n')}` : lines.join('\n');
+}
+
+/**
+ * Kompakte Markeninfo-Zeile für den Bildprompt (Marke · Farben · Tonalität).
+ * Ein ausgeschaltetes Markenprofil (Phase 1, C4) liefert bewusst NICHTS.
+ */
+export function formatStrategyBrandContext(
+  profile: { brandName?: string; brandColors?: string; tone?: string; enabled?: boolean } | null,
+): string {
+  if (!profile || profile.enabled === false) return '';
+  return [profile.brandName, profile.brandColors, profile.tone]
+    .map((part) => String(part ?? '').trim())
+    .filter(Boolean)
+    .join(' · ');
+}

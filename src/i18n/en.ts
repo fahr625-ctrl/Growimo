@@ -1276,6 +1276,26 @@ export const en: EnShape = {
   image_studio_prompt_variant_5: 'Wide shot with lots of surrounding space, the main subject placed comparatively small in the frame, generous negative space, soft diffused morning light, sharp focus throughout.',
   image_studio_prompt_variant_6: 'Strong detail close-up with intense perspective, the main subject centered, warm side lighting with a soft shadow gradient, very shallow depth of field with a heavily blurred background.',
   image_studio_prompt_upload_variation: 'Create a variation based on uploaded image',
+
+  // Stabilisierung Schritt 3 (Punkt 3) — hard product-fidelity block.
+  image_studio_prompt_reference_lock: 'IMPORTANT — product fidelity: vary ONLY the background, setting, perspective, lighting or framing. The product is identical to the reference image: same shape, colour, material, proportions and details — add or omit nothing on the product, no invented logos or labels. A text overlay explicitly described above is allowed.',
+  image_studio_upload_reference_active: 'Product reference active: this image is sent as a binding reference — your product stays identical while background, lighting, perspective and framing may vary.',
+  image_studio_upload_reading: 'Reading…',
+  image_studio_upload_reference_missing: 'No image reference — please upload a JPG, PNG or WebP.',
+  image_studio_reference_sent_hint: 'With reference image: your product stays identical while background, lighting, perspective and framing may vary.',
+  image_studio_upload_variation_btn: 'Variation with product fidelity',
+  // Stabilisierung Schritt 3 (Punkt 5) — "create image now" everywhere.
+  image_studio_create_image_now: '🎨 Create image now',
+  image_studio_create_image_now_hint: 'Prompt, format, product idea, brand profile and any existing product image are carried over automatically — nothing to copy, generate right away.',
+  image_studio_strategy_product: 'Product idea',
+  image_studio_strategy_project: 'Project',
+  image_studio_strategy_reference: 'Product image',
+  image_studio_strategy_reference_none: 'No product image available — the image is created from the prompt.',
+  image_studio_prompt_line_concept: 'Image idea',
+  image_studio_prompt_line_overlay: 'Text overlay',
+  image_studio_prompt_line_platform: 'Platform',
+  image_studio_prompt_line_brand: 'Brand context',
+
   image_studio_prompt_format_pinterest: 'Professional Pinterest pin image for: %s. Vertical 2:3 format, beautiful typography, elegant font treatment, centered quote or text with generous spacing, clear hierarchy, highly legible text, clean modern Pinterest aesthetic, soft background.',
   image_studio_prompt_format_etsy: 'Etsy product lifestyle image for: %s. 4:3 format, professional lifestyle photography with multiple realistic scene variations: cozy home interior, stylish flat lay, and outdoor natural setting, warm natural lighting, product clearly visible and in use.',
   image_studio_prompt_format_instagram: 'Instagram post image for: %s. Square 1:1 format, modern social media aesthetic, vibrant and engaging.',

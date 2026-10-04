@@ -1,4 +1,5 @@
 import type { GeneratedImage } from '~/ai/image-providers/types';
+import { sanitizeReferenceImageData, MAX_REFERENCE_DATA_URL_LENGTH } from '~/ai/image-providers/reference';
 
 /**
  * Shared prefill bridge between a generated marketing strategy and the
@@ -28,6 +29,23 @@ export interface StrategyImagePayload {
   contentType: string;
   /** human-readable platform label (resolved here via key below). */
   platform: string;
+  /** Stabilisierung Schritt 3 (Punkt 5) — Projektkontext, damit das Studio das
+   *  richtige Projekt vorauswählt ('' wenn unbekannt). */
+  projectId?: string;
+  /** Produktidee des Projekts/Channels — Kontextzeile im Studio-Prompt. */
+  productIdea?: string;
+  /**
+   * Vorhandenes Produktbild als data-URL. Wird — wenn gesetzt — als verbindliche
+   * Referenz in den Bild-Edit-Pfad gegeben (Produkt bleibt identisch).
+   *
+   * WICHTIG (Datenvolumen): data-URLs gehören NICHT dauerhaft in die
+   * sessionStorage. `saveStrategyPrefill` verwirft eine zu große Referenz
+   * bewusst (dann überlebt wenigstens der Prompt) — der praktische Weg im
+   * Studio ist das hochgeladene Produktbild, siehe lib/image-reference.ts.
+   */
+  referenceImage?: string;
+  /** Kompakte Markeninfo-Zeile (Marke/Farben/Tonalität) als Prompt-Kontext. */
+  brandInfo?: string;
 }
 
 /** sessionStorage key that carries the payload until the studio reads it. */
@@ -55,6 +73,51 @@ function firstLineOf(text: string): string {
     .split('\n')
     .map((l) => l.trim())
     .filter(Boolean)[0] ?? '';
+}
+
+/**
+ * Ist eine Abschnitts-Überschrift ein Bildprompt?
+ *
+ * Vorher: `key.startsWith('ki-bild-prompt')` — damit fiel z. B. „12. Pinterest-
+ * Bildprompt (ENGLISCH)" (seo_blog) und „20. Pinterest-Bildprompt" (etsy_listing)
+ * durch, und der „Bild jetzt erstellen"-Knopf fehlte genau dort, wo ein
+ * fertiger Prompt generiert wurde. Jetzt konservativ als Substring über die
+ * bekannten Schreibweisen — ohne „Bildkonzept"/„Pin-Beschreibung" zu treffen.
+ */
+function isPromptHeading(key: string): boolean {
+  return /(^|[^a-zäöüß])(ki[- ]?)?bild[- ]?prompt/.test(key) || /image[- ]?prompt/.test(key);
+}
+
+/**
+ * Wählt die Bildprompt-Sektion. Bevorzugt die ENGLISCHE Variante (auf
+ * Bildmodelle optimiert), sonst die erste Treffer-Sektion in Dokumentreihenfolge.
+ */
+function findPromptSection(sections: Map<string, string>): string | null {
+  const hits = [...sections.entries()].filter(([key, value]) => isPromptHeading(key) && value.trim());
+  if (hits.length === 0) return null;
+  const english = hits.find(([key]) => /englisch|english/.test(key));
+  return (english ?? hits[0])[1].trim();
+}
+
+/** Bekannte Seitenverhältnis-Schreibweisen → Studio-Format (fail-closed: null). */
+const RATIO_MAP: Record<string, GeneratedImage['aspectRatio']> = {
+  '2:3': '2:3',
+  '9:16': '2:3',
+  '1:1': '1:1',
+  '4:3': '4:3',
+  '3:4': '4:3',
+  '16:9': '16:9',
+};
+
+/** Erstes explizit genanntes Seitenverhältnis im Text (z. B. „exakt 2:3 vertikal"). */
+function findExplicitRatio(text: string): GeneratedImage['aspectRatio'] | null {
+  const matches = String(text ?? '').match(/\d{1,2}\s*:\s*\d{1,2}/g);
+  if (!matches) return null;
+  for (const raw of matches) {
+    const normalized = raw.replace(/\s+/g, '');
+    if (RATIO_MAP[normalized]) return RATIO_MAP[normalized];
+  }
+  return null;
 }
 
 function findSectionValue(
@@ -103,15 +166,25 @@ export function platformLabelFor(contentType: string): string {
 /**
  * Extracts an image-ready payload from a strategy body, or null when the
  * result contains no usable KI-Bild-Prompt.
+ *
+ * `context` (Stabilisierung Schritt 3, Punkt 5) trägt die Felder nach, die der
+ * Strategie-Body selbst nicht kennt: Projekt-ID, Produktidee, vorhandenes
+ * Produktbild, Markeninfo. Aufrufer (new-project, Projektseite, Paket-Flow)
+ * füllen sie auf, damit das Studio alle fünf Owner-Felder bekommt.
  */
 export function extractStrategyImage(
   body: string,
   contentType: string,
+  context?: {
+    projectId?: string;
+    productIdea?: string;
+    referenceImage?: string;
+    brandInfo?: string;
+  },
 ): StrategyImagePayload | null {
   if (!body) return null;
   const sections = splitSections(body);
-  const prompt =
-    findSectionValue(sections, ['ki-bild-prompt', 'bildprompt']) ?? '';
+  const prompt = findPromptSection(sections) ?? '';
   const promptLine = firstLineOf(prompt);
   if (!promptLine) return null;
 
@@ -123,9 +196,15 @@ export function extractStrategyImage(
     prompt: promptLine,
     concept: concept || '',
     overlay,
-    ratio: detectRatio(contentType, body),
+    // Format aus dem Inhalt (Bildkonzept/Prompt nennen „2:3 vertikal" explizit),
+    // erst danach die Content-Typ-Heuristik.
+    ratio: findExplicitRatio(concept) ?? findExplicitRatio(promptLine) ?? detectRatio(contentType, body),
     contentType,
     platform: platformLabelFor(contentType),
+    projectId: context?.projectId ?? '',
+    productIdea: context?.productIdea ?? '',
+    referenceImage: sanitizeReferenceImageData(context?.referenceImage) ?? '',
+    brandInfo: context?.brandInfo ?? '',
   };
 }
 
@@ -133,10 +212,15 @@ export function extractStrategyImage(
 export const STRATEGY_PREFILL_TTL_MS = 24 * 60 * 60 * 1000;
 
 /** Writes the payload to sessionStorage so the studio can prefill.
- *  Phase 3.3c: zusätzlich `savedAt` (TTL). Alt-Einträge ohne Feld bleiben gültig. */
+ *  Phase 3.3c: zusätzlich `savedAt` (TTL). Alt-Einträge ohne Feld bleiben gültig.
+ *  Schritt 3 (Punkt 3/5): eine zu große Bildreferenz wird bewusst NICHT
+ *  mitgeschrieben (sessionStorage-Quota) — dann überlebt wenigstens der Prompt. */
 export function saveStrategyPrefill(payload: StrategyImagePayload, now: number = Date.now()): void {
   try {
-    sessionStorage.setItem(STRATEGY_PREFILL_KEY, JSON.stringify({ ...payload, savedAt: now }));
+    const reference = sanitizeReferenceImageData(payload.referenceImage);
+    const safe: StrategyImagePayload = { ...payload };
+    if (reference && reference.length > MAX_REFERENCE_DATA_URL_LENGTH) delete safe.referenceImage;
+    sessionStorage.setItem(STRATEGY_PREFILL_KEY, JSON.stringify({ ...safe, savedAt: now }));
   } catch {
     // sessionStorage may be unavailable — prefill simply won't happen.
   }
@@ -177,6 +261,12 @@ export function consumeStrategyPrefill(now: number = Date.now()): StrategyImageP
       ratio,
       contentType: parsed.contentType ?? '',
       platform: parsed.platform ?? 'Pinterest',
+      // Schritt 3: neue Kontextfelder fail-closed — falscher Typ oder
+      // unbrauchbare Referenz ⇒ leerer String, NIE ein halber Wert.
+      projectId: typeof parsed.projectId === 'string' ? parsed.projectId : '',
+      productIdea: typeof parsed.productIdea === 'string' ? parsed.productIdea : '',
+      referenceImage: sanitizeReferenceImageData(parsed.referenceImage) ?? '',
+      brandInfo: typeof parsed.brandInfo === 'string' ? parsed.brandInfo : '',
     };
   } catch {
     return null;

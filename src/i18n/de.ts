@@ -1278,6 +1278,27 @@ export const de = {
   image_studio_prompt_variant_5: 'Weite Aufnahme mit viel Umgebungsraum, das Hauptobjekt vergleichsweise klein im Bild platziert, großzügige negative Fläche, weiches diffuses Morgenlicht, durchgehende Schärfe.',
   image_studio_prompt_variant_6: 'Starke Detail-Nahaufnahme mit intensiver Perspektive, das Hauptobjekt zentriert, warmes seitliches Licht mit sanftem Schattenverlauf, sehr geringe Tiefenschärfe mit stark weichgezeichnetem Hintergrund.',
   image_studio_prompt_upload_variation: 'Erstelle eine Variation basierend auf dem hochgeladenen Bild',
+
+  // Stabilisierung Schritt 3 (Punkt 3) — harter Produkttreue-Baustein der
+  // Variations-Pipeline. Greift NUR, wenn eine echte Bildreferenz mitgeht.
+  image_studio_prompt_reference_lock: 'WICHTIG — Produkttreue: Variiere NUR Hintergrund, Setting, Perspektive, Licht oder Bildausschnitt. Das Produkt ist identisch zum Referenzbild: gleiche Form, Farbe, Material, Proportion und Details — nichts am Produkt hinzufügen oder weglassen, keine erfundenen Logos oder Beschriftungen. Ein oben ausdrücklich beschriebener Text-Overlay ist erlaubt.',
+  image_studio_upload_reference_active: 'Produktvorlage aktiv: Dieses Bild wird als verbindliche Referenz mitgesendet — dein Produkt bleibt identisch, variiert werden Hintergrund, Licht, Perspektive und Ausschnitt.',
+  image_studio_upload_reading: 'Wird eingelesen…',
+  image_studio_upload_reference_missing: 'Keine Bildreferenz — bitte als JPG, PNG oder WebP hochladen.',
+  image_studio_reference_sent_hint: 'Mit Referenzbild: Dein Produkt bleibt identisch, variiert werden Hintergrund, Licht, Perspektive und Ausschnitt.',
+  image_studio_upload_variation_btn: 'Variation mit Produkttreue',
+  // Stabilisierung Schritt 3 (Punkt 5) — „Bild jetzt erstellen" überall.
+  image_studio_create_image_now: '🎨 Bild jetzt erstellen',
+  image_studio_create_image_now_hint: 'Prompt, Format, Produktidee, Markenprofil und vorhandenes Produktbild werden automatisch übernommen — nichts kopieren, direkt generieren.',
+  image_studio_strategy_product: 'Produktidee',
+  image_studio_strategy_project: 'Projekt',
+  image_studio_strategy_reference: 'Produktbild',
+  image_studio_strategy_reference_none: 'Kein Produktbild vorhanden — das Bild wird aus dem Prompt erstellt.',
+  image_studio_prompt_line_concept: 'Bildidee',
+  image_studio_prompt_line_overlay: 'Text-Overlay',
+  image_studio_prompt_line_platform: 'Plattform',
+  image_studio_prompt_line_brand: 'Markenkontext',
+
   image_studio_prompt_format_pinterest: 'Professionelles Pinterest-Pin-Bild für: %s. Vertikales 2:3-Format, schöne Typografie, elegante Schriftgestaltung, zentriertes Zitat oder zentrierter Text mit großzügigen Abständen, klare Hierarchie, sehr gut lesbarer Text, moderne klare Pinterest-Ästhetik und weicher Hintergrund.',
   image_studio_prompt_format_etsy: 'Etsy-Lifestyle-Bild für: %s. 4:3-Format, professionelle Lifestyle-Fotografie mit mehreren realistischen Szenenvarianten: gemütliches Wohninterieur, stilvolles Flatlay und natürliche Umgebung im Freien, warmes natürliches Licht, Produkt klar sichtbar und in Verwendung.',
   image_studio_prompt_format_instagram: 'Instagram-Post-Bild für: %s. Quadratisches 1:1-Format, moderne Social-Media-Ästhetik, lebendig und ansprechend.',
