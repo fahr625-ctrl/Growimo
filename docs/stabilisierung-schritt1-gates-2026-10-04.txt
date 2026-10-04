@@ -1,0 +1,223 @@
+RAW-BELEGE Schritt 1 (Varianten + Scoring) — Gates + Deploy — erzeugt 2026-10-04 (UTC)
+HEAD cc285b6 / Baseline ac61492 / Host site-jmpqaat81-growimo.vercel.app
+
+############ 1. DEPLOY ############
+Vercel CLI 62.2.0 (Node.js 22.23.3)
+Fetching deployment "dpl_H3SijBLqEgW5fgDDSUK5MT8B8pYS" in growimo
+> Fetched deployment "site-jmpqaat81-growimo.vercel.app" in growimo [336ms]
+
+  General
+
+    id		dpl_H3SijBLqEgW5fgDDSUK5MT8B8pYS
+    name	site
+    target	production
+    status	● Ready
+    url		https://site-jmpqaat81-growimo.vercel.app
+    created	Sun Oct 04 2026 12:47:23 GMT+0000 (Coordinated Universal Time) [2m ago]
+
+
+  Build Machine
+
+    requested build machine basic
+    actual assigned cores   2 vCPU (actual assignment)
+    memory                  8192 MiB
+    selection type          fixed
+    selection source        plan-default
+
+
+  Duration
+
+    build duration	6s
+    post-build duration	5s
+    billable duration	1m
+    CPU Minutes Usage	2 minutes (1m x 2vCPU)
+
+
+  Aliases
+
+    ╶ https://www.growimo.app
+    ╶ https://site-six-sage-17.vercel.app
+    ╶ https://growimo.app
+    ╶ https://site-growimo.vercel.app
+    
+
+  Builds
+
+    ┌ .        [0ms]
+    └── λ render (932.5KB) [iad1]
+    
+
+rc=0
+
+--- ship3.log (Deploy-Retry) ---
+=== whoami ===
+Vercel CLI 62.2.0 (Node.js 22.23.3)
+fahr625-3542
+=== ATTEMPT 1 12:47:21 ===
+Vercel CLI 62.2.0 (Node.js 22.23.3)
+Deploying site
+Uploading [--------------------] (0.0B/5.4MB)
+Uploading [=====---------------] (1.4MB/5.4MB)
+Uploading [==========----------] (2.7MB/5.4MB)
+Uploading [===============-----] (4.1MB/5.4MB)
+Uploading [====================] (5.4MB/5.4MB)
+  Inspect         https://vercel.com/growimo/site/H3SijBLqEgW5fgDDSUK5MT8B8pYS
+  Production      https://site-jmpqaat81-growimo.vercel.app
+https://site-jmpqaat81-growimo.vercel.appBuilding…
+Building…
+Running build in Washington, D.C., USA (East) – iad1
+Build machine configuration: 2 cores, 8 GB
+Retrieving list of deployment files...
+Previous build caches not available.
+Downloading 62 deployment files...
+Using prebuilt build artifacts from .vercel/output
+Learn more: https://vercel.link/build-output-api
+Deploying outputs...
+[2K[1A[2K[G  Production      https://site-jmpqaat81-growimo.vercel.app
+Completing…
+▲ Aliased         https://www.growimo.app
+
+✓ Ready in 10s
+
+Next steps:
+- Automatically deploy changes on every push by connecting Git:
+  vercel git connect
+- Check the production response:
+  vercel curl https://www.growimo.app
+- View build logs:
+  vercel inspect site-jmpqaat81-growimo.vercel.app --logs
+- Create a new deployment from the same source:
+  vercel redeploy site-jmpqaat81-growimo.vercel.app
+rc=0
+=== DEPLOY OK ===
+=== SHIP3 DONE 12:47:31 ===
+
+############ 2. URL-STATUS ############
+https://site-jmpqaat81-growimo.vercel.app/ -> 200
+https://site-jmpqaat81-growimo.vercel.app/app/package -> 200
+https://www.growimo.app/ -> 200
+https://www.growimo.app/app/package -> 200
+
+############ 3. CLIENT-CHUNKS (live vs. lokaler Build-Output) ############
+lokaler Build-Output: .vercel/output/static/assets/
+index-CuV9uyUo.js
+  lokal 47ae28aa31ae433c6c90b859148e2bdf6bd47bb17e27f0307f9f96943125166f
+  live  47ae28aa31ae433c6c90b859148e2bdf6bd47bb17e27f0307f9f96943125166f
+  identisch=JA
+VariantPicker-BHaxWNUt.js
+  lokal 6b202d0835521aeefd4244b22214ad6ccc713a1c81d504abd4780ddcbb0b5d8d
+  live  6b202d0835521aeefd4244b22214ad6ccc713a1c81d504abd4780ddcbb0b5d8d
+  identisch=JA
+ScoreCard-BeXKFS75.js
+  lokal f17e0666b752599a275064bc3c29e0aa42806f1bf2602cebf448a743d1b9fa79
+  live  f17e0666b752599a275064bc3c29e0aa42806f1bf2602cebf448a743d1b9fa79
+  identisch=JA
+package-7kWOO9j2.js
+  lokal b980b7225a2b6e2a105f56090f1a6d47aeec923a3de43c1069b98e57bd307675
+  live  b980b7225a2b6e2a105f56090f1a6d47aeec923a3de43c1069b98e57bd307675
+  identisch=JA
+
+############ 4. SERVER-BUNDLE ############
+.vercel/output/functions/render.func/index.mjs 4556935 Bytes
+edd6b76af505ed22fdbb3e38a96d62dd9e87b42ddc205b349f8dafec95fe7707  .vercel/output/functions/render.func/index.mjs
+
+############ 5. MARKER (Byte-Offsets) ############
+=== .vercel/output/functions/render.func/index.mjs (4556935 chars) ===
+  emotional_gift -> 2177300,2186961,2187340,2191969,2297742,2393054
+  benefit_focus -> 2177762,2187050,2187356,2193299,2297821,2393128
+  fact_seo -> 2187138,2187371,2194619,2297884,2393198
+  variant_angle_emotional_gift -> 2297728,2393040
+  variant_angle_fact_seo -> 2297870,2393184
+  score_issues_empty_below -> 2286875,2382945,3683377
+  Ansatz A: Emotional & geschenk-orientiert -> 2297759
+  Ansatz C: Fakten & SEO -> 2297895
+  Approach A: Emotional & gift-focused -> 2393071
+  Approach C: Facts & SEO -> 2393209
+=== /tmp/bm/js/index-CuV9uyUo.js (604441 chars) ===
+  emotional_gift -> 482287,567162
+  benefit_focus -> 482360,567230
+  fact_seo -> 482417,567294
+  variant_angle_emotional_gift -> 482273,567148
+  variant_angle_fact_seo -> 482403,567280
+  score_issues_empty_below -> 472426,558059
+  Ansatz A: Emotional & geschenk-orientiert -> 482303
+  Ansatz C: Fakten & SEO -> 482427
+  Approach A: Emotional & gift-focused -> 567178
+  Approach C: Facts & SEO -> 567304
+=== /tmp/bm/js/VariantPicker-BHaxWNUt.js (6397 chars) ===
+  emotional_gift -> NICHT GEFUNDEN
+  benefit_focus -> NICHT GEFUNDEN
+  fact_seo -> NICHT GEFUNDEN
+  variant_angle_emotional_gift -> NICHT GEFUNDEN
+  variant_angle_fact_seo -> NICHT GEFUNDEN
+  score_issues_empty_below -> NICHT GEFUNDEN
+  Ansatz A: Emotional & geschenk-orientiert -> NICHT GEFUNDEN
+  Ansatz C: Fakten & SEO -> NICHT GEFUNDEN
+  Approach A: Emotional & gift-focused -> NICHT GEFUNDEN
+  Approach C: Facts & SEO -> NICHT GEFUNDEN
+
+############ 6. GATE-LÄUFE (HEAD cc285b6) ############
+=== deadzone START 12:48:29 ===
+deadzone exit=0
+=== deadzone END 12:48:30 ===
+=== f2-1 START 12:48:30 ===
+f2-1 exit=1
+=== f2-1 END 12:48:36 ===
+=== fakten-schutz START 12:48:36 ===
+fakten-schutz exit=0
+=== fakten-schutz END 12:48:36 ===
+=== autosave START 12:48:36 ===
+autosave exit=0
+=== autosave END 12:48:36 ===
+=== varianten START 12:48:36 ===
+varianten exit=0
+=== varianten END 12:48:36 ===
+=== GATES DONE 12:48:36 ===
+
+--- tsc Normalisierung + Baseline-Diff ---
+HEAD gesamt 194 | HEAD getrackte Dateien: 46, davon getrackt: 38
+BASE gesamt 173 | BASE getrackte Dateien: 39, davon getrackt: 39
+--- getrackte Dateien NEU in HEAD ---
+--- getrackte Dateien nur in BASE ---
+src/ai/scoring/index.ts
+
+--- i18n-scan: HEAD vs BASE (erste 12 Zeilen) ---
+2c2
+< Dictionaries: de = 1545 keys, en = 1545 keys
+---
+> Dictionaries: de = 1555 keys, en = 1555 keys
+
+--- i18n HEAD: Kennzahlen ---
+Dictionaries: de = 1555 keys, en = 1555 keys
+✅ KEY-PARITY: de.ts and en.ts have identical key sets (no fallback-to-English).
+❌ USED-KEYS FAIL — used but missing in dictionaries: tiktok_result_
+✅ UI HARDCODED STRINGS: no English UI strings outside i18n in components/routes.
+❌ DE-VALUES (English words inside German translations, 5):
+✅ EN-VALUES: no German tokens inside English translations.
+ℹ️  Server-side English literals (dev-facing only, never rendered): 356
+RESULT: ❌ MIXING FOUND — fix the issues above and re-run.
+
+--- i18n BASE: Kennzahlen ---
+Dictionaries: de = 1545 keys, en = 1545 keys
+✅ KEY-PARITY: de.ts and en.ts have identical key sets (no fallback-to-English).
+❌ USED-KEYS FAIL — used but missing in dictionaries: tiktok_result_
+✅ UI HARDCODED STRINGS: no English UI strings outside i18n in components/routes.
+❌ DE-VALUES (English words inside German translations, 5):
+✅ EN-VALUES: no German tokens inside English translations.
+ℹ️  Server-side English literals (dev-facing only, never rendered): 342
+RESULT: ❌ MIXING FOUND — fix the issues above and re-run.
+
+--- f2-1-test: HEAD ---
+error: 429 You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.
+  message: "You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.",
+  type: "insufficient_quota",
+--- f2-1-test: BASELINE ac61492 (gleicher Fehler, Umgebung) ---
+error: 429 You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.
+  message: "You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.",
+  type: "insufficient_quota",
+
+--- Test-Suiten Kernzeilen ---
+/tmp/g-deadzone.log:✅ F2-UX-8.4d SUITE PASSED — 50 checks, 0 failed (Dead Zone + Delta-Copy de/en)
+/tmp/g-fakten-schutz.log:=== package-fakten-schutz-test: 66 PASS, 0 FAIL ===
+/tmp/g-autosave.log:41 passed, 0 failed
+/tmp/g-varianten.log:✅ VARIANTEN/SCORING-KONSISTENZ SUITE PASSED — 88 checks, 0 failed
