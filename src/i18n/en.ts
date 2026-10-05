@@ -1287,6 +1287,14 @@ export const en: EnShape = {
   // Stabilisierung Schritt 3 (Punkt 5) — "create image now" everywhere.
   image_studio_create_image_now: '🎨 Create image now',
   image_studio_create_image_now_hint: 'Prompt, format, product idea, brand profile and any existing product image are carried over automatically — nothing to copy, generate right away.',
+  // Stabilisierung Schritt 4 (Punkt 6) — end-to-end workflow: "Continue with …" + back paths.
+  next_actions_title: 'Continue with …',
+  next_actions_context_hint:
+    'Project, product idea and brand profile come along — nothing to re-enter.',
+  next_actions_tiktok: '🎵 TikTok concept from this project',
+  next_actions_open_project: '📂 Open in project',
+  image_studio_back_to_package: '← Back to the package',
+  image_studio_back_to_project: '← Back to the project',
   image_studio_strategy_product: 'Product idea',
   image_studio_strategy_project: 'Project',
   image_studio_strategy_reference: 'Product image',

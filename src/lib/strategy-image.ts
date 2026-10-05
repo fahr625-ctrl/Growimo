@@ -1,5 +1,6 @@
 import type { GeneratedImage } from '~/ai/image-providers/types';
 import { sanitizeReferenceImageData, MAX_REFERENCE_DATA_URL_LENGTH } from '~/ai/image-providers/reference';
+import { sanitizeAppContext, type AppContextSource } from '~/lib/app-context';
 
 /**
  * Shared prefill bridge between a generated marketing strategy and the
@@ -46,6 +47,11 @@ export interface StrategyImagePayload {
   referenceImage?: string;
   /** Kompakte Markeninfo-Zeile (Marke/Farben/Tonalität) als Prompt-Kontext. */
   brandInfo?: string;
+  /** Stabilisierung Schritt 4 (Punkt 6) — Herkunft des Prefills
+   *  ('package' | 'project' | 'strategy' | 'library' | …). Das Bild-Studio
+   *  bietet damit den passenden Rückweg an („← Zurück zum Paket“ / „← Zum
+   *  Projekt“). Fail-closed: unbekannte Werte werden beim Lesen verworfen. */
+  source?: AppContextSource;
 }
 
 /** sessionStorage key that carries the payload until the studio reads it. */
@@ -180,6 +186,8 @@ export function extractStrategyImage(
     productIdea?: string;
     referenceImage?: string;
     brandInfo?: string;
+    /** Schritt 4: Herkunft des Prefills für den Rückweg im Studio. */
+    source?: AppContextSource;
   },
 ): StrategyImagePayload | null {
   if (!body) return null;
@@ -205,6 +213,8 @@ export function extractStrategyImage(
     productIdea: context?.productIdea ?? '',
     referenceImage: sanitizeReferenceImageData(context?.referenceImage) ?? '',
     brandInfo: context?.brandInfo ?? '',
+    // Schritt 4: nur bekannte Herkunftswerte durchlassen (fail-closed).
+    source: sanitizeAppContext({ source: context?.source }).source,
   };
 }
 
@@ -267,6 +277,8 @@ export function consumeStrategyPrefill(now: number = Date.now()): StrategyImageP
       productIdea: typeof parsed.productIdea === 'string' ? parsed.productIdea : '',
       referenceImage: sanitizeReferenceImageData(parsed.referenceImage) ?? '',
       brandInfo: typeof parsed.brandInfo === 'string' ? parsed.brandInfo : '',
+      // Schritt 4: Herkunft fail-closed — nur bekannte Modulnamen, sonst undefined.
+      source: sanitizeAppContext({ source: parsed.source }).source,
     };
   } catch {
     return null;

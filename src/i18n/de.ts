@@ -1290,6 +1290,14 @@ export const de = {
   // Stabilisierung Schritt 3 (Punkt 5) — „Bild jetzt erstellen" überall.
   image_studio_create_image_now: '🎨 Bild jetzt erstellen',
   image_studio_create_image_now_hint: 'Prompt, Format, Produktidee, Markenprofil und vorhandenes Produktbild werden automatisch übernommen — nichts kopieren, direkt generieren.',
+  // Stabilisierung Schritt 4 (Punkt 6) — durchgängiger Workflow: „Weiter mit …“ + Rückwege.
+  next_actions_title: 'Weiter mit …',
+  next_actions_context_hint:
+    'Projekt, Produktidee und Markenprofil gehen mit — nichts neu eingeben.',
+  next_actions_tiktok: '🎵 TikTok-Konzept aus diesem Projekt',
+  next_actions_open_project: '📂 Im Projekt öffnen',
+  image_studio_back_to_package: '← Zurück zum Paket',
+  image_studio_back_to_project: '← Zum Projekt',
   image_studio_strategy_product: 'Produktidee',
   image_studio_strategy_project: 'Projekt',
   image_studio_strategy_reference: 'Produktbild',
