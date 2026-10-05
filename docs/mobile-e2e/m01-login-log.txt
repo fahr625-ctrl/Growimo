@@ -1,0 +1,13 @@
+nohup: ignoring input
+=== set viewport ===
+✓ Done
+✓ Done
+=== open sign-in ===
+✓ Growimo — Pinterest Pins, Etsy-Mockups & SEO-Content mit KI erstellen
+  https://www.growimo.app/app/sign-in?__clerk_ticket=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJlaXMiOjM2MDAsImV4cCI6MTc5MTE4Mjc1NywiaWlkIjoiaW5zXzNIMmxTM0FJeTNxUmlsWWx6clZ4MmppUmVGQSIsInNpZCI6InNpdF8zS0dMcllzODNTSzJ2dWtxUDdWTDBCbnhtMGUiLCJzdCI6InNpZ25faW5fdG9rZW4ifQ.jChc5hNWNmioupLN0hL9ThumSFfFi-3ZUwULx2pDHZde8sntCqpzwXIcv3ipFMYiLlXGQ2P-jjHG2cItmb734fk5tVUleELC1BF9IIsjnZodzWb-jhS-QR1QK521nHxkxyEFpxDzHzyTGInJdt4xDql1I90yZoZ9ZWzN287WT1CM2hlhhlZCYvQOMasbW0dtsSQfibBegwH3Db-RWbIhxQDK9g4iZOQBmqSBaK6x9jMGzaiRSqBXTYrfwJjfz_eFpvtP9VmJRb8NlPUSmJ7kZgdkAlPau_CRFg9PXqI7UEJkhizrK-2lIzqqlwirbIUCLiyaqrijgZENpIpj_4N4fw
+=== probe ===
+"{\"url\":\"/app\",\"uid\":\"user_3KGLrQivAW698KVoR3vkZoJYMKU\",\"bodyLen\":1347,\"cp\":false}"
+=== screenshot ===
+✓ Screenshot saved to /home/team/shared/site/docs/mobile-e2e/m01-dashboard.png
+"{\"vw\":393,\"vh\":852,\"dpr\":2}"
+LOGIN_DONE
