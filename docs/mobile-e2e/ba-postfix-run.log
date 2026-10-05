@@ -1,0 +1,124 @@
+=== RUN ba-postfix-1kanal: tiles=Etsy idea=Handgemachte Keramiktassen mit Sprenkelglasur ===
+✓ Growimo — Pinterest Pins, Etsy-Mockups & SEO-Content mit KI erstellen
+  https://www.growimo.app/app/new-project?idea=Handgemachte%20Keramiktassen%20mit%20Sprenkelglasur
+"{\"pfx\":\"ba-postfix-1kanal\",\"cp\":false,\"idea\":\"Handgemachte Keramiktassen mit Sprenkelglasur\",\"bodyLen\":1174}"
+"{\"pfx\":\"ba-postfix-1kanal\",\"clicked\":[\"Etsy\"]}"
+"{\"pfx\":\"ba-postfix-1kanal\",\"count\":\"1 ausgewählt\",\"ctaDisabled\":false}"
+✓ Screenshot saved to /home/team/shared/site/docs/mobile-e2e/ba-postfix-1kanal-auswahl.png
+CLICK: "CLICKED"
+POLL1 "{\"i\":1,\"spin\":2,\"len\":323,\"gen\":0,\"err\":null}"
+POLL2 "{\"i\":2,\"spin\":2,\"len\":324,\"gen\":0,\"err\":null}"
+POLL3 "{\"i\":3,\"spin\":2,\"len\":324,\"gen\":0,\"err\":null}"
+POLL4 "{\"i\":4,\"spin\":0,\"len\":6547,\"gen\":1,\"err\":null}"
+DONE_AT_4
+"{\"pfx\":\"ba-postfix-1kanal\",\"FINAL\":true,\"url\":\"/app/new-project?idea=Handgemachte+Keramiktassen+mit+Sprenkelglasur\",\"bodyLen\":6547,\"generiertSpans\":1,\"hasEtsy\":true,\"hasMarketing\":false,\"firstLines\":[\"Dashboard\",\"Neue Strategie\",\"🎨 Bild-Studio\",\"🎵 TikTok\",\"Inhaltsbibliothek\",\"Preise\",\"Abrechnung\",\"🏷️ Marke\",\"📊 Analytics\",\"📈 Performance\",\"💬 Feedback\",\"Einstellungen\",\"🇩🇪 Deutsch\",\"🇬🇧 English\"]}"
+✓ Screenshot saved to /home/team/shared/site/docs/mobile-e2e/ba-postfix-1kanal-ergebnis.png
+=== DB nach 1-Kanal-Lauf ===
+{
+  "label": "post-fix-nach-1kanal",
+  "clerkId": "user_3KGLrQivAW698KVoR3vkZoJYMKU",
+  "internalUserId": "354ebec1-ef4b-4ebd-84b1-69e0a5ac0632",
+  "projectRows": 4,
+  "projects": [
+    "5d42acdd-16c9-4cd1-b052-40dc8f6526b9",
+    "e71d5beb-5aed-4839-a69d-61c0203ce873",
+    "cb4644e5-b2f1-4d8a-a98d-a470ebae4b2e",
+    "43d9d8bc-c9c0-4d15-b3cc-22d1bf34ecbf"
+  ],
+  "projectTitles": [
+    "Personalisierte Bienenwachskerzen für Kinder",
+    "Handgemachte Keramiktassen mit Sprenkelglasur",
+    "Handgemachte Keramiktassen mit Sprenkelglasur",
+    "Handgemachte Keramiktassen mit Sprenkelglasur"
+  ],
+  "contentRows": 5,
+  "perProject": [
+    {
+      "id": "43d9d8bc-c9c0-4d15-b3cc-22d1bf34ecbf",
+      "contents": 1
+    },
+    {
+      "id": "5d42acdd-16c9-4cd1-b052-40dc8f6526b9",
+      "contents": 2
+    },
+    {
+      "id": "cb4644e5-b2f1-4d8a-a98d-a470ebae4b2e",
+      "contents": 1
+    },
+    {
+      "id": "e71d5beb-5aed-4839-a69d-61c0203ce873",
+      "contents": 1
+    }
+  ],
+  "usage": [
+    {
+      "period": "2026-10",
+      "count": 1
+    }
+  ]
+}
+=== RUN ba-postfix-2kanal: tiles=Etsy,Marketing idea=Handgemachte Keramiktassen mit Sprenkelglasur ===
+✓ Growimo — Pinterest Pins, Etsy-Mockups & SEO-Content mit KI erstellen
+  https://www.growimo.app/app/new-project?idea=Handgemachte%20Keramiktassen%20mit%20Sprenkelglasur
+"{\"pfx\":\"ba-postfix-2kanal\",\"cp\":false,\"idea\":\"Handgemachte Keramiktassen mit Sprenkelglasur\",\"bodyLen\":1174}"
+"{\"pfx\":\"ba-postfix-2kanal\",\"clicked\":[\"Etsy\",\"Marketing\"]}"
+"{\"pfx\":\"ba-postfix-2kanal\",\"count\":\"2 ausgewählt\",\"ctaDisabled\":false}"
+✓ Screenshot saved to /home/team/shared/site/docs/mobile-e2e/ba-postfix-2kanal-auswahl.png
+CLICK: "CLICKED"
+POLL1 "{\"i\":1,\"spin\":3,\"len\":358,\"gen\":0,\"err\":null}"
+POLL2 "{\"i\":2,\"spin\":3,\"len\":359,\"gen\":0,\"err\":null}"
+POLL3 "{\"i\":3,\"spin\":0,\"len\":12845,\"gen\":2,\"err\":null}"
+DONE_AT_3
+"{\"pfx\":\"ba-postfix-2kanal\",\"FINAL\":true,\"url\":\"/app/new-project?idea=Handgemachte+Keramiktassen+mit+Sprenkelglasur\",\"bodyLen\":12845,\"generiertSpans\":2,\"hasEtsy\":true,\"hasMarketing\":true,\"firstLines\":[\"Dashboard\",\"Neue Strategie\",\"🎨 Bild-Studio\",\"🎵 TikTok\",\"Inhaltsbibliothek\",\"Preise\",\"Abrechnung\",\"🏷️ Marke\",\"📊 Analytics\",\"📈 Performance\",\"💬 Feedback\",\"Einstellungen\",\"🇩🇪 Deutsch\",\"🇬🇧 English\"]}"
+✓ Screenshot saved to /home/team/shared/site/docs/mobile-e2e/ba-postfix-2kanal-ergebnis.png
+=== DB nach 2-Kanal-Lauf ===
+{
+  "label": "post-fix-nach-2kanal",
+  "clerkId": "user_3KGLrQivAW698KVoR3vkZoJYMKU",
+  "internalUserId": "354ebec1-ef4b-4ebd-84b1-69e0a5ac0632",
+  "projectRows": 5,
+  "projects": [
+    "5d42acdd-16c9-4cd1-b052-40dc8f6526b9",
+    "e71d5beb-5aed-4839-a69d-61c0203ce873",
+    "cb4644e5-b2f1-4d8a-a98d-a470ebae4b2e",
+    "43d9d8bc-c9c0-4d15-b3cc-22d1bf34ecbf",
+    "ab9ecc9a-d82a-4f76-9018-598e08fc0efa"
+  ],
+  "projectTitles": [
+    "Personalisierte Bienenwachskerzen für Kinder",
+    "Handgemachte Keramiktassen mit Sprenkelglasur",
+    "Handgemachte Keramiktassen mit Sprenkelglasur",
+    "Handgemachte Keramiktassen mit Sprenkelglasur",
+    "Handgemachte Keramiktassen mit Sprenkelglasur"
+  ],
+  "contentRows": 7,
+  "perProject": [
+    {
+      "id": "43d9d8bc-c9c0-4d15-b3cc-22d1bf34ecbf",
+      "contents": 1
+    },
+    {
+      "id": "5d42acdd-16c9-4cd1-b052-40dc8f6526b9",
+      "contents": 2
+    },
+    {
+      "id": "ab9ecc9a-d82a-4f76-9018-598e08fc0efa",
+      "contents": 2
+    },
+    {
+      "id": "cb4644e5-b2f1-4d8a-a98d-a470ebae4b2e",
+      "contents": 1
+    },
+    {
+      "id": "e71d5beb-5aed-4839-a69d-61c0203ce873",
+      "contents": 1
+    }
+  ],
+  "usage": [
+    {
+      "period": "2026-10",
+      "count": 3
+    }
+  ]
+}
+POSTFIX_DONE

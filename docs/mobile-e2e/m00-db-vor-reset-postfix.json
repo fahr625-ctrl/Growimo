@@ -1,0 +1,37 @@
+{
+  "label": "m00-vor-reset",
+  "clerkId": "user_3KGLrQivAW698KVoR3vkZoJYMKU",
+  "internalUserId": "354ebec1-ef4b-4ebd-84b1-69e0a5ac0632",
+  "projectRows": 3,
+  "projects": [
+    "5d42acdd-16c9-4cd1-b052-40dc8f6526b9",
+    "e71d5beb-5aed-4839-a69d-61c0203ce873",
+    "cb4644e5-b2f1-4d8a-a98d-a470ebae4b2e"
+  ],
+  "projectTitles": [
+    "Personalisierte Bienenwachskerzen für Kinder",
+    "Handgemachte Keramiktassen mit Sprenkelglasur",
+    "Handgemachte Keramiktassen mit Sprenkelglasur"
+  ],
+  "contentRows": 4,
+  "perProject": [
+    {
+      "id": "5d42acdd-16c9-4cd1-b052-40dc8f6526b9",
+      "contents": 2
+    },
+    {
+      "id": "cb4644e5-b2f1-4d8a-a98d-a470ebae4b2e",
+      "contents": 1
+    },
+    {
+      "id": "e71d5beb-5aed-4839-a69d-61c0203ce873",
+      "contents": 1
+    }
+  ],
+  "usage": [
+    {
+      "period": "2026-10",
+      "count": 1
+    }
+  ]
+}

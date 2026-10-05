@@ -1,0 +1,12 @@
+{
+  "clerkId": "user_3KGLrQivAW698KVoR3vkZoJYMKU",
+  "internalUserId": "354ebec1-ef4b-4ebd-84b1-69e0a5ac0632",
+  "reset": true,
+  "before": [
+    {
+      "period": "2026-10",
+      "count": 1
+    }
+  ],
+  "after": []
+}

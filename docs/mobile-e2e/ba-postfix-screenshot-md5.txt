@@ -1,0 +1,4 @@
+66f04df881a29d52451846aa1c84485b  docs/mobile-e2e/ba-postfix-1kanal-auswahl.png
+7881f518ed08e9dd1e24ac5281c6910f  docs/mobile-e2e/ba-postfix-1kanal-ergebnis.png
+d1dd5c7298ff746186022d4259b042b1  docs/mobile-e2e/ba-postfix-2kanal-auswahl.png
+7b533982b0a2405e0551745b06f681e1  docs/mobile-e2e/ba-postfix-2kanal-ergebnis.png
