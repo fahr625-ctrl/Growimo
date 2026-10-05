@@ -213,11 +213,11 @@ function buildPrompt(opts: {
     lang === 'en'
       ? `STRUCTURE (this is where the three variants may and should differ):
 - You may change the ORDER of the sections, the wording of headings, the narrative build-up and you may add approach-specific extra sections. Each variant must follow the beats of its own approach.
-- BUT: keep every field heading that carries structured data (e.g. "SEO Pin-Titel", "Fokus-Keywords", "Hashtags", "Pinterest Alt-Text", "Pin-Beschreibung", "Call to Action", "KI-Bild-Prompt", "SEO-Titel", "13 Etsy-Tags", "URL-Slug", "FAQ" …). Growimo reads those values out of your text — without the headings the variant cannot be used.
+- BUT: keep every field heading that carries structured data (e.g. "SEO Pin-Titel", "Fokus-Keywords", "Hashtags", "Pinterest Alt-Text", "Pin-Beschreibung", "Call to Action", "KI-Bild-Prompt", "Pinterest-Bildprompt", "SEO-Titel", "13 Etsy-Tags", "URL-Slug", "FAQ" …). Growimo reads those values out of your text — without the headings the variant cannot be used. The image-prompt line must stay a single English sentence (it feeds the image studio).
 - Same facts, different strategy: take product, features and audience ONLY from the product idea / original. Invent nothing and do not contradict the original.`
       : `STRUKTUR (hier dürfen und sollen sich die drei Varianten unterscheiden):
 - Reihenfolge der Abschnitte, Formulierung der Überschriften, Story-Aufbau und ansatzspezifische Zusatz-Abschnitte darfst du frei setzen. Jede Variante folgt den Schritten ihres eigenen Auftrags.
-- ABER: Behalte jede Feld-Überschrift bei, die strukturierte Angaben trägt (z. B. „SEO Pin-Titel", „Fokus-Keywords", „Hashtags", „Pinterest Alt-Text", „Pin-Beschreibung", „Call to Action", „KI-Bild-Prompt", „SEO-Titel", „13 Etsy-Tags", „URL-Slug", „FAQ" …). Growimo liest diese Werte aus deinem Text — ohne die Überschriften ist die Variante nicht verwendbar.
+- ABER: Behalte jede Feld-Überschrift bei, die strukturierte Angaben trägt (z. B. „SEO Pin-Titel", „Fokus-Keywords", „Hashtags", „Pinterest Alt-Text", „Pin-Beschreibung", „Call to Action", „KI-Bild-Prompt", „Pinterest-Bildprompt", „SEO-Titel", „13 Etsy-Tags", „URL-Slug", „FAQ" …). Growimo liest diese Werte aus deinem Text — ohne die Überschriften ist die Variante nicht verwendbar. Die Bildprompt-Zeile bleibt EIN englischer Satz (sie speist das Bild-Studio).
 - Gleiche Fakten, andere Strategie: Produkt, Eigenschaften und Zielgruppe NUR aus der Produktidee/dem Original. Erfinde nichts und widersprich dem Original nicht.`;
 
   return `=== AUFGABE ===

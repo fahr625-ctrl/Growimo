@@ -141,7 +141,7 @@ Suchmaschinenfreundlicher Dateiname: kleingeschrieben, Bindestriche, enthält 3�
 Ein vollständiger Pinterest-Pin (Titel, Beschreibung, 8–12 Keywords), der Traffic in den Etsy-Shop lenkt. Titel: emotionaler Trigger. Beschreibung: Neugier wecken, auf den Shop verlinken. Keywords: Pinterest-spezifisch, auf visuelle Suche optimiert.
 
 20. Pinterest-Bildprompt
-Einzeiliger englischer Prompt für KI-Bildgeneratoren. Im gleichen Qualitäts-Standard wie der Pinterest-Pin-Prompt oben. Fokus: das Produkt in einer Pinterest-würdigen Szene zeigen.
+Einzeiliger englischer Prompt für KI-Bildgeneratoren. Im gleichen Qualitäts-Standard wie der Pinterest-Pin-Prompt oben. Fokus: das Produkt in einer Pinterest-würdigen Szene zeigen. Diese Sektion ist PFLICHT — gib sie auch dann vollständig aus, wenn das Listing lang wird (kein Weglassen, kein Abkürzen, keine Platzhalter). Genau EIN Satz auf Englisch, ohne Überschrift-Wiederholung.
 
 21. Instagram-Beitrag
 Caption (120–180 Zeichen) + 6–10 Hashtags + 1 Emoji-Strategie-Hinweis. ASPIRATIV: Zeige das Produkt in einem Lifestyle-Kontext, der Sehnsucht weckt. Hashtags: 3 große, 4 mittlere, 3 kleine/niche. Ton: visuell, inspirierend, community-orientiert.

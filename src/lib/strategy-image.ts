@@ -105,6 +105,50 @@ function findPromptSection(sections: Map<string, string>): string | null {
   return (english ?? hits[0])[1].trim();
 }
 
+/** Kopf einer nummerierten Überschrift, die einen Bildprompt ankündigt. */
+const INLINE_PROMPT_HEAD_RE =
+  /(?:(?:pinterest|ki)[- ]?)?bild[- ]?prompt|image[- ]?prompt/i;
+
+/** Kopf-Muster für beliebige nummerierte Überschriften (Abschnitts-Grenze). */
+const INLINE_HEADING_BOUNDARY_RE = /[ \t]+\d{1,2}\.[ \t]+[A-ZÄÖÜ]/;
+
+/**
+ * Befund 2026-10-05 (Station 5): Manche Läufe liefern den KOMPLETTEN Body ohne
+ * Zeilenumbrüche — alle Abschnitte stehen in EINER Zeile („1. SEO-Titel … 2.
+ * Kurzbeschreibung … 20. Pinterest-Bildprompt A close-up of … 21. Instagram …").
+ * Ursache ist die Satz-Eliminierung im Fakten-Schutz (`sanitizeFactText`,
+ * fact-guard.ts): sie verwirft den verstoßenden Satz und joint den gesamten Text
+ * mit `' '` + `replace(/\s{2,}/g,' ')` — dadurch sind danach ALLE Umbrüche weg
+ * (Fingerabdruck: 0 × `\n`, 0 × Doppel-Leerzeichen). Die rein zeilenbasierte
+ * Abschnitts-Erkennung oben findet dann keinen einzigen Abschnitt und der
+ * „Im Image Studio erstellen"-Knopf fehlt, obwohl der fertige englische Prompt
+ * wörtlich im Body steht.
+ *
+ * Dieser Fallback liest einen Abschnitt direkt aus dem kollabierten Text: Text
+ * hinter dem Überschriften-Kopf bis zur nächsten nummerierten Überschrift — in
+ * ORIGINAL-Schreibweise (der zeilenbasierte Parser würde kleinschreiben).
+ * Wird NUR benutzt, wenn die normale Abschnitts-Erkennung nichts findet — für
+ * alle bisher funktionierenden Bodies ändert sich damit kein Byte.
+ */
+function extractInlineSection(body: string, headRe: RegExp): string {
+  const re = new RegExp(
+    `(?:^|[^\\p{L}\\d])(\\d{1,2})\\.[ \\t]*((?:[^\\d\\n]{0,60}?)(?:${headRe.source}))([^]*?)(?=${INLINE_HEADING_BOUNDARY_RE.source}|$)`,
+    'iu',
+  );
+  const m = re.exec(body);
+  if (!m) return '';
+  // Sprach-Marker der Überschrift („(ENGLISCH)") gehört nicht in den Prompt.
+  return m[3]
+    .replace(/^[\s:–—-]+/, '')
+    .replace(/^\(\s*(?:englisch|english|en)\s*\)\s*[:\-–—]?\s*/i, '')
+    .trim();
+}
+
+/** Erster Satz/Baustein eines kollabierten Abschnitts (einzeilig, copy-fertig). */
+function firstSegmentOf(text: string): string {
+  return text.split('\n').map((l) => l.trim()).filter(Boolean)[0] ?? '';
+}
+
 /** Bekannte Seitenverhältnis-Schreibweisen → Studio-Format (fail-closed: null). */
 const RATIO_MAP: Record<string, GeneratedImage['aspectRatio']> = {
   '2:3': '2:3',
@@ -192,12 +236,18 @@ export function extractStrategyImage(
 ): StrategyImagePayload | null {
   if (!body) return null;
   const sections = splitSections(body);
-  const prompt = findPromptSection(sections) ?? '';
-  const promptLine = firstLineOf(prompt);
+  const sectionsPrompt = findPromptSection(sections) ?? '';
+  // Fallback für kollabierte Bodies (Befund 2026-10-05, siehe extractInlineSection):
+  // steht der Prompt inline in einer einzigen Zeile, liefert die zeilenbasierte
+  // Erkennung nichts — dann direkt aus dem Fließtext lesen.
+  const inlinePrompt = sectionsPrompt ? '' : extractInlineSection(body, INLINE_PROMPT_HEAD_RE);
+  const prompt = sectionsPrompt || inlinePrompt;
+  const promptLine = firstLineOf(prompt) || firstSegmentOf(inlinePrompt);
   if (!promptLine) return null;
 
   const concept =
-    findSectionValue(sections, ['bildkonzept']) ?? '';
+    findSectionValue(sections, ['bildkonzept']) ||
+    (sectionsPrompt ? '' : extractInlineSection(body, /bild[- ]?konzept/i));
   const overlay = concept ? extractOverlay(concept) : '';
 
   return {
