@@ -85,5 +85,56 @@ Screenshot zeigt die aufgeklappte Navigationsspalte und darunter den Anfang der 
 liegt darüber. Der Beleg für „Ergebnisse sind sichtbar" ist deshalb der Log-Wert `bodyLen 6.547 / generiertSpans 1`
 plus der Text-Auszug (`/tmp/ba-postfix-1kanal-body.txt`, im Log verlinkt) — nicht der Screenshot.
 Zweiter, bereits bekannter P3-Punkt: das Usage-Banner im Screenshot zeigt „5 von 5 Generierungen verbleibend"
-(stale, weil im selben Routenzustand nicht neu geladen); **autoritativ ist die DB** (`count = 1`). Bei der
-darauffolgenden Navigation zeigt dasselbe Banner korrekt „2 von 5 Generierungen verbleibend" (passend zu count = 3).
+
+---
+
+# TEIL 2 — Rest-E2E Bild-Stationen (Stand: 2026-10-05, ~06:50)
+
+## Station 5 (echte Bild-Generierung aus dem Etsy-Strategie-Prefill) — **NICHT AUSLÖSBAR**
+
+Der Weg „Etsy-Kanal → 🎨 Im Image Studio erstellen → Generieren" ist auf beiden geprüften Projekten
+**nicht mehr vorhanden**. Belege (jeweils live auf www.growimo.app, Session `growimo-mobile`, kein Checkpoint):
+
+| Prüfung | Ergebnis | Roh-Beleg |
+|---|---|---|
+| Projektseite `5d42acdd…` (Kerzen) | `studioBtns: 0` — kein „🎨 Im Image Studio erstellen"-Button im DOM | `probe-proj.json` |
+| Projektseite `ab9ecc9a…` (Keramiktassen, frisch, 2 Kanäle) | `studioBtns: 0`, stattdessen Abschnitt „🎨 KI-Bild-Studio" mit 4 Format-Karten (2:3/4:3/1:1/16:9), deren „🔄 Neu generieren"-Buttons **deaktiviert** sind (`title = image_studio_api_required`, `src/components/ImageStudio.tsx:85`) | `probe2.json`, `probe3.json` |
+| App-eigener Extraktor über den **echten DB-Inhalt** (`extractStrategyImage`, `src/lib/strategy-image.ts:181`) | `etsy_listing: hasImage:false`, `marketing_plan: hasImage:false` — **kein** Bildprompt im Body | `getprompt.out` |
+| Bild-Studio, Projekt-Auswahlfeld: 5 Projekte ausgewählt (u. a. `5d42acdd`, `ab9ecc9a`) | Prompt-Feld bleibt **leer** (`promptLen 0`), Badge „Aus deiner Strategie übernommen" erscheint nicht, „✨ Generieren" ist `disabled` | `part2b.log`, `part2c.log`, `part2d.log` |
+
+Konsequenz: Ohne extrahierbaren Bildprompt gibt es **keinen** Prefill und damit keinen Startpunkt für einen
+Text→Bild-Call (`images.generations`). Ein künstlich getippter Prompt wurde bewusst **nicht** verwendet, weil das
+nicht mehr der Station-5-Frage entsprochen hätte („kommt der Prompt aus der Strategie?") und zusätzlich 1 Einheit
+verbraucht hätte.
+
+**Befund für den Lead (nicht gefixt, kein Auftrag dafür):** Der frisch generierte Etsy-Inhalt enthält offenbar
+keine Bildprompt-Sektion mehr, weshalb der Bild-Prefill (Station 5 / Button „🎨 Im Image Studio erstellen") für neue
+Projekte unerreichbar ist. In der Vorerhebung (06:03 desselben Tages, Projekt `5d42acdd…`) existierte noch ein
+197-Zeichen-Prompt — dort ist der Etsy-Body inzwischen durch eine übernommene A/B-Variante ersetzt, die Prüfung
+ist also inhaltsabhängig. Das ist ein eigener Untersuchungsauftrag (Kandidat: Prompt-Extraktion vs. geänderte
+Kanal-Prompt-Struktur), **nicht** in diesem Lauf behoben.
+
+## Station 6c (Variationslauf mit hochgeladenem Referenzbild) — **NICHT ABGESCHLOSSEN**
+
+Der 6c-Lauf wurde in diesem Auftrag **gestartet, aber nicht mehr beendet** (Session-Budget). Was belegt ist:
+- Das Studio war nach dem Prefill-Versuch unverändert erreichbar (`BASELINE gal:0`, kein Checkpoint).
+- Der Referenz-Upload und der Klick auf „✨ Variation mit Produkttreue" waren für den Lauf vorgesehen; der
+  Station-5-Block davor lief ohne Ergebnis (siehe oben), sodass der Lauf am Ende nicht mehr bis 6c durchkam.
+
+Roh-Log des abgebrochenen Laufs (Session-Logs, nicht im Repo): `part2b.log`, `part2c.log`, `part2d.log`.
+**Damit ist die Frage „bezahlt der Live-Key gpt-image-1-Aufrufe?" weiterhin OFFEN** — es wurde in diesem Auftrag
+kein Bild-Call ausgelöst und damit auch keine Usage-Einheit für Bilder verbraucht (DB-Kette blieb bei count = 3
+nach Teil 1, d. h. exakt 1 Einheit pro Kanal-Lauf, keine Bild-Einheit).
+
+## Was für den Folgeauftrag bleibt (konkret)
+
+1. **Station 5**: Erst klären, warum der frisch generierte Etsy-Inhalt keinen extrahierbaren Bildprompt mehr
+   enthält (`extractStrategyImage` → `hasImage:false`) — erst danach ist der Prefill-Weg und damit der
+   Text→Bild-Call testbar. Ohne das ist jede Bild-Generierung im Studio nur über manuell getippten Prompt möglich.
+2. **Station 6c**: unabhängig davon testbar — Bild-Studio → Testbild `/tmp/mobile-e2e-testbild.png`
+   (md5 `df73c42b505afd8a452b30bb9e751270`, identisch zu `m06-testbild-quelle.png`) hochladen →
+   `[data-testid="upload-variation-btn"]` klicken → Ergebnis-Karte + `usage_monthly`-Zähler prüfen
+   (Soll: 1 Einheit; Referenz geht als `images.edit` mit `input_fidelity:'high'` durch, `src/ai/image-providers/generate.ts:46–68`).
+3. Testnutzer-Kontingent: nach Teil 1 steht der Zähler bei **3 von 5**; für Station 5 + 6c sind genau 2 Einheiten
+   frei. Für Wiederholungen `scripts/_mobile-e2e/reset-usage.ts` (dokumentiertes Verfahren).
+
