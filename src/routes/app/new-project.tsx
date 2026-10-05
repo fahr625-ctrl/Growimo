@@ -1036,7 +1036,17 @@ function Step2Results({
       )}
 
       {/* Results */}
-      {!isLoading && results.length > 0 && streamOrder.length === 0 && (
+      {/* Fix 2026-10-05 (Befund B): Die Bedingung verlangte zusätzlich
+          `streamOrder.length === 0`. Im Stream-Pfad (Default, localStorage-Flag
+          `growimo_stream_generate`) füllt der Fortschritts-Panel `streamOrder`
+          und wird nach Abschluss NICHT geleert; der Fortschritts-Panel selbst
+          rendert aber nur solange `isLoading` true ist. Ergebnis: Nach jedem
+          Stream-Lauf war `isLoading=false`, `results` gefüllt, `streamOrder`
+          nicht leer — also wurde WEDER der Fortschritts-Panel NOCH die
+          Ergebnisliste gerendert (leere Seite, nur Navigation + Zähler).
+          Der Fortschritts-Panel ist ohnehin durch `isLoading` abgedeckt, die
+          Zusatzbedingung war ein Überrest und ist hier entfernt. */}
+      {!isLoading && results.length > 0 && (
         <>
           {/* Consistency header */}
           <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/50 px-5 py-3">
