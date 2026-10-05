@@ -27,7 +27,10 @@ import {
   isBrandProfileComplete,
   type BrandProfile,
 } from '~/store/brand';
-import { getRecentProjects, saveProject, type Project } from '~/store/projects';
+import { getProject, getRecentProjects, saveProject, type Project } from '~/store/projects';
+// Stabilisierung Schritt 4 (Punkt 6) — durchgängiger Workflow: Projektkontext
+// aus dem Projekt-Detail („🎵 TikTok-Konzept aus diesem Projekt").
+import { readContext } from '~/lib/app-context';
 import { buildTikTokProjectContext } from '~/lib/tiktok-project-context';
 import { buildTikTokRecordingPlan } from '~/ai/action-plans/tiktok-recording';
 import { guardTikTokRun } from '~/lib/tiktok-safeguards';
@@ -576,6 +579,36 @@ function TikTokContent() {
       cancelled = true;
     };
   }, [user?.id]);
+  // Stabilisierung Schritt 4 (Punkt 6): „🎵 TikTok-Konzept aus diesem Projekt"
+  // legt den Workflow-Kontext ab (lib/app-context.ts). Hier wird das Projekt
+  // EINMALIG vorausgewählt, sofern der Nutzer nicht ohnehin schon eines gewählt
+  // hat — reine Auswahl, kein KI-Aufruf, 0 verbrauchte Generierungen.
+  const contextAppliedRef = useRef(false);
+  useEffect(() => {
+    if (contextAppliedRef.current || projectsLoading || selectedProject || !user?.id) return;
+    const contextProjectId = readContext()?.projectId;
+    if (!contextProjectId) {
+      contextAppliedRef.current = true;
+      return;
+    }
+    contextAppliedRef.current = true;
+    const known = projects.find((p) => p.id === contextProjectId);
+    if (known) {
+      setSelectedProject(known);
+      return;
+    }
+    // Projekt liegt außerhalb der „letzten 5": gezielt nachladen und voranstellen,
+    // damit die Auswahl konsistent bleibt (kein Zustand ohne passende Option).
+    void getProject(contextProjectId)
+      .then((p) => {
+        if (!p) return;
+        setProjects((prev) => (prev.some((x) => x.id === p.id) ? prev : [p, ...prev]));
+        setSelectedProject(p);
+      })
+      .catch(() => {
+        /* Kontext ist optional — ohne Projekt verhält sich der Flow wie bisher. */
+      });
+  }, [projects, projectsLoading, selectedProject, user?.id]);
 
   // Phase 1 — EIN/AUS-Schalter: ein AUSgeschaltetes Profil ist für die Engine
   // komplett unsichtbar (kein brandContext, keine Empfehlungen, keine Gaps).

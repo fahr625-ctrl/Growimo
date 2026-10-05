@@ -975,6 +975,9 @@ function ChannelCard({
             const strategyImage = extractStrategyImage(display.body, contentType, {
               productIdea,
               brandInfo: formatStrategyBrandContext(getBrandProfile()),
+              // Schritt 4 (Punkt 6): Herkunft mitgeben → das Studio bietet
+              // „← Zurück zum Paket“ an.
+              source: 'package',
             });
             if (!strategyImage) return null;
             return (

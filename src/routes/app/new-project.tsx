@@ -15,7 +15,8 @@ import BrandBadge from '~/components/BrandBadge';
 import { useTranslation } from '~/i18n';
 import { saveProject, getProjectsByUser } from '~/store/projects';
 import type { Project } from '~/store/projects';
-import { getBrandContext } from '~/store/brand';
+import { getBrandContext, getBrandProfile } from '~/store/brand';
+import { formatStrategyBrandContext } from '~/lib/studio-deeplink';
 import { canGenerate, recordGeneration, getRemainingGenerations } from '~/store/subscriptions';
 import { trackEvent } from '~/store/analytics';
 import { analyticsChannelForContentType } from '~/lib/analytics';
@@ -1280,7 +1281,16 @@ function AccordionResults({
         if (isMarketIntel) return null;
         // Prefill bridge — same logic as the project detail page (ContentCard) so the
         // Image Studio opens pre-filled with the AI image prompt from this result.
-        const strategyImage = extractStrategyImage(result.body, result.contentType);
+        // Stabilisierung Schritt 4 (Punkt 6): Der Strategie-Einstieg gibt wie
+        // der Paket-Flow vollen Kontext mit (Produktidee, Markenprofil, Projekt
+        // sobald gespeichert, Herkunft 'strategy'). Ohne gespeichertes Projekt
+        // bleibt es beim bisherigen Verhalten (nur Prompt + Format).
+        const strategyImage = extractStrategyImage(result.body, result.contentType, {
+          projectId: savedProjectId ?? '',
+          productIdea,
+          brandInfo: formatStrategyBrandContext(getBrandProfile()),
+          source: 'strategy',
+        });
         const openImageStudio = () => {
           if (!strategyImage) return;
           saveStrategyPrefill(strategyImage);
