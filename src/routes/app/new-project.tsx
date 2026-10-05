@@ -472,46 +472,17 @@ function NewProjectContent() {
       // Clear draft after successful generation
       try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
 
-      // Auto-generate analysis after all content — pass the full generated content
-      try {
-        // Build a comprehensive content summary for analysis
-        const contentSummary = generated
-          .map((r) => {
-            const config = getContentTypeConfig(r.contentType);
-            return `=== ${config?.label ?? r.contentType} ===\nTitel: ${r.title}\n\n${r.body}`;
-          })
-          .join('\n\n');
-
-        const analysisResult = (await generateContentServer({
-          data: {
-            contentType: 'marketing_analysis',
-            productIdea:
-              productIdea +
-              '\n\n--- GENERIERTE INHALTE ZUR ANALYSE ---\n\n' +
-              contentSummary,
-            tone: tone || undefined,
-            additionalContext: [brandContext, buildAdditionalContext()].filter(Boolean).join('\n\n') || undefined,
-          },
-        })) as ContentResult;
-        setResults((prev) => [...prev, analysisResult]);
-
-        // Auto-generate Market Intelligence alongside analysis
-        try {
-          const miResult = (await generateContentServer({
-            data: {
-              contentType: 'market_intelligence',
-              productIdea,
-              tone: tone || undefined,
-              additionalContext: [brandContext, buildAdditionalContext()].filter(Boolean).join('\n\n') || undefined,
-            },
-          })) as ContentResult;
-          setResults((prev) => [...prev, miResult]);
-        } catch (miError) {
-          console.error('Market Intelligence generation failed:', miError);
-        }
-      } catch (analysisError) {
-        console.error('Analysis generation failed:', analysisError);
-      }
+      // Fix 2026-10-05 (Befund A): Hier wurden nach `saveProject` zusätzlich
+      // `marketing_analysis` und `market_intelligence` über
+      // `generateContentServer` erzeugt. Jeder Aufruf läuft durch
+      // `withGenerationGuard` und kostete damit eine Quota-Einheit (Free 5 /
+      // Pro 200), obwohl die Ergebnisse NUR in den UI-State gehängt und NIE
+      // gespeichert wurden (`saveProject` hatte bereits gelaufen, `contentTypes`
+      // = gewählte Kanäle) — nach einem Reload waren sie weg.
+      // Das verletzt das verbindliche Preismodell „Strategie-Paket = 1 pro Kanal".
+      // Entfernt: ein Strategie-Lauf verbraucht jetzt exakt so viele Einheiten
+      // wie gewählte Kanäle. Analyse/Market Intelligence bleiben als eigene,
+      // separat angestoßene und gespeicherte Features unverändert bestehen.
     } catch (error) {
       console.error('Generation failed:', error);
       if (error instanceof Error) {
