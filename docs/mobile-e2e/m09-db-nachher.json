@@ -1,0 +1,25 @@
+{
+  "label": "m-after-s3s4",
+  "clerkId": "user_3KGLrQivAW698KVoR3vkZoJYMKU",
+  "internalUserId": "354ebec1-ef4b-4ebd-84b1-69e0a5ac0632",
+  "projectRows": 1,
+  "projects": [
+    "5d42acdd-16c9-4cd1-b052-40dc8f6526b9"
+  ],
+  "projectTitles": [
+    "Personalisierte Bienenwachskerzen für Kinder"
+  ],
+  "contentRows": 2,
+  "perProject": [
+    {
+      "id": "5d42acdd-16c9-4cd1-b052-40dc8f6526b9",
+      "contents": 2
+    }
+  ],
+  "usage": [
+    {
+      "period": "2026-10",
+      "count": 5
+    }
+  ]
+}

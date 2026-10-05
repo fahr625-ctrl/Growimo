@@ -1,0 +1,171 @@
+{
+  "rows": [
+    {
+      "channel": "etsy_listing",
+      "title": "Ein Lächeln auf deinem Kindergesicht mit unseren Kerzen!",
+      "charsH": 543,
+      "hits": [],
+      "metaScore": {
+        "total": 33,
+        "issues": [
+          {
+            "fix": {
+              "field": "tags",
+              "action": "add",
+              "suggestion": "Fülle ALLE 13 Etsy-Tags aus (aktuell 0). Nutze Longtail-Phrasen, wie Käufer wirklich suchen — maximal 20 Zeichen pro Tag."
+            },
+            "message": "Nur 0 von 13 Etsy-Tags ausgefüllt.",
+            "category": "structure",
+            "severity": "critical"
+          },
+          {
+            "fix": {
+              "field": "keywords",
+              "action": "add",
+              "suggestion": "Ergänze 6–10 Fokus-Keywords mit hoher Kaufintention (aktuell 0)."
+            },
+            "message": "Nur 0 Fokus-Keywords gefunden (Ziel: 6–10).",
+            "category": "keywords",
+            "severity": "critical"
+          },
+          {
+            "fix": {
+              "field": "description",
+              "action": "expand",
+              "suggestion": "Erweitere die Etsy-Beschreibung auf mindestens 500 Zeichen (aktuell 0). Baue die Abschnitte „Das Besondere\", „Auf einen Blick\", „Perfekt für dich\", „Geschenkidee\" und CTA aus."
+            },
+            "message": "Die Etsy-Beschreibung ist zu kurz (0 Zeichen, Ziel: ≥ 500).",
+            "category": "length",
+            "severity": "critical"
+          },
+          {
+            "fix": {
+              "field": "cta",
+              "action": "add",
+              "suggestion": "Ergänze einen freundlichen, direkten CTA mit Vorfreude auf das Produkt (ohne erfundene Lieferzeit, Versand- oder Rückgabezusage — solche Angaben nur, wenn der Nutzer sie genannt hat)."
+            },
+            "message": "Der persönliche CTA-Abschnitt fehlt.",
+            "category": "cta",
+            "severity": "critical"
+          },
+          {
+            "fix": {
+              "field": "cta",
+              "action": "rewrite",
+              "suggestion": "Formuliere diesen Punkt ausschließlich mit Angaben aus deiner Produktidee bzw. deinem Markenprofil (keine erfundenen Fakten wie Lieferzeit, Preis, Trend oder fremde Beispiel-Links)."
+            },
+            "message": "CTA wirkt noch schwach (48/100): Der Call-to-Action ist vorhanden, aber nicht sehr überzeugend oder kreativ.",
+            "category": "cta",
+            "severity": "critical"
+          },
+          {
+            "fix": {
+              "field": "title",
+              "action": "reorder",
+              "suggestion": "Beginne den Etsy-Titel mit dem Hauptkeyword (der erste Suchbegriff hat das höchste Gewicht für das Etsy-Ranking)."
+            },
+            "message": "Das Hauptkeyword steht nicht an Position 1 des Etsy-Titels.",
+            "category": "keywords",
+            "severity": "warning"
+          },
+          {
+            "fix": {
+              "field": "longtailKeywords",
+              "action": "add",
+              "suggestion": "Ergänze 10–15 Longtail-Phrasen mit klarer Kaufabsicht (3–6 Wörter)."
+            },
+            "message": "Longtail-Keywords fehlen oder sind zu kurz.",
+            "category": "keywords",
+            "severity": "warning"
+          },
+          {
+            "fix": {
+              "field": "faq",
+              "action": "add",
+              "suggestion": "Formuliere diesen Punkt ausschließlich mit Angaben aus deiner Produktidee bzw. deinem Markenprofil (keine erfundenen Fakten wie Lieferzeit, Preis, Trend oder fremde Beispiel-Links)."
+            },
+            "message": "FAQ fehlt oder hat nur 0 Frage(n) (Ziel: 5).",
+            "category": "structure",
+            "severity": "warning"
+          },
+          {
+            "fix": {
+              "field": "imageFilename",
+              "action": "add",
+              "suggestion": "Benenne das Produktbild suchmaschinenfreundlich: kleingeschrieben, Bindestriche, 3–4 Hauptkeywords, Endung .jpg."
+            },
+            "message": "Kein suchmaschinenfreundlicher Dateiname (Endung .jpg) vorhanden.",
+            "category": "image",
+            "severity": "warning"
+          },
+          {
+            "fix": {
+              "field": "keywords",
+              "action": "insert_keyword",
+              "suggestion": "Baue die wichtigsten Suchbegriffe deiner Produktidee natürlich in den Fließtext ein und ergänze passende Longtail-Varianten statt Wiederholungen."
+            },
+            "message": "Keywords wirkt noch schwach (65/100): Die Keywords sind relevant, aber könnten natürlicher integriert werden.",
+            "category": "keywords",
+            "severity": "warning"
+          }
+        ],
+        "summary": "Dein Etsy-Listing erreicht 33/100. Stärke: Titel (89/100). Kritischer Punkt: Nur 0 von 13 Etsy-Tags ausgefüllt. Starte mit: Fülle ALLE 13 Etsy-Tags aus (aktuell 0).",
+        "subScores": [
+          {
+            "key": "title",
+            "label": "Titel",
+            "score": 89,
+            "weight": 0.2,
+            "comment": "Der Einstieg spricht direkt die Emotionen der Eltern an und weckt Interesse."
+          },
+          {
+            "key": "keywords",
+            "label": "Keywords",
+            "score": 26,
+            "weight": 0.2,
+            "comment": "Die Keywords sind relevant, aber könnten natürlicher integriert werden. (0/3 Regeln bestanden)"
+          },
+          {
+            "key": "cta",
+            "label": "CTA",
+            "score": 19,
+            "weight": 0.15,
+            "comment": "Der Call-to-Action ist vorhanden, aber nicht sehr überzeugend oder kreativ. (0/1 Regeln bestanden)"
+          },
+          {
+            "key": "length",
+            "label": "Länge",
+            "score": 0,
+            "weight": 0.15,
+            "comment": "0 von 1 Checks bestanden"
+          },
+          {
+            "key": "structure",
+            "label": "Struktur",
+            "score": 0,
+            "weight": 0.2,
+            "comment": "0 von 2 Checks bestanden"
+          },
+          {
+            "key": "relevance",
+            "label": "Relevanz",
+            "score": 70,
+            "weight": 0.1,
+            "comment": "Der Ton ist freundlich und passend, jedoch könnte er etwas lebendiger sein."
+          }
+        ],
+        "ruleVersion": 2
+      },
+      "bodyHead": "Stell dir vor, wie die Augen deines Kindes leuchten, wenn es seine eigene Namenskerze entdeckt.  Diese personalisierte Bienenwachskerze bringt nicht nur Licht, "
+    },
+    {
+      "channel": "marketing_plan",
+      "title": "Marketing-Plan für personalisierte Bienenwachskerzen für Kinder",
+      "charsH": 7069,
+      "hits": [],
+      "metaScore": null,
+      "bodyHead": "1. Zielgruppen-Steckbrief  1.1 Persona 1: Nachhaltigkeitsbewusste Eltern (a) Demografie: 30–45 Jahre, Eltern von Kindern im Alter von 3 bis 10 Jahren, mittleres"
+    }
+  ],
+  "totalHits": 0
+}

@@ -1,0 +1,29 @@
+nohup: ignoring input
+=== dismiss onboarding + consent ===
+"none"
+=== open new-project with idea ===
+✓ Growimo — Pinterest Pins, Etsy-Mockups & SEO-Content mit KI erstellen
+  https://www.growimo.app/app/new-project?idea=Personalisierte%20Bienenwachskerzen%20f%C3%BCr%20Kinder
+=== pre-state ===
+"{\"idea\":\"Personalisierte Bienenwachskerzen für Kinder\",\"ctaFound\":true,\"ctaDisabled\":true}"
+=== select tiles Marketing + Etsy ===
+"{\"clicked\":[\"Marketing\",\"Etsy\"]}"
+=== post-select ===
+"{\"count\":\"2 ausgewählt\",\"selected\":[\"✓🛍️EtsyTitel, Besch\",\"✓📊MarketingKomplett\"],\"ctaDisabled\":false}"
+✓ Screenshot saved to /home/team/shared/site/docs/mobile-e2e/m02-strategie-auswahl.png
+=== click Strategie erstellen ===
+"CLICKED"
+=== poll ===
+POLL "{\"i\":1,\"spin\":3,\"len\":358,\"err\":null,\"saved\":true}"
+POLL "{\"i\":2,\"spin\":3,\"len\":359,\"err\":null,\"saved\":true}"
+POLL "{\"i\":3,\"spin\":2,\"len\":7040,\"err\":null,\"saved\":true}"
+POLL "{\"i\":4,\"spin\":2,\"len\":7040,\"err\":null,\"saved\":true}"
+POLL "{\"i\":5,\"spin\":1,\"len\":14229,\"err\":null,\"saved\":true}"
+POLL "{\"i\":6,\"spin\":1,\"len\":14229,\"err\":null,\"saved\":true}"
+POLL "{\"i\":7,\"spin\":1,\"len\":22041,\"err\":null,\"saved\":true}"
+POLL "{\"i\":8,\"spin\":0,\"len\":245,\"err\":null,\"saved\":true}"
+POLL "{\"i\":9,\"spin\":0,\"len\":245,\"err\":null,\"saved\":true}"
+POLL "{\"i\":10,\"spin\":0,\"len\":245,\"err\":null,\"saved\":true}"
+POLL "{\"i\":11,\"spin\":0,\"len\":245,\"err\":null,\"saved\":true}"
+POLL "{\"i\":12,\"spin\":0,\"len\":245,\"err\":null,\"saved\":true}"
+POLL "{\"i\":13,\"spin\":0,\"len\":245,\"err\":null,\"saved\":true}"

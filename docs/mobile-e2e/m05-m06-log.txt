@@ -1,0 +1,22 @@
+nohup: ignoring input
+=== open project page ===
+✓ Growimo — Pinterest Pins, Etsy-Mockups & SEO-Content mit KI erstellen
+  https://www.growimo.app/app/projects/5d42acdd-16c9-4cd1-b052-40dc8f6526b9
+=== dismiss consent ===
+"none"
+=== project state (7c: Produktidee sichtbar?) ===
+"{\"url\":\"/app/projects/5d42acdd-16c9-4cd1-b052-40dc8f6526b9\",\"ideaVisible\":true,\"studioBtns\":1,\"cards\":[\"🛍️EtsyPersonalisierte Bienenwachskerzen Kinder | Namenskerz\",\"🚀🚀 AktionsplanSchritt-für-Schritt-Checkliste: genau das tu\",\"📊MarketingMarketing-Plan für personalisierte Bienenwachsker\"],\"hasScoreBadges\":0}"
+=== click studio button of ETSY card ===
+"CLICKED_STUDIO"
+=== studio state (Station 5) ===
+"{\"url\":\"/app/image-studio?fromStrategy=1\",\"promptLen\":197,\"promptHead\":\"A bright, cozy children's room with personalized honey-yellow beeswax candles on a wooden shelf, surrounded by playful decor.Produktidee: Personalisierte Bienenwachskerzen für Kind\",\"projectSelect\":\"Personalisierte Bienenwachskerzen für Kinder\",\"ratioChip\":[\"4:3\",\"2:3\",\"4:3\",\"1:1\"],\"stamp\":\"PRODUKTBILD |  | Kein Produktbild vorhanden — das Bild wird aus dem Prompt erstellt.\",\"refHint\":false,\"backToProject\":true}"
+"top"
+✓ Screenshot saved to /home/team/shared/site/docs/mobile-e2e/m05-studio-prefill-1.png
+=== upload test image (Station 6a/6b) ===
+✓ Done
+"scrolled_upload"
+=== upload state ===
+"{\"uploadCards\":1,\"btnText\":\"✨ Variation mit Produkttreue\",\"btnDisabled\":false,\"noReference\":null,\"refActiveText\":\"Produktvorlage aktiv: Dieses Bild wird als verbindliche Referenz mitgesendet — dein Produkt bleibt identisch, variiert werden Hintergrund, Licht, Perspektive und Ausschnitt.\",\"cardText\":\"mobile-e2e-testbild.png |  | ✨ Variation mit Produkttreue |  | Produktvorlage aktiv: Dieses Bild wird als verbindliche Referenz mitgesendet — dein Produkt bleibt identisch, variiert werden Hintergrund, Licht, Perspektive\"}"
+✓ Screenshot saved to /home/team/shared/site/docs/mobile-e2e/m06-upload-referenz.png
+=== full studio text (tail) ===
+STATION56_AB_DONE

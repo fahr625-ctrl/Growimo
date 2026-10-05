@@ -1,0 +1,19 @@
+nohup: ignoring input
+=== open project page ===
+✓ Growimo — Pinterest Pins, Etsy-Mockups & SEO-Content mit KI erstellen
+  https://www.growimo.app/app/projects/5d42acdd-16c9-4cd1-b052-40dc8f6526b9
+"consent_ok"
+=== find + click A/B-Varianten in the ETSY card ===
+"CLICKED_VARIANTS"
+=== poll for panel ===
+POLL "{\"i\":1,\"adopt\":0,\"panel\":false,\"len\":15127,\"err\":null}"
+PARTIAL
+=== extract variants ===
+"{\"count\":0,\"panelNotes\":[],\"variants\":[]}"
+=== scores per variant (raw text blocks) ===
+=== screenshot panel ===
+"scrolled"
+✓ Screenshot saved to /home/team/shared/site/docs/mobile-e2e/m03-varianten-1.png
+"scrolled2"
+✓ Screenshot saved to /home/team/shared/site/docs/mobile-e2e/m03-varianten-2.png
+STATION3_DONE

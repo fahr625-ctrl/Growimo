@@ -92,3 +92,6 @@ Wichtige Belegquellen (bereits recherchiert):
   Scores, Etsy-Fakten, Bildkette oder Upload-Variation aus diesem Lauf.
 - Die Zusatzkontrollen 7a–f sind **nicht** durchgeführt.
 - Ob der LIVE-OpenAI-Key Generierungen (Text + Bild) aktuell zulässt, ist nicht geprüft.
+
+## Nachtrag 2026-10-05 (Folge-Lauf Mobile-E2E)
+Stationen 2-4 vollstaendig belegt, Station 5 (Prefill) + 6a/6b (Upload-Referenz) belegt; 6c und die echte Bild-Generierung NICHT ausgefuehrt (Free-Kontingent 5/5 erschoepft). Ergebnis + Belege: docs/mobile-e2e/ERGEBNIS-2026-10-05.md. Zwei echte Befunde: (A) neuer Doppel-Verbrauch - neue Strategie erzeugt immer zusaetzlich marketing_analysis + market_intelligence, jede kostet 1 Generierung, beide werden NICHT gespeichert (2 Kacheln -> 4 Einheiten); (B) /app/new-project ist nach der Generierung auf Mobile leer.
