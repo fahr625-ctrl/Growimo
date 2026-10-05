@@ -1,0 +1,38 @@
+{
+  "clerkId": "user_3KGLrQivAW698KVoR3vkZoJYMKU",
+  "internalUserId": "354ebec1-ef4b-4ebd-84b1-69e0a5ac0632",
+  "usage": [
+    {
+      "period": "2026-10",
+      "count": 1
+    }
+  ],
+  "project": {
+    "id": "9b6c6651-6fd3-4fb8-852a-73ae3ae49556",
+    "title": "Handgemachte Keramiktassen mit Sprenkelglasur",
+    "product_idea": "Handgemachte Keramiktassen mit Sprenkelglasur",
+    "content_types": [
+      "etsy_listing"
+    ],
+    "created_at": "2026-10-05T07:20:41.448Z",
+    "url": "/app/projects/9b6c6651-6fd3-4fb8-852a-73ae3ae49556"
+  },
+  "channels": [
+    {
+      "content_type": "etsy_listing",
+      "body_len": 6107,
+      "newlines": 0,
+      "raw_has_pinterest_bildprompt": true,
+      "raw_has_bildprompt": true,
+      "hasImage": true,
+      "promptLen": 82,
+      "prompt": "A cozy kitchen scene with handmade speckled ceramic mugs on a rustic wooden table.",
+      "ratio": "4:3",
+      "score": null
+    }
+  ],
+  "verdict": {
+    "anyHasImage": true,
+    "etsyHasImage": true
+  }
+}
