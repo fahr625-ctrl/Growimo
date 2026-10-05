@@ -1,6 +1,6 @@
 import { trackEvent } from '~/store/analytics';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { ScoreBadge } from '~/components/ScoreBadge';
 import { VariantPicker } from '~/components/VariantPicker';
@@ -11,10 +11,14 @@ import { getProject, getProjectContent, updateChannel } from '~/store/projects';
 import type { ImproveOutcome, VariantAsset } from '~/ai/types';
 import type { ContentType, Project, StoredContent } from '~/store/projects';
 import { ImageStudio } from '~/components/ImageStudio';
+// Stabilisierung Schritt 4 (Punkt 6) — durchgängiger Workflow: „Weiter mit …".
+import { NextActions } from '~/components/NextActions';
 import { PrioritizeCard } from '~/components/PrioritizeCard';
 import { ActionPlanCard } from '~/components/ActionPlanCard';
 import { summarizeBrief } from '~/ai/strategy-brief';
 import { extractStrategyImage, saveStrategyPrefill } from '~/lib/strategy-image';
+import { formatStrategyBrandContext } from '~/lib/studio-deeplink';
+import { getBrandProfile } from '~/store/brand';
 
 const CONTENT_TYPE_CONFIG: Record<ContentType, { icon: string; color: string }> = {
   pinterest_pin: { icon: '📌', color: 'bg-red-100 text-red-700' },
@@ -126,6 +130,16 @@ function ProjectDetailContent({ project, contents }: { project: Project; content
           })}
         </div>
       </div>
+      {/* Stabilisierung Schritt 4 (Punkt 6): klarer Einstieg in die TikTok-
+          Werkstatt MIT diesem Projekt (Projekt-ID + Produktidee + Brief reisen
+          über lib/app-context.ts mit; tiktok.tsx wählt das Projekt vor). */}
+      <NextActions
+        projectId={project.id}
+        productIdea={project.productIdea}
+        tiktok
+        className="mb-6"
+        testId="project-next-actions"
+      />
       <div className="space-y-3">
         <h2 className="text-lg font-bold text-gray-900">{t.project_generated_content} ({contents.length})</h2>
         {contents.length === 0 ? (
@@ -168,7 +182,20 @@ function ContentCard({ content, productIdea, strategyContext }: { content: Store
   const [showScore, setShowScore] = useState(false);
   const score = scoreFromMetadata(display.metadata);
   // Hoisted: recomputed on display change (fixed scopeless image-studio button, Problem 1)
-  const strategyImage = extractStrategyImage(display.body, display.contentType);
+  // Stabilisierung Schritt 4 (Punkt 6): Der Prefill trägt jetzt denselben vollen
+  // Kontext wie im Paket-Flow (Schritt 3) — Projekt, Produktidee, Markenprofil
+  // und Herkunft ('project'). Nur dadurch kennt das Studio Produkt und Marke
+  // und kann den Rückweg „← Zum Projekt" anbieten. Reiner Extraktor, 0 Generierungen.
+  const strategyImage = useMemo(
+    () =>
+      extractStrategyImage(display.body, display.contentType, {
+        projectId: display.projectId,
+        productIdea,
+        brandInfo: formatStrategyBrandContext(getBrandProfile()),
+        source: 'project',
+      }),
+    [display.body, display.contentType, display.projectId, productIdea],
+  );
   const openImageStudio = () => {
     if (!strategyImage) return;
     saveStrategyPrefill(strategyImage);

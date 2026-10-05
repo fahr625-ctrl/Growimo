@@ -1,15 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { ProtectedRoute } from "~/components/ProtectedRoute";
 import { ScoreBadge } from "~/components/ScoreBadge";
 import { ScoreCard, scoreFromMetadata } from "~/components/ScoreCard";
-import { getAllContentByUser, updateChannel } from "~/store/projects";
+import { NextActions } from "~/components/NextActions";
+import { getAllContentByUser, getProjectsByUser, updateChannel } from "~/store/projects";
 import type { ImproveOutcome } from "~/ai/types";
 import type { ContentType, StoredContent } from "~/store/projects";
 import { useTranslation } from "~/i18n";
 import { contentTypeLabel } from "~/lib/content-types";
 import { timeAgo } from "~/lib/date";
+import { extractStrategyImage } from "~/lib/strategy-image";
 
 // ── Content type config ───────────────────────────────────────────────────────
 const CONTENT_TYPE_CONFIG: Record<
@@ -73,6 +75,27 @@ function ContentLibraryContent() {
   }, [userId]);
 
   const [activeTab, setActiveTab] = useState<ContentType | "all">("all");
+  // Stabilisierung Schritt 4 (Punkt 6): Projekt → Produktidee, damit die
+  // „Weiter mit …“-Aktionen den Produktkontext mitnehmen können (die
+  // Inhaltsliste selbst kennt nur die Projekt-ID).
+  const [projectIdeas, setProjectIdeas] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    getProjectsByUser(userId)
+      .then((projects) => {
+        if (cancelled) return;
+        const map: Record<string, string> = {};
+        for (const p of projects) map[p.id] = p.productIdea ?? "";
+        setProjectIdeas(map);
+      })
+      .catch(() => {
+        /* Ohne Projektliste fehlen nur Produktidee-Kontexte — Inhalte bleiben nutzbar. */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const filteredContent =
     activeTab === "all"
@@ -183,6 +206,7 @@ function ContentLibraryContent() {
                       content={item}
                       showProject
                       locale={locale}
+                      productIdea={projectIdeas[item.projectId]}
                     />
                   ))}
                 </div>
@@ -199,6 +223,7 @@ function ContentLibraryContent() {
               content={item}
               showProject
               locale={locale}
+              productIdea={projectIdeas[item.projectId]}
             />
           ))}
         </div>
@@ -211,10 +236,12 @@ function ContentCard({
   content,
   showProject,
   locale,
+  productIdea,
 }: {
   content: StoredContent & { projectTitle: string };
   showProject?: boolean;
   locale?: string;
+  productIdea?: string;
 }) {
   const { t } = useTranslation();
   const [display, setDisplay] = useState<StoredContent & { projectTitle: string }>(content);
@@ -222,6 +249,19 @@ function ContentCard({
   const [copying, setCopying] = useState(false);
   const [showScore, setShowScore] = useState(false);
   const score = scoreFromMetadata(display.metadata);
+  // Stabilisierung Schritt 4 (Punkt 6): Ein Bildprompt ist genau dann
+  // extrahierbar, wenn der Inhalt einen KI-/Bild-Prompt-Abschnitt enthält
+  // (Schritt-3-Extraktor). Nur dann erscheint „🎨 Bild erstellen“ — nie ein
+  // Knopf ohne Prompt. Reiner Extraktor, kein KI-Aufruf, 0 Generierungen.
+  const imagePayload = useMemo(
+    () =>
+      extractStrategyImage(display.body, display.contentType, {
+        projectId: display.projectId,
+        productIdea,
+        source: "library",
+      }),
+    [display.body, display.contentType, display.projectId, productIdea],
+  );
   // F2: persist the improved asset (overwrite) so the new score survives reloads
   const handleImproved = async (outcome: ImproveOutcome) => {
     if (!outcome.improved || !outcome.improvedContent) return;
@@ -366,6 +406,19 @@ function ContentCard({
           />
         </div>
       )}
+
+      {/* Stabilisierung Schritt 4 (Punkt 6) — „Weiter mit …“ direkt am Inhalt:
+          „🎨 Bild erstellen“ (nur mit extrahierbarem Prompt) und
+          „📂 Im Projekt öffnen“. Kein Kopieren nötig, Kontext geht mit. */}
+      <NextActions
+        projectId={display.projectId}
+        productIdea={productIdea}
+        imagePayload={imagePayload}
+        openProject
+        heading={false}
+        className="mt-3 bg-gray-50/70"
+        testId="library-next-actions"
+      />
     </div>
   );
 }
