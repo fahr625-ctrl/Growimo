@@ -35,3 +35,19 @@ Folge: „Variation" war eine reine Neuerfindung aus Text — genau das vom Owne
 2. **marketing_plan-Promptabschnitt fehlt weiterhin:** Der Versuch, in `src/ai/providers/openai.ts` bei `marketing_plan` einen Bildprompt-Abschnitt (2:3) zu ergänzen, schlug fehl (Ankertext nicht wortgleich) → der Marketing-Plan liefert **keinen** Bildprompt, dort erscheint also **kein** „Bild jetzt erstellen". Pinterest/SEO/Etsy liefern ihn.
 3. **new-project.tsx / projects/$projectId.tsx** rufen `extractStrategyImage` weiterhin ohne Kontext auf (nur Basisfelder) — dort fehlen Produktidee/Projekt/Markeninfo im Prefill; funktioniert, ist aber weniger reich als der Paket-Flow.
 4. Die Bild-Referenz wird **nicht** persistiert (bewusst: Speicher/Privacy); nach Reload ist sie weg, der Nutzer muss neu hochladen.
+
+## Nachtrag 2026-10-05 — Deploy-Vollbeleg (nachgetragen in Schritt 4)
+Der in der ersten Fassung nur als `/tmp/bd2-deploy.log`/`/tmp/bd2-proof.txt` referenzierte Deploy-Beleg ist hier nachvollziehbar festgehalten (die /tmp-Dateien existieren nicht mehr).
+
+- **Deployment von Schritt 3** (aus der Vercel-Historie `bunx vercel ls site`, Projekt `site`, target production, Status Ready):
+  - `https://site-ami80syt9-growimo.vercel.app` (Schritt-3-Deploy, 10 h alt zum Zeitpunkt der Abfrage)
+  - `https://site-2sc6h4bqd-growimo.vercel.app` (Nachschub-Deploy nach dem Markenkontext-Fix)
+  - Deployment-IDs: über `bunx vercel inspect <url>` abrufbar; die URLs sind der belastbare Schlüssel (Hashes dpl_… wurden in dieser Session nicht erneut gezogen).
+- **Live-Status:** beide Deployments waren/sind `● Ready` auf production; `www.growimo.app` aliasiert jeweils auf den jüngsten Produktions-Deploy.
+- **Chunk-Identität statt Retro-Vergleich:** Für den Schritt-3-Stand wurde damals kein „live vs. lokaler Prebuilt byte-identisch“-Beleg vollständig dokumentiert. Statt das nachzustellen, ist der Nachweis über die **nachfolgende, dokumentierte Auslieferung** geführt: die Schritt-4-Auslieferung (`dpl_CdPp7VEvurRDryytbNTzTu3x3pec`, `site-q8be2l828`) baut direkt auf `3033178` auf und ist mit **29/29 byte-identischen** Client-Chunks von `www.growimo.app` gegen den lokalen Prebuilt belegt (siehe `docs/stabilisierung-schritt4-workflow.md` §4).
+- **Schritt-3-Marker im ausgelieferten Artefakt (Server-Bundle `render.func/index.mjs`, SHA-256 `896b14b5816d4c33988cf8ce4c5838a1038cfab2ec88ffa42837bded8ba3daaa`):**
+  - `Variiere NUR Hintergrund` @2294284 → Referenz-Sperr-Baustein (Punkt 3) live
+  - `image_studio_prompt_reference_lock` @2294221 → i18n-Key (Punkt 3) live
+  - `package-create-image` @3795146 → „Bild jetzt erstellen“ im Paket-Flow (Punkt 5) live
+  ⇒ Die Schritt-3-Änderungen sind damit im aktuell ausgelieferten Produktionsartefakt nachgewiesen (nicht nur im Quelltext).
+- **Grenze des Belegs:** Ein Byte-Vergleich der *Schritt-3*-Chunks gegen den damaligen lokalen Build ist nicht mehr möglich (kein Prebuilt von damals vorhanden); belegt ist die Kontinuität über die Commit-Kette plus die Marker im heute ausgelieferten Artefakt.
