@@ -4,9 +4,25 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { generateContentServer } from '~/ai/server';
 import type { ContentType, ContentRequest, ContentResult } from '~/ai/types';
-import { CONTENT_TYPE_REGISTRY, getContentTypeConfig } from '~/ai/content-types';
+import { getContentTypeConfig } from '~/ai/content-types';
+// Kachel-Vereinfachung (Owner-Direktion 2026-10-05): genau 6 sichtbare Kacheln.
+// CONTENT_TYPE_REGISTRY bleibt unverändert — sie liefert weiterhin Labels/Icons
+// für alle (auch nicht mehr wählbare) Typen in Ergebnis-, Projekt- und
+// Bibliotheks-Ansichten.
+import {
+  STRATEGY_TILE_CONFIG,
+  STRATEGY_TILE_COUNT,
+  STRATEGY_TILES_MARKER,
+  isStrategyTileSelected,
+  normalizeStrategySelection,
+  selectAllStrategyContentTypes,
+  selectedStrategyTileCount,
+  strategyResultCount,
+  strategyTileResultCount,
+  toggleStrategyTile,
+  type StrategyTileConfig,
+} from '~/ai/strategy-tiles';
 import { TONES, toneLabel } from '~/lib/tones';
-import { contentTypeLabel } from '~/lib/content-types';
 import { formatDate } from '~/lib/date';
 import { extractStrategyImage, saveStrategyPrefill } from '~/lib/strategy-image';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
@@ -217,7 +233,14 @@ function NewProjectContent() {
         const draft = JSON.parse(raw);
         if (draft.productIdea) draftIdea = draft.productIdea;
         if (draft.tone) setTone(draft.tone);
-        if (draft.selectedTypes?.length) setSelectedTypes(draft.selectedTypes);
+        // Kachel-Vereinfachung 2026-10-05: alte Entwürfe können Typen ohne
+        // sichtbare Kachel enthalten (trend_insight/marketing_analysis/
+        // market_intelligence). Diese werden hier auf die 6 Kacheln kanonisiert,
+        // damit Zähler, Kosten-Anzeige und generierte Ergebnisse deckungsgleich
+        // bleiben (kein unsichtbarer Zusatzverbrauch).
+        if (draft.selectedTypes?.length) {
+          setSelectedTypes(normalizeStrategySelection(draft.selectedTypes));
+        }
         if (draft.productDetails) setProductDetails(draft.productDetails);
         if (draft.showDetails) setShowDetails(draft.showDetails);
       }
@@ -245,9 +268,8 @@ function NewProjectContent() {
       if (defaultTypesRaw) {
         const parsed = JSON.parse(defaultTypesRaw);
         if (Array.isArray(parsed)) {
-          const valid = parsed.filter((tp: unknown) =>
-            CONTENT_TYPE_REGISTRY.some((c) => c.type === tp),
-          );
+          // Nur Typen mit sichtbarer Kachel übernehmen (siehe strategy-tiles.ts).
+          const valid = normalizeStrategySelection(parsed);
           if (valid.length > 0) setSelectedTypes(valid);
         }
       }
@@ -274,18 +296,19 @@ function NewProjectContent() {
     }
   }, [productIdea, tone, selectedTypes, productDetails, showDetails, step, draftKey]);
 
-  // ── Toggle a content type selection ────────────────────────────────────────
-  const toggleContentType = useCallback((type: ContentType) => {
-    setSelectedTypes((prev) =>
-      prev.includes(type) ? prev.filter((tp) => tp !== type) : [...prev, type],
-    );
+  // ── Toggle a strategy tile (Owner-Direktion 2026-10-05) ─────────────────────
+  // Eine Kachel kann MEHRERE echte ContentTypes bündeln (z. B. „Content" =
+  // SEO-Blog + E-Mail-Newsletter). `selectedTypes` bleibt ein reines
+  // contentTypes-Array — Stream/Save/Usage-Zähler arbeiten unverändert, jeder
+  // Typ zählt genau 1 Einheit (withGenerationGuard je Kanal).
+  const toggleTile = useCallback((tile: StrategyTileConfig) => {
+    setSelectedTypes((prev) => toggleStrategyTile(prev, tile));
   }, []);
 
-  // ── Select all / clear all ─────────────────────────────────────────────────
+  // ── Select all / clear all (alle 6 Kacheln) ────────────────────────────────
   const selectAll = useCallback(() => {
-    setSelectedTypes(CONTENT_TYPE_REGISTRY.map((c) => c.type));
+    setSelectedTypes(selectAllStrategyContentTypes());
   }, []);
-
   const clearSelection = useCallback(() => {
     setSelectedTypes([]);
   }, []);
@@ -616,7 +639,7 @@ function NewProjectContent() {
           tone={tone}
           setTone={setTone}
           selectedTypes={selectedTypes}
-          toggleContentType={toggleContentType}
+          toggleTile={toggleTile}
           selectAll={selectAll}
           clearSelection={clearSelection}
           onGenerate={handleGenerate}
@@ -632,7 +655,7 @@ function NewProjectContent() {
         <Step2Results
           isLoading={isLoading}
           loadingMessage={loadingMessage}
-          selectedCount={selectedTypes.length}
+          selectedCount={strategyResultCount(selectedTypes)}
           results={results}
           productIdea={productIdea}
           tone={tone}
@@ -684,7 +707,7 @@ function Step1Strategy({
   tone,
   setTone,
   selectedTypes,
-  toggleContentType,
+  toggleTile,
   selectAll,
   clearSelection,
   onGenerate,
@@ -698,7 +721,7 @@ function Step1Strategy({
   tone: string;
   setTone: (v: string) => void;
   selectedTypes: ContentType[];
-  toggleContentType: (type: ContentType) => void;
+  toggleTile: (tile: StrategyTileConfig) => void;
   selectAll: () => void;
   clearSelection: () => void;
   onGenerate: () => void;
@@ -715,6 +738,12 @@ function Step1Strategy({
 }) {
   const { t } = useTranslation();
   const canGen = productIdea.trim().length > 0 && selectedTypes.length > 0;
+  // Kachel-Zähler: „Kacheln ausgewählt" (0–6, sichtbare Auswahl) und
+  // „Ergebnisse" (= Generierungen = Usage-Einheiten) werden getrennt angezeigt
+  // — sonst wäre „2 von 6 · 2 Ergebnisse" bei der Content-Kachel nicht
+  // nachvollziehbar (1 Kachel, 2 Ergebnisse).
+  const selectedTiles = selectedStrategyTileCount(selectedTypes);
+  const resultCount = strategyResultCount(selectedTypes);
 
   const updateDetail = (field: string, value: string) => {
     setProductDetails((prev) => ({ ...prev, [field]: value }));
@@ -854,9 +883,15 @@ function Step1Strategy({
             </h3>
             <p className="text-sm text-gray-500">
               {t.strategy_select_types_desc}{' '}
-              {selectedTypes.length > 0 && (
+              {resultCount > 0 && (
                 <span className="font-medium text-blue-600">
-                  {t.strategy_selected_count.replace('%d', String(selectedTypes.length))}
+                  {t.strategy_tiles_selected
+                    .replace('%d', String(selectedTiles))
+                    .replace('%d', String(STRATEGY_TILE_COUNT))}
+                  {' · '}
+                  {resultCount === 1
+                    ? t.strategy_results_singular.replace('%d', '1')
+                    : t.strategy_results_plural.replace('%d', String(resultCount))}
                 </span>
               )}
             </p>
@@ -881,15 +916,24 @@ function Step1Strategy({
           </div>
         </div>
 
-        {/* 2x4 responsive grid */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {CONTENT_TYPE_REGISTRY.map((ct) => {
-            const isSelected = selectedTypes.includes(ct.type);
+        {/* Kachel-Auswahl — Owner-Direktion 2026-10-05: genau 6 Kacheln.
+            2 Spalten auf Mobile (393 px, kein horizontales Scrollen),
+            3 Spalten ab sm. `data-strategy-tiles` dient als Bundle-Proof. */}
+        <div
+          data-strategy-tiles={STRATEGY_TILES_MARKER}
+          data-strategy-tile-count={STRATEGY_TILE_COUNT}
+          className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+        >
+          {STRATEGY_TILE_CONFIG.map((tile) => {
+            const isSelected = isStrategyTileSelected(tile, selectedTypes);
+            const tileResults = strategyTileResultCount(tile);
             return (
               <button
-                key={ct.type}
+                key={tile.key}
                 type="button"
-                onClick={() => toggleContentType(ct.type)}
+                data-strategy-tile={tile.key}
+                aria-pressed={isSelected}
+                onClick={() => toggleTile(tile)}
                 className={`relative flex flex-col items-center gap-1.5 rounded-xl border-2 p-4 text-center transition-all hover:-translate-y-0.5 ${
                   isSelected
                     ? 'border-blue-500 bg-blue-50 shadow-md'
@@ -901,24 +945,33 @@ function Step1Strategy({
                     ✓
                   </span>
                 )}
-                <span className="text-2xl">{ct.icon}</span>
+                <span className="text-2xl">{tile.icon}</span>
                 <span
                   className={`text-xs font-semibold leading-tight ${
                     isSelected ? 'text-blue-700' : 'text-gray-700'
                   }`}
                 >
-                  {contentTypeLabel(t, ct.type)}
+                  {t[tile.labelKey]}
                 </span>
                 <span className="text-[10px] leading-tight text-gray-400 line-clamp-2">
-                  {ct.description}
+                  {t[tile.descKey]}
                 </span>
+                {tileResults > 1 && (
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                      isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'
+                    }`}
+                  >
+                    {t.strategy_results_plural.replace('%d', String(tileResults))}
+                  </span>
+                )}
               </button>
             );
           })}
         </div>
 
-        {/* Generate CTA */}
-        <div className="mt-8 flex justify-center">
+        {/* Generate CTA + transparente Ergebnis-/Kosten-Anzeige */}
+        <div className="mt-8 flex flex-col items-center gap-2">
           <button
             type="button"
             onClick={onGenerate}
@@ -927,6 +980,13 @@ function Step1Strategy({
           >
             {t.strategy_create_btn}
           </button>
+          {resultCount > 0 && (
+            <p className="text-xs font-medium text-gray-500">
+              {resultCount === 1
+                ? t.strategy_cta_results_singular.replace('%d', '1')
+                : t.strategy_cta_results_plural.replace('%d', String(resultCount))}
+            </p>
+          )}
         </div>
       </div>
     </div>

@@ -299,7 +299,7 @@ Antworte mit einem prägnanten Plantitel in der ersten Zeile. Dann eine Leerzeil
 2–3 detaillierte Persona-Skizzen. Jede mit: (a) konkreter demografischer Einordnung (b) Schmerzpunkt/Bedürfnis, das dieses Produkt löst (c) wo sich diese Person online aufhält — PLATTFORM-GENAU (nicht „auf Social Media", sondern „in Facebook-Gruppen zum Thema Nachhaltigkeit und auf Pinterest beim Thema Wohnen") (d) welche Sprache/sprech diese Person spricht (e) Kaufverhalten: Impulskauf oder Recherche? Schnäppchenjägerin oder Qualitätskäuferin?
 
 2. Alleinstellungsmerkmal (USP)
-Formuliere den USP in EINEM prägnanten Satz. Dann: 3 konkrete Differenzierungsmerkmale, die dieses Produkt von den 3–5 offensichtlichsten Wettbewerbern unterscheiden. Kein generisches „hochwertig" oder „nachhaltig" — sondern spezifische, überprüfbare Unterschiede.
+Formuliere den USP in EINEM prägnanten Satz. Dann: 3 konkrete Differenzierungsmerkmale, die dieses Produkt von den 3–5 offensichtlichsten Wettbewerbern unterscheiden. Kein generisches „hochwertig" oder „nachhaltig" — sondern spezifische, überprüfbare Unterschiede. Ergänze danach in 2–3 Sätzen die Markt- und Trend-Einordnung: Wie umkämpft ist dieses Umfeld, welche Nachfrage-Signale sprechen für dieses Produkt, und welche beobachtbaren Trends stützen den Bedarf? Leite das ausschließlich aus den Nutzerangaben und dem bereitgestellten Kontext ab — keine erfundenen Marktzahlen, Studien oder Trend-Prognosen.
 
 3. Kanal-Strategie
 Für JEDEN relevanten Kanal (mindestens 4 der folgenden: Etsy, Pinterest, Instagram, Facebook, TikTok, Blog/SEO, E-Mail, Google Ads, Pinterest Ads — wähle die passendsten aus):
