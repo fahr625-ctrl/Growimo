@@ -105,14 +105,28 @@ Screenshot `m26b-legacy-projekt-marketing-analysis.png`.
 
 ### C) Alt-Projekt mit Trend/Markt/Analyse — `1a56bafb-5c34-4b3e-b5cf-434d35420d08` (10 Typen)
 `bodyLen:50013`, `cp:false`, Headings `["Reisen mit Hund", "Generierte Inhalte (10)", "🎨 KI-Bild-Studio"]`,
-`generierte:"10"`, `analyse:true`, `markt:true`, `trend:true`, drei Image-Studio-Buttons,
-`fehlertext:null` (kein Fehlertext-Treffer).
+`generierte:"10"`, `analyse:true`, `markt:true`, `trend:true`, drei Image-Studio-Buttons.
 Screenshot `m26c-legacy-projekt-trend-markt-10-typen.png`.
+**Ehrlicher Vorbehalt:** die Fehlertext-Sonde lieferte für dieses Projekt den Worttreffer `Fehler`
+(`fehlertext:"Fehler"`) — es gab **kein** Fehlerbanner und keinen Abbruch (Karten vollständig gerendert,
+`generierte:"10"`), der Treffer stammt mit hoher Wahrscheinlichkeit aus dem generierten Werbetext
+(50 013 Zeichen Body, z. B. „Fehler vermeiden"). Nicht mehr verifiziert, daher hier als Restunsicherheit
+geführt: die Sonde matcht das Wort, nicht ein UI-Fehler-Element. Projekt B (`marketing_analysis`) hatte
+`fehlertext:null`, Bibliothek und Dashboard ebenfalls.
 Hinweis: Das alte 10-Typen-Projekt beweist, dass `trend_insight` / `market_intelligence` /
 `marketing_analysis` weiterhin normal geladen und gerendert werden, obwohl sie keine Auswahlkachel mehr haben.
 
-### D) Inhaltsbibliothek + Dashboard
-Status/Lauf siehe Abschnitt 8 (Log `/tmp/kacheln-bestand.log`).
+### D) Inhaltsbibliothek — `/app/content-library`
+`bodyLen:5073`, `cp:false`, `zeilen:175`, Treffer `Analyse:1`, `Markt/Market:5`, `Trend:1`,
+`fehlertext:null` ⇒ die nicht mehr wählbaren Typen (`marketing_analysis`, `market_intelligence`,
+`trend_insight`) werden in der Bibliothek **weiter normal gelistet**.
+Screenshot `m26d-inhaltsbibliothek-legacy-typen.png`.
+
+### E) Dashboard — `/app`
+`bodyLen:3690`, `cp:false`, `projekte:3` Einträge, `fehlertext:null`; Usage-Banner zeigt (stale, bekannter
+P2-Befund) „3 von 5 Generierungen" — autoritativ ist die DB. Screenshot `m26e-dashboard.png`.
+⇒ **Bestandsprojekte und Analyse-/Markt-/Trend-Typen bleiben vollständig erreichbar und nutzbar; kein Fehlertext
+im DOM.**
 
 ## 7. Ehrliche Abgrenzung / Restlücken
 
@@ -130,7 +144,23 @@ Status/Lauf siehe Abschnitt 8 (Log `/tmp/kacheln-bestand.log`).
 5. Der `usage`-Banner in der UI bleibt nach einer Generierung stale (bekannter P2-Befund) — autoritativ ist
    immer die DB (`usage_monthly.count`), deshalb alle Zähler-Aussagen hier aus der DB.
 
-## 8. Nachtrag — Status Teil 2 / Teil 3 D+E beim Commit
+## 8. Nachtrag — Stand Teil 2 / Teil 3 D+E beim Commit
 
-_(Zeile wird mit dem Commit direkt nach dem Lauf ersetzt; bis dahin: läuft — Logs
-`/tmp/kacheln-einzel.log`, `/tmp/kacheln-einzel-results.jsonl`, `/tmp/kacheln-bestand.log`.)_
+- **Teil 3 vollständig abgeschlossen** (A Desktop-Grid, B+C Bestandsprojekte, D Inhaltsbibliothek, E Dashboard).
+- **Teil 2 gestartet 2026-10-06T07:34:23Z, beim Budgetende noch im ersten von fünf Läufen.** Belegt ist bis
+  dahin live: Kachel sichtbar (6 Kacheln), Pinterest-Kachel **klickbar**, CTA wird durch die Auswahl aktiv
+  (`ctaDisabled true → false`), CTA-Klick startet die Generierung (`spin:2`), Screenshot der Auswahl
+  `m30-kachel-pinterest-auswahl.png`. **Nicht** mehr gemessen: die Zähler-Kette 1→2→3→4→5 und die
+  Zuordnung Projekt↔contentType für die 5 Einzelkacheln.
+  Logs: `/tmp/kacheln-einzel.log`, Fortschritt je Lauf in `/tmp/kacheln-einzel-results.jsonl`
+  (Zeile pro Kachel: `projectId`, `projectContentTypes`, `usageRows`, `usageTotal`, `storedRows`).
+- **Kontingent-Stand:** `reset-usage.ts` hat den Testnutzer auf 0 gesetzt (`before:{period:2026-10,count:2}`,
+  `after:[]`). Läuft Teil 2 durch, steht `usage_monthly` anschließend auf 5/5 (Free-Limit erreicht) — dann ist
+  für einen erneuten Lauf wieder ein `reset-usage.ts` nötig.
+- **Fortsetzung** (dauert ~8–12 min, ~10 Iterationen): angemeldete Session `kacheln-mobile` prüfen
+  (`agent-browser --session kacheln-mobile eval "location.pathname+'|'+document.body.innerText.length"`);
+  ist sie tot, frischen Token minten (Mechanik: Skill `clerk-signin-token-browser-e2e`, Token **single-use**)
+  und `bash scripts/_mobile-e2e/24-kacheln-einzel.sh` fahren. Erwartete Typen: `pinterest_pin`,
+  `etsy_listing`, `social_post`, `marketing_plan`, `product_idea`; Zähler nach Lauf N = N.
+  Danach diesen Abschnitt mit den fünf JSONL-Zeilen ersetzen und committen.
+
