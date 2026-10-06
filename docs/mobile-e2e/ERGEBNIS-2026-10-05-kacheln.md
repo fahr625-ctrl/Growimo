@@ -164,3 +164,10 @@ im DOM.**
   `etsy_listing`, `social_post`, `marketing_plan`, `product_idea`; Zähler nach Lauf N = N.
   Danach diesen Abschnitt mit den fünf JSONL-Zeilen ersetzen und committen.
 
+- **Nachtrag zum Nachtrag (gleicher Lauf, DB-Beleg):** Die erste Einzelkachel des Teil-2-Laufs ist live und
+  DB-belegt — Kachel `pinterest`: Projekt `a2de253e-d07e-4bc4-90ad-930d246494eb`
+  (`createdAt 2026-10-06T07:35:00.626Z`, `contentTypes:["pinterest_pin"]`, genau **1** `generated_content`-Zeile,
+  bodyLen 2174) und `usage_monthly:[{period:"2026-10", count:1}]` ⇒ **Stufe 1 der Kette 1→2→3→4→5 bestätigt**,
+  kein stiller Zusatzverbrauch. Die Stufen 2–5 (etsy_listing/social_post/marketing_plan/product_idea) stehen aus
+  (Budget). Rohbeleg: `/tmp/db-t2.json`, Log `/tmp/kacheln-einzel.log`
+  (Screenshot `m30-kachel-pinterest-auswahl.png`, `m31-kachel-pinterest-ergebnis.png`).
