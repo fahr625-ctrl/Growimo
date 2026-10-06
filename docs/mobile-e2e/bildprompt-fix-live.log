@@ -1,0 +1,68 @@
+=== LOGIN 2026-10-05T07:19:40Z ===
+✓ Growimo — Pinterest Pins, Etsy-Mockups & SEO-Content mit KI erstellen
+  https://www.growimo.app/app/sign-in?__clerk_ticket=<REDACTED>
+URL/LOGIN: "{\"url\":\"/app\",\"uid\":\"user_3KGLrQivAW698KVoR3vkZoJYMKU\"}"
+=== CHECKPOINT-PROBE ===
+"CP url=/app bodyLen=3199 cp=false"
+=== RUN 1-KANAL ETSY ===
+✓ Growimo — Pinterest Pins, Etsy-Mockups & SEO-Content mit KI erstellen
+  https://www.growimo.app/app/new-project?idea=Handgemachte%20Keramiktassen%20mit%20Sprenkelglasur
+"{\"idea\":\"Handgemachte Keramiktassen mit Sprenkelglasur\",\"bodyLen\":1421}"
+CLICK_TILE: "CLICKED"
+"{\"count\":\"1 ausgewählt\",\"ctaDisabled\":false}"
+✓ Screenshot saved to /home/team/shared/site/docs/mobile-e2e/bildprompt-fix-auswahl.png
+CTA: "CLICKED"
+POLL1 "{\"i\":1,\"spin\":2,\"len\":570,\"err\":null}"
+POLL2 "{\"i\":2,\"spin\":2,\"len\":571,\"err\":null}"
+POLL3 "{\"i\":3,\"spin\":2,\"len\":571,\"err\":null}"
+POLL4 "{\"i\":4,\"spin\":0,\"len\":7279,\"err\":null}"
+DONE_AT_4
+"{\"FINAL\":true,\"url\":\"/app/new-project?idea=Handgemachte+Keramiktassen+mit+Sprenkelglasur\",\"bodyLen\":7279,\"hasEtsy\":true,\"firstLines\":[\"Dashboard\",\"Neue Strategie\",\"🎨 Bild-Studio\",\"🎵 TikTok\",\"Inhaltsbibliothek\",\"Preise\",\"Abrechnung\",\"🏷️ Marke\",\"📊 Analytics\",\"📈 Performance\"]}"
+✓ Screenshot saved to /home/team/shared/site/docs/mobile-e2e/bildprompt-fix-ergebnis.png
+=== DB + EXTRAKTOR ===
+{
+  "clerkId": "user_3KGLrQivAW698KVoR3vkZoJYMKU",
+  "internalUserId": "354ebec1-ef4b-4ebd-84b1-69e0a5ac0632",
+  "usage": [
+    {
+      "period": "2026-10",
+      "count": 1
+    }
+  ],
+  "project": {
+    "id": "9b6c6651-6fd3-4fb8-852a-73ae3ae49556",
+    "title": "Handgemachte Keramiktassen mit Sprenkelglasur",
+    "product_idea": "Handgemachte Keramiktassen mit Sprenkelglasur",
+    "content_types": [
+      "etsy_listing"
+    ],
+    "created_at": "2026-10-05T07:20:41.448Z",
+    "url": "/app/projects/9b6c6651-6fd3-4fb8-852a-73ae3ae49556"
+  },
+  "channels": [
+    {
+      "content_type": "etsy_listing",
+      "body_len": 6107,
+      "newlines": 0,
+      "raw_has_pinterest_bildprompt": true,
+      "raw_has_bildprompt": true,
+      "hasImage": true,
+      "promptLen": 82,
+      "prompt": "A cozy kitchen scene with handmade speckled ceramic mugs on a rustic wooden table.",
+      "ratio": "4:3",
+      "score": null
+    }
+  ],
+  "verdict": {
+    "anyHasImage": true,
+    "etsyHasImage": true
+  }
+}
+PROJECT_ID=9b6c6651-6fd3-4fb8-852a-73ae3ae49556
+=== PROJEKTSEITE (Button-Beleg) ===
+✓ Growimo — Pinterest Pins, Etsy-Mockups & SEO-Content mit KI erstellen
+  https://www.growimo.app/app/projects/9b6c6651-6fd3-4fb8-852a-73ae3ae49556
+"{\"url\":\"/app/projects/9b6c6651-6fd3-4fb8-852a-73ae3ae49556\",\"bodyLen\":7878,\"cp\":false,\"button\":true,\"etsy\":true}"
+"SCROLLED"
+✓ Screenshot saved to /home/team/shared/site/docs/mobile-e2e/bildprompt-fix-projektseite-button.png
+BILDPROMPT_LIVE_DONE
