@@ -1,0 +1,49 @@
+{
+  "clerkId": "user_3KGLrQivAW698KVoR3vkZoJYMKU",
+  "internalUserId": "354ebec1-ef4b-4ebd-84b1-69e0a5ac0632",
+  "usageMonthly": [
+    {
+      "period": "2026-10",
+      "count": 4
+    }
+  ],
+  "usageTotal": 4,
+  "projects": [
+    {
+      "id": "2326722d-6673-4db3-98d5-3a720e8cc7df",
+      "title": "Handgemachte Seifenspender aus Beton",
+      "createdAt": "2026-10-06T07:54:37.205Z",
+      "contentTypes": [
+        "marketing_plan"
+      ]
+    },
+    {
+      "id": "7e118eea-344a-499a-9dda-7ffea3332d0b",
+      "title": "Vintage-Kerzenhalter aus Messing",
+      "createdAt": "2026-10-06T07:46:48.881Z",
+      "contentTypes": [
+        "social_post"
+      ]
+    }
+  ],
+  "contents": [
+    {
+      "projectId": "2326722d-6673-4db3-98d5-3a720e8cc7df",
+      "rows": [
+        {
+          "contentType": "marketing_plan",
+          "bodyLen": 6894
+        }
+      ]
+    },
+    {
+      "projectId": "7e118eea-344a-499a-9dda-7ffea3332d0b",
+      "rows": [
+        {
+          "contentType": "social_post",
+          "bodyLen": 784
+        }
+      ]
+    }
+  ]
+}

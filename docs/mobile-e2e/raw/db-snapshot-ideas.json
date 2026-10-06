@@ -1,0 +1,32 @@
+{
+  "clerkId": "user_3KGLrQivAW698KVoR3vkZoJYMKU",
+  "internalUserId": "354ebec1-ef4b-4ebd-84b1-69e0a5ac0632",
+  "usageMonthly": [
+    {
+      "period": "2026-10",
+      "count": 5
+    }
+  ],
+  "usageTotal": 5,
+  "projects": [
+    {
+      "id": "566b1e5a-859c-4ac0-9524-6a87f8976797",
+      "title": "Minimalistischer Kalender aus Holz",
+      "createdAt": "2026-10-06T07:56:07.570Z",
+      "contentTypes": [
+        "product_idea"
+      ]
+    }
+  ],
+  "contents": [
+    {
+      "projectId": "566b1e5a-859c-4ac0-9524-6a87f8976797",
+      "rows": [
+        {
+          "contentType": "product_idea",
+          "bodyLen": 3650
+        }
+      ]
+    }
+  ]
+}

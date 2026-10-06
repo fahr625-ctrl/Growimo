@@ -1,0 +1,17 @@
+nohup: ignoring input
+--- LAUF ideas (erwartet product_idea) 2026-10-06T07:55:39Z ---
+✓ Growimo — Pinterest Pins, Etsy-Mockups & SEO-Content mit KI erstellen
+  https://www.growimo.app/app/new-project?idea=Minimalistischer%20Kalender%20aus%20Holz
+TILES_VOR: "{\"tiles\":[\"pinterest\",\"etsy\",\"social\",\"marketing\",\"content\",\"ideas\"],\"ctaDisabled\":true}"
+CLICK: "CLICKED"
+TILES_NACH: "{\"tiles\":[\"pinterest\",\"etsy\",\"social\",\"marketing\",\"content\",\"ideas\"],\"ctaDisabled\":false}"
+✓ Screenshot saved to /home/team/shared/site/docs/mobile-e2e/m30-kachel-ideas-auswahl.png
+CTA: "CLICKED"
+POLL_1 "{\"i\":1,\"len\":567,\"fertig\":false,\"kanaele\":null,\"res\":false,\"err\":null}"
+POLL_2 "{\"i\":2,\"len\":568,\"fertig\":false,\"kanaele\":null,\"res\":false,\"err\":null}"
+POLL_3 "{\"i\":3,\"len\":4451,\"fertig\":true,\"kanaele\":\"1\",\"res\":false,\"err\":null}"
+ERGEBNIS: "{\"url\":\"/app/new-project\",\"bodyLen\":4451,\"headings\":[\"Minimalistischer Kalender aus Holz\"],\"extra\":[\"1 Kanal\",\"489 Wörter insgesamt\"]}"
+✓ Screenshot saved to /home/team/shared/site/docs/mobile-e2e/m31-kachel-ideas-ergebnis.png
+{"tile": "ideas", "expected": "product_idea", "generationDone": 1, "projectId": "566b1e5a-859c-4ac0-9524-6a87f8976797", "projectContentTypes": ["product_idea"], "usageRows": [{"period": "2026-10", "count": 5}], "usageTotal": 5, "storedRows": [{"contentType": "product_idea", "bodyLen": 3650}]}
+ZAHLER_ideas: usage=5
+FERTIG_ideas

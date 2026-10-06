@@ -1,0 +1,125 @@
+=== TEIL 2 START 2026-10-06T07:34:23Z ===
+PRE: "{\"url\":\"/app\",\"uid\":\"user_3KGLrQivAW698KVoR3vkZoJYMKU\"}"
+--- RESET USAGE -> 0 (einmalig, danach Kette 1..5) ---
+  "before": [
+    {
+      "period": "2026-10",
+      "count": 2
+    }
+  ],
+  "after": []
+}
+✓ Done
+--- LAUF pinterest (erwartet pinterest_pin) ---
+✓ Growimo — Pinterest Pins, Etsy-Mockups & SEO-Content mit KI erstellen
+  https://www.growimo.app/app/new-project?idea=Handgemachte%20Keramiktassen%20mit%20Sprenkelglasur
+TILES_VOR_pinterest: "{\"tiles\":[\"pinterest\",\"etsy\",\"social\",\"marketing\",\"content\",\"ideas\"],\"ctaDisabled\":true,\"ctaText\":\"🚀 Strategie erstellen\"}"
+CLICK_pinterest: "CLICKED"
+TILES_NACH_pinterest: "{\"tiles\":[\"pinterest\",\"etsy\",\"social\",\"marketing\",\"content\",\"ideas\"],\"ctaDisabled\":false,\"ctaText\":\"🚀 Strategie erstellen\"}"
+✓ Screenshot saved to /home/team/shared/site/docs/mobile-e2e/m30-kachel-pinterest-auswahl.png
+CTA_pinterest: "CLICKED"
+POLL_pinterest_1 "{\"i\":1,\"url\":\"/app/new-project\",\"spin\":2,\"len\":571,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_2 "{\"i\":2,\"url\":\"/app/new-project\",\"spin\":1,\"len\":2942,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_3 "{\"i\":3,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_4 "{\"i\":4,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_5 "{\"i\":5,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_6 "{\"i\":6,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_7 "{\"i\":7,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_8 "{\"i\":8,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_9 "{\"i\":9,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_10 "{\"i\":10,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_11 "{\"i\":11,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_12 "{\"i\":12,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_13 "{\"i\":13,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_14 "{\"i\":14,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_15 "{\"i\":15,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_16 "{\"i\":16,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_17 "{\"i\":17,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_18 "{\"i\":18,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_19 "{\"i\":19,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_20 "{\"i\":20,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_21 "{\"i\":21,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_22 "{\"i\":22,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_23 "{\"i\":23,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_24 "{\"i\":24,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_25 "{\"i\":25,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_26 "{\"i\":26,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_27 "{\"i\":27,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_28 "{\"i\":28,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_29 "{\"i\":29,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_30 "{\"i\":30,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_31 "{\"i\":31,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_32 "{\"i\":32,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_33 "{\"i\":33,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_34 "{\"i\":34,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_35 "{\"i\":35,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_36 "{\"i\":36,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_37 "{\"i\":37,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_38 "{\"i\":38,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_39 "{\"i\":39,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_pinterest_40 "{\"i\":40,\"url\":\"/app/new-project\",\"spin\":0,\"len\":3120,\"res\":false,\"cards\":null,\"err\":null}"
+ERGEBNIS_pinterest: "{\"url\":\"/app/new-project\",\"bodyLen\":3120,\"headings\":[\"Handgemachte Keramiktassen mit Sprenkelglasur\"],\"seite\":[\"5 von 5 Generierungen verbleibend\",\"Alle Inhalte basieren auf deiner Idee: \\\"Handgemachte Keramiktassen mit Sprenkelglasur\\\"\",\"Handgemachte Keramiktassen mit Sprenkelglasur\",\"6. Okt.\"]}"
+✓ Screenshot saved to /home/team/shared/site/docs/mobile-e2e/m31-kachel-pinterest-ergebnis.png
+{"tile": "pinterest", "expected": "pinterest_pin", "generationDone": 0, "projectId": "a2de253e-d07e-4bc4-90ad-930d246494eb", "projectContentTypes": ["pinterest_pin"], "usageRows": [{"period": "2026-10", "count": 1}], "usageTotal": 1, "storedRows": [{"contentType": "pinterest_pin", "bodyLen": 2174}]}
+ZAHLER_STAND_pinterest: usage=1
+--- LAUF etsy (erwartet etsy_listing) ---
+✓ Growimo — Pinterest Pins, Etsy-Mockups & SEO-Content mit KI erstellen
+  https://www.growimo.app/app/new-project?idea=Personalisierte%20Keramiktasse%20mit%20Namen
+TILES_VOR_etsy: "{\"tiles\":[\"pinterest\",\"etsy\",\"social\",\"marketing\",\"content\",\"ideas\"],\"ctaDisabled\":true,\"ctaText\":\"🚀 Strategie erstellen\"}"
+CLICK_etsy: "CLICKED"
+TILES_NACH_etsy: "{\"tiles\":[\"pinterest\",\"etsy\",\"social\",\"marketing\",\"content\",\"ideas\"],\"ctaDisabled\":false,\"ctaText\":\"🚀 Strategie erstellen\"}"
+✓ Screenshot saved to /home/team/shared/site/docs/mobile-e2e/m30-kachel-etsy-auswahl.png
+CTA_etsy: "CLICKED"
+POLL_etsy_1 "{\"i\":1,\"url\":\"/app/new-project\",\"spin\":2,\"len\":570,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_2 "{\"i\":2,\"url\":\"/app/new-project\",\"spin\":2,\"len\":571,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_3 "{\"i\":3,\"url\":\"/app/new-project\",\"spin\":2,\"len\":571,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_4 "{\"i\":4,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_5 "{\"i\":5,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_6 "{\"i\":6,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_7 "{\"i\":7,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_8 "{\"i\":8,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_9 "{\"i\":9,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_10 "{\"i\":10,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_11 "{\"i\":11,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_12 "{\"i\":12,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_13 "{\"i\":13,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_14 "{\"i\":14,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_15 "{\"i\":15,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_16 "{\"i\":16,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_17 "{\"i\":17,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_18 "{\"i\":18,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_19 "{\"i\":19,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_20 "{\"i\":20,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_21 "{\"i\":21,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_22 "{\"i\":22,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_23 "{\"i\":23,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_24 "{\"i\":24,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_25 "{\"i\":25,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_26 "{\"i\":26,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_27 "{\"i\":27,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_28 "{\"i\":28,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_29 "{\"i\":29,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_30 "{\"i\":30,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_31 "{\"i\":31,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_32 "{\"i\":32,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_33 "{\"i\":33,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_34 "{\"i\":34,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_35 "{\"i\":35,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_36 "{\"i\":36,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_37 "{\"i\":37,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_38 "{\"i\":38,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_39 "{\"i\":39,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+POLL_etsy_40 "{\"i\":40,\"url\":\"/app/new-project\",\"spin\":0,\"len\":6540,\"res\":false,\"cards\":null,\"err\":null}"
+ERGEBNIS_etsy: "{\"url\":\"/app/new-project\",\"bodyLen\":6540,\"headings\":[\"Personalisierte Keramiktasse mit Namen\"],\"seite\":[\"4 von 5 Generierungen verbleibend\",\"Alle Inhalte basieren auf deiner Idee: \\\"Personalisierte Keramiktasse mit Namen\\\"\",\"Personalisierte Keramiktasse mit Namen\",\"6. Okt.\"]}"
+✓ Screenshot saved to /home/team/shared/site/docs/mobile-e2e/m31-kachel-etsy-ergebnis.png
+{"tile": "etsy", "expected": "etsy_listing", "generationDone": 0, "projectId": "6e2b58c1-1de0-440f-9745-6713f05b0f47", "projectContentTypes": ["etsy_listing"], "usageRows": [{"period": "2026-10", "count": 2}], "usageTotal": 2, "storedRows": [{"contentType": "etsy_listing", "bodyLen": 5483}]}
+ZAHLER_STAND_etsy: usage=2
+--- LAUF social (erwartet social_post) ---
+✓ Growimo — Pinterest Pins, Etsy-Mockups & SEO-Content mit KI erstellen
+  https://www.growimo.app/app/new-project?idea=Vintage-Kerzenhalter%20aus%20Messing
+TILES_VOR_social: "{\"tiles\":[\"pinterest\",\"etsy\",\"social\",\"marketing\",\"content\",\"ideas\"],\"ctaDisabled\":true,\"ctaText\":\"🚀 Strategie erstellen\"}"
+CLICK_social: "CLICKED"
+TILES_NACH_social: "{\"tiles\":[\"pinterest\",\"etsy\",\"social\",\"marketing\",\"content\",\"ideas\"],\"ctaDisabled\":false,\"ctaText\":\"🚀 Strategie erstellen\"}"
+✓ Screenshot saved to /home/team/shared/site/docs/mobile-e2e/m30-kachel-social-auswahl.png
+CTA_social: "CLICKED"
+POLL_social_1 "{\"i\":1,\"url\":\"/app/new-project\",\"spin\":0,\"len\":1608,\"res\":false,\"cards\":null,\"err\":null}"

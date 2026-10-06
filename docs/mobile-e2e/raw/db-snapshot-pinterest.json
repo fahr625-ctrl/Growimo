@@ -1,0 +1,32 @@
+{
+  "clerkId": "user_3KGLrQivAW698KVoR3vkZoJYMKU",
+  "internalUserId": "354ebec1-ef4b-4ebd-84b1-69e0a5ac0632",
+  "usageMonthly": [
+    {
+      "period": "2026-10",
+      "count": 1
+    }
+  ],
+  "usageTotal": 1,
+  "projects": [
+    {
+      "id": "a2de253e-d07e-4bc4-90ad-930d246494eb",
+      "title": "Handgemachte Keramiktassen mit Sprenkelglasur",
+      "createdAt": "2026-10-06T07:35:00.626Z",
+      "contentTypes": [
+        "pinterest_pin"
+      ]
+    }
+  ],
+  "contents": [
+    {
+      "projectId": "a2de253e-d07e-4bc4-90ad-930d246494eb",
+      "rows": [
+        {
+          "contentType": "pinterest_pin",
+          "bodyLen": 2174
+        }
+      ]
+    }
+  ]
+}

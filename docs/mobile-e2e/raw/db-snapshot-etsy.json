@@ -1,0 +1,32 @@
+{
+  "clerkId": "user_3KGLrQivAW698KVoR3vkZoJYMKU",
+  "internalUserId": "354ebec1-ef4b-4ebd-84b1-69e0a5ac0632",
+  "usageMonthly": [
+    {
+      "period": "2026-10",
+      "count": 2
+    }
+  ],
+  "usageTotal": 2,
+  "projects": [
+    {
+      "id": "6e2b58c1-1de0-440f-9745-6713f05b0f47",
+      "title": "Personalisierte Keramiktasse mit Namen",
+      "createdAt": "2026-10-06T07:41:10.658Z",
+      "contentTypes": [
+        "etsy_listing"
+      ]
+    }
+  ],
+  "contents": [
+    {
+      "projectId": "6e2b58c1-1de0-440f-9745-6713f05b0f47",
+      "rows": [
+        {
+          "contentType": "etsy_listing",
+          "bodyLen": 5483
+        }
+      ]
+    }
+  ]
+}

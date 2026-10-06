@@ -1,0 +1,132 @@
+{
+  "clerkId": "user_3KGLrQivAW698KVoR3vkZoJYMKU",
+  "internalUserId": "354ebec1-ef4b-4ebd-84b1-69e0a5ac0632",
+  "usageMonthly": [
+    {
+      "period": "2026-10",
+      "count": 3
+    }
+  ],
+  "usageTotal": 3,
+  "projects": [
+    {
+      "id": "7e118eea-344a-499a-9dda-7ffea3332d0b",
+      "title": "Vintage-Kerzenhalter aus Messing",
+      "createdAt": "2026-10-06T07:46:48.881Z",
+      "contentTypes": [
+        "social_post"
+      ]
+    },
+    {
+      "id": "6e2b58c1-1de0-440f-9745-6713f05b0f47",
+      "title": "Personalisierte Keramiktasse mit Namen",
+      "createdAt": "2026-10-06T07:41:10.658Z",
+      "contentTypes": [
+        "etsy_listing"
+      ]
+    },
+    {
+      "id": "a2de253e-d07e-4bc4-90ad-930d246494eb",
+      "title": "Handgemachte Keramiktassen mit Sprenkelglasur",
+      "createdAt": "2026-10-06T07:35:00.626Z",
+      "contentTypes": [
+        "pinterest_pin"
+      ]
+    },
+    {
+      "id": "ae8ab45d-6956-44fd-b5e0-edeba99d80cf",
+      "title": "Handgemachte Keramiktassen mit Sprenkelglasur",
+      "createdAt": "2026-10-06T07:30:54.569Z",
+      "contentTypes": [
+        "seo_blog",
+        "email_newsletter"
+      ]
+    },
+    {
+      "id": "1d236e9d-e951-40af-85a2-b9b4770042b5",
+      "title": "Handgemachte Keramiktassen mit Sprenkelglasur",
+      "createdAt": "2026-10-06T07:23:27.956Z",
+      "contentTypes": [
+        "seo_blog",
+        "email_newsletter"
+      ]
+    },
+    {
+      "id": "3ca4738e-fe23-4353-9389-42de28985fa3",
+      "title": "Handgemachte Keramiktassen mit Sprenkelglasur",
+      "createdAt": "2026-10-06T07:18:28.469Z",
+      "contentTypes": [
+        "seo_blog",
+        "email_newsletter"
+      ]
+    }
+  ],
+  "contents": [
+    {
+      "projectId": "7e118eea-344a-499a-9dda-7ffea3332d0b",
+      "rows": [
+        {
+          "contentType": "social_post",
+          "bodyLen": 784
+        }
+      ]
+    },
+    {
+      "projectId": "6e2b58c1-1de0-440f-9745-6713f05b0f47",
+      "rows": [
+        {
+          "contentType": "etsy_listing",
+          "bodyLen": 5483
+        }
+      ]
+    },
+    {
+      "projectId": "a2de253e-d07e-4bc4-90ad-930d246494eb",
+      "rows": [
+        {
+          "contentType": "pinterest_pin",
+          "bodyLen": 2174
+        }
+      ]
+    },
+    {
+      "projectId": "ae8ab45d-6956-44fd-b5e0-edeba99d80cf",
+      "rows": [
+        {
+          "contentType": "email_newsletter",
+          "bodyLen": 1332
+        },
+        {
+          "contentType": "seo_blog",
+          "bodyLen": 6376
+        }
+      ]
+    },
+    {
+      "projectId": "1d236e9d-e951-40af-85a2-b9b4770042b5",
+      "rows": [
+        {
+          "contentType": "email_newsletter",
+          "bodyLen": 1484
+        },
+        {
+          "contentType": "seo_blog",
+          "bodyLen": 6094
+        }
+      ]
+    },
+    {
+      "projectId": "3ca4738e-fe23-4353-9389-42de28985fa3",
+      "rows": [
+        {
+          "contentType": "email_newsletter",
+          "bodyLen": 1451
+        },
+        {
+          "contentType": "seo_blog",
+          "bodyLen": 5861
+        }
+      ]
+    }
+  ]
+}
