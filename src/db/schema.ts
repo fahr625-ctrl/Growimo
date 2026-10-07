@@ -140,6 +140,14 @@ ALTER TABLE generated_content ADD CONSTRAINT generated_content_content_type_chec
 ALTER TABLE beta_signups ADD COLUMN IF NOT EXISTS approved BOOLEAN DEFAULT TRUE;
 -- Phase 8.3: updated_at auf subscriptions (Webhook-Upsert setzt es bei jedem Sync)
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+-- P2 Statusabbildung (2026-10-07, Owner-Auftrag vor Public Launch): Kündigungs-
+-- zustand des Abos sauber modellieren. cancel_at_period_end = zum Periodenende
+-- gekündigt (Zugriff bleibt bis current_period_end bestehen), cancel_at = der von
+-- Stripe terminierte Zeitpunkt (Unix-Sekunden → TIMESTAMPTZ) oder NULL.
+-- Additiv und idempotent — die bestehende Tarif-/Quota-Logik liest diese Spalten
+-- NICHT (qGetPlanTier bleibt unverändert), sie sind reine Statusabbildung.
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS cancel_at TIMESTAMPTZ;
 -- ── Serverseitiges Beta-Tracking (additiv) ────────────────────────────────────
 -- Zweck: Owner sieht im Admin-Bereich eindeutig, ob echte Nutzer die App
 -- verwenden. Speichert NUR user_id (Clerk-id als TEXT), event, created_at und

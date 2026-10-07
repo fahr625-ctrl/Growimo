@@ -9,6 +9,10 @@ export interface UserSubscription {
   stripeSubscriptionId?: string;
   status: 'active' | 'cancelled' | 'expired';
   currentPeriodEnd?: Date;
+  /** P2 (2026-10-07): zum Periodenende gekündigt (Zugriff bis currentPeriodEnd). */
+  cancelAtPeriodEnd?: boolean;
+  /** P2: terminierter Kündigungszeitpunkt (aus Stripe) oder undefined. */
+  cancelAt?: Date;
 }
 
 // ── In-memory store ────────────────────────────────────────────────────────────

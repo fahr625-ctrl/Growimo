@@ -557,6 +557,8 @@ export const en: EnShape = {
   // ── Billing ───────────────────────────────────────────────────────────────────
   billing_title: 'Billing & Plan', billing_subtitle: 'Manage your subscription and monitor your usage.',
   billing_current_plan: 'Current Plan', billing_status_active: 'Active', billing_status_cancelled: 'Cancelled', billing_status_expired: 'Expired',
+  billing_status_cancelled_until: 'Canceled – active until %s',
+  billing_cancelled_hint: 'Your plan stays active until the end of the current period and will not renew.',
   billing_pro_desc: 'Pro plan: 200 AI generations per month.',
   billing_free_desc: 'You are on the Free plan with limited generations (5/month).',
   billing_period_ends: 'Current period ends:', billing_manage_subscription: 'Manage subscription', billing_redirecting: 'Redirecting...',
@@ -579,6 +581,7 @@ export const en: EnShape = {
   billing_invoice_date: 'Date', billing_invoice_number: 'Invoice', billing_invoice_period: 'Period',
   billing_invoice_amount: 'Amount', billing_invoice_status: 'Status', billing_invoice_pdf: 'Invoice (PDF)',
   billing_invoice_paid: 'Paid', billing_invoice_open: 'Open', billing_invoice_void: 'Void',
+  billing_invoice_refunded: 'Refunded', billing_invoice_refunded_amount: '%s refunded',
   billing_invoices_error: 'Invoices could not be loaded right now. Please try again later.',
 
   // ── Dashboard scoring ─────────────────────────────────────────────────────────

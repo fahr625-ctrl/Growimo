@@ -64,6 +64,12 @@ function BillingContent() {
   const [invoices, setInvoices] = useState<InvoiceSummary[] | null>(null);
   const [invoicesError, setInvoicesError] = useState<string | null>(null);
   const [livePeriodEnd, setLivePeriodEnd] = useState<string | null>(null);
+  // P2 Kündigungs-/Refund-Statusabbildung (2026-10-07): Kündigungszustand live
+  // aus Stripe (autoritativ) — funktioniert auch ohne zugestelltes Webhook-Event.
+  const [cancelState, setCancelState] = useState<{
+    atPeriodEnd: boolean;
+    cancelAt: string | null;
+  } | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -90,6 +96,8 @@ function BillingContent() {
           currentPeriodEnd: status.currentPeriodEnd
             ? new Date(status.currentPeriodEnd)
             : undefined,
+          cancelAtPeriodEnd: status.cancelAtPeriodEnd ?? false,
+          cancelAt: status.cancelAt ? new Date(status.cancelAt) : undefined,
         };
         setUserSubscription(userId, next);
         setSub(next);
@@ -109,6 +117,11 @@ function BillingContent() {
         setInvoices(overview.invoices);
         setInvoicesError(overview.error);
         setLivePeriodEnd(overview.currentPeriodEnd);
+        // P2: Live-Kündigungszustand (Stripe = Autorität; DB-Wert nur Fallback).
+        setCancelState({
+          atPeriodEnd: overview.cancelAtPeriodEnd,
+          cancelAt: overview.cancelAt,
+        });
       }
     } catch {
       // kein Key/Session → Store-Fallback (bisheriges Verhalten)
@@ -182,16 +195,44 @@ function BillingContent() {
     ? new Date(livePeriodEnd)
     : sub.currentPeriodEnd;
 
-  const statusLabel = (s: string): string =>
-    s === 'active'
+  // ── P2 (2026-10-07): Kündigungs-/Refund-Statusabbildung ─────────────────────
+  // Kündigung zum Periodenende: Live-Wert aus Stripe hat Vorrang, danach der
+  // DB-Wert (Webhook). „Läuft bis" ist cancel_at; fehlt das Feld, ist das
+  // Periodenende der belegte Zeitpunkt (Owner-Vorgabe).
+  const cancelAtPeriodEnd =
+    cancelState?.atPeriodEnd ?? sub.cancelAtPeriodEnd ?? false;
+  const cancelAtDate = cancelState?.cancelAt
+    ? new Date(cancelState.cancelAt)
+    : sub.cancelAt;
+  const cancelUntilDate = cancelAtDate ?? shownPeriodEnd;
+  const isCancelledAtPeriodEnd = cancelAtPeriodEnd && sub.status !== 'expired';
+
+  const statusLabel = (s: string): string => {
+    if (isCancelledAtPeriodEnd) {
+      return cancelUntilDate
+        ? t.billing_status_cancelled_until.replace(
+            '%s',
+            formatDate(cancelUntilDate, locale),
+          )
+        : t.billing_status_cancelled;
+    }
+    return s === 'active'
       ? t.billing_status_active
       : s === 'cancelled'
         ? t.billing_status_cancelled
         : s === 'expired'
           ? t.billing_status_expired
           : s;
+  };
 
-  const invoiceStatusLabel = (s: string): string =>
+  // Refund-Status (P2): Stripe lässt invoice.status nach einer Erstattung auf
+  // 'paid' stehen — maßgeblich ist amount_refunded > 0 → „Erstattet"/„Refunded".
+  const invoiceStatusLabel = (inv: InvoiceSummary): string =>
+    inv.refunded
+      ? t.billing_invoice_refunded
+      : invoiceStatusLabelByStatus(inv.status);
+
+  const invoiceStatusLabelByStatus = (s: string): string =>
     s === 'paid'
       ? t.billing_invoice_paid
       : s === 'open'
@@ -200,7 +241,12 @@ function BillingContent() {
           ? t.billing_invoice_void
           : s;
 
-  const invoiceStatusClass = (s: string): string => {
+  const invoiceStatusClass = (inv: InvoiceSummary): string => {
+    if (inv.refunded) return 'bg-rose-100 text-rose-700';
+    return invoiceStatusClassByStatus(inv.status);
+  };
+
+  const invoiceStatusClassByStatus = (s: string): string => {
     if (s === 'paid') return 'bg-emerald-100 text-emerald-700';
     if (s === 'open') return 'bg-amber-100 text-amber-700';
     if (s === 'void' || s === 'uncollectible') return 'bg-gray-100 text-gray-500';
@@ -270,10 +316,10 @@ function BillingContent() {
             </span>
             <span
               className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                sub.status === 'active'
-                  ? 'bg-emerald-100 text-emerald-700'
-                  : sub.status === 'cancelled'
-                    ? 'bg-amber-100 text-amber-700'
+                isCancelledAtPeriodEnd || sub.status === 'cancelled'
+                  ? 'bg-amber-100 text-amber-700'
+                  : sub.status === 'active'
+                    ? 'bg-emerald-100 text-emerald-700'
                     : 'bg-red-100 text-red-700'
               }`}
             >
@@ -286,6 +332,13 @@ function BillingContent() {
               ? t.billing_pro_desc
               : t.billing_free_desc}
           </p>
+
+          {/* P2: Kündigung zum Periodenende — Zugriff bleibt bis zum Datum. */}
+          {isCancelledAtPeriodEnd && (
+            <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              {t.billing_cancelled_hint}
+            </p>
+          )}
 
           {isPro && shownPeriodEnd && (
             <p className="mt-2 text-xs text-gray-400">
@@ -576,12 +629,21 @@ function BillingContent() {
                     </td>
                     <td className="whitespace-nowrap py-3 pr-4 font-medium text-gray-900">
                       {formatMoney(inv.amountPaid, inv.currency, locale)}
+                      {/* P2: erstatteter Betrag sichtbar machen (auch Teilerstattung). */}
+                      {inv.refunded && (
+                        <span className="block text-xs font-normal text-rose-600">
+                          {t.billing_invoice_refunded_amount.replace(
+                            '%s',
+                            formatMoney(inv.amountRefunded, inv.currency, locale),
+                          )}
+                        </span>
+                      )}
                     </td>
                     <td className="whitespace-nowrap py-3 pr-4">
                       <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${invoiceStatusClass(inv.status)}`}
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${invoiceStatusClass(inv)}`}
                       >
-                        {invoiceStatusLabel(inv.status)}
+                        {invoiceStatusLabel(inv)}
                       </span>
                     </td>
                     <td className="py-3">

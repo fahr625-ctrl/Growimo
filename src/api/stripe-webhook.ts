@@ -13,14 +13,24 @@
 //   checkout.session.completed        → Subscription aktivieren (paid) + Customer
 //   invoice.paid                      → current_period_end verlängern
 //   customer.subscription.updated     → Status-Sync (active/cancelled/expired)
-//   customer.subscription.deleted     → Status 'expired'
+//                                       + Kündigungszustand (P2: cancel_at_period_end/cancel_at)
+//   customer.subscription.deleted     → Status 'expired' (+ Kündigungszustand zurücksetzen)
+//   refund-bezogene Events            → bewusst 200-OHNE DB-Wirkung (siehe unten)
 //   alles andere                      → 200-ignorieren (Stripe-Semantik)
 // Fehler (DB/Netz)                    → 500 → Stripe liefert das Event erneut.
+//
+// P2 Statusabbildung (2026-10-07, Owner-Auftrag): Der REFUND-Status wird
+// bewusst NICHT über Events in die DB gespiegelt, sondern beim Rechnungs-Read
+// live aus Stripe gelesen (`invoice.amount_refunded` → InvoiceSummary.refunded).
+// Begründung: Rechnungen liegen in Growimo nicht in der DB (kein invoices-
+// Tabelle) — die DB hat gar keinen Ort für einen Refund-Status, und eine
+// eigene Spiegel-Tabelle wäre eine zweite Wahrheit, die bei fehlender
+// Event-Zustellung still falsch bliebe. Stripe ist die Autorität.
 import {
   qGetSubscriptionByStripeId,
   qUpsertSubscription,
 } from "../db/queries";
-import { periodEndOfSubscription } from "../stripe/invoices";
+import { periodEndOfSubscription, subscriptionCancelState } from "../stripe/invoices";
 
 export const STRIPE_WEBHOOK_PATH = "/api/stripe-webhook";
 
@@ -249,6 +259,12 @@ export async function processStripeEvent(
     }
     const lookupKey = (sub.items as { data?: { price?: { lookup_key?: string | null } | null }[] } | undefined)
       ?.data?.[0]?.price?.lookup_key ?? null;
+    // P2 (2026-10-07): Kündigungszustand mitführen. Das Event ist die
+    // Autorität für cancel_at_period_end/cancel_at — es wird auch dann
+    // gespeichert, wenn der Stripe-Status 'active' bleibt (Kündigung zum
+    // Periodenende!). Der Pro-Zugriff ändert sich dadurch NICHT (mapSubscription
+    // Status bleibt unverändert = active bis zum echten Periodenende).
+    const cancelState = subscriptionCancelState(sub);
     await qUpsertSubscription({
       clerkUserId: existing.clerkUserId,
       stripeCustomerId:
@@ -262,6 +278,7 @@ export async function processStripeEvent(
       currentPeriodEnd: periodEndOfSubscription(
         sub as unknown as Parameters<typeof periodEndOfSubscription>[0],
       ),
+      cancelState,
     });
     return;
   }
@@ -281,7 +298,26 @@ export async function processStripeEvent(
       planTier: existing.planTier, // gelöscht = Zugriff beendet, Tarif bleibt dokumentiert
       status: "expired",
       currentPeriodEnd: null,
+      // P2: das Abo ist beendet → keine terminierte Kündigung mehr anzeigen
+      // (verhindert ein dauerhaftes „Gekündigt – läuft bis …" nach Ablauf).
+      cancelState: { cancelAtPeriodEnd: false, cancelAt: null },
     });
+    return;
+  }
+
+  // ── P2: Refund-bezogene Events — bewusst OHNE DB-Wirkung ────────────────────
+  // `charge.refunded` / `invoice.updated` / `credit_note.created` ändern den
+  // Refund-Status NICHT in der DB: Er wird beim Rechnungs-Read live aus Stripe
+  // gelesen (`invoice.amount_refunded` → InvoiceSummary.amountRefunded/
+  // refunded). Diese Zweige existieren nur, um die Entscheidung im Code
+  // sichtbar zu machen — Verhalten identisch zum bisherigen 200-No-Op, damit
+  // Stripe die Zustellung nicht als Fehler wiederholt.
+  if (
+    event.type === "charge.refunded" ||
+    event.type === "invoice.updated" ||
+    event.type === "credit_note.created" ||
+    event.type === "charge.refund.updated"
+  ) {
     return;
   }
 

@@ -554,6 +554,8 @@ export const de = {
   // ── Billing ───────────────────────────────────────────────────────────────────
   billing_title: 'Abrechnung & Plan', billing_subtitle: 'Verwalte dein Abonnement und überwache deine Nutzung.',
   billing_current_plan: 'Aktueller Plan', billing_status_active: 'Aktiv', billing_status_cancelled: 'Gekündigt', billing_status_expired: 'Abgelaufen',
+  billing_status_cancelled_until: 'Gekündigt – läuft bis %s',
+  billing_cancelled_hint: 'Dein Abo bleibt bis zum Ende des laufenden Zeitraums aktiv und verlängert sich danach nicht.',
   billing_pro_desc: 'Pro-Tarif: 200 KI-Generierungen pro Monat.',
   billing_free_desc: 'Du bist im Free-Tarif mit begrenzten Generierungen (5/Monat).',
   billing_period_ends: 'Aktueller Zeitraum endet:', billing_manage_subscription: 'Abonnement verwalten', billing_redirecting: 'Wird weitergeleitet...',
@@ -576,6 +578,7 @@ export const de = {
   billing_invoice_date: 'Datum', billing_invoice_number: 'Rechnung', billing_invoice_period: 'Zeitraum',
   billing_invoice_amount: 'Betrag', billing_invoice_status: 'Status', billing_invoice_pdf: 'Rechnung (PDF)',
   billing_invoice_paid: 'Bezahlt', billing_invoice_open: 'Offen', billing_invoice_void: 'Storniert',
+  billing_invoice_refunded: 'Erstattet', billing_invoice_refunded_amount: '%s erstattet',
   billing_invoices_error: 'Rechnungen konnten gerade nicht geladen werden. Bitte später erneut versuchen.',
 
   // ── Dashboard scoring ─────────────────────────────────────────────────────────

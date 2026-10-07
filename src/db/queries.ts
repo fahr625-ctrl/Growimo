@@ -1142,6 +1142,10 @@ export interface SubscriptionRow {
   planTier: 'free' | 'pro';
   status: 'active' | 'cancelled' | 'expired';
   currentPeriodEnd: Date | null;
+  /** P2: Kündigung zum Periodenende (Stripe `cancel_at_period_end`) — Zugriff bis currentPeriodEnd. */
+  cancelAtPeriodEnd: boolean;
+  /** P2: von Stripe terminierter Kündigungszeitpunkt (Stripe `cancel_at`) oder null. */
+  cancelAt: Date | null;
 }
 export interface UpsertSubscriptionInput {
   /** Clerk-ID des Nutzers (client_reference_id/metadata.userId aus Stripe). */
@@ -1152,6 +1156,17 @@ export interface UpsertSubscriptionInput {
   status: 'active' | 'cancelled' | 'expired';
   /** Unix-Sekunden (Stripe-Zeitstempel) — wird zu TIMESTAMPTZ konvertiert. */
   currentPeriodEnd: number | null;
+  /**
+   * P2 Statusabbildung (2026-10-07): Kündigungszustand aus Stripe.
+   *
+   * `undefined` = das Event trifft KEINE Aussage über den Kündigungszustand
+   *   (checkout.session.completed, invoice.paid — sie tragen den Zustand nicht)
+   *   → die bestehenden DB-Werte bleiben unangetastet.
+   * `{ ... }` = autoritative Aussage aus `customer.subscription.*`
+   *   (cancelAt: null = keine terminierte Kündigung) → beide Spalten werden
+   *   gesetzt, `cancel_at_period_end=false` löscht also eine alte Kündigung.
+   */
+  cancelState?: { cancelAtPeriodEnd: boolean; cancelAt: number | null };
 }
 function mapSubscriptionRow(row: Record<string, unknown>): SubscriptionRow {
   return {
@@ -1166,6 +1181,8 @@ function mapSubscriptionRow(row: Record<string, unknown>): SubscriptionRow {
         : 'active',
     currentPeriodEnd:
       row.current_period_end == null ? null : new Date(String(row.current_period_end)),
+    cancelAtPeriodEnd: row.cancel_at_period_end === true,
+    cancelAt: row.cancel_at == null ? null : new Date(String(row.cancel_at)),
   };
 }
 /**
@@ -1184,13 +1201,22 @@ export async function qUpsertSubscription(input: UpsertSubscriptionInput): Promi
   const periodEnd = input.currentPeriodEnd
     ? new Date(input.currentPeriodEnd * 1000)
     : null;
+  // P2: Kündigungszustand. `undefined` → Spalten unverändert lassen (Event
+  // trifft keine Aussage); vorhandenes Objekt → beide Spalten autoritativ setzen.
+  const hasCancelState = input.cancelState !== undefined;
+  const cancelAt =
+    input.cancelState?.cancelAt != null
+      ? new Date(input.cancelState.cancelAt * 1000)
+      : null;
   await sql`
     INSERT INTO subscriptions (
-      user_id, stripe_customer_id, stripe_subscription_id, plan_tier, status, current_period_end
+      user_id, stripe_customer_id, stripe_subscription_id, plan_tier, status, current_period_end,
+      cancel_at_period_end, cancel_at
     )
     VALUES (
       ${uid}, ${input.stripeCustomerId}, ${input.stripeSubscriptionId},
-      ${input.planTier}, ${input.status}, ${periodEnd}
+      ${input.planTier}, ${input.status}, ${periodEnd},
+      ${input.cancelState?.cancelAtPeriodEnd ?? false}, ${cancelAt}
     )
     ON CONFLICT (stripe_subscription_id) DO UPDATE SET
       user_id = EXCLUDED.user_id,
@@ -1198,6 +1224,10 @@ export async function qUpsertSubscription(input: UpsertSubscriptionInput): Promi
       plan_tier = EXCLUDED.plan_tier,
       status = EXCLUDED.status,
       current_period_end = COALESCE(EXCLUDED.current_period_end, subscriptions.current_period_end),
+      cancel_at_period_end = CASE WHEN ${hasCancelState}::boolean
+        THEN EXCLUDED.cancel_at_period_end ELSE subscriptions.cancel_at_period_end END,
+      cancel_at = CASE WHEN ${hasCancelState}::boolean
+        THEN EXCLUDED.cancel_at ELSE subscriptions.cancel_at END,
       updated_at = NOW()
   `;
 }

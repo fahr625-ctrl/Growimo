@@ -19,6 +19,14 @@ export interface SubscriptionStatus {
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   currentPeriodEnd?: string | null;
+  /**
+   * P2 Statusabbildung (2026-10-07): Abo ist zum Periodenende gekündigt
+   * (Stripe `cancel_at_period_end`) — Zugriff bleibt bis `currentPeriodEnd`.
+   * Rein additiv: die Pro-Freischaltung (`tier`) bewertet diese Felder NICHT.
+   */
+  cancelAtPeriodEnd: boolean;
+  /** P2: von Stripe terminierter Kündigungszeitpunkt (ISO) oder null. */
+  cancelAt: string | null;
   isBeta: boolean;
   usage: {
     used: number;
@@ -42,6 +50,8 @@ export const getSubscriptionStatus = createServerFn({ method: 'GET' }).handler(
       isBeta: false,
       usage: null as SubscriptionStatus['usage'],
       currentPeriodEnd: null as string | null,
+      cancelAtPeriodEnd: false,
+      cancelAt: null as string | null,
     };
 
     if (!userId) return base;
@@ -72,6 +82,12 @@ export const getSubscriptionStatus = createServerFn({ method: 'GET' }).handler(
         currentPeriodEnd: row?.currentPeriodEnd
           ? row.currentPeriodEnd.toISOString()
           : null,
+        // P2: Kündigungszustand aus der DB (Webhook-geschrieben). Der
+        // Live-/Autoritäts-Wert steht in getBillingOverview (ein Stripe-Read);
+        // hier absichtlich kein zusätzlicher API-Call (dieser ServerFn läuft
+        // auf vielen Seiten). Die Pro-Freischaltung oben bleibt unberührt.
+        cancelAtPeriodEnd: row?.cancelAtPeriodEnd ?? false,
+        cancelAt: row?.cancelAt ? row.cancelAt.toISOString() : null,
         isBeta,
         usage: usage ?? null,
       };
