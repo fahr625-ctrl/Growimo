@@ -63,8 +63,8 @@ Kontingent-Block), **komplette neue Prompt-Kette**:
 | Kanal | Format | vorher-Datei | nachher-Datei | Prompt-Kürzel | Modell/Quality | Anmerkungen |
 |---|---|---|---|---|---|---|
 | Pinterest-Pin | 2:3 → **1024×1536** | `vorher/vorher-pinterest-2x3.png` | `nachher/nachher-pinterest-2x3-gpt-image-2-high.png` | `PIN-SOJAWACHS-DE-OVERLAY` (Strategie-Prefill, Overlay „Schöne Grüße") | vorher `gpt-image-1`/medium (1024×1536, Maße damals korrekt) — nachher **`gpt-image-2`/high** | **Deutscher Text sauber**: „Schöne Grüße" korrekt gesetzt, ö/ü als echte Umlaute, eine Schriftfamilie, sicher im Safe-Bereich, kein Blindtext, keine erfundenen Zusatztexte. Szene = echter Produktkontext (Sojawachs-Kerze im Glas), keine generische Stock-Optik. |
-| Etsy-Produktbild | 4:3 → **1152×864** | `vorher/vorher-etsy-3x2-altformat.png` (kein echtes 4:3 in der DB/Altbestand) | **nicht erzeugt (s. offene Punkte)** | — | — | Altes Setup kannte kein 4:3: `4:3` UND `16:9` wurden beide auf `1536×1024` (3:2) gemappt — das Altbild zeigt genau dieses falsche 3:2. Neu wäre 1152×864. |
-| Social/TikTok | 9:16 → **720×1280** | `vorher/vorher-social-1x1.png` (altes Social-Format 1:1) | **nicht erzeugt (s. offene Punkte)** | — | — | 9:16 existierte vorher gar nicht; das Altbild zeigt das alte Social-Format 1024×1024. |
+| Etsy-Produktbild | 4:3 → **1152×864** | `vorher/vorher-etsy-3x2-altformat.png` (**kein echtes 4:3 im Altbestand** — das Altbild zeigt das alte 3:2-Mapping) | `nachher/nachher-etsy-4x3-gpt-image-2-high.png` | `ETSY-STRATEGIE-PREFILL` (959 Zeichen, aus dem Strategie-Prefill des Etsy-Projekts `1ac11316-0505-483c-a66d-6c84efdc0aae`, enthält die Regel „Kein Text im Bild") | vorher `gpt-image-1`/medium (1536×1024 = 3:2) — nachher **`gpt-image-2`/high, 1152×864** | Erzeugt 2026-10-07 über den echten Live-Pfad (Projektseite → „🎨 Im Image Studio erstellen" → Format 4:3 → „✨ Generieren"). Altes Setup kannte kein 4:3: `4:3` UND `16:9` wurden beide auf `1536×1024` (3:2) gemappt. **Kein Text/Umlaut im Bild** (Fotostil-Regel greift). |
+| Social/TikTok | 9:16 → **720×1280** | **kein echtes Vorher-Bild vorhanden** — 9:16 existierte im alten Setup gar nicht (es gab nur das alte Social-Format 1:1, `vorher/vorher-social-1x1.png`, das hier nur als Referenz für das alte Social-Format liegt, nicht als 9:16-Vergleich) | `nachher/nachher-social-9x16-gpt-image-2-high.png` | `TIKTOK-DEEPLINK` (Hochkant-Szene Sojawachs-Kerze + Text-Overlay „Schöne Grüße", Typografie-/Negativ-Regeln automatisch angehängt) | vorher: nicht existent — nachher **`gpt-image-2`/high, 720×1280** | Erzeugt 2026-10-07 über den TikTok-/Reels-Deep-Link (`/app/image-studio?prompt=…&ratio=9:16`) der live deployten App. |
 | Blog-Hero | 16:9 → 1280×720 | (abhängig von Etsy-Zeile) | nicht erzeugt | — | — | optional laut Auftrag |
 
 Zusätzlicher Altbestand im Ordner: `vorher/vorher-hochkant-2x3-motiv2.png` (zweites 2:3-Altbild).
@@ -116,9 +116,12 @@ und taugen daher nicht als Vorher-Belege.
 
 ## 5. Offene Punkte / was noch fehlt
 
-1. **Etsy 4:3 (1152×864) und Social/TikTok 9:16 (720×1280) sind NICHT erzeugt.** Die Kette ist
-   verdrahtet und deployt (Server-Bundle-Marker), aber es fehlt der visuelle Nachher-Beleg für diese
-   beiden Formate. Ursache: Werkzeug-Blocker, kein App-Befund — (a) die Clerk-Session der Browser-Session
+1. **Etsy 4:3 (1152×864) und Social/TikTok 9:16 (720×1280): ERLEDIGT (2026-10-07, Fortsetzungslauf).**
+   Beide Nachher-Bilder sind jetzt in `nachher/` in **Originalauflösung** (aus dem `img.src`-data-URL
+   gezogen, kein Screenshot-Beschnitt) — Maße siehe Abschnitt 7. Offen bleibt nur ein **echtes
+   Vorher-Bild für 9:16**: das alte Setup kannte das Format nicht, deshalb ist die 9:16-Zeile bewusst
+   ohne Vorher-Bild markiert (statt eines unpassenden 1:1-Altbilds als „Vergleich").
+   Ursache des vorherigen PARTIAL-Stands war ein Werkzeug-Blocker: Werkzeug-Blocker, kein App-Befund — (a) die Clerk-Session der Browser-Session
    läuft zwischen zwei separaten CLI-Aufrufen ab (Route springt auf `/app/sign-in`), daher musste der
    komplette Klickpfad in **einem** Skript laufen; (b) der lokale Sammel-Server war aus dem Browser
    nicht erreichbar (`TypeError: Failed to fetch` auf `http://127.0.0.1:8899`), deshalb wurde das Bild
@@ -141,3 +144,32 @@ und taugen daher nicht als Vorher-Belege.
 - `evidence/strategie-prefill-prompt.png` — Studio nach dem „Bild jetzt erstellen"-Klick (2:3-Stempelkarte)
 - `evidence/studio-prompt-vor-generierung.png` — Promptfeld vor dem Generieren
 - `evidence/studio-pin-nachher.png` — Galerie nach der Generierung (Karte + Format-Badge)
+
+## 7. Nachtrag (2026-10-07, Fortsetzungslauf): Verifikation der zwei neuen Nachher-Bilder
+
+Alle Werte **maschinell aus den Dateien im Repo** gemessen (PNG-Header, Bytes, SHA-256);
+die Bilder wurden in **Originalauflösung** aus dem `img.src`-data-URL der Galerie gezogen
+(300-kB-Chunks aus dem DOM), nicht als Screenshot-Beschnitt.
+
+| Datei | Kanal | Soll | Ist-Maße | Bytes | SHA-256 | Status |
+|---|---|---|---|---|---|---|
+| `nachher/nachher-etsy-4x3-gpt-image-2-high.png` | Etsy-Produktbild | 4:3 → 1152x864 | **1152×864** | 1507873 | `b6578f0364cb3f1937f484aaffbb9f87682c810749dad3787d0228f21c4c6a61` | OK (exakt) |
+| `nachher/nachher-social-9x16-gpt-image-2-high.png` | Social/TikTok | 9:16 → 720x1280 | **720×1280** | 1150762 | `e69b7bed3d8a420bcd1c26da8aa6f0dcde8b54cd78592c0cc7ca8565580803f1` | OK (exakt) |
+
+Herkunft der Bilder (ehrlich):
+
+- **Pfad:** live deployte App `www.growimo.app` (HEAD `16058b0`, Server-Bundle mit `gpt-image-2`,
+  `1152x864`, `720x1280`, `IMAGE_QUALITY`), Owner-Account mit Owner-Override (kein Kontingentverbrauch,
+  keine Usage-DB-Schreibungen), zwei echte `gpt-image-2`/`quality=high`-Calls.
+- **Etsy 4:3:** Strategie-Prefill des Etsy-Projekts `1ac11316-0505-483c-a66d-6c84efdc0aae` über
+  „🎨 Im Image Studio erstellen" (Prompt 959 Zeichen, inkl. Regel „Kein Text im Bild"), Format 4:3.
+  Das Bild kam aus dem Lauf mit **1152×864** zurück (im DOM gemessen: `naturalWidth×naturalHeight`).
+- **Social/TikTok 9:16:** Deep-Link `/app/image-studio?prompt=…&ratio=9:16` (TikTok-Einstieg,
+  Typografie-/Negativ-Regeln automatisch angehängt), Overlay-Text „Schöne Grüße", Ergebnis 9:16.
+- **Vorher-Bilder:** unverändert die vier echten Alt-Ergebnisse unter `vorher/`. Für 9:16 existiert
+  **kein** Vorher-Bild (das Format gab es im alten Setup nicht); `vorher/vorher-social-1x1.png` ist
+  ausdrücklich **kein** 9:16-Vergleich, sondern nur das alte Social-Format 1:1. Für 4:3 existiert
+  ebenfalls kein echtes Vorher-Bild — `vorher/vorher-etsy-3x2-altformat.png` zeigt das alte 3:2-Mapping.
+
+_Stand: 2026-10-07 18:56 UTC (maschinell erzeugter Abschnitt)._
+
