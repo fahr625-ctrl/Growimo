@@ -14,6 +14,16 @@ const NO_METRICS_CONSTRAINT = `⚠️ KEINE ERFUNDENEN KENNZAHLEN: Verwende NIEM
 // Stil- und Faktenrahmen und darf das Thema niemals ersetzen.
 export const USER_PRIORITY_CONSTRAINT = `⚠️ VORRANG DER NUTZEREINGABE (harte Regel): Thema und Gegenstand des Inhalts kommen AUSSCHLIESSLICH aus der „Produktidee" des Nutzers. Ein MARKENKONTEXT-Block (oder sonstiger Zusatzkontext wie Produktdetails/Strategie-Brief) ist NUR Stil- und Faktenrahmen. Nennt der Nutzer ein anderes Produkt, eine andere Branche oder ein anderes Thema als die Marke (z. B. „kleines Café", „Schmuck", „Weihnachts-Pin"), dann IST genau das das Thema; der MARKENKONTEXT liefert dann nur noch Tonalität, Markenstimme und Formulierungsstil. Ersetze, überschreibe oder interpretiere das Nutzerthema NIEMALS in Marketing für die Marke um und lasse es niemals weg.
  EN: The user's "Produktidee" alone defines the topic. A MARKENKONTEXT block (or any other additional context) is a style/facts frame only: never replace, override or reinterpret the user's subject with brand facts, and never turn the user's subject into marketing for the brand's own product.`;
+// Schritt 4 (Owner-Freigabe 2026-10-07) — Sprachregel für KI-Bild-Prompts.
+// Zielmodell ist gpt-image-2 der OpenAI-Images-API, NICHT Midjourney/DALL·E/Flux:
+// deren Dialekt („--ar 2:3", „--style raw", „8k", „shot on 85mm lens") ist dort
+// wirkungslos — und Zahlen/Einheiten wie „85mm" triggern zusätzlich den
+// Fakten-Schutz (Live-Befund: die Regel produktmass-einheit eliminierte die
+// komplette englische Prompt-Zeile). Das Modell versteht Klartext.
+const IMAGE_PROMPT_RULES = `SPRACHREGEL FÜR KI-BILD-PROMPTS (Zielmodell: gpt-image-2, OpenAI-Images-API):
+Der Prompt ist eine ANWEISUNG an das Bildmodell — kein Werbetext und kein Produktfakt. Englisch, ein Satz, Klartext. KEIN Midjourney-/DALL·E-Dialekt: keine Werkzeug- oder Modellnamen, keine Parameter wie „--ar 2:3" oder „--style raw", keine Auflösungs-/Qualitätszahlen (kein „8k", „4K", „Ultra-HD"), keine Objektiv-/Brennweiten-Angaben in Millimetern (kein „85mm" — beschreibe die Kamera-Anmutung stattdessen als Stil, z. B. „editorial product photography look, shallow depth of field"). Nenne das Format in WORTEN (z. B. „2:3 vertical", „9:16 vertical", „square", „16:9 landscape").
+🔤 TEXT IM BILD (deutsche Typografie ist Pflicht): Text-Overlay NUR als kurzen, in Anführungszeichen gesetzten String ausgeben (3–6 Wörter, z. B. "Gemütlich schenken") und ausdrücklich festhalten, dass AUSSCHLIESSLICH dieser Text im Bild steht — mit korrekten deutschen Schriftzeichen inklusive Umlauten und ß (ä ö ü ß), einer einzigen Schriftfamilie mit einheitlichen Schnitten, Text vollständig im Safe-Bereich mit Rand (nicht am Bildrand abgeschnitten) und korrekter Rechtschreibung. Ist kein Text-Overlay vorgesehen (Produktfoto/Lifestyle), schreibe ausdrücklich „no text in the image".
+🚫 NEGATIV: Ausdrücklich nennen, dass keine Wasserzeichen, keine Signaturen, keine erfundenen Logos/Marken und keine zusätzlichen erfundenen Texte oder Bildunterschriften erscheinen dürfen.`;
 const SYSTEM_PROMPTS: Record<ContentType, string> = {
   pinterest_pin: `Du bist kein generischer KI-Assistent. Du bist ein Pinterest-Veteran mit über 10 Jahren Plattform-Erfahrung, der genau weiß, welche Pins viral gehen und welche im Feed ertrinken. Deine Superpower: emotionale Trigger in Suchbegriffe verwandeln. Jeder Pin-Titel, den du schreibst, stoppt einen Scroller mitten im Flow. Jede Beschreibung löst ein „Das muss ich speichern!"-Gefühl aus.
 
@@ -55,7 +65,8 @@ Die exakte Pinterest-Kategorie mit einem Satz Begründung, warum diese Kategorie
 Beschreibe das Bild mit der Präzision eines Art Directors, der ein Fotografen-Briefing schreibt. JEDER dieser Punkte MUSS beschrieben werden: (a) Farbpalette: konkrete Farbnamen, nicht nur „warm" oder „hell" (b) Komposition: exakt 2:3 vertikal, was steht wo (c) Bildinhalt: WAS GENAU ist im Bildausschnitt zu sehen — jedes Element, jede Textur, jede Position (d) Licht: welche Lichtquelle, Tageszeit, Lichtstimmung (e) Mood: welches Gefühl löst das Bild aus (f) Text-Overlay-Vorschlag: 3–6 Wörter, die auf dem Bild stehen könnten. DAS ZIEL: jemand, der das Produkt NIE gesehen hat, kann das Bild nach dieser Beschreibung korrekt visualisieren.
 
 9. KI-Bild-Prompt (ENGLISCH)
-Ein kopierfertiger, einzeiliger Prompt für Midjourney/DALL·E/Flux. MUSS ENTHALTEN: exaktes Motiv, Kunststil/Ästhetik, Farbpalette, Lichtsetup, Kameraperspektive, 2:3-Angabe, Mood-Adjektive, Qualitäts-Booster. Zielqualität: „Hyperrealistic product photography of [exact subject] on [surface] in [lighting setup], [color palette], warm afternoon light streaming from left, shallow depth of field, 2:3 vertical, Pinterest editorial aesthetic, 8k, magazine-quality composition, shot on 85mm lens —ar 2:3 —style raw"
+Ein kopierfertiger, EINZEILIGER Prompt auf ENGLISCH für die OpenAI-Bilder-API (gpt-image-2). MUSS ENTHALTEN: exaktes Motiv, Kunststil/Ästhetik, Farbpalette, Lichtsetup, Kameraperspektive als Stil, das Format in Worten (2:3 vertical), Mood-Adjektive. Zielniveau: „Hyperrealistic product photography of [exact subject] on [surface] in [lighting setup], [color palette], warm afternoon light from the left, shallow depth of field, 2:3 vertical, Pinterest editorial aesthetic, magazine-quality composition".
+${IMAGE_PROMPT_RULES}
 
 10. Pinterest Alt-Text
 80–125 Zeichen. Ein natürlich formulierter Satz, der das Bild präzise für Screenreader beschreibt UND versteckten SEO-Wert liefert. Enthält Hauptkeyword und eine sensorische Beschreibung (Farbe, Material, Stimmung, Situation). KEIN Keyword-Stuffing — es muss sich wie von einem Menschen geschrieben lesen.`,
@@ -141,7 +152,8 @@ Suchmaschinenfreundlicher Dateiname: kleingeschrieben, Bindestriche, enthält 3�
 Ein vollständiger Pinterest-Pin (Titel, Beschreibung, 8–12 Keywords), der Traffic in den Etsy-Shop lenkt. Titel: emotionaler Trigger. Beschreibung: Neugier wecken, auf den Shop verlinken. Keywords: Pinterest-spezifisch, auf visuelle Suche optimiert.
 
 20. Pinterest-Bildprompt
-Einzeiliger englischer Prompt für KI-Bildgeneratoren. Im gleichen Qualitäts-Standard wie der Pinterest-Pin-Prompt oben. Fokus: das Produkt in einer Pinterest-würdigen Szene zeigen. Diese Sektion ist PFLICHT — gib sie auch dann vollständig aus, wenn das Listing lang wird (kein Weglassen, kein Abkürzen, keine Platzhalter). Genau EIN Satz auf Englisch, ohne Überschrift-Wiederholung.
+Einzeiliger englischer Prompt für die OpenAI-Bilder-API (gpt-image-2) — im gleichen Standard wie der Pinterest-Pin-Prompt oben. Fokus: das Produkt in einer Pinterest-würdigen Szene zeigen. Diese Sektion ist PFLICHT — gib sie auch dann vollständig aus, wenn das Listing lang wird (kein Weglassen, kein Abkürzen, keine Platzhalter). Genau EIN Satz auf Englisch, ohne Überschrift-Wiederholung.
+${IMAGE_PROMPT_RULES}
 
 21. Instagram-Beitrag
 Caption (120–180 Zeichen) + 6–10 Hashtags + 1 Emoji-Strategie-Hinweis. ASPIRATIV: Zeige das Produkt in einem Lifestyle-Kontext, der Sehnsucht weckt. Hashtags: 3 große, 4 mittlere, 3 kleine/niche. Ton: visuell, inspirierend, community-orientiert.
@@ -209,10 +221,11 @@ STIL:
 3–4 Sätze. Eine speicherwürdige Kurzfassung des Artikels, die auf Pinterest funktioniert: inspirierend, visuell denkbar, mit klarem Nutzenversprechen. Enthält das Fokus-Keyword. Geschrieben für jemanden, der NUR diesen Text und das Bild sieht — und dann klickt.
 
 11. Pinterest-Bildprompt (DEUTSCH)
-Ein detaillierter, deutschsprachiger Prompt für ein vertikales (2:3) Pinterest-Beitragsbild. Beschreibt: Titel-Text auf dem Bild (eine prägnante Headline), visuelles Konzept, Farbpalette, Stil, Mood. So detailliert, dass ein Designer es exakt umsetzen kann.
+Ein detaillierter, deutschsprachiger Prompt für ein vertikales (2:3) Pinterest-Beitragsbild. Beschreibt: Titel-Text auf dem Bild (eine prägnante Headline), visuelles Konzept, Farbpalette, Stil, Mood. Der Bildtext steht in korrekten deutschen Schriftzeichen inklusive Umlauten und ß (ä ö ü ß), in einer einzigen Schriftfamilie, vollständig im Safe-Bereich mit Rand — kein Blindtext, keine Platzhalter-Buchstaben. Die Headline ist ausdrücklich als kurzer, in Anführungszeichen gesetzter String zu nennen. Negativ: keine Wasserzeichen oder Signaturen, keine erfundenen Logos/Marken, keine zusätzlichen erfundenen Texte. So detailliert, dass ein Designer es exakt umsetzen kann.
 
 12. Pinterest-Bildprompt (ENGLISCH)
-Der gleiche Prompt in Englisch — optimiert für Midjourney/DALL·E/Flux. Einzeilig. Mit Qualitäts-Boostern. Fokus auf visuelle Attraktivität und Pinterest-Ästhetik.
+Der gleiche Prompt in Englisch für die OpenAI-Bilder-API (gpt-image-2). Einzeilig, Klartext. Fokus auf visuelle Attraktivität und Pinterest-Ästhetik.
+${IMAGE_PROMPT_RULES}
 
 13. Interne Verlinkungsideen
 5–7 konkrete Vorschläge für thematisch verwandte interne Links. Jeder Vorschlag: [Vorgeschlagener Ankertext] und kurze Begründung, warum die Verlinkung sowohl SEO-Sinn ergibt als auch dem Leser echten Mehrwert bietet. Keine erzwungenen Links — nur natürliche Verbindungen.

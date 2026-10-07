@@ -591,6 +591,36 @@ export function resultFactViolations(
 const SENTENCE_SPLIT_KEEP_SEP_RE = /((?<=[.!?])\s+|\n+)/;
 
 /**
+ * Bild-Abschnitte („9. KI-Bild-Prompt (ENGLISCH)", „12. Pinterest-Bildprompt",
+ * „8. Bildkonzept", auch „Image Prompt") — Erkennung am Stück-ANFANG.
+ *
+ * Schritt 4 (Owner-Freigabe 2026-10-07): Ein Bildprompt ist eine ANWEISUNG an
+ * das Bildmodell, kein Produktfakt. Live belegt (docs/bildqualitaet-
+ * schritt12-evidence-2026-10-07.md, Nebenfund): die Regel `produktmass-einheit`
+ * schlägt auf die Kamera-Angabe „85mm" im Prompt-TEMPLATE an und eliminierte die
+ * komplette englische Prompt-Zeile — genau dort, wo der fertige Prompt für den
+ * „Bild jetzt erstellen"-Weg stand (kein Badge, kein Prompt, falsche Sprache im
+ * Ein-Zeilen-Fallback). Deshalb werden Sätze in Bild-Abschnitten nicht mehr auf
+ * Fakten geprüft.
+ */
+const IMAGE_BRIEF_HEAD_START_RE =
+  /^(?:\d{1,2}\.[ \t]*)?(?:pinterest[ \t-]*|ki[ \t-]*)?bild[ \t-]?(?:prompt|konzept)\b|^(?:\d{1,2}\.[ \t]*)?image[ \t-]?prompt\b/i;
+
+/**
+ * Bild-Abschnitt MITTEN in einem Stück (kollabierte Bodies ohne Umbrüche: dort
+ * hängt die Abschnittsnummer wegen der Satz-Trennung am VORHERIGEN Stück, siehe
+ * `INLINE_*` in strategy-image.ts).
+ */
+const IMAGE_BRIEF_HEAD_INLINE_RE =
+  /(?:^|[^\p{L}\d])\d{1,2}\.[ \t]*(?:pinterest[ \t-]*|ki[ \t-]*)?bild[ \t-]?(?:prompt|konzept)\b/iu;
+
+/** Beliebige nummerierte Überschrift am Stück-Anfang (Abschnitts-Grenze). */
+const NUMBERED_HEAD_START_RE = /^\d{1,2}\.[ \t]*\S/;
+
+/** Ende eines Stücks = Abschnittsnummer (nur kollabierte Bodies). */
+const TRAILING_SECTION_NUMBER_RE = /(?:^|[^\d])\d{1,2}\.\s*$/;
+
+/**
  * Letzte Instanz: entfernt jeden Satz mit einer erfundenen Behauptung.
  *
  * P1-Fix 2026-10-07 (docs/bildqualitaet-analyse-empfehlung-2026-10-07.md §8,
@@ -613,6 +643,16 @@ const SENTENCE_SPLIT_KEEP_SEP_RE = /((?<=[.!?])\s+|\n+)/;
  * und Listenmarker bleiben dadurch erhalten. Semantik-neutral: die
  * Fakten-Prüfregeln, die Auswahl des fliegenden Satzes und das Grounding sind
  * unverändert; Bodies ohne Verstoß gehen weiter byte-identisch (`=== text`) durch.
+ *
+ * Schritt 4 (Owner-Freigabe 2026-10-07) — Bild-Abschnitte sind geschützt: Ein
+ * Stück INNERHALB eines Bild-Abschnitts („9. KI-Bild-Prompt (ENGLISCH)",
+ * „8. Bildkonzept", „12. Pinterest-Bildprompt", „Image Prompt") wird nicht mehr
+ * als Faktensatz geprüft und deshalb nie gelöscht — der Abschnitt wird dadurch
+ * weder geleert noch sprachlich zerstört. Die Entscheidung „welcher Satz
+ * verstößt" wird für diese Abschnitte schlicht nicht ausgeführt; für ALLE
+ * anderen Abschnitte bleibt sie unverändert (die Regeln selbst sind unberührt).
+ * Der Schutz endet an der nächsten nummerierten Überschrift außerhalb der
+ * Bild-Abschnitte.
  */
 export function sanitizeFactText(
   text: string,
@@ -623,13 +663,52 @@ export function sanitizeFactText(
   const ctx = buildCheckContext(groundingBlob, declared);
   const values = declaredFactValues(ctx);
   const pieces = text.split(SENTENCE_SPLIT_KEEP_SEP_RE);
+  // Inhaltliche Stücke liegen auf den GERADEN Indizes (ungerade = Separatoren).
+  const contentIdx: number[] = [];
+  for (let i = 0; i < pieces.length; i += 2) contentIdx.push(i);
+  /** Nächstes nicht-leeres Stück (für „Nummer steht allein"-Fälle, s. u.). */
+  const nextTextAfter = (pos: number): string => {
+    for (let k = pos + 1; k < contentIdx.length; k++) {
+      const t = (pieces[contentIdx[k]] ?? '').trim();
+      if (t) return t;
+    }
+    return '';
+  };
   let removedAny = false;
   const kept: string[] = [];
-  for (let i = 0; i < pieces.length; i += 2) {
+  // Schritt 4: Zustand „wir sind in einem Bild-Abschnitt" (siehe Funktions-Doc).
+  let inImageBrief = false;
+  // Nur für kollabierte Bodies (keine Umbrüche): dort kann die Abschnittsnummer
+  // am Ende des VORHERIGEN Stücks hängen.
+  const collapsed = !text.includes('\n');
+  for (let c = 0; c < contentIdx.length; c++) {
+    const i = contentIdx[c];
     const part = pieces[i] ?? '';
-    if (part.trim() !== '' && matchViolationsInSentence(part, ctx, values).length > 0) {
-      removedAny = true;
-      continue; // Dieser Satz fällt — und mit ihm der Separator VOR ihm (nicht der danach).
+    const trimmed = part.trim();
+    if (trimmed !== '') {
+      // Der Satz-Split schneidet auch NACH „10." — die Abschnittsnummer steht
+      // dann als eigenes Stück und die Überschrift folgt im nächsten. Beide
+      // zusammen entscheiden, ob ein Bild-Abschnitt beginnt oder endet.
+      const next = nextTextAfter(c);
+      const bareNumber = /^\d{1,2}\.$/.test(trimmed);
+      const prevEndsWithNumber =
+        collapsed && c > 0 && TRAILING_SECTION_NUMBER_RE.test((pieces[contentIdx[c - 1]] ?? '').trim());
+      const startsImageBrief =
+        IMAGE_BRIEF_HEAD_START_RE.test(trimmed) || (bareNumber && IMAGE_BRIEF_HEAD_START_RE.test(next));
+      const startsOtherHeading =
+        !startsImageBrief &&
+        (NUMBERED_HEAD_START_RE.test(trimmed) ||
+          (bareNumber && /^[A-ZÄÖÜ]/.test(next)) ||
+          prevEndsWithNumber);
+      if (startsImageBrief || (inImageBrief && IMAGE_BRIEF_HEAD_INLINE_RE.test(trimmed))) {
+        inImageBrief = true; // Bild-Abschnitt beginnt (bzw. läuft weiter)
+      } else if (startsOtherHeading) {
+        inImageBrief = false; // neue (Text-)Überschrift → normaler Fakten-Check
+      }
+      if (!inImageBrief && matchViolationsInSentence(part, ctx, values).length > 0) {
+        removedAny = true;
+        continue; // Dieser Satz fällt — und mit ihm der Separator VOR ihm (nicht der danach).
+      }
     }
     // Separator VOR dem behaltenen Stück = ursprüngliche Trennung zum Vorsatz.
     const preceding = i > 0 ? pieces[i - 1] : undefined;
