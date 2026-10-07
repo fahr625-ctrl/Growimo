@@ -63,10 +63,10 @@
 ]
 owner clerk=user_3H2trJX… sub=sub_1UNtUMCc…
 DB cancel_at_period_end=false cancel_at=null updated_at=Wed Oct 07 2026 11:58:30 GMT+0000 (Coordinated Universal Time)
-session create: HTTP 200 id=sess_3KN39bG…
+session create: HTTP 200 id=sess_3KN4GiX…
 token: HTTP 200 jwtLen=793
 
-=== getBillingOverview? 1e32769b → HTTP 200 len=4195 ===
+=== getBillingOverview? 1e32769b → HTTP 200 len=1358 ===
 decoded: {
  "signedIn": true,
  "stripeConfigured": true,
@@ -85,115 +85,14 @@ decoded: {
    "refunded": true,
    "currency": "eur",
    "status": "paid",
-   "hostedInvoiceUrl": "https://invoice.stripe.com/i/acct_1UFF1vCcIt8AuaKq/live_YWNjdF8xVUZGMXZDY0l0OEF1YUtxLF9WT2dzYURkRkRVSE0wVVMzOUYyZ0R1WXRyd3ZITWVBLDE4MTkyNDg0OA0200E19agAzS?s=ap",
-   "invoicePdf": "https://pay.stripe.com/invoice/acct_1UFF1vCcIt8AuaKq/live_YWNjdF8xVUZGMXZDY0l0OEF1YUtxLF9WT2dzYURkRkRVSE0wVVMzOUYyZ0R1WXRyd3ZITWVBLDE4MTkyNDg0OA0200E19agAzS/pdf?s=ap",
+   "hostedInvoiceUrl": "https://invoice.stripe.com/i/acct_1UFF1vCcIt8AuaKq/live_YWNjdF8xVUZGMXZDY0l0OEF1YUtxLF9WT2dzYURkRkRVSE0wVVMzOUYyZ0R1WXRyd3ZITWVBLDE4MTkyNTM5OA0200ENIkDq4p?s=ap",
+   "invoicePdf": "https://pay.stripe.com/invoice/acct_1UFF1vCcIt8AuaKq/live_YWNjdF8xVUZGMXZDY0l0OEF1YUtxLF9WT2dzYURkRkRVSE0wVVMzOUYyZ0R1WXRyd3ZITWVBLDE4MTkyNTM5OA0200ENIkDq4p/pdf?s=ap",
    "periodStart": 1791374233,
    "periodEnd": 1794052633,
    "description": "1 × Growimo Pro (zu €19.00 / month)"
   }
  ],
- "error": null,
- "refundDebug": {
-  "withExpand": [
-   {
-    "number": "83SWNKUD-0001",
-    "invoiceKeys": [
-     "amount_due",
-     "amount_overpaid",
-     "amount_paid",
-     "amount_remaining",
-     "amount_shipping",
-     "default_payment_method",
-     "next_payment_attempt",
-     "payment_settings",
-     "payments",
-     "post_payment_credit_notes_amount",
-     "pre_payment_credit_notes_amount",
-     "status",
-     "status_transitions",
-     "subtotal",
-     "subtotal_excluding_tax",
-     "total",
-     "total_discount_amounts",
-     "total_excluding_tax",
-     "total_pretax_credit_amounts",
-     "total_taxes"
-    ],
-    "paymentsType": "object",
-    "paymentsCount": 1,
-    "entries": [
-     {
-      "entryKeys": [
-       "amount_paid",
-       "amount_requested",
-       "created",
-       "currency",
-       "id",
-       "invoice",
-       "is_default",
-       "livemode",
-       "object",
-       "payment",
-       "status",
-       "status_transitions"
-      ],
-      "paymentKind": "object",
-      "payment": {
-       "keys": [
-        "payment_intent",
-        "type"
-       ],
-       "type": "payment_intent",
-       "payment_intent": "pi_3UNtTCCcIt8",
-       "charge": "undefined",
-       "payment_record": "undefined",
-       "amount_refunded": null,
-       "id": null
-      }
-     }
-    ]
-   }
-  ],
-  "plain": [
-   {
-    "number": "83SWNKUD-0001",
-    "invoiceKeys": [
-     "amount_due",
-     "amount_overpaid",
-     "amount_paid",
-     "amount_remaining",
-     "amount_shipping",
-     "default_payment_method",
-     "next_payment_attempt",
-     "payment_settings",
-     "post_payment_credit_notes_amount",
-     "pre_payment_credit_notes_amount",
-     "status",
-     "status_transitions",
-     "subtotal",
-     "subtotal_excluding_tax",
-     "total",
-     "total_discount_amounts",
-     "total_excluding_tax",
-     "total_pretax_credit_amounts",
-     "total_taxes"
-    ],
-    "paymentsType": "undefined",
-    "paymentsCount": null,
-    "entries": []
-   }
-  ],
-  "refunds": [
-   {
-    "id": "re_3UNtTCCcIt8",
-    "object": "refund",
-    "amount": 950,
-    "status": "succeeded",
-    "payment_intent": "pi_3UNtTCCcIt8",
-    "charge": "ch_3UNtTCCcIt8"
-   }
-  ]
- }
+ "error": null
 }
 
 === other-fn 89ea514f → HTTP 405 len=29 ===
