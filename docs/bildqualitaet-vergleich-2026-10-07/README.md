@@ -173,3 +173,32 @@ Herkunft der Bilder (ehrlich):
 
 _Stand: 2026-10-07 18:56 UTC (maschinell erzeugter Abschnitt)._
 
+
+## 7. Nachtrag (2026-10-07, Fortsetzungslauf): Verifikation der zwei neuen Nachher-Bilder
+
+Alle Werte **maschinell aus den Dateien im Repo** gemessen (PNG-Header, Bytes, SHA-256);
+die Bilder wurden in **Originalauflösung** aus dem `img.src`-data-URL der Galerie gezogen
+(300-kB-Chunks aus dem DOM), nicht als Screenshot-Beschnitt.
+
+| Datei | Kanal | Soll | Ist-Maße | Bytes | SHA-256 | Status |
+|---|---|---|---|---|---|---|
+| `nachher/nachher-etsy-4x3-gpt-image-2-high.png` | Etsy-Produktbild | 4:3 → 1152x864 | **1152×864** | 1507873 | `b6578f0364cb3f1937f484aaffbb9f87682c810749dad3787d0228f21c4c6a61` | OK (exakt) |
+| `nachher/nachher-social-9x16-gpt-image-2-high.png` | Social/TikTok | 9:16 → 720x1280 | **720×1280** | 1150762 | `e69b7bed3d8a420bcd1c26da8aa6f0dcde8b54cd78592c0cc7ca8565580803f1` | OK (exakt) |
+
+Herkunft der Bilder (ehrlich):
+
+- **Pfad:** live deployte App `www.growimo.app` (HEAD `16058b0`, Server-Bundle mit `gpt-image-2`,
+  `1152x864`, `720x1280`, `IMAGE_QUALITY`), Owner-Account mit Owner-Override (kein Kontingentverbrauch,
+  keine Usage-DB-Schreibungen), zwei echte `gpt-image-2`/`quality=high`-Calls.
+- **Etsy 4:3:** Strategie-Prefill des Etsy-Projekts `1ac11316-0505-483c-a66d-6c84efdc0aae` über
+  „🎨 Im Image Studio erstellen" (Prompt 959 Zeichen, inkl. Regel „Kein Text im Bild"), Format 4:3.
+  Das Bild kam aus dem Lauf mit **1152×864** zurück (im DOM gemessen: `naturalWidth×naturalHeight`).
+- **Social/TikTok 9:16:** Deep-Link `/app/image-studio?prompt=…&ratio=9:16` (TikTok-Einstieg,
+  Typografie-/Negativ-Regeln automatisch angehängt), Overlay-Text „Schöne Grüße", Ergebnis 9:16.
+- **Vorher-Bilder:** unverändert die vier echten Alt-Ergebnisse unter `vorher/`. Für 9:16 existiert
+  **kein** Vorher-Bild (das Format gab es im alten Setup nicht); `vorher/vorher-social-1x1.png` ist
+  ausdrücklich **kein** 9:16-Vergleich, sondern nur das alte Social-Format 1:1. Für 4:3 existiert
+  ebenfalls kein echtes Vorher-Bild — `vorher/vorher-etsy-3x2-altformat.png` zeigt das alte 3:2-Mapping.
+
+_Stand: 2026-10-07 18:56 UTC (maschinell erzeugter Abschnitt)._
+
