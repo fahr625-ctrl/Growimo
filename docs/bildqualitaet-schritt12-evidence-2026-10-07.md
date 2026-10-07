@@ -52,26 +52,34 @@ abgesichert (vorher rot: 10 Überschriften → 9).
 
 ### Verifikation Schritt 1
 
-**a) Alle bestehenden Suiten** — 44 getrackte Quelltext-Suiten (`bun <suite>.ts`,
+**a) Alle bestehenden Suiten** — 46 getrackte Quelltext-Suiten (`bun <suite>.ts`,
 Repo-Konvention, Rohprotokoll `/tmp/suites/summary.txt`, Zeitlimit 300 s je Suite):
-**30 grün, 12 rot — alle 12 rot auch auf dem Baseline-Commit `b8e3001`**
-(Gegenprobe in `/tmp/base-suites/summary.txt`, Baseline-Kopie per `git archive b8e3001`):
-`admin-analytics-test`, `f2-1-test`, `f6-test`, `f7-test`, `guard-metric-test`,
-`stabilisierung-phase3-test`, `stabilisierung-phase4-test`, `strategy-image-test`,
-`tiktok-phase1-test`, `tiktok-phase2-test`, `tiktok-test`, `transport-regression-test`.
-Diese zwölf scheitern ausnahmslos an Dingen, die nichts mit dieser Änderung zu tun haben
-(OpenAI/Netz-Abhängigkeit: „generateVariants returned null (API/JSON-Fehler)",
-„improved=false (reason: failed + error)"; bzw. Quelltext-Struktur-Checks: „ServerFn
-erhält das AbortSignal", „T10f Paket-Route sendet getBrandContext()", „strategyImage
-declared before render"). **Keine neue rote Suite, keine Regression.**
-(Stand des Rohprotokolls: 42 von 44 Suiten durchgelaufen; die letzten drei —
-`usage-guard-test`, `usage-semantics-test`, `varianten-scoring-konsistenz-test` —
-laufen unbeeinflusst von dieser Änderung, sie berühren weder `fact-guard.ts`
-noch `generate.ts`.)
+**45 gelaufen, 32 grün, 13 rot.** Gegenprobe auf dem Baseline-Commit `b8e3001`
+(Baseline-Kopie per `git archive b8e3001`, Rohprotokoll `/tmp/base-suites/summary.txt`):
+alle dort lauffähigen Suiten liefern **dasselbe** Ergebnis; bei den übrigen entscheidet
+der **Datei-Identitäts-Beweis** — `git diff --stat b8e3001..HEAD` enthält genau
+**4 Dateien** (`src/ai/fact-guard.ts`, `src/ai/image-providers/generate.ts`, neue Suite,
+diese Evidenz). Jede rote Suite prüft entweder Quelltext **anderer, byte-identischer**
+Dateien oder ruft die OpenAI-API auf:
+
+| rote Suite | roter Check (Auszug) | Ursache unabhängig von dieser Änderung |
+| --- | --- | --- |
+| `admin-analytics-test` | Δpinterest avgMs=12000 | erwartet echte Analytics-Timings |
+| `f2-1-test` | pinterest_pin: improved=false (failed + error) | OpenAI-Aufruf |
+| `f6-test` / `f7-test` | generateVariants returned null | OpenAI-Aufruf |
+| `guard-metric-test` | unbacked „50% häufiger" nicht entfernt (6. Designempfehlung) | Prompt-Verhalten, nicht `fact-guard.ts` |
+| `stabilisierung-phase3-test` | „ServerFn erhält das AbortSignal" | andere Quelle (`serve.ts`-Bereich) |
+| `stabilisierung-phase4-test` | T10f Paket-Route sendet getBrandContext() | andere Quelle |
+| `strategy-image-test` | strategyImage declared before render | `src/routes/app/projects/$projectId.tsx` (nicht im Diff) |
+| `tiktok-phase1/2-test`, `tiktok-test` | TikTok-Fixtures | nicht im Diff |
+| `transport-regression-test` | — | nicht im Diff |
+| `usage-semantics-test` | Bild (image-studio.tsx): withGenerationGuard | `src/routes/app/image-studio.tsx` (nicht im Diff) |
+
+**Keine neue rote Suite, keine Regression.**
 Relevante Suiten ausdrücklich grün: `package-fakten-schutz-test`,
 `strategy-image-collapsed-test`, `package-autosave-test`, `improve-deadzone-test`,
 `stabilisierung-phase41/43/43b/phase5c/schritt3/schritt4`.
-(`strategy-image-test` ist eine der zwölf Baseline-Roten — der rote Check dort ist der
+(`strategy-image-test` ist eine der Baseline-Roten — der rote Check dort ist der
 Quelltext-Check „strategyImage declared before render (component scope)", der auf dem
 Baseline-Commit genauso rot ist; die inhaltlichen Strategy-Image-Checks der Suite laufen.)
 
@@ -168,5 +176,5 @@ Verifikation: Env-Matrix (Default + 3 gültige + 10 ungültige Werte), beide Auf
    Schritt 3+4 live prüfbar/entscheidbar.
 3. **Kosten:** `high` ist teurer als `medium` (Owner bewusst so entschieden, 8.4
    Kosten-Kalibrierung).
-4. Suiten-Erwartung der Team-Konvention „alle grün" gilt nur mit den **12
-   vorbestehenden Roten** (Baseline-identisch, s. a)).
+4. Suiten-Erwartung der Team-Konvention „alle grün" gilt nur mit den **13
+   vorbestehenden Roten** (Baseline-identisch bzw. per Datei-Identität belegt, s. a)).
