@@ -12,6 +12,9 @@
 //   [6] Handler: refund-bezogene Events → No-Op ohne DB-Wirkung (200-Semantik)
 //   [7] Mapping: invoiceRefundState + fetchInvoicesForCustomer (amount_refunded)
 //   [7b] Mapping-Nachfass: Erstattung aus invoice.payments (dahlia) + Refund-Listen-Fallback
+//   [7c] Zahlungspfad (Owner-Befund 2026-10-07): Erstattung hängt an der Zahlung —
+//        `payment.payment_intent`/`payment.charge`/`payment.payment_record` als ID-Quelle,
+//        Summierung, Entdopplung, fail-safe ohne Signal
 //   [8] Mapping: subscriptionCancelState (inkl. dahlia cancellation_details)
 //   [8b] Mapping-Nachfass: LIVE-Form der Portal-Kündigung (cancel_at_period_end=false
 //        + cancel_at + cancellation_details.reason=cancellation_requested) → gekündigt,
@@ -31,6 +34,7 @@ import {
 import { limitForPlan, FREE_LIMIT, PRO_LIMIT } from './src/lib/usage-guard';
 import {
   invoiceRefundState,
+  invoicePaymentRefs,
   refundFromInvoicePayments,
   fetchInvoicesForCustomer,
   subscriptionCancelState,
@@ -333,6 +337,59 @@ async function main() {
     );
     check(refundFromInvoicePayments(undefined) === 0, 'keine payments → 0 (fail-safe)');
 
+    // ── [7c] Zahlungspfad: die Erstattung HÄNGT AN DER ZAHLUNG ───────────────
+    // Typ-Befund (InvoicePayments.d.ts, dahlia): `InvoicePayment.payment` ist ein
+    // Wrapper `{ type, payment_intent?, charge?, payment_record? }` — die ID steht
+    // unter dem typ-spezifischen Feld (`payment.payment_intent` = 'pi_…'), NICHT
+    // unter `payment.id`. Genau daran scheiterte der frühere Pfad (immer 0).
+    console.log('\n[7c] Zahlungspfad: PaymentIntent/Charge/PaymentRecord-Referenz');
+    check(
+      invoicePaymentRefs({
+        data: [{ payment: { type: 'payment_intent', payment_intent: 'pi_live_1' } }],
+      })[0]?.id === 'pi_live_1',
+      'payment.payment_intent (String) wird als Zahlungs-ID gelesen (nicht payment.id)',
+    );
+    check(
+      invoicePaymentRefs({
+        data: [{ payment: { type: 'charge', charge: 'ch_live_1' } }],
+      })[0]?.id === 'ch_live_1',
+      'payment.charge (String) wird als Zahlungs-ID gelesen',
+    );
+    check(
+      invoicePaymentRefs({
+        data: [{ payment: { type: 'payment_record', payment_record: 'pr_live_1' } }],
+      })[0]?.kind === 'payment_record',
+      'payment_record-Zahlung wird als solche erkannt',
+    );
+    check(
+      invoicePaymentRefs({ data: [{ payment: { type: 'charge', charge: {} } }] })[0]?.id === null,
+      'nicht expandierte/unbekannte Form → keine erfundene ID',
+    );
+    // Expandierter Charge/PaymentIntent: Erstattung steht direkt am Objekt.
+    check(
+      invoiceRefundState({
+        payments: {
+          data: [{ payment: { type: 'charge', charge: { id: 'ch_x', amount_refunded: 950 } } }],
+        },
+      }).amountRefunded === 950,
+      'expandierter charge.amount_refunded=950 → ohne API-Call erkannt',
+    );
+    check(
+      invoiceRefundState({
+        payments: {
+          data: [
+            {
+              payment: {
+                type: 'payment_intent',
+                payment_intent: { id: 'pi_x', latest_charge: { amount_refunded: 950 } },
+              },
+            },
+          ],
+        },
+      }).amountRefunded === 950,
+      'PaymentIntent.latest_charge.amount_refunded=950 → erkannt',
+    );
+
     const dahliaInvoiceFixture = {
       id: 'in_p2_dahlia',
       number: '83SWNKUD-0001',
@@ -367,24 +424,127 @@ async function main() {
     const piInvoiceFixture = {
       ...dahliaInvoiceFixture,
       id: 'in_p2_pi',
-      payments: { data: [{ payment: { type: 'payment_intent', id: 'pi_p2_fallback' } }] },
+      // ECHTE dahlia-Form: Wrapper mit typ-spezifischem ID-Feld (nicht expandiert).
+      payments: { data: [{ payment: { type: 'payment_intent', payment_intent: 'pi_p2_fallback' } }] },
     };
     let refundListCalls = 0;
+    const refundListParams: Array<Record<string, unknown>> = [];
     const piStripe = {
       invoices: { list: async () => ({ data: [piInvoiceFixture] }) },
       refunds: {
-        list: async () => {
+        list: async (params: Record<string, unknown>) => {
           refundListCalls += 1;
-          return { data: [{ amount: 950, status: 'succeeded' }] };
+          refundListParams.push(params);
+          return { data: [{ id: 're_p2_a', amount: 950, status: 'succeeded' }] };
         },
       },
     } as unknown as import('stripe').default;
     const piSummaries = await fetchInvoicesForCustomer(piStripe, CUS);
     check(
       piSummaries[0]?.refunded === true && piSummaries[0]?.amountRefunded === 950,
-      'Fallback: Refund-Liste zum PaymentIntent → 950 erkannt',
+      'Zahlungspfad: Erstattung am PaymentIntent → 950 erkannt (Fall 83SWNKUD-0001)',
     );
-    check(refundListCalls === 1, 'Fallback nur bei fehlendem Erstattungsfeld (1 Call)');
+    check(
+      refundListCalls === 1 && refundListParams[0]?.payment_intent === 'pi_p2_fallback',
+      'Abfrage nutzt die ECHTE Zahlungs-ID aus payment.payment_intent (nicht payment.id)',
+    );
+
+    // Mehrere (Teil-)Erstattungen einer Zahlung werden summiert.
+    const splitStripe = {
+      invoices: { list: async () => ({ data: [piInvoiceFixture] }) },
+      refunds: {
+        list: async () => ({
+          data: [
+            { id: 're_p2_1', amount: 500, status: 'succeeded' },
+            { id: 're_p2_2', amount: 450, status: 'succeeded' },
+          ],
+        }),
+      },
+    } as unknown as import('stripe').default;
+    check(
+      (await fetchInvoicesForCustomer(splitStripe, CUS))[0]?.amountRefunded === 950,
+      'mehrere Erstattungen werden summiert (500+450 = 950)',
+    );
+
+    // Fehlgeschlagene/abgebrochene Erstattungen zählen nicht.
+    const failedStripe = {
+      invoices: { list: async () => ({ data: [piInvoiceFixture] }) },
+      refunds: {
+        list: async () => ({
+          data: [
+            { id: 're_p2_f1', amount: 950, status: 'failed' },
+            { id: 're_p2_c1', amount: 950, status: 'canceled' },
+            { id: 're_p2_r1', amount: 950, status: 'requires_action' },
+          ],
+        }),
+      },
+    } as unknown as import('stripe').default;
+    check(
+      (await fetchInvoicesForCustomer(failedStripe, CUS))[0]?.refunded === false,
+      'failed/canceled/requires_action → refunded=false (keine Falschaussage)',
+    );
+
+    // Dieselbe Erstattung über PI- und Charge-Weg nur EINMAL zählen.
+    const dupStripe = {
+      invoices: {
+        list: async () => ({
+          data: [
+            {
+              ...piInvoiceFixture,
+              id: 'in_p2_dup',
+              payments: {
+                data: [
+                  { payment: { type: 'payment_intent', payment_intent: 'pi_dup' } },
+                  { payment: { type: 'charge', charge: 'ch_dup' } },
+                ],
+              },
+            },
+          ],
+        }),
+      },
+      refunds: {
+        list: async () => ({ data: [{ id: 're_same', amount: 950, status: 'succeeded' }] }),
+      },
+    } as unknown as import('stripe').default;
+    check(
+      (await fetchInvoicesForCustomer(dupStripe, CUS))[0]?.amountRefunded === 950,
+      'dieselbe Erstattung über zwei Zahlungswege → genau einmal gezählt',
+    );
+
+    // Kein Zahlungsbezug → kein API-Call, keine Behauptung.
+    let noSignalCalls = 0;
+    const noSignalStripe = {
+      invoices: {
+        list: async () => ({
+          data: [
+            {
+              ...dahliaInvoiceFixture,
+              id: 'in_p2_nosig',
+              payments: { data: [] },
+            },
+          ],
+        }),
+      },
+      refunds: {
+        list: async () => {
+          noSignalCalls += 1;
+          return { data: [] };
+        },
+      },
+    } as unknown as import('stripe').default;
+    const noSignal = await fetchInvoicesForCustomer(noSignalStripe, CUS);
+    check(
+      noSignal[0]?.refunded === false && noSignalCalls === 0,
+      'kein Zahlungsbezug → refunded=false OHNE Stripe-Call (fail-safe)',
+    );
+
+    // Der Diagnose-Helfer darf nicht in Produktion bleiben.
+    const invoicesSource = await Bun.file('src/stripe/invoices.ts').text();
+    check(
+      !invoicesSource.includes('logRefundShapeOnce') &&
+        !invoicesSource.includes('refund-shape'),
+      'Debug-Helfer logRefundShapeOnce ist aus dem Produktionscode entfernt',
+    );
 
     const plainStripe = {
       invoices: { list: async () => ({ data: [openInvoiceFixture] }) },

@@ -67,28 +67,18 @@ export interface BillingOverviewResult {
  * Rechnung. Grund: die API-Version `2026-06-24.dahlia` (stripe 22.3.2) führt
  * `amount_refunded` NICHT mehr am Invoice-Objekt (Typ-Nachweis: `Invoice` hat nur
  * `amount_paid`, `amount_paid_off_stripe`, `amount_remaining`,
- * `pre_/post_payment_credit_notes_amount`). Der Live-Read ergab deshalb am
- * 2026-10-07 für die real erstattete Rechnung `83SWNKUD-0001` hart `0`.
- * Die Erstattung steht am Zahlungs-Datensatz der Rechnung (`invoice.payments[].payment`):
- *   - `payment_record`: `amount_refunded` = { currency, value }  (neues Modell, dahlia)
+ * `pre_/post_payment_credit_notes_amount` sowie `payments?: ApiList<InvoicePayment>`).
+ * Der Live-Read ergab deshalb am 2026-10-07 für die real erstattete Rechnung
+ * `83SWNKUD-0001` hart `0`. Die Erstattung hängt am ZAHLUNGS-DATENSATZ der Rechnung
+ * (`invoice.payments[].payment`):
  *   - `charge`:        `amount_refunded` = Zahl in kleinster Währungseinheit
- * Beides wird gelesen; kein Signal → 0 (fail-safe, es wird nie eine Erstattung behauptet).
+ *   - `payment_record`: `amount_refunded` = { currency, value } (neues Modell, dahlia)
+ *   - `payment_intent`: erstattet wird der zugehörige `latest_charge`
+ * Kein Signal → 0 (fail-safe, es wird nie eine Erstattung behauptet).
  */
 export function refundFromInvoicePayments(payments: unknown): number {
-  const list = Array.isArray(payments)
-    ? payments
-    : (payments as { data?: unknown } | null | undefined)?.data;
-  if (!Array.isArray(list)) return 0;
   let sum = 0;
-  for (const entry of list) {
-    const payment = (entry as { payment?: unknown } | null)?.payment ?? entry;
-    const refunded = (payment as { amount_refunded?: unknown } | null)?.amount_refunded;
-    if (typeof refunded === 'number') sum += refunded;
-    else if (refunded && typeof refunded === 'object') {
-      const value = (refunded as { value?: unknown }).value;
-      if (typeof value === 'number') sum += value;
-    }
-  }
+  for (const ref of invoicePaymentRefs(payments)) sum += ref.inlineRefunded;
   return sum;
 }
 
@@ -120,70 +110,162 @@ function invoicePayments(invoice: unknown): unknown[] {
   return Array.isArray(list) ? list : [];
 }
 
-/** PaymentIntent-IDs der Zahlungen einer Rechnung (nur `pi_…`, für den Refund-Fallback). */
-function paymentIntentIdsOfInvoice(invoice: unknown): string[] {
-  const ids: string[] = [];
-  for (const entry of invoicePayments(invoice)) {
-    const payment = (entry as { payment?: unknown } | null)?.payment ?? entry;
-    const id = typeof payment === 'string' ? payment : (payment as { id?: unknown } | null)?.id;
-    if (typeof id === 'string' && id.startsWith('pi_')) ids.push(id);
-  }
-  return ids;
+/** Art des Zahlungs-Datensatzes einer dahlia-Rechnung (`InvoicePayment.Payment.type`). */
+export type InvoicePaymentKind = 'payment_intent' | 'charge' | 'payment_record';
+
+/** Ein Zahlungs-Datensatz einer Rechnung, auf das Nötige reduziert. */
+export interface InvoicePaymentRef {
+  kind: InvoicePaymentKind | null;
+  /** ID des Zahlungs-Objekts (`pi_…`/`ch_…`/`pr_…`), null wenn nicht ableitbar. */
+  id: string | null;
+  /** Erstattung, die DIREKT am Zahlungs-Objekt steht (0 = kein Feld vorhanden). */
+  inlineRefunded: number;
+}
+
+/** Art einer Zahlungs-ID (`pi_…`/`ch_…`/`pr_…`) — null, wenn unbekannt. */
+function kindOfId(id: string): InvoicePaymentKind | null {
+  if (id.startsWith('pi_')) return 'payment_intent';
+  if (id.startsWith('ch_')) return 'charge';
+  if (id.startsWith('pr_')) return 'payment_record';
+  return null;
 }
 
 /**
- * Letzter Refund-Fallback: Erstattungen pro PaymentIntent listen (die einzige
- * von der API-Version unterstützte Filter-Option neben `charge`). Wird nur
- * aufgerufen, wenn am Rechnungs-/Zahlungsobjekt kein Erstattungsfeld vorliegt.
+ * Betrag aus einem Stripe-Betragsfeld: Zahl (`Charge.amount_refunded`, alter Stil)
+ * ODER Objekt `{ currency, value }` (`PaymentRecord.amount_refunded`, dahlia).
+ * Alles andere → 0 (kein erfundener Betrag).
  */
-async function refundTotalFromPaymentIntents(
+function amountOf(value: unknown): number {
+  if (typeof value === 'number') return value;
+  if (value && typeof value === 'object') {
+    const v = (value as { value?: unknown }).value;
+    if (typeof v === 'number') return v;
+  }
+  return 0;
+}
+
+/**
+ * Zahlungs-Datensätze EINER dahlia-Rechnung (reine Funktion, testbar).
+ *
+ * Typ-Befund 2026-10-07 (stripe 22.3.2, API `2026-06-24.dahlia`,
+ * `node_modules/stripe/esm/resources/InvoicePayments.d.ts`): Die Rechnung kennt
+ * ihre Zahlung AUSSCHLIESSLICH über `payments?: ApiList<InvoicePayment>`
+ * (`Invoices.d.ts`) — die Rechnung selbst hat kein `amount_refunded`, kein
+ * `charge` und kein `payment_intent`. Jeder `InvoicePayment` trägt
+ * `payment: InvoicePayment.Payment`:
+ *   `{ type: 'payment_intent' | 'charge' | 'payment_record',
+ *      payment_intent?: string | PaymentIntent,
+ *      charge?: string | Charge,
+ *      payment_record?: string | PaymentRecord }`
+ * Die ID steht also NICHT unter `payment.id`, sondern unter dem typ-spezifischen
+ * Feld (String, solange nicht expandiert). Die Erstattung liegt entweder dort
+ * (`Charge.amount_refunded` Zahl / `PaymentRecord.amount_refunded.value`) oder
+ * am `PaymentIntent.latest_charge` — sonst bleibt sie nur über die Refund-Liste
+ * belegbar (siehe `refundTotalFromRefs`).
+ */
+export function invoicePaymentRefs(payments: unknown): InvoicePaymentRef[] {
+  const list = Array.isArray(payments)
+    ? payments
+    : (payments as { data?: unknown } | null | undefined)?.data;
+  if (!Array.isArray(list)) return [];
+  const refs: InvoicePaymentRef[] = [];
+  for (const entry of list) {
+    const raw = (entry as { payment?: unknown } | null)?.payment ?? entry;
+    if (typeof raw === 'string') {
+      refs.push({ kind: kindOfId(raw), id: raw, inlineRefunded: 0 });
+      continue;
+    }
+    if (!raw || typeof raw !== 'object') continue;
+    const p = raw as Record<string, any>;
+    const kind: InvoicePaymentKind | null =
+      p.type === 'payment_intent' || p.type === 'charge' || p.type === 'payment_record'
+        ? p.type
+        : null;
+    const sub = kind ? p[kind] : null;
+    let inline = amountOf(p.amount_refunded);
+    if (sub && typeof sub === 'object') {
+      inline = Math.max(inline, amountOf(sub.amount_refunded));
+      // PaymentIntent: die Erstattung sitzt am zugehörigen Charge.
+      const charge = sub.latest_charge ?? sub.charge;
+      if (charge && typeof charge === 'object') {
+        inline = Math.max(inline, amountOf(charge.amount_refunded));
+      }
+    }
+    let id: string | null =
+      typeof sub === 'string'
+        ? sub
+        : sub && typeof sub === 'object'
+          ? (typeof sub.id === 'string' ? sub.id : null)
+          : null;
+    if (!id) {
+      // Zweitform (ID direkt am Zahlungs-Objekt, z. B. `{ type:'payment_intent', id:'pi_…' }`).
+      for (const cand of [p.payment_intent, p.charge, p.payment_record, p.id]) {
+        if (typeof cand === 'string' && kindOfId(cand)) {
+          id = cand;
+          break;
+        }
+      }
+    }
+    refs.push({ kind: kind ?? (id ? kindOfId(id) : null), id, inlineRefunded: inline });
+  }
+  return refs;
+}
+
+/** Buchführung für die Refund-Lookups einer Seite (Budget + Entdopplung). */
+interface RefundLookup {
+  seen: Set<string>;
+  calls: number;
+  budget: number;
+}
+
+/**
+ * Letzter Beleg-Schritt: Erstattungen der Zahlungen einer Rechnung listen.
+ * `RefundListParams` kennt in dieser API-Version nur `charge` und `payment_intent`
+ * (`Refunds.d.ts`) — für `payment_record`-Zahlungen existiert keine Refund-Liste,
+ * dort zählt ausschließlich das Direktfeld. Mehrfach gelistete Erstattungen
+ * werden über die Refund-ID entdoppelt (kein doppelter Betrag), nicht belegte
+ * oder rückgängig gemachte Erstattungen zählen nicht. Ohne Beleg → 0.
+ */
+async function refundTotalFromRefs(
   stripe: import('stripe').default,
-  paymentIntentIds: string[],
+  refs: InvoicePaymentRef[],
+  lookup: RefundLookup,
 ): Promise<number> {
-  let sum = 0;
-  for (const id of paymentIntentIds) {
+  let total = 0;
+  for (const ref of refs) {
+    if (!ref.id) continue;
+    const param = ref.id.startsWith('pi_')
+      ? { payment_intent: ref.id }
+      : ref.id.startsWith('ch_')
+        ? { charge: ref.id }
+        : null;
+    if (!param) continue;
+    if (lookup.calls >= lookup.budget) break;
+    lookup.calls += 1;
     try {
-      const { data } = await stripe.refunds.list({ payment_intent: id, limit: 100 });
+      const { data } = await stripe.refunds.list({ ...param, limit: 100 });
       for (const refund of data) {
-        if (refund.status === 'failed' || refund.status === 'canceled') continue;
-        if (typeof refund.amount === 'number') sum += refund.amount;
+        if (
+          refund.status === 'failed' ||
+          refund.status === 'canceled' ||
+          refund.status === 'requires_action'
+        ) {
+          continue;
+        }
+        if (typeof refund.amount !== 'number') continue;
+        const seenId =
+          typeof refund.id === 'string'
+            ? refund.id
+            : `${ref.id}:${refund.amount}:${String(refund.created)}`;
+        if (lookup.seen.has(seenId)) continue;
+        lookup.seen.add(seenId);
+        total += refund.amount;
       }
     } catch (err) {
       console.error('[invoices] refund lookup failed:', err);
     }
   }
-  return sum;
-}
-
-// TEMPORÄR (Diagnose P2-Nachfass 2026-10-07): eine kompakte Form-Zeile pro
-// Serverprozess, damit live belegt werden kann, WO die Erstattung in dieser
-// API-Version steht. Wird nach der Live-Verifikation wieder entfernt.
-let refundShapeLogged = false;
-function logRefundShapeOnce(first: unknown): void {
-  if (refundShapeLogged) return;
-  refundShapeLogged = true;
-  const inv = first as Record<string, any>;
-  console.log(
-    '[invoices] refund-shape',
-    JSON.stringify({
-      number: inv?.number ?? null,
-      status: inv?.status ?? null,
-      amountPaid: inv?.amount_paid ?? null,
-      legacyAmountRefunded: inv?.amount_refunded ?? null,
-      postPaymentCreditNotes: inv?.post_payment_credit_notes_amount ?? null,
-      paymentsPresent: inv?.payments !== undefined,
-      payments: invoicePayments(first).map((entry) => {
-        const e = entry as Record<string, any>;
-        const p = e?.payment ?? e;
-        const id = typeof p === 'string' ? p : p?.id;
-        return {
-          type: p?.type ?? e?.type ?? null,
-          id: typeof id === 'string' ? id.slice(0, 12) : null,
-          amountRefunded: p?.amount_refunded ?? null,
-        };
-      }),
-    }),
-  );
+  return total;
 }
 
 /**
@@ -213,10 +295,10 @@ export async function fetchInvoicesForCustomer(
     const res = await stripe.invoices.list({ customer: customerId, limit });
     data = res.data as unknown[];
   }
-  if (data.length > 0) logRefundShapeOnce(data[0]);
-
   const summaries: InvoiceSummary[] = [];
-  let fallbackBudget = 5; // begrenzt die Zahl zusätzlicher Stripe-Calls pro Seitenaufruf
+  // Budget begrenzt die Zahl zusätzlicher Stripe-Calls pro Seitenaufruf; `seen`
+  // entdoppelt Erstattungen über mehrere Rechnungen/Zahlungen derselben Seite.
+  const lookup: RefundLookup = { seen: new Set<string>(), calls: 0, budget: 5 };
   for (const raw of data) {
     const inv = raw as Record<string, any>;
     const firstLine = inv?.lines?.data?.[0];
@@ -226,11 +308,12 @@ export async function fetchInvoicesForCustomer(
         : null;
     const refund = invoiceRefundState(inv as { amount_refunded?: unknown });
     let refunded = refund.amountRefunded;
-    if (refunded === 0 && fallbackBudget > 0) {
-      const ids = paymentIntentIdsOfInvoice(inv);
-      if (ids.length > 0) {
-        fallbackBudget -= 1;
-        refunded = await refundTotalFromPaymentIntents(stripe, ids);
+    if (refunded === 0) {
+      // Kein Erstattungsfeld am Zahlungs-Datensatz lesbar (nicht expandiert) →
+      // die Zahlung selbst benennen und ihre Erstattungen listen.
+      const refs = invoicePaymentRefs(inv?.payments);
+      if (refs.some((ref) => ref.id !== null)) {
+        refunded = await refundTotalFromRefs(stripe, refs, lookup);
       }
     }
     summaries.push({
