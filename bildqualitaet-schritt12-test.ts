@@ -197,9 +197,11 @@ check(
   mixedNewPayload?.prompt?.slice(0, 90) ?? 'null',
 );
 check(
-  '(b2) ALT: kollabierte Fassung liefert eine ANDERE (deutsche) Sprache',
-  !!mixedOldPayload && mixedOldPayload.prompt !== mixedNewPayload?.prompt && mixedOldPayload.prompt.includes('Produktfotografie'),
-  mixedOldPayload?.prompt?.slice(0, 90) ?? 'null',
+  // Schritt 4 (2026-10-07) hat den Befund behoben, den diese Zeile dokumentierte:
+  // der kollabierte DE/EN-gemischte Body liefert jetzt ENGLISCH statt Deutsch.
+  '(b2) kollabierte DE/EN-Fassung liefert ENGLISCH (Schritt 4: Sprachregel)',
+  (mixedNewPayload?.prompt ?? '').startsWith('Hyperrealistic'),
+  mixedNewPayload?.prompt?.slice(0, 90) ?? 'null',
 );
 
 // ── SCHRITT 2 ────────────────────────────────────────────────────────────────
@@ -234,7 +236,9 @@ const genSrc = readFileSync('src/ai/image-providers/generate.ts', 'utf8');
 check('(2) keine hart verdrahtete quality-Angabe mehr', !/quality:\s*['"]/.test(genSrc), (genSrc.match(/quality:[^\n]*/) ?? []).join(' | '));
 check('(2) beide Pfade übergeben `quality,` (generate + edit)', (genSrc.match(/\n\s*quality,\n/g) ?? []).length === 2, String((genSrc.match(/\n\s*quality,\n/g) ?? []).length));
 check('(2) images.edit-Pfad: input_fidelity unverändert high', /input_fidelity:\s*'high'/.test(genSrc));
-check('(2) model/size/n unverändert (gpt-image-1, n: 1, SIZES-Map)', /const MODEL = 'gpt-image-1';/.test(genSrc) && (genSrc.match(/n: 1,/g) ?? []).length === 2 && /'2:3': '1024x1536'/.test(genSrc));
+// Schritt 3 (2026-10-07) hat das Modell auf gpt-image-2 gehoben — hier wird die
+// AKTUELLE Wahrheit geprueft (Modell, n:1, unveraenderte 2:3-Auflösung).
+check('(2) model/size/n unverändert (Schritt 3: gpt-image-2, n: 1, SIZES-Map)', /const MODEL = 'gpt-image-2';/.test(genSrc) && (genSrc.match(/n: 1,/g) ?? []).length === 2 && /'2:3': '1024x1536'/.test(genSrc));
 check('(2) Edit-Pfad weiterhin über images.edit mit Referenzdatei', /client\.images\.edit\(/.test(genSrc) && /toFile\(parsed\.bytes/.test(genSrc));
 check('(2) kein quality-Wert außerhalb des Schalters in generate.ts', !/'xhigh'|'max'|'auto'/.test(genSrc));
 

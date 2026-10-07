@@ -1,4 +1,5 @@
 import type { ImageProvider } from './types';
+import type { ImageAspectRatio } from './types';
 
 const configured = false;
 
@@ -16,12 +17,13 @@ const FORMAT_INFO: Record<string, { width: number; height: number; icon: string;
   '4:3': { width: 1200, height: 900, icon: '🛍️', label: 'Etsy Product Mockup' },
   '1:1': { width: 1000, height: 1000, icon: '📱', label: 'Instagram Post' },
   '16:9': { width: 1600, height: 900, icon: '🖼️', label: 'Blog Hero Image' },
+  '9:16': { width: 720, height: 1280, icon: '📱', label: 'TikTok / Reels' },
 };
 
 /** Creates a branded SVG data URL while the image provider is not configured.
  *  `label` overrides the default English FORMAT_INFO label so callers can render
  *  the placeholder in the current UI language; falls back to the English default. */
-export function generatePlaceholderImage(aspectRatio: '2:3' | '1:1' | '4:3' | '16:9', label?: string): string {
+export function generatePlaceholderImage(aspectRatio: ImageAspectRatio, label?: string): string {
   const info = FORMAT_INFO[aspectRatio];
   const escapedLabel = `${label ?? info.label} (${aspectRatio})`.replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${info.width} ${info.height}" role="img" aria-label="${escapedLabel}">
