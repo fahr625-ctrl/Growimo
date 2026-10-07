@@ -145,6 +145,5 @@ API-Version führt (Konto `acct_1UFF1vCcIt8AuaKq` liegt im persönlichen Owner-K
 Plattform-Stripe-Credentials sehen es nicht; `invoice.amount_refunded` existiert im SDK-Typ nicht).
 Der Code behauptet daher weiterhin korrekt **keine** Erstattung, solange kein Betrag belegbar ist
 (fail-safe). **Owner-Check/Entscheidung:** Rechnung in Stripe „Growimo" öffnen und prüfen, ob dort
-. /etc/profile >/dev/null 2>&1; export PS1='\[\e[13m\e[0m\e[25m\e[0m\e[13m\e[0m\e[?25l\e[?25h\]\[\e[01;32m\]cto@blaxel\[\e[00m\]:\[\e[01;34m\]\w\[\e[00m\]\$ ' PROMPT_COMMAND= PAGER=cat LESS=-FRXberhaupt eine Erstattung *an der Rechnung* hängt (Erstattungen direkt am PaymentIntent sind der
 Rechnung ggf. nicht zugeordnet) — Erstattungsstatus im Rechnungsverlauf ist damit weiterhin der
 einzige offene Punkt dieser Abbildung.
