@@ -11,7 +11,11 @@
 //   [5] Handler: subscription.deleted → expired + Kündigungszustand zurückgesetzt
 //   [6] Handler: refund-bezogene Events → No-Op ohne DB-Wirkung (200-Semantik)
 //   [7] Mapping: invoiceRefundState + fetchInvoicesForCustomer (amount_refunded)
+//   [7b] Mapping-Nachfass: Erstattung aus invoice.payments (dahlia) + Refund-Listen-Fallback
 //   [8] Mapping: subscriptionCancelState (inkl. dahlia cancellation_details)
+//   [8b] Mapping-Nachfass: LIVE-Form der Portal-Kündigung (cancel_at_period_end=false
+//        + cancel_at + cancellation_details.reason=cancellation_requested) → gekündigt,
+//        auch OHNE zugestelltes customer.subscription.updated-Event (Live-Read)
 //
 // Usage (Repo-Wurzel, echte Test-DB):
 //   bun --env-file=.env p2-statusabbildung-test.ts
@@ -27,6 +31,7 @@ import {
 import { limitForPlan, FREE_LIMIT, PRO_LIMIT } from './src/lib/usage-guard';
 import {
   invoiceRefundState,
+  refundFromInvoicePayments,
   fetchInvoicesForCustomer,
   subscriptionCancelState,
   type InvoiceSummary,
@@ -288,6 +293,105 @@ async function main() {
     );
     check(summaries[1]?.refunded === false, 'Rechnung ohne Erstattung → weiter „Bezahlt"');
 
+    // ── [7b] P2-Nachfass: Erstattung in der API-Version dahlia ───────────────
+    // Live-Befund 2026-10-07: die echte Rechnung 83SWNKUD-0001 (real voll
+    // erstattet) liefert `amount_refunded` NICHT am Invoice-Objekt (Feld in
+    // 2026-06-24.dahlia entfernt) → Anzeige blieb „Bezahlt". Der Erstattungs-
+    // betrag steht am Zahlungs-Datensatz bzw. ist per Refund-Liste lesbar.
+    console.log('\n[7b] Erstattung aus Zahlungen (dahlia) + Refund-Listen-Fallback');
+    check(
+      invoiceRefundState({
+        amount_paid: 950,
+        payments: {
+          data: [
+            {
+              id: 'inpay_p2',
+              type: 'payment_record',
+              payment: {
+                type: 'payment_record',
+                id: 'pmt_rec_p2',
+                amount_refunded: { currency: 'eur', value: 950 },
+              },
+            },
+          ],
+        },
+      }).refunded === true,
+      'dahlia: payment_record.amount_refunded.value=950 → refunded=true',
+    );
+    check(
+      invoiceRefundState({
+        payments: { data: [{ payment: { type: 'charge', amount_refunded: 950 } }] },
+      }).amountRefunded === 950,
+      'charge.amount_refunded=950 → Betrag übernommen',
+    );
+    check(
+      invoiceRefundState({
+        amount_paid: 950,
+        payments: { data: [{ payment: { type: 'payment_intent', id: 'pi_p2' } }] },
+      }).refunded === false,
+      'nur payment_intent ohne Erstattungsfeld → false (kein erfundenes „Erstattet")',
+    );
+    check(refundFromInvoicePayments(undefined) === 0, 'keine payments → 0 (fail-safe)');
+
+    const dahliaInvoiceFixture = {
+      id: 'in_p2_dahlia',
+      number: '83SWNKUD-0001',
+      created: 1_759_800_000,
+      amount_paid: 950,
+      currency: 'eur',
+      status: 'paid',
+      lines: { data: [{ period: { start: 1_759_800_000, end: PERIOD_END }, description: 'Pro' }] },
+      payments: {
+        data: [
+          {
+            id: 'inpay_p2_dahlia',
+            type: 'payment_record',
+            payment: {
+              type: 'payment_record',
+              id: 'pmt_rec_p2_dahlia',
+              amount_refunded: { currency: 'eur', value: 950 },
+            },
+          },
+        ],
+      },
+    };
+    const dahliaStripe = {
+      invoices: { list: async () => ({ data: [dahliaInvoiceFixture] }) },
+    } as unknown as import('stripe').default;
+    const dahliaSummaries = await fetchInvoicesForCustomer(dahliaStripe, CUS);
+    check(
+      dahliaSummaries[0]?.refunded === true && dahliaSummaries[0]?.amountRefunded === 950,
+      'Live-Form (ohne amount_refunded am Invoice) → „Erstattet 9,50 €"',
+    );
+
+    const piInvoiceFixture = {
+      ...dahliaInvoiceFixture,
+      id: 'in_p2_pi',
+      payments: { data: [{ payment: { type: 'payment_intent', id: 'pi_p2_fallback' } }] },
+    };
+    let refundListCalls = 0;
+    const piStripe = {
+      invoices: { list: async () => ({ data: [piInvoiceFixture] }) },
+      refunds: {
+        list: async () => {
+          refundListCalls += 1;
+          return { data: [{ amount: 950, status: 'succeeded' }] };
+        },
+      },
+    } as unknown as import('stripe').default;
+    const piSummaries = await fetchInvoicesForCustomer(piStripe, CUS);
+    check(
+      piSummaries[0]?.refunded === true && piSummaries[0]?.amountRefunded === 950,
+      'Fallback: Refund-Liste zum PaymentIntent → 950 erkannt',
+    );
+    check(refundListCalls === 1, 'Fallback nur bei fehlendem Erstattungsfeld (1 Call)');
+
+    const plainStripe = {
+      invoices: { list: async () => ({ data: [openInvoiceFixture] }) },
+    } as unknown as import('stripe').default;
+    const plainSummaries = await fetchInvoicesForCustomer(plainStripe, CUS);
+    check(plainSummaries[0]?.refunded === false, 'Rechnung ohne jede Erstattungsspur → false');
+
     // ── [8] subscriptionCancelState (inkl. dahlia-Variante) ──────────────────
     console.log('\n[8] Mapping: cancel_at_period_end / cancel_at');
     check(
@@ -316,6 +420,47 @@ async function main() {
     check(
       subscriptionCancelState({ cancel_at_period_end: true, cancel_at: null }).cancelAt === null,
       'cancel_at=null bleibt null (UI nutzt dann das Periodenende)',
+    );
+    // ── [8b] P2-Nachfass: exakt die LIVE beobachtete Portal-Kündigung ────────
+    // Live-Befund 2026-10-07 (Owner-Abo, im Portal gekündigt „läuft ab 07.11."):
+    // Stripe lieferte `cancel_at_period_end:false` + `cancel_at` = 2026-11-07T11:57:13Z
+    // → die Anzeige blieb „Pro – Aktiv". Genau dieser Fall muss „gekündigt" ergeben,
+    // auch ohne dass ein `customer.subscription.updated` zugestellt wurde (Live-Read).
+    console.log('\n[8b] Live-Form der Portal-Kündigung (ohne Webhook-Event)');
+    const liveShapedSub = {
+      cancel_at_period_end: false,
+      cancel_at: CANCEL_AT,
+      canceled_at: 1_759_800_123,
+      cancellation_details: { reason: 'cancellation_requested' },
+    } as const;
+    check(
+      subscriptionCancelState(liveShapedSub).cancelAtPeriodEnd === true,
+      'Live-Form (cancel_at_period_end=false + cancel_at + reason) → gekündigt',
+    );
+    check(
+      subscriptionCancelState({ cancel_at: CANCEL_AT }).cancelAtPeriodEnd === true,
+      'cancel_at allein (terminierte Kündigung) → gekündigt',
+    );
+    check(
+      subscriptionCancelState({ cancellation_details: { reason: 'cancellation_requested' } })
+        .cancelAtPeriodEnd === true,
+      'reason=cancellation_requested (echte dahlia-Enum) → gekündigt',
+    );
+    check(
+      subscriptionCancelState({ canceled_at: 1_759_800_123 }).cancelAtPeriodEnd === true,
+      'canceled_at gesetzt (Kündigungs-Request) → gekündigt',
+    );
+    check(
+      subscriptionCancelState({ cancel_at: CANCEL_AT }).cancelAt === CANCEL_AT,
+      'cancel_at = 07.11.2026 wird als „läuft bis"-Datum durchgereicht',
+    );
+    check(
+      subscriptionCancelState({
+        cancel_at: null,
+        canceled_at: null,
+        cancellation_details: { reason: null },
+      }).cancelAtPeriodEnd === false,
+      'aktives Abo ohne jedes Kündigungssignal → weiter aktiv (keine Falschaussage)',
     );
   } finally {
     try {

@@ -118,10 +118,15 @@ function BillingContent() {
         setInvoicesError(overview.error);
         setLivePeriodEnd(overview.currentPeriodEnd);
         // P2: Live-Kündigungszustand (Stripe = Autorität; DB-Wert nur Fallback).
-        setCancelState({
-          atPeriodEnd: overview.cancelAtPeriodEnd,
-          cancelAt: overview.cancelAt,
-        });
+        // Nur übernehmen, wenn das Overview wirklich gerechnet hat — bei einem
+        // Komplett-Fehler ('billing_overview_failed') sind die Felder Defaults und
+        // dürfen einen korrekten DB-Wert nicht überschreiben.
+        if (overview.error !== 'billing_overview_failed') {
+          setCancelState({
+            atPeriodEnd: overview.cancelAtPeriodEnd,
+            cancelAt: overview.cancelAt,
+          });
+        }
       }
     } catch {
       // kein Key/Session → Store-Fallback (bisheriges Verhalten)
@@ -205,7 +210,17 @@ function BillingContent() {
     ? new Date(cancelState.cancelAt)
     : sub.cancelAt;
   const cancelUntilDate = cancelAtDate ?? shownPeriodEnd;
-  const isCancelledAtPeriodEnd = cancelAtPeriodEnd && sub.status !== 'expired';
+  // P2-Nachfass: der Zusatz „läuft bis <Datum>" ist nur dann wahr, wenn der
+  // Zugriff wirklich noch läuft (Status aktiv) und der Termin in der Zukunft
+  // liegt. Sonst bleibt es beim schlichten „Gekündigt" — keine Aussage über
+  // einen bereits vergangenen Zeitraum.
+  const cancelUntilMs = cancelUntilDate ? cancelUntilDate.getTime() : null;
+  const isCancelledAtPeriodEnd =
+    cancelAtPeriodEnd &&
+    sub.status === 'active' &&
+    cancelUntilMs !== null &&
+    cancelUntilMs > Date.now();
+  const isCancelled = isCancelledAtPeriodEnd || sub.status === 'cancelled';
 
   const statusLabel = (s: string): string => {
     if (isCancelledAtPeriodEnd) {
@@ -316,7 +331,7 @@ function BillingContent() {
             </span>
             <span
               className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                isCancelledAtPeriodEnd || sub.status === 'cancelled'
+                isCancelled
                   ? 'bg-amber-100 text-amber-700'
                   : sub.status === 'active'
                     ? 'bg-emerald-100 text-emerald-700'
