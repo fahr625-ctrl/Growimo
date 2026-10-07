@@ -18,6 +18,26 @@ const SIZES: Record<string, string> = {
   '4:3': '1536x1024',
   '16:9': '1536x1024',
 };
+
+/** Werte, die die installierte SDK (openai ^6) für `quality` akzeptiert. */
+export type ImageQuality = 'low' | 'medium' | 'high';
+
+/**
+ * Qualitätsstufe für BEIDE Bild-Pfade (Schritt 2, Owner-Freigabe 2026-10-07).
+ *
+ * Vorgabe: Default `'high'` — **fail-closed**. Nur die drei von der SDK
+ * akzeptierten Werte (`low` | `medium` | `high`, siehe
+ * node_modules/openai/resources/images.d.ts) werden durchgelassen; JEDER andere
+ * Wert (unset, Tippfehler, oder Qualitätsstufen neuerer Modelle wie `auto` /
+ * `xhigh` / `max`) fällt auf `'high'` zurück, damit nie ein ungültiger Wert an
+ * `images.generate` / `images.edit` geht. Rückwärts-Pfad: `IMAGE_QUALITY=medium`
+ * stellt exakt das alte Verhalten (Kosten) wieder her — ohne Deploy.
+ */
+export function resolveImageQuality(): ImageQuality {
+  const raw = process.env.IMAGE_QUALITY;
+  return raw === 'low' || raw === 'medium' || raw === 'high' ? raw : 'high';
+}
+
 // gpt-image-1 always returns b64_json, so we hand the client a
 // data:image/png;base64 URL directly. No filesystem writes are involved — this
 // keeps the function compatible with Vercel serverless (read-only filesystem).
@@ -38,6 +58,8 @@ export async function generateImage(
   const client = new OpenAI({ apiKey });
   const size = SIZES[ratio] ?? '1024x1024';
   const mode = imageRunMode(referenceImageData);
+  // Derselbe Env-Schalter für beide Pfade (Default 'high', siehe oben).
+  const quality = resolveImageQuality();
 
   if (mode === 'edit') {
     const parsed = parseImageDataUrl(referenceImageData);
@@ -52,7 +74,7 @@ export async function generateImage(
       image,
       prompt,
       size,
-      quality: 'medium',
+      quality,
       // Produkttreue: gpt-image-1 soll das Eingabebild so genau wie möglich
       // übernehmen (unterstützt nur gpt-image-1 / -1.5).
       input_fidelity: 'high',
@@ -67,7 +89,7 @@ export async function generateImage(
     model: MODEL,
     prompt,
     size,
-    quality: 'medium',
+    quality,
     n: 1,
   });
   const b64 = response.data?.[0]?.b64_json;
