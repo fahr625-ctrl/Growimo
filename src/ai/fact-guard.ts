@@ -583,7 +583,37 @@ export function resultFactViolations(
   return factViolations(blob, groundingBlob, declared);
 }
 
-/** Letzte Instanz: entfernt jeden Satz mit einer erfundenen Behauptung. */
+/**
+ * Satz-/Blockgrenzen MIT ihren Original-Sepatoren (Capture-Gruppe ⇒
+ * `[Stück, Separator, Stück, …]`). Grundlage des separator-erhaltenden Re-Joins
+ * in `sanitizeFactText` (P1-Fix 2026-10-07).
+ */
+const SENTENCE_SPLIT_KEEP_SEP_RE = /((?<=[.!?])\s+|\n+)/;
+
+/**
+ * Letzte Instanz: entfernt jeden Satz mit einer erfundenen Behauptung.
+ *
+ * P1-Fix 2026-10-07 (docs/bildqualitaet-analyse-empfehlung-2026-10-07.md §8,
+ * live belegt): Der Re-Join war `kept.join(' ')` + `\s{2,} → ' '` und zerstörte
+ * damit JEDE Abschnittsstruktur — der ganze Body landete in EINER Zeile
+ * („Textwand" in /app/projects; live 4/41 Pinterest-, 6/17 SEO-Blog-Bodies).
+ * Folge: der zeilenbasierte Bildprompt-Parser (`strategy-image.ts`) fand den
+ * Abschnitt „9. KI-Bild-Prompt (ENGLISCH)" nicht mehr → `extractStrategyImage`
+ * lieferte `null` (kein „Bild jetzt erstellen"-Knopf) bzw. im
+ * Ein-Zeilen-Fallback die FALSCHE Sprache.
+ *
+ * Neu: Satz-/Blockgrenzen werden MIT Separator geschnitten und beim Re-Join
+ * wieder mit dem jeweils behaltenen Stück zusammengesetzt. Entscheidend ist, dass
+ * ein behaltenes Stück seinen VORANGEHENDEN Original-Separator mitnimmt (nicht
+ * seinen nachfolgenden): Bei „… Wohnzimmer. Sie fasst 300 ml …\n3. Fokus-Keywords"
+ * ist der „\n" vor „3." genau der Umbruch, der die nächste Überschrift auf ihre
+ * eigene Zeile stellt — nimmt man stattdessen den Separator NACH dem gelöschten
+ * Satz („ "), klebt die nächste Überschrift am Vorsatz („…Wohnzimmer.3. Fokus…").
+ * Zeilenumbrüche vor nummerierten Überschriften, Leerzeilen zwischen Abschnitten
+ * und Listenmarker bleiben dadurch erhalten. Semantik-neutral: die
+ * Fakten-Prüfregeln, die Auswahl des fliegenden Satzes und das Grounding sind
+ * unverändert; Bodies ohne Verstoß gehen weiter byte-identisch (`=== text`) durch.
+ */
 export function sanitizeFactText(
   text: string,
   groundingBlob: string,
@@ -592,12 +622,23 @@ export function sanitizeFactText(
   if (typeof text !== 'string' || text.trim() === '') return text;
   const ctx = buildCheckContext(groundingBlob, declared);
   const values = declaredFactValues(ctx);
-  const parts = text.split(/(?<=[.!?])\s+|\n+/);
-  const kept = parts.filter(
-    (part) => part.trim() === '' || matchViolationsInSentence(part, ctx, values).length === 0,
-  );
-  if (kept.length === parts.length) return text;
-  return kept.join(' ').replace(/\s{2,}/g, ' ').trim();
+  const pieces = text.split(SENTENCE_SPLIT_KEEP_SEP_RE);
+  let removedAny = false;
+  const kept: string[] = [];
+  for (let i = 0; i < pieces.length; i += 2) {
+    const part = pieces[i] ?? '';
+    if (part.trim() !== '' && matchViolationsInSentence(part, ctx, values).length > 0) {
+      removedAny = true;
+      continue; // Dieser Satz fällt — und mit ihm der Separator VOR ihm (nicht der danach).
+    }
+    // Separator VOR dem behaltenen Stück = ursprüngliche Trennung zum Vorsatz.
+    const preceding = i > 0 ? pieces[i - 1] : undefined;
+    if (preceding !== undefined) kept.push(preceding);
+    kept.push(part);
+  }
+  if (!removedAny) return text;
+  // Nur Leerraum-Reste INNERHALB einer Zeile glätten — Umbrüche bleiben Struktur.
+  return kept.join('').replace(/[^\S\n]{2,}/g, ' ').trim();
 }
 
 /** Satz-Eliminierung für ein ganzes Asset (Titel zuerst); leer = verwerfen. */
