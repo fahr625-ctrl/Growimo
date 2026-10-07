@@ -74,10 +74,15 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
     const email = await qGetUserEmailByClerkId(userId);
     const isBeta = email ? await isBetaUserEmail(email) : false;
 
-    // Promotion-Code-ID auflösen: discounts[].promotion_code erwartet die
-    // promo_…-ID, NICHT den Code-String („BETA50" wäre ein API-Fehler).
-    // Fehlt die ID (Code nicht angelegt/inaktiv) → kein Discount statt Fehler
-    // (fail-closed: Beta-Nutzer zahlt dann den Normalpreis, kein Absturz).
+    // Beta-Rabatt auflösen (bevorzugt Promotion-Code, sonst Coupon):
+    // discounts[].promotion_code erwartet die promo_…-ID, NICHT den Code-String
+    // („BETA50" wäre ein API-Fehler). Fehlt die ID → Fallback auf den Coupon
+    // (discounts[].coupon akzeptiert die Coupon-ID als String) statt gar keinem
+    // Rabatt. Coupon-Weg ist der aktuell funktionierende Live-Weg (die
+    // Plattform-Stripe-API kann Promotion-Codes nicht anlegen, Stand 2026-10-06);
+    // Promo-Code wird bevorzugt, falls in Zukunft vorhanden.
+    // Fail-closed: Discount nur für isBeta, nie werfen.
+    const couponId = process.env.STRIPE_BETA_COUPON || 'BETA50';
     let promoId: string | undefined;
     if (isBeta) {
       const promoCode = process.env.STRIPE_BETA_PROMO_CODE || 'BETA50';
@@ -104,7 +109,13 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
       client_reference_id: userId,
       success_url: `${origin}/app/billing?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/app/pricing`,
-      ...(isBeta && promoId ? { discounts: [{ promotion_code: promoId }] } : {}),
+      ...(isBeta
+        ? {
+            discounts: [
+              promoId ? { promotion_code: promoId } : { coupon: couponId },
+            ],
+          }
+        : {}),
       metadata: {
         userId,
       },
