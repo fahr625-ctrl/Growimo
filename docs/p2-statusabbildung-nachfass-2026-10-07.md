@@ -118,3 +118,33 @@ src/db/schema.ts` = **leer**; `customer.subscription.updated/deleted`-Verarbeitu
 (nutzt nur die korrigierte reine Funktion); `usage_monthly` unberührt; Pro-Freischaltung nach wie
 vor allein aus der DB (`qGetPlanTier`) — die Kündigungsfelder werden von keiner Tarif-/Quota-Abfrage
 gelesen (Suite-Check `[4]`).
+
+## 5b) Live-Ergebnis (nach dem Deploy, read-only ServerFn-Aufruf mit Owner-Session)
+
+Roh-Ergebnis: `docs/p2-statusabbildung-nachfass-live.txt` (Deployment `site-cb6gdw8jd`, www 200).
+
+**Kündigung: BESTÄTIGT LIVE.** `getBillingOverview` gegen die neue Produktion lieferte
+
+```json
+{ "cancelAtPeriodEnd": true,          ← vorher false  ⇒ UI: „Gekündigt – läuft bis 07.11.2026"
+  "cancelAt": "2026-11-07T11:57:13.000Z",
+  "currentPeriodEnd": "2026-11-07T11:57:13.000Z",
+  "error": null }
+```
+
+Die DB-Zeile des Owners ist unverändert (`cancel_at_period_end=false, cancel_at=null`) — der
+Kündigungshinweis ist damit **live aus Stripe** gelesen und hängt nicht am fehlenden
+`customer.subscription.updated`-Event (genau der geforderte robuste Weg).
+
+**Refund: live NICHT sichtbar — ehrlicher Befund.** Dieselbe Antwort liefert für die real erstattete
+Rechnung `83SWNKUD-0001` weiter `amountRefunded: 0, refunded: false`, `status: paid`. Der neue,
+versionsrichtige Pfad (`invoice.payments[].payment`) fand **kein** Erstattungssignal und der
+PaymentIntent-Fallback feuerte nicht, weil die Rechnung keinen `pi_…`-Zahlungsbezug in den
+`payments`-Daten trägt. Von außen ist nicht bestimmbar, wo Stripe die Erstattung in dieser
+API-Version führt (Konto `acct_1UFF1vCcIt8AuaKq` liegt im persönlichen Owner-Konto, die
+Plattform-Stripe-Credentials sehen es nicht; `invoice.amount_refunded` existiert im SDK-Typ nicht).
+Der Code behauptet daher weiterhin korrekt **keine** Erstattung, solange kein Betrag belegbar ist
+(fail-safe). **Owner-Check/Entscheidung:** Rechnung in Stripe „Growimo" öffnen und prüfen, ob dort
+. /etc/profile >/dev/null 2>&1; export PS1='\[\e[13m\e[0m\e[25m\e[0m\e[13m\e[0m\e[?25l\e[?25h\]\[\e[01;32m\]cto@blaxel\[\e[00m\]:\[\e[01;34m\]\w\[\e[00m\]\$ ' PROMPT_COMMAND= PAGER=cat LESS=-FRXberhaupt eine Erstattung *an der Rechnung* hängt (Erstattungen direkt am PaymentIntent sind der
+Rechnung ggf. nicht zugeordnet) — Erstattungsstatus im Rechnungsverlauf ist damit weiterhin der
+einzige offene Punkt dieser Abbildung.

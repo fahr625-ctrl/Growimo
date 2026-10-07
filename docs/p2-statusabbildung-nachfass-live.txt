@@ -1,0 +1,102 @@
+=== DB subscriptions (neueste 5) ===
+[
+ {
+  "clerk_id": "user_3H2trJXHwzXmJF2XTGQ2PMEwjkD",
+  "email": "fahr625@gmail.com",
+  "plan_tier": "pro",
+  "status": "active",
+  "stripe_customer_id": "cus_VOgqXAMdozrKwF",
+  "stripe_subscription_id": "sub_1UNtUMCcIt8AuaKq0nSDylRi",
+  "current_period_end": "2026-11-07T11:57:13.000Z",
+  "cancel_at_period_end": false,
+  "cancel_at": null,
+  "updated_at": "2026-10-07T11:58:30.884Z"
+ },
+ {
+  "clerk_id": "user_3JvPQaw88kW1uuNrD34EveW7hPR",
+  "email": "stripe-ct-k8fa1f@ctomail.io",
+  "plan_tier": "pro",
+  "status": "expired",
+  "stripe_customer_id": "cus_VLQ7ZBRPoDKm9C",
+  "stripe_subscription_id": "sub_1UKjHiCcIt8AuaKqtAp2445d",
+  "current_period_end": null,
+  "cancel_at_period_end": false,
+  "cancel_at": null,
+  "updated_at": "2026-09-28T18:28:34.775Z"
+ },
+ {
+  "clerk_id": "user_3JPHQZmaB1xYvvHBAQbQTs0ZJQe",
+  "email": "anon-user_3JPHQZmaB1xYvvHBAQbQTs0ZJQe@growimo.local",
+  "plan_tier": "pro",
+  "status": "expired",
+  "stripe_customer_id": "cus_VGo0uqHD0btS4l",
+  "stripe_subscription_id": "sub_1UGGP2CcIt8AuaKqudMA075P",
+  "current_period_end": null,
+  "cancel_at_period_end": false,
+  "cancel_at": null,
+  "updated_at": "2026-09-16T10:49:28.099Z"
+ },
+ {
+  "clerk_id": "user_3JPGQxvcn5yXJHZCoA85w6xOYL2",
+  "email": "anon-user_3JPGQxvcn5yXJHZCoA85w6xOYL2@growimo.local",
+  "plan_tier": "pro",
+  "status": "expired",
+  "stripe_customer_id": "cus_VGnsrR8kAH1WWO",
+  "stripe_subscription_id": "sub_1UGGH9CcIt8AuaKqEdYy3F7p",
+  "current_period_end": null,
+  "cancel_at_period_end": false,
+  "cancel_at": null,
+  "updated_at": "2026-09-16T10:41:18.636Z"
+ },
+ {
+  "clerk_id": "user_3JKMIRGHp5O4dHgFvHdC6hvRQzb",
+  "email": "anon-user_3JKMIRGHp5O4dHgFvHdC6hvRQzb@growimo.local",
+  "plan_tier": "pro",
+  "status": "expired",
+  "stripe_customer_id": "cus_test_e2e_probe",
+  "stripe_subscription_id": "sub_e2e_probe",
+  "current_period_end": null,
+  "cancel_at_period_end": false,
+  "cancel_at": null,
+  "updated_at": "2026-09-14T17:00:27.921Z"
+ }
+]
+owner clerk=user_3H2trJX… sub=sub_1UNtUMCc…
+DB cancel_at_period_end=false cancel_at=null updated_at=Wed Oct 07 2026 11:58:30 GMT+0000 (Coordinated Universal Time)
+session create: HTTP 200 id=sess_3KN0YHK…
+token: HTTP 200 jwtLen=793
+
+=== getBillingOverview? 1e32769b → HTTP 200 len=1356 ===
+decoded: {
+ "signedIn": true,
+ "stripeConfigured": true,
+ "stripeCustomerId": "cus_VOgqXAMdozrKwF",
+ "stripeSubscriptionId": "sub_1UNtUMCcIt8AuaKq0nSDylRi",
+ "currentPeriodEnd": "2026-11-07T11:57:13.000Z",
+ "cancelAtPeriodEnd": true,
+ "cancelAt": "2026-11-07T11:57:13.000Z",
+ "invoices": [
+  {
+   "id": "in_1UNtTBCcIt8AuaKqKQ8EcPMU",
+   "number": "83SWNKUD-0001",
+   "created": 1791374233,
+   "amountPaid": 950,
+   "amountRefunded": 0,
+   "refunded": false,
+   "currency": "eur",
+   "status": "paid",
+   "hostedInvoiceUrl": "https://invoice.stripe.com/i/acct_1UFF1vCcIt8AuaKq/live_YWNjdF8xVUZGMXZDY0l0OEF1YUtxLF9WT2dzYURkRkRVSE0wVVMzOUYyZ0R1WXRyd3ZITWVBLDE4MTkyMzU2NA0200KbjihoKm?s=ap",
+   "invoicePdf": "https://pay.stripe.com/invoice/acct_1UFF1vCcIt8AuaKq/live_YWNjdF8xVUZGMXZDY0l0OEF1YUtxLF9WT2dzYURkRkRVSE0wVVMzOUYyZ0R1WXRyd3ZITWVBLDE4MTkyMzU2NA0200KbjihoKm/pdf?s=ap",
+   "periodStart": 1791374233,
+   "periodEnd": 1794052633,
+   "description": "1 × Growimo Pro (zu €19.00 / month)"
+  }
+ ],
+ "error": null
+}
+
+=== other-fn 89ea514f → HTTP 405 len=29 ===
+raw:expected POST method. Got GET
+
+revoke: HTTP 200
+LIVE_EXIT=0
