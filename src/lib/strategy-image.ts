@@ -1,4 +1,4 @@
-import type { GeneratedImage } from '~/ai/image-providers/types';
+import { isImageAspectRatio, type GeneratedImage } from '~/ai/image-providers/types';
 import { sanitizeReferenceImageData, MAX_REFERENCE_DATA_URL_LENGTH } from '~/ai/image-providers/reference';
 import { sanitizeAppContext, type AppContextSource } from '~/lib/app-context';
 
@@ -109,8 +109,35 @@ function findPromptSection(sections: Map<string, string>): string | null {
 const INLINE_PROMPT_HEAD_RE =
   /(?:(?:pinterest|ki)[- ]?)?bild[- ]?prompt|image[- ]?prompt/i;
 
-/** Kopf-Muster für beliebige nummerierte Überschriften (Abschnitts-Grenze). */
-const INLINE_HEADING_BOUNDARY_RE = /[ \t]+\d{1,2}\.[ \t]+[A-ZÄÖÜ]/;
+/** Kopf-Muster für beliebige nummerierte Überschriften (Abschnitts-Grenze).
+ *  Schritt 4: auch ein ZEILENANFANG ist eine Grenze (`\n10. …`) — mit dem
+ *  separator-erhaltenden Re-Join von 2026-10-07 kommen Zeilenumbrüche wieder an. */
+const INLINE_HEADING_BOUNDARY_RE = /[ \t\n]+\d{1,2}\.[ \t]+[A-ZÄÖÜ]/;
+
+/** Inhalt, der selbst wie eine (nummerierte) Überschrift aussieht. */
+const INLINE_NUMBERED_HEAD_RE = /^\d{1,2}\.[ \t]+\S/;
+/** Inhalt, der NUR ein Bild-/Sprach-Überschriftenkopf ist (kein Prompt-Text). */
+const INLINE_HEAD_ONLY_RE =
+  /^(?:(?:pinterest|ki)[ \t-]*)?(?:bild[ \t-]?prompt|bild[ \t-]?konzept|image[ \t-]?prompt)\s*(?:\((?:(?:englisch|english|en|deutsch|german|de))\))?\s*[:\-–—]?\s*$/i;
+
+/** Räumt einen inline gelesenen Abschnittsinhalt auf (leer = unbrauchbar). */
+function cleanInlineSection(raw: string): string {
+  let text = String(raw ?? '').replace(/^[\s:–—-]+/, '');
+  // Sprach-Marker der Überschrift gehört nicht in den Prompt — egal ob
+  // (ENGLISCH) oder (DEUTSCH), mit/ohne Klammern.
+  text = text.replace(
+    /^(?:\(?\s*(?:englisch|english|en|deutsch|german|de)\s*\)?)\s*[:\-–—]?\s*/i,
+    '',
+  );
+  text = text.trim();
+  if (!text) return '';
+  // NIE eine Überschrift als Inhalt zurückgeben: Steht am Anfang noch eine
+  // nummerierte Überschrift (z. B. „10. Pinterest Alt-Text …") oder ist der
+  // „Inhalt" nur der Überschriftenkopf, ist der Abschnitt in Wahrheit LEER
+  // (früher wanderte genau dieser Artefakt-Text als Prompt ins Studio).
+  if (INLINE_NUMBERED_HEAD_RE.test(text) || INLINE_HEAD_ONLY_RE.test(text)) return '';
+  return text;
+}
 
 /**
  * Befund 2026-10-05 (Station 5): Manche Läufe liefern den KOMPLETTEN Body ohne
@@ -129,19 +156,36 @@ const INLINE_HEADING_BOUNDARY_RE = /[ \t]+\d{1,2}\.[ \t]+[A-ZÄÖÜ]/;
  * ORIGINAL-Schreibweise (der zeilenbasierte Parser würde kleinschreiben).
  * Wird NUR benutzt, wenn die normale Abschnitts-Erkennung nichts findet — für
  * alle bisher funktionierenden Bodies ändert sich damit kein Byte.
+ *
+ * Schritt 4 (Owner-Freigabe 2026-10-07) — Sprachregel: Bei MEHREREN Treffern
+ * (z. B. seo_blog: „11. Pinterest-Bildprompt (DEUTSCH)" vor „12. … (ENGLISCH)")
+ * wird die ENGLISCHE Fassung bevorzugt — vorher nahm die Funktion stumpf den
+ * ERSTEN Treffer und lieferte damit den deutschen Abschnitt an das Bildmodell.
+ * Ein leerer Abschnitt liefert `null` statt der nächsten Überschrift.
  */
-function extractInlineSection(body: string, headRe: RegExp): string {
+function extractInlineSection(body: string, headRe: RegExp): string | null {
   const re = new RegExp(
     `(?:^|[^\\p{L}\\d])(\\d{1,2})\\.[ \\t]*((?:[^\\d\\n]{0,60}?)(?:${headRe.source}))([^]*?)(?=${INLINE_HEADING_BOUNDARY_RE.source}|$)`,
-    'iu',
+    'giu',
   );
-  const m = re.exec(body);
-  if (!m) return '';
-  // Sprach-Marker der Überschrift („(ENGLISCH)") gehört nicht in den Prompt.
-  return m[3]
-    .replace(/^[\s:–—-]+/, '')
-    .replace(/^\(\s*(?:englisch|english|en)\s*\)\s*[:\-–—]?\s*/i, '')
-    .trim();
+  const hits: Array<{ english: boolean; text: string }> = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body)) !== null) {
+    if (m.index === re.lastIndex) re.lastIndex++;
+    const heading = String(m[2] ?? '');
+    const lead = String(m[3] ?? '');
+    // Der Sprachmarker hängt je nach Body-Form an der Überschrift ODER am Anfang
+    // des Abschnitts-Inhalts („11. Bildprompt" + „ (DEUTSCH) Titel-Text …").
+    const marker = lead.match(/^\s*\(?\s*(englisch|english|en|deutsch|german|de)\s*\)?/i)?.[1]?.toLowerCase();
+    const english = marker
+      ? marker === 'englisch' || marker === 'english' || marker === 'en'
+      : /englisch|english/i.test(heading) || /image[ \t-]?prompt/i.test(heading);
+    const text = cleanInlineSection(m[3] ?? '');
+    if (text) hits.push({ english, text });
+  }
+  if (hits.length === 0) return null;
+  // ENGLISCH bevorzugen (Bildmodelle verstehen diesen Prompt), sonst erster Treffer.
+  return (hits.find((h) => h.english) ?? hits[0]).text;
 }
 
 /** Erster Satz/Baustein eines kollabierten Abschnitts (einzeilig, copy-fertig). */
@@ -152,7 +196,10 @@ function firstSegmentOf(text: string): string {
 /** Bekannte Seitenverhältnis-Schreibweisen → Studio-Format (fail-closed: null). */
 const RATIO_MAP: Record<string, GeneratedImage['aspectRatio']> = {
   '2:3': '2:3',
-  '9:16': '2:3',
+  // Schritt 3 (Owner-Freigabe 2026-10-07): `9:16` wurde hier STILL auf `2:3`
+  // gemappt — ein TikTok-/Reels-Konzept (Hochkant) bekam so ein Pinterest-Format.
+  // Jetzt wird das Verhältnis ehrlich weitergegeben (Studio-Format `9:16`).
+  '9:16': '9:16',
   '1:1': '1:1',
   '4:3': '4:3',
   '3:4': '4:3',
@@ -192,11 +239,28 @@ function extractOverlay(concept: string): string {
   return afterColon.replace(/^„|"|'/, '').replace(/[„"']$/, '');
 }
 
+/**
+ * Format-Heuristik aus dem Content-Typ (+ Body-Hinweise).
+ *
+ * Schritt 3 (Owner-Freigabe 2026-10-07): `9:16` ist ein eigenes Format. Vorher
+ * fiel jeder TikTok-/Reels-/Shorts-Content auf `2:3` zurück (Pinterest-Format).
+ * Reihenfolge unverändert: erst die bestehenden Kanal-Fälle (Etsy/Instagram/
+ * Blog), dann der neue Hochkant-Fall, dann Pinterest als Fallback.
+ */
 function detectRatio(contentType: string, body: string): GeneratedImage['aspectRatio'] {
   const ct = String(contentType ?? '').toLowerCase();
   if (/etsy/.test(ct)) return '4:3';
   if (/instagram|social/.test(ct)) return '1:1';
   if (/blog|seo/.test(ct)) return '16:9';
+  if (/tiktok|reel|short|hochkant|vertical/.test(ct)) return '9:16';
+  // Hochkant-/Kurzvideo-Hinweise aus dem Konzept („9:16", „TikTok", „Reels",
+  // „Shorts", „Short-Form"): explizite Verhältnisse gewinnen weiterhin VOR
+  // dieser Heuristik (siehe extractStrategyImage). Bewusst NICHT ausreichend
+  // ist „hochkant"/„vertikal" allein — Pinterest-Pins sind ebenfalls hochkant
+  // (2:3), ein solcher Hinweis würde den Pin sonst falsch auf 9:16 kippen.
+  const bodyText = String(body ?? '').toLowerCase();
+  if (/9\s*:\s*16/.test(bodyText)) return '9:16';
+  if (/\btiktok\b|\breels?\b|\bshorts?\b|short[- ]form|\bvideo-format\b/.test(bodyText)) return '9:16';
   // Pinterest strategies always demand vertical 2:3 — fall back to that.
   return '2:3';
 }
@@ -240,14 +304,14 @@ export function extractStrategyImage(
   // Fallback für kollabierte Bodies (Befund 2026-10-05, siehe extractInlineSection):
   // steht der Prompt inline in einer einzigen Zeile, liefert die zeilenbasierte
   // Erkennung nichts — dann direkt aus dem Fließtext lesen.
-  const inlinePrompt = sectionsPrompt ? '' : extractInlineSection(body, INLINE_PROMPT_HEAD_RE);
+  const inlinePrompt = sectionsPrompt ? '' : (extractInlineSection(body, INLINE_PROMPT_HEAD_RE) ?? '');
   const prompt = sectionsPrompt || inlinePrompt;
   const promptLine = firstLineOf(prompt) || firstSegmentOf(inlinePrompt);
   if (!promptLine) return null;
 
   const concept =
     findSectionValue(sections, ['bildkonzept']) ||
-    (sectionsPrompt ? '' : extractInlineSection(body, /bild[- ]?konzept/i));
+    (sectionsPrompt ? '' : (extractInlineSection(body, /bild[- ]?konzept/i) ?? ''));
   const overlay = concept ? extractOverlay(concept) : '';
 
   return {
@@ -309,10 +373,8 @@ export function consumeStrategyPrefill(now: number = Date.now()): StrategyImageP
     ) {
       return null;
     }
-    const ratio: GeneratedImage['aspectRatio'] = ['2:3', '4:3', '1:1', '16:9'].includes(
-      parsed.ratio as string,
-    )
-      ? (parsed.ratio as GeneratedImage['aspectRatio'])
+    const ratio: GeneratedImage['aspectRatio'] = isImageAspectRatio(parsed.ratio)
+      ? parsed.ratio
       : '2:3';
     return {
       prompt: parsed.prompt,

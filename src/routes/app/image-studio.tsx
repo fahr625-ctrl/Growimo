@@ -8,14 +8,16 @@ import { trackAnalytics } from '~/lib/analytics-client';
 import { classifyGenerationError } from '~/lib/analytics-error';
 import { track } from '~/lib/tracking-client';
 import { getProjectsByUser, type Project } from '~/store/projects';
-import type { GeneratedImage } from '~/ai/image-providers/types';
+import { isImageAspectRatio, type GeneratedImage, type ImageAspectRatio } from '~/ai/image-providers/types';
 import { readStrategyPrefill, type StrategyImagePayload } from '~/lib/strategy-image';
 import { getBrandProfile } from '~/store/brand';
 import { contentTypeLabel } from '~/lib/content-types';
 import {
   composeStrategyStudioPrompt,
+  composeTextOverlayInstructions,
   formatStrategyBrandContext,
   resolveStudioPrefill,
+  type StudioPromptRules,
 } from '~/lib/studio-deeplink';
 // Stabilisierung Schritt 3 (Punkt 3) — Referenzbild-Kette.
 import {
@@ -78,14 +80,28 @@ const templates = [
   ['4:3', 'image_studio_template_etsy', 'image_studio_prompt_base_etsy'],
   ['1:1', 'image_studio_template_instagram', 'image_studio_prompt_base_instagram'],
   ['16:9', 'image_studio_template_blog', 'image_studio_prompt_base_blog'],
+  // Schritt 3 (Owner-Freigabe 2026-10-07): Hochkant-Format 9:16 — TikTok/Reels/
+  // Shorts. „Blog-Hero" bleibt bewusst 16:9.
+  ['9:16', 'image_studio_template_tiktok', 'image_studio_prompt_base_tiktok'],
 ] as const;
-const aspectClass = (ratio: string) => ratio === '2:3' ? 'aspect-[2/3]' : ratio === '4:3' ? 'aspect-[4/3]' : ratio === '16:9' ? 'aspect-video' : 'aspect-square';
+const aspectClass = (ratio: string) => ratio === '2:3' ? 'aspect-[2/3]' : ratio === '4:3' ? 'aspect-[4/3]' : ratio === '16:9' ? 'aspect-video' : ratio === '9:16' ? 'aspect-[9/16]' : 'aspect-square';
 
 // Distinct variation directions. Each one explicitly instructs a different
 // combination of composition/perspective/lighting/depth-of-field while the
 // main subject, style and format stay identical. They rotate deterministically
 // per click (see runCardAction + variationCounter) so repeated taps produce
 // visibly different alternates instead of near-identical frames.
+/** Schritt 4 (Owner-Freigabe 2026-10-07) — Text-im-Bild-Regeln für den
+ *  Studio-Prompt: gequoteter Bildtext statt Prosa, deutsche Schriftzeichen,
+ *  eine Schriftfamilie, Safe-Bereich, plus Negativ-Baustein. */
+function studioPromptRules(t: ReturnType<typeof useTranslation>['t']): StudioPromptRules {
+  return {
+    overlay: t.image_studio_prompt_rule_overlay,
+    noText: t.image_studio_prompt_rule_no_text,
+    typography: t.image_studio_prompt_rule_typography,
+    negatives: t.image_studio_prompt_rule_negatives,
+  };
+}
 const variationDirectionKeys = [
   'image_studio_prompt_variant_1',
   'image_studio_prompt_variant_2',
@@ -145,7 +161,7 @@ function ImageStudioContent() {
   const { t } = useTranslation();
   const { user } = useUser();
   const [prompt, setPrompt] = useState('');
-  const [ratio, setRatio] = useState<GeneratedImage['aspectRatio']>('2:3');
+  const [ratio, setRatio] = useState<ImageAspectRatio>('2:3');
   const [images, setImages] = useState<StudioImage[]>([]);
   // Phase 5d — Spiegel der Galerie für die Persistenz: `addImage` braucht den
   // neuen Stand synchron (kein Seiteneffekt im setState-Updater).
@@ -216,7 +232,8 @@ function ImageStudioContent() {
     if (resolved.strategy) {
       const strategy = resolved.strategy;
       setStrategyPrefill(strategy);
-      setRatio(strategy.ratio);
+      // Fail-closed: nur die Whitelist der Formate (sonst Studio-Default 2:3).
+      setRatio(isImageAspectRatio(strategy.ratio) ? strategy.ratio : '2:3');
       // Schritt 3 (Punkt 5): Prompt + Bildidee + Text-Overlay + Plattform +
       // Produktidee + Markeninfo fließen jetzt in den GENERIERTEN Prompt ein —
       // vorher waren sie reine Anzeige-Chips.
@@ -228,13 +245,25 @@ function ImageStudioContent() {
           overlay: t.image_studio_prompt_line_overlay,
           platform: t.image_studio_prompt_line_platform,
           brand: t.image_studio_prompt_line_brand,
+          // Schritt 4: Bildtext-/Typografie-Regeln + Negativ-Baustein.
+          rules: studioPromptRules(t),
         }),
       );
       // Projektkontext (Punkt 5): Projekt automatisch vorauswählen.
       if (strategy.projectId) setSelectedProject(strategy.projectId);
     }
     setFromTikTok(resolved.fromTikTok);
-    if (resolved.prompt && !resolved.strategy) setPrompt(resolved.prompt);
+    // Schritt 3: Format aus dem Deep-Link bzw. 9:16 für den TikTok-Einstieg.
+    if (resolved.ratio) setRatio(resolved.ratio);
+    if (resolved.prompt && !resolved.strategy) {
+      // Schritt 4: auch der Deep-Link-/Ideen-Pfad bekommt die Text-im-Bild-
+      // Regeln (Typografie + Negativ-Baustein) — kein ungeschützter Prompt.
+      const rules = composeTextOverlayInstructions(
+        { platform: resolved.fromTikTok ? 'TikTok' : '' },
+        studioPromptRules(t),
+      );
+      setPrompt(rules.length ? `${resolved.prompt}\n\n${rules.join('\n')}` : resolved.prompt);
+    }
   }, []);
   useEffect(() => { if (user?.id) getProjectsByUser(user.id).then(setProjects).catch(() => setProjects([])); }, [user?.id]);
   // Server-side beta-tracking (additive): Image Studio opened.

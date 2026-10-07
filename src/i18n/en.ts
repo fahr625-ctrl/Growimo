@@ -688,7 +688,10 @@ export const en: EnShape = {
   // ── AI Image Studio ─────────────────────────────────────────────────────────
   image_studio_title: '🎨 AI Image Studio',
   image_studio_subtitle: 'Visual assets for your marketing strategy',
-  sidebar_image_studio: '🎨 Image Studio', image_studio_page_title: 'AI Image Studio', image_studio_page_subtitle: 'Generate images, Pinterest pins and Etsy mockups with AI', image_studio_prompt_label: 'What would you like to generate?', image_studio_prompt_placeholder: 'Describe the image you want…', image_studio_generate_btn: 'Generate', image_studio_templates_label: 'Quick templates', image_studio_template_pinterest: 'Pinterest Pin (2:3)', image_studio_template_etsy: 'Etsy Mockup (4:3)', image_studio_template_instagram: 'Instagram Post (1:1)', image_studio_template_blog: 'Blog Hero (16:9)', image_studio_from_strategy: 'Generate from Strategy', image_studio_select_project: 'Select a project…', image_studio_prompts_generated: 'Generated Prompts', image_studio_upload_title: 'Edit your own image', image_studio_upload_dropzone: 'Drop an image here or click to upload', image_studio_gallery_title: 'Generated Images', image_studio_empty: 'No images yet. Enter a prompt and click Generate.', image_studio_generating: 'Generating image…', image_studio_error: 'Image generation failed', image_studio_download: 'Download', image_studio_copy_prompt: 'Copy Prompt', image_studio_regenerate: 'Regenerate', image_studio_variation: 'Variation', image_studio_regenerate_generating: 'Regenerating…', image_studio_variation_generating: 'Creating variation…', image_studio_card_error: 'Failed to create the variation. Please try again.',
+  sidebar_image_studio: '🎨 Image Studio', image_studio_page_title: 'AI Image Studio', image_studio_page_subtitle: 'Generate images, Pinterest pins and Etsy mockups with AI', image_studio_prompt_label: 'What would you like to generate?', image_studio_prompt_placeholder: 'Describe the image you want…', image_studio_generate_btn: 'Generate', image_studio_templates_label: 'Quick templates', image_studio_template_pinterest: 'Pinterest Pin (2:3)', image_studio_template_etsy: 'Etsy Mockup (4:3)', image_studio_template_instagram: 'Instagram Post (1:1)', image_studio_template_blog: 'Blog Hero (16:9)',
+  // Schritt 3 (Owner-Freigabe 2026-10-07) — new vertical 9:16 format
+  // (TikTok/Reels/Shorts). No 9:16 for the blog hero.
+  image_studio_template_tiktok: 'TikTok / Reels (9:16)', image_studio_from_strategy: 'Generate from Strategy', image_studio_select_project: 'Select a project…', image_studio_prompts_generated: 'Generated Prompts', image_studio_upload_title: 'Edit your own image', image_studio_upload_dropzone: 'Drop an image here or click to upload', image_studio_gallery_title: 'Generated Images', image_studio_empty: 'No images yet. Enter a prompt and click Generate.', image_studio_generating: 'Generating image…', image_studio_error: 'Image generation failed', image_studio_download: 'Download', image_studio_copy_prompt: 'Copy Prompt', image_studio_regenerate: 'Regenerate', image_studio_variation: 'Variation', image_studio_regenerate_generating: 'Regenerating…', image_studio_variation_generating: 'Creating variation…', image_studio_card_error: 'Failed to create the variation. Please try again.',
   // Phase 3.1 — timeout/cancel instead of endless loading (%s = timeout in seconds).
   image_studio_error_timeout: 'Timeout: image generation was cancelled after %s seconds. Please try again.',
   image_studio_error_aborted: 'Generation cancelled. You can start it again.',
@@ -1288,6 +1291,14 @@ export const en: EnShape = {
   image_studio_prompt_base_etsy: 'Etsy product showcase with professional lifestyle photography, product shown in a beautiful real-world setting, warm natural lighting, multiple scene variations',
   image_studio_prompt_base_instagram: 'Modern Instagram post for',
   image_studio_prompt_base_blog: 'Professional blog hero image for',
+  // Schritt 3 — template for the new vertical format (TikTok/Reels/Shorts).
+  image_studio_prompt_base_tiktok: 'Vertical TikTok/Reels image scene (9:16) for',
+  // Schritt 4 (Owner-Freigabe 2026-10-07) — text-on-image as a precise instruction
+  // (%s = short quoted overlay text, max. 6 words).
+  image_studio_prompt_rule_overlay: 'Image text (overlay) exactly and only this: %s — one short, legible line, no additional words.',
+  image_studio_prompt_rule_no_text: 'No text in the image: no lettering, no caption, no text overlay.',
+  image_studio_prompt_rule_typography: 'If the image contains text: correct German characters including umlauts and ß (ä ö ü ß), exactly one type family with consistent weights and sizes, text fully inside the safe area with margin (never cropped at the edge), correct spelling, no placeholder or filler text.',
+  image_studio_prompt_rule_negatives: 'Negative constraints: no watermarks or signatures, no invented logos or brands, no additional invented text or captions.',
   image_studio_prompt_optimized_for: 'optimized for',
   image_studio_prompt_fallback_product: 'my product',
   image_studio_prompt_suffix: ', premium visual, high quality, crisp readable text rendering, accurate spelling, polished typography and balanced text layout.',

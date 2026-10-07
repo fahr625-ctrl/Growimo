@@ -689,6 +689,9 @@ export const de = {
   image_studio_page_title: 'KI-Bild-Studio', image_studio_page_subtitle: 'Generiere Bilder, Pinterest Pins und Etsy Mockups mit KI',
   image_studio_prompt_label: 'Was möchtest du generieren?', image_studio_prompt_placeholder: 'Beschreibe das gewünschte Bild…', image_studio_generate_btn: 'Generieren', image_studio_templates_label: 'Schnellvorlagen',
   image_studio_template_pinterest: 'Pinterest Pin (2:3)', image_studio_template_etsy: 'Etsy Mockup (4:3)', image_studio_template_instagram: 'Instagram-Beitrag (1:1)', image_studio_template_blog: 'Blog-Hero (16:9)',
+  // Schritt 3 (Owner-Freigabe 2026-10-07) — neues Hochkant-Format 9:16
+  // (TikTok/Reels/Shorts). Kein 9:16 für „Blog-Hero".
+  image_studio_template_tiktok: 'TikTok / Reels (9:16)',
   image_studio_from_strategy: 'Aus Marketing-Strategie generieren', image_studio_select_project: 'Projekt auswählen…', image_studio_prompts_generated: 'Generierte Prompts', image_studio_upload_title: 'Eigenes Bild bearbeiten', image_studio_upload_dropzone: 'Bild hier ablegen oder klicken zum Hochladen', image_studio_gallery_title: 'Generierte Bilder', image_studio_empty: 'Noch keine Bilder generiert. Gib einen Prompt ein und klicke auf Generieren.', image_studio_generating: 'Generiere Bild…', image_studio_error: 'Fehler bei der Bildgenerierung', image_studio_download: 'Herunterladen', image_studio_copy_prompt: 'Prompt kopieren', image_studio_regenerate: 'Neu generieren', image_studio_variation: 'Variation', image_studio_regenerate_generating: 'Wird neu generiert…', image_studio_variation_generating: 'Variation wird erstellt…', image_studio_card_error: 'Fehler bei der Erstellung der Variante. Bitte erneut versuchen.',
   // Phase 3.1 — Timeout/Abbrechen statt unendlichem Laden (%s = Timeout in Sekunden).
   image_studio_error_timeout: 'Zeitüberschreitung: Die Bildgenerierung wurde nach %s Sekunden abgebrochen. Bitte erneut versuchen.',
@@ -1290,6 +1293,14 @@ export const de = {
   image_studio_prompt_base_etsy: 'Etsy-Produktpräsentation mit professioneller Lifestyle-Fotografie, das Produkt in einer schönen realen Umgebung gezeigt, warmes natürliches Licht, mehrere Szenenvarianten',
   image_studio_prompt_base_instagram: 'Moderner Instagram-Post für',
   image_studio_prompt_base_blog: 'Professionelles Blog-Headerbild für',
+  // Schritt 3 — Vorlage für das neue Hochkant-Format (TikTok/Reels/Shorts).
+  image_studio_prompt_base_tiktok: 'Vertikale TikTok-/Reels-Bildszene (9:16) für',
+  // Schritt 4 (Owner-Freigabe 2026-10-07) — Text im Bild als präzise Instruktion
+  // (%s = kurzer Overlay-Text in Anführungszeichen, max. 6 Wörter).
+  image_studio_prompt_rule_overlay: 'Bildtext (Text-Overlay) exakt und ausschließlich so: %s — eine kurze, gut lesbare Zeile, keine weiteren Wörter.',
+  image_studio_prompt_rule_no_text: 'Kein Text im Bild: keine Schrift, keine Beschriftung, kein Text-Overlay.',
+  image_studio_prompt_rule_typography: 'Falls Text im Bild steht: korrekte deutsche Schriftzeichen inklusive Umlauten und ß (ä ö ü ß), genau eine Schriftfamilie mit einheitlichen Schnitten und Größen, Text vollständig im Safe-Bereich mit Rand (nicht am Bildrand abgeschnitten), korrekte Rechtschreibung, kein Blindtext und keine Platzhalter-Buchstaben.',
+  image_studio_prompt_rule_negatives: 'Negativ-Baustein: keine Wasserzeichen und Signaturen, keine erfundenen Logos oder Marken, keine zusätzlichen erfundenen Texte oder Bildunterschriften.',
   image_studio_prompt_optimized_for: 'optimiert für',
   image_studio_prompt_fallback_product: 'mein Produkt',
   image_studio_prompt_suffix: ', hochwertige Premium-Visualisierung, scharfe und lesbare Textdarstellung, korrekte Rechtschreibung, ausgefeilte Typografie und ausgewogenes Textlayout.',
