@@ -213,7 +213,19 @@ async function main() {
     };
     console.log(`  removed ${u}: users=${d.count ?? 0}`);
   }
-  await sql`DELETE FROM generation_throttle WHERE user_id=${TEST_USER}`;
+  // FIX-BLOCK 5 Nacharbeit (2026-10-08): Der Check unten prüft GLOBAL alle
+  // `guard-test-%`-Reste, die Schleife oben räumte aber nur die IDs DIESES Laufs
+  // (TEST_USER = guard-test-<Date.now()36>). Wurde ein früherer Lauf mitten im
+  // 200er-Pro-Lauf abgebrochen (z. B. durch einen Plattform-Neustart), blieben
+  // dessen Zeilen liegen und die Suite meldete dauerhaft "31 PASS, 1 FAIL",
+  // obwohl sie selbst fehlerfrei aufgeräumt hatte. Deshalb hier ein
+  // Präfix-Sweep (nur synthetische Test-IDs, kein produktiver Datenbereich),
+  // der dieselbe Invariante herstellt, die der Check unten behauptet.
+  await sql`DELETE FROM usage_events WHERE user_id LIKE 'guard-test-%'`;
+  await sql`DELETE FROM usage_monthly WHERE user_id IN (SELECT id FROM users WHERE clerk_id LIKE 'guard-test-%')`;
+  await sql`DELETE FROM subscriptions WHERE user_id IN (SELECT id FROM users WHERE clerk_id LIKE 'guard-test-%')`;
+  await sql`DELETE FROM generation_throttle WHERE user_id LIKE 'guard-test-%'`;
+  await sql`DELETE FROM users WHERE clerk_id LIKE 'guard-test-%'`;
   const leftoverEvents = await sql`SELECT COUNT(*) AS n FROM usage_events WHERE user_id LIKE 'guard-test-%'`;
   check(Number(leftoverEvents[0].n) === 0, `keine Test-Ledger-Zeilen übrig (${leftoverEvents[0].n})`);
 
@@ -228,8 +240,11 @@ async function main() {
 main().catch((e) => {
   console.error('FATAL', e);
   // Aufräumversuch (best effort), damit Testnutzer nie liegen bleiben.
-  sql`DELETE FROM users WHERE clerk_id LIKE 'guard-test-%'`.catch(() => {});
-  sql`DELETE FROM generation_throttle WHERE user_id LIKE 'guard-test-%'`.catch(() => {});
+  // FIX-BLOCK 5 Nacharbeit: um usage_monthly/subscriptions ergänzt (Kinder von users).
   sql`DELETE FROM usage_events WHERE user_id LIKE 'guard-test-%'`.catch(() => {});
+  sql`DELETE FROM usage_monthly WHERE user_id IN (SELECT id FROM users WHERE clerk_id LIKE 'guard-test-%')`.catch(() => {});
+  sql`DELETE FROM subscriptions WHERE user_id IN (SELECT id FROM users WHERE clerk_id LIKE 'guard-test-%')`.catch(() => {});
+  sql`DELETE FROM generation_throttle WHERE user_id LIKE 'guard-test-%'`.catch(() => {});
+  sql`DELETE FROM users WHERE clerk_id LIKE 'guard-test-%'`.catch(() => {});
   process.exit(1);
 });
