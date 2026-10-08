@@ -591,6 +591,34 @@ ${ideaQualityMandate(true, 'SELBSTREFERENZ-VERBOT')}
 
 ${ideaSharpeningMandate(true)}`;
 
+// ── FIX-BLOCK 4 (2026-10-08) — Diagnose-Inhaltsmandat: Anlass-Behauptungen & ──
+// erzwungene Kauf-CTAs (Launch-Befund Teil 2b) ────────────────────────────────
+// BEFUND (Launch-Test Teil 2, „NEUE VIDEO-VERSION"): Die Diagnose v2 gab
+//   (a) „Das perfekte Geschenk für jeden Anlass." aus — eine verallgemeinerte
+//       Anlass-Behauptung, obwohl der Nutzer nur „als Geschenk" genannt hatte
+//       (laut Inhalts-Mandat 5 = HARTES VERFEHLEN, s. ideaSharpeningMandate), und
+//   (b) „Bestelle jetzt deine personalisierte Duftkerze!" als CTA — verboten
+//       nach „Never force download/buy now" (s. IDEA_COMMON_EN/DE).
+// URSACHE: Beide Regeln standen AUSSCHLIESSLICH in IDEA_COMMON_EN/DE bzw. im
+// ideaSharpeningMandate, die nur die Idee-Modi (todayIdea/concept) einbinden.
+// Der Diagnose-Prompt (DIAGNOSE_DE/EN) enthielt KEINE der beiden Regeln, und der
+// Diagnose-Zweig in generateTikTok prüfte nur Regel A/B, Beweis-Sprache und
+// Themen-Bezug — deshalb griff keine der beiden Regeln im Diagnose-Zweig.
+// GEGENMASSNAHME: (1) dieses Mandat als EINE gemeinsame Quelle für BEIDE
+// Diagnose-Sprachen (Prompt-Härtung), (2) die deterministischen Post-Checks
+// diagnoseOccasionViolations() / diagnoseCtaViolations() weiter unten
+// (genau EIN Korrekturversuch mit gezieltem Hinweis, danach harter Fehler —
+// fail closed: ein Ergebnis mit erfundener Anlass-Behauptung oder erzwungenem
+// Kauf-CTA verlässt die Engine NIE).
+function diagnoseContentMandate(de: boolean): string {
+  if (de) {
+    return `- KEINE ERFUNDENEN ANLASS-/ZIELGRUPPEN-BEHAUPTUNGEN (harte Regel — gilt für ALLE Felder, ausdrücklich auch für rebuilt): Nenne einen Anlass, eine Zielgruppe oder einen Nutzungskontext NUR, wenn der Nutzer ihn selbst angegeben hat. VERBOTEN sind besonders verallgemeinerte Anlass-Behauptungen wie „Das perfekte Geschenk für jeden Anlass.", „für jede Gelegenheit", „passt zu jedem Anlass", „das ideale Geschenk für alle" — ein pauschaler Anlass ist eine erfundene Tatsache. Sagt der Nutzer nur „als Geschenk" o. Ä., beschreibe das Produkt und was sichtbar damit passiert, ohne einen Anlass zu behaupten. Eine erfundene Anlass-/Zielgruppen-Behauptung ist ein HARTES VERFEHLEN → verwirf die Diagnose und generiere neu.
+- HANDLUNGSAUFRUF NATÜRLICH, NIE ERZWUNGEN (harte Regel): rebuilt.cta — und jeder CTA in optimized/newHook/voiceover — ist natürlich und interaktionsorientiert (z. B. „Was würdest du testen?", „Schreib deine Meinung dazu", „Teil das mit jemandem, der …") — NIEMALS kauf-, bestell- oder download-erzwingend („Bestelle jetzt …!", „Jetzt kaufen", „Sofort bestellen", „Jetzt herunterladen", „Buy now", „Order now", „Download now"). Wäre der einzige passende CTA ein Kauf-/Bestell-CTA, gib eine leere Zeichenkette ("") zurück statt zu drängen. Ein erzwingender CTA ist ein HARTES VERFEHLEN → verwirf die Diagnose und generiere neu.`;
+  }
+  return `- NO INVENTED OCCASION/TARGET-AUDIENCE CLAIMS (hard rule — applies to ALL fields, explicitly including rebuilt): name an occasion, an audience or a usage context ONLY if the user provided it. FORBIDDEN in particular are generalised occasion claims such as "The perfect gift for every occasion.", "for any occasion", "fits every occasion", "the ideal gift for everyone" — a blanket occasion is an invented fact. If the user only said "as a gift", describe the product and what visibly happens with it without claiming an occasion. An invented occasion/audience claim is a HARD FAIL → discard the diagnosis and regenerate.
+- CALL-TO-ACTION NATURAL, NEVER FORCED (hard rule): rebuilt.cta — and every CTA in optimized/newHook/voiceover — is natural and interaction-focused (e.g. "What would you test?", "Tell us your take", "Share this with someone who…") — NEVER purchase-, order- or download-forcing ("Order now!", "Buy now", "Shop now", "Download now", "Get yours now"). If the only fitting CTA would be a purchase CTA, return an empty string ("") instead of pushing. A forcing CTA is a HARD FAIL → discard the diagnosis and regenerate.`;
+}
+
 const DIAGNOSE_EN = `You are Growimo's TikTok diagnostician. The user provides real performance numbers for one of their TikToks. You must analyze them honestly and give concrete, prioritized next steps — NEVER a generic pep talk, NEVER "keep going" without evidence.
 
 Rules:
@@ -603,6 +631,7 @@ Rules:
 - NEVER invent users/testimonials/quotes/user feedback or success stories — only the numbers provided may be referenced.
 - No unproven performance promises and no prescribed enthusiasm: never promise concrete outcomes ("in 2 minutes", "more followers") that do not follow from the numbers, and never prescribe reactions like "Wow!" — reference only the real numbers the user provided, keep any reaction genuine or omit it.
 - NO time-based performance promise phrasing in newHook/optimized: never write a "discover X in just N seconds/minutes/days" hook or any unproven time/result promise such as "in nur X Sekunden", "in just X seconds", "+X%", "% more reach/engagement", "doubles your reach", "go viral". Rewrite hooks around the actual diagnosed problem and the real numbers only — never promise a timeframe or a result the data does not prove.
+${diagnoseContentMandate(false)}
 - Identify the MOST LIKELY biggest problem from the data (e.g. retention vs reach vs engagement vs clicks), explain it plainly, and ground it in the numbers.
 - whatWorks: what the numbers show is already working (mention the actual figures). If genuinely nothing works yet, say so honestly.
 - whatToImprove: 2–4 concrete, actionable improvements tied to the diagnosis.
@@ -665,6 +694,7 @@ Regeln:
 - Erfinde NIEMALS Nutzer/Testimonials/Zitate/Nutzerfeedback oder Erfolgsgeschichten — nur die genannten Zahlen dürfen referenziert werden.
 - Keine unbelegten Leistungsversprechen und keine vorgegebene Begeisterung: versprich nie konkrete Ergebnisse („in 2 Minuten", „mehr Follower"), die nicht aus den Zahlen hervorgehen, und verordne nie Reaktionen wie „Wow!" — referenziere ausschließlich die echten, vom Nutzer gelieferten Zahlen und halte Reaktionen echt oder lasse sie ganz weg.
 - KEINE zeitbasierten Leistungsversprechen-Formulierungen in newHook/optimized: schreibe niemals einen „Entdecke X in nur N Sekunden/Minuten/Tagen"-Hook oder ein unbelegtes Zeit-/Ergebnis-Versprechen wie „in nur X Sekunden", „in just X seconds", „+X%", „% mehr Reichweite/Engagement", „verdoppelt deine Reichweite", „viral gehen". Formuliere Hooks ausschließlich um das tatsächlich diagnostizierte Problem und die echten Zahlen — versprich nie einen Zeitrahmen oder ein Ergebnis, das die Daten nicht belegen.
+${diagnoseContentMandate(true)}
 - Benenne das WAHrscheinlich größte Problem aus den Daten (z. B. Retention vs. Reichweite vs. Engagement vs. Klicks), erkläre es verständlich und begründe es mit den Zahlen.
 - whatWorks: was die Zahlen zeigen, dass es bereits funktioniert (mit den konkreten Zahlen). Wenn ehrlich noch nichts funktioniert, sage das.
 - whatToImprove: 2–4 konkrete, umsetzbare Verbesserungen, die zur Diagnose passen.
@@ -1376,6 +1406,115 @@ function ruleABViolations(blob: string): string[] {
   return hits;
 }
 
+// ── FIX-BLOCK 4 (2026-10-08) — Diagnose: erfundene Anlass-/Zielgruppen- ──────
+// Behauptungen + erzwungene Kauf-CTAs (deterministisch) ──────────────────────
+// Zweite Verteidigungslinie zum Diagnose-Inhaltsmandat oben: unabhängig davon,
+// was das Modell in seinen selfCheck-Flags behauptet, prüft die Engine das
+// Ergebnis auf CODE-Ebene.
+//   (a) diagnoseOccasionViolations — Anlass-/Zielgruppen-Behauptungen ohne
+//       Nutzerangabe: dieselben Muster wie der Idee-Pfad (EINE Quelle,
+//       INVENTED_CONTEXT_PATTERNS) PLUS verallgemeinerte Anlass-Behauptungen
+//       („für jeden Anlass", „the perfect gift for every occasion") = Live-Befund.
+//   (b) diagnoseCtaViolations — kauf-/bestell-/download-erzwingende CTAs
+//       („Bestelle jetzt …!", „Buy now") in den NEU erzeugten Feldern.
+// Geprüft wird NUR der Diagnose-Zweig; die Idee-Modi bleiben unverändert
+// (dort greifen dieselben Regeln bereits über inventedContextViolations).
+export const GENERALIZED_OCCASION_PATTERNS: Array<{ name: string; re: RegExp }> = [
+  // „für jeden Anlass" / „für jede Gelegenheit" / „für alle Anlässe"
+  { name: 'fuer-jeden-anlass', re: /\bf(?:ü|ue)r\s+(?:jeden|jede[ns]?|jedermann|jegliche[nrs]?|alle)\s+(?:anl(?:ass|ässe|ässen)|gelegenheit(?:en)?)\b/i },
+  // „zu jedem Anlass" / „bei jeder Gelegenheit"
+  { name: 'zu-jedem-anlass', re: /\b(?:zu|bei)\s+(?:jedem|jeder|allen)\s+(?:anl(?:ass|ässen)|gelegenheit(?:en)?)\b/i },
+  // „das perfekte Geschenk für alle" / „Geschenkidee für jedermann"
+  { name: 'geschenk-fuer-alle', re: /\b(?:geschenk\w*|(?:perfekte|ideale|beste)s?\s+geschenk)\s+f(?:ü|ue)r\s+(?:jedermann|alle)\b/i },
+  // EN-Pendants
+  { name: 'for-every-occasion', re: /\bfor\s+(?:every|any|all)\s+occasions?\b/i },
+  { name: 'every-occasion', re: /\b(?:every|any)\s+occasions?\b/i },
+  { name: 'gift-for-everyone', re: /\bgift(?:\s+idea)?\s+for\s+(?:everyone|everybody|all)\b/i },
+];
+
+// Deutsche KOMPOSITA der Haupt-Anlässe („Weihnachtsgeschenk", „Geburtstagsduft"):
+// Die Muster des Idee-Pfads (INVENTED_CONTEXT_PATTERNS) verlangen eine Wortgrenze
+// direkt hinter dem Anlass-Stamm und übersehen deshalb Komposita — genau die Form
+// „Das perfekte Weihnachtsgeschenk …" wäre damit unentdeckt geblieben. Für den
+// Diagnose-Zweig schließt diese Liste das Loch; Grunding-Regel identisch: hat der
+// Nutzer den Anlass selbst genannt (z. B. „Weihnachtsgeschenk"), ist die Nennung
+// belegt und erlaubt. Die Namen entsprechen den Mustern des Idee-Pfads, damit die
+// Verstoßliste im Retry-Hinweis unverändert lesbar bleibt.
+export const COMPOUND_OCCASION_PATTERNS: Array<{ name: string; re: RegExp }> = [
+  { name: 'anlass-weihnachten', re: /\bweihnachts(?:geschenk\w*|idee\w*|duft\w*|kerze\w*|deko\w*|special\w*|aktion\w*|edition\w*)\b/i },
+  { name: 'anlass-ostern', re: /\boster(?:geschenk\w*|idee\w*|duft\w*|kerze\w*|deko\w*|special\w*|aktion\w*)\b/i },
+  { name: 'anlass-geburtstag', re: /\bgeburtstags(?:geschenk\w*|idee\w*|duft\w*|kerze\w*|deko\w*|special\w*|aktion\w*)\b/i },
+  { name: 'anlass-hochzeit', re: /\bhochzeits(?:geschenk\w*|idee\w*|duft\w*|kerze\w*|deko\w*|special\w*)\b/i },
+  { name: 'anlass-valentinstag', re: /\bvalentins(?:geschenk\w*|idee\w*|duft\w*|kerze\w*|deko\w*|special\w*)\b/i },
+  { name: 'anlass-muttertag', re: /\bmuttertags(?:geschenk\w*|idee\w*|duft\w*|kerze\w*|deko\w*)\b/i },
+  { name: 'anlass-vatertag', re: /\bvatertags(?:geschenk\w*|idee\w*|duft\w*|kerze\w*|deko\w*)\b/i },
+  { name: 'anlass-jahrestag', re: /\bjahres(?:geschenk\w*|idee\w*|duft\w*|kerze\w*|deko\w*)\b/i },
+];
+
+/** Anlass-/Zielgruppen-Behauptungen im DIAGNOSE-Ergebnis (leer = sauber).
+ *  Ein Muster zählt nur, wenn der Begriff NICHT in den Nutzerangaben
+ *  (Thema/Produkt/Zielgruppe/Ziel/Markenkontext/Projekt/Video-Thema) steht —
+ *  hat der Nutzer den Anlass selbst genannt, ist er belegt und erlaubt. */
+export function diagnoseOccasionViolations(r: TikTokDiagnoseResult, groundingBlob: string): string[] {
+  const blob = diagnoseContentBlob(r);
+  const g = (groundingBlob ?? '').toLowerCase();
+  const hits: string[] = [];
+  // (1) Anlass-/Zielgruppen-Muster des Idee-Pfads (EINE Quelle statt Duplikat).
+  for (const { name, re, grounding } of INVENTED_CONTEXT_PATTERNS) {
+    if (!/^(?:anlass-|zielgruppe-|audience-)/.test(name)) continue;
+    if (re.test(blob) && !grounding.test(g)) hits.push('INVENTED:' + name);
+  }
+  // (2) verallgemeinerte Anlass-Behauptungen (Live-Befund Teil 2b).
+  for (const { name, re } of GENERALIZED_OCCASION_PATTERNS) {
+    if (re.test(blob) && !re.test(g)) hits.push('INVENTED:' + name);
+  }
+  // (3) deutsche Komposita-Formen der Anlässe („Weihnachtsgeschenk").
+  for (const { name, re } of COMPOUND_OCCASION_PATTERNS) {
+    if (re.test(blob) && !re.test(g)) hits.push('INVENTED:' + name);
+  }
+  return [...new Set(hits)];
+}
+
+// Kauf-/Bestell-/Download-ERZWINGENDE Handlungsaufrufe (de/en). Bewusst eng:
+// Imperativ-Formen mit Dringlichkeitswort bzw. „now/today" hinter dem Kaufverb —
+// eine neutrale Erwähnung („der Kauf ist kostenlos") trifft nicht.
+export const FORCED_CTA_PATTERNS: Array<{ name: string; re: RegExp }> = [
+  // „Bestelle jetzt …!" / „Kaufe jetzt …" / „Sichere dir jetzt …"
+  { name: 'de-verb-jetzt', re: /\b(?:kauf|bestell|order|shop|lade|download|hol|sicher|greif|schnapp)\w{0,3}\s+(?:dir\s+|es\s+|das\s+)?(?:jetzt|sofort|gleich|heute|noch\s+heute)\b/i },
+  // „Jetzt kaufen" / „Sofort bestellen" / „Jetzt herunterladen"
+  { name: 'de-jetzt-verb', re: /\b(?:jetzt|sofort|gleich)\s+(?:kaufen|bestellen|shoppen|herunterladen|downloaden|holen|sichern|zugreifen|bestell|kauf)\w{0,4}\b/i },
+  // „Lade jetzt herunter" / „lade dir … herunter"
+  { name: 'de-herunterladen', re: /\b(?:lade|laden)\s+(?:dir\s+|jetzt\s+)?(?:herunter|runter)\b/i },
+  // „Buy now" / „Order now" / „Download now" / „Get yours now"
+  { name: 'en-verb-now', re: /\b(?:buy|order|purchase|shop|download|checkout|get|grab|snag)\s+(?:it\s+|yours?\s+|one\s+|this\s+|the\s+)?(?:now|today)\b/i },
+  // „Now buy" / „Today order"
+  { name: 'en-now-verb', re: /\b(?:now|today)\s+(?:buy|order|purchase|shop|download)\b/i },
+  // erfundener Druck („Don't miss out")
+  { name: 'urgency-dont-miss-out', re: /\bdon'?t\s+miss\s+(?:out|it)\b/i },
+];
+
+/** Textfelder der Diagnose, in denen ein CTA stecken kann: die NEU erzeugten
+ *  Felder (newHook/optimized/rebuilt). Die Analyse-Felder (biggestProblem/
+ *  whatWorks/whatToImprove/nextTest) bleiben bewusst außen vor — dort ist ein
+ *  wörtliches Zitat des ALTEN CTAs als Kritik legitim und darf nicht als
+ *  Verstoß gelten. */
+export function diagnoseCtaBlob(r: TikTokDiagnoseResult): string {
+  const parts = [r.newHook, r.optimized];
+  if (r.rebuilt) {
+    parts.push(r.rebuilt.hook, r.rebuilt.voiceover, r.rebuilt.cta, String(r.rebuilt.seconds));
+    parts.push(r.rebuilt.timedScenes.map((s) => s.time + ' ' + s.scene + ' ' + s.text).join(' '));
+  }
+  return parts.join(' ').toLowerCase();
+}
+
+/** Kauf-/Bestell-/Download-erzwingende CTAs im Diagnose-Ergebnis (leer = sauber). */
+export function diagnoseCtaViolations(r: TikTokDiagnoseResult): string[] {
+  const blob = diagnoseCtaBlob(r);
+  const hits: string[] = [];
+  for (const { name, re } of FORCED_CTA_PATTERNS) if (re.test(blob)) hits.push('FORCED-CTA:' + name);
+  return hits;
+}
+
 // ── Deterministische Selbstreferenz-Erkennung (todayIdea) ───────────────────
 // Produktzentrierte Selbstthematisierung („Kann Growimo eine TikTok-Idee
 // erstellen?", „Wir testen unser eigenes Produkt", „Wie gut ist meine Idee
@@ -1419,9 +1558,15 @@ function buildRetryHint(lang: TikTokLang, violations: string[] = [], mode: TikTo
           ? ` ERKANNTE REGEL-VERLETZUNGEN DER VERWORFENEN DIAGNOSE: ${violations.join(', ')} — entferne diese Wörter/Formulierungen VÖLLIG und ersetze sie durch Aussagen, die ausschließlich an den vom Nutzer gelieferten Zahlen belegt sind.`
           : ` DETECTED RULE VIOLATIONS IN THE REJECTED DIAGNOSIS: ${violations.join(', ')} — remove those words/phrases COMPLETELY and replace them with statements grounded strictly in the numbers the user provided.`
         : '';
+    // FIX-BLOCK 4 — gezielter Hinweis auf die beiden Diagnose-Inhaltsregeln.
+    const contentPart = violations.some((v) => v.startsWith('INVENTED:') || v.startsWith('FORCED-CTA:'))
+      ? lang === 'de'
+        ? ' INHALTSREGELN (harte Regeln): (1) Nenne KEINEN Anlass, keine Zielgruppe und keinen Nutzungskontext, den der Nutzer NICHT angegeben hat — verallgemeinerte Anlass-Behauptungen wie \u201eDas perfekte Geschenk f\u00fcr jeden Anlass.\u201c oder \u201ef\u00fcr jede Gelegenheit\u201c sind VERBOTEN (siehe Liste oben). (2) rebuilt.cta (und jeder CTA in optimized/newHook/voiceover) darf NICHT zum Kaufen/Bestellen/Herunterladen auffordern (\u201eBestelle jetzt \u2026!\u201c, \u201eJetzt kaufen\u201c, \u201eJetzt herunterladen\u201c) — formuliere nat\u00fcrlich und interaktionsorientiert (z. B. \u201eWas w\u00fcrdest du testen?\u201c) oder gib eine leere Zeichenkette zur\u00fcck.'
+        : ' CONTENT RULES (hard rules): (1) Name NO occasion, audience or usage context that the user did NOT provide — generalised occasion claims such as \"The perfect gift for every occasion.\" or \"for any occasion\" are FORBIDDEN (see list above). (2) rebuilt.cta (and every CTA in optimized/newHook/voiceover) must NOT ask to buy/order/download (\"Order now!\", \"Buy now\", \"Download now\") — write it naturally and interaction-focused (\"What would you test?\") or return an empty string.'
+      : '';
     return lang === 'de'
-      ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Diagnose wurde intern verworfen (sie erfand Kennzahlen, die der Nutzer nicht angegeben hat, enthielt ein unbelegtes Leistungs-/Zeit-Versprechen, eine vorgegebene künstliche Reaktion/Begeisterung oder einen zu vagen nächsten Test — oder ihre Aussagen waren nicht an den gelieferten Zahlen belegt).' + rulePart + ' Erzeuge JETZT eine deutlich bessere Diagnose: referenziere AUSSCHLIESSLICH die tatsächlich gelieferten Zahlen (nur die im Prompt gelisteten Metriken), erfinde KEINE zusätzlichen Kennzahlen/Werte/Prozente, mache in newHook/optimized/nextTest KEIN unbelegtes Versprechen (kein „in nur X Sekunden/Minuten/Tagen/Wochen", kein „+X%", kein „mehr Follower", kein „viral gehen"), verordne KEINE Reaktion/Begeisterung und nenne GENAU EINEN konkret umsetzbaren nächsten Test mit der zu beobachtenden Metrik. Liefere außerdem lengthRecommendation (seconds als Zahl, structure mit Zeitangaben, reason) MIT einer Begründung, die ausschließlich an den gelieferten und berechneten Zahlen belegt ist — kein generischer Default (z. B. „8–20 Sekunden sind am besten"), keine erfundene Zahl. Setze alle sechs selfCheck-Booleans ehrlich auf bestehen. Beziehe jede Empfehlung und die neue Video-Version (rebuilt mit hook, timedScenes MIT Zeitangaben, voiceover, cta, seconds) konkret auf das angegebene VIDEO-THEMA (falls vorhanden — nenne das Thema wörtlich; fehlt ein Thema, sage ehrlich, dass die Empfehlungen allgemeiner bleiben, und erfinde KEIN Thema). Formuliere Ursachen NUR probabilistisch („wahrscheinlich“, „kann darauf hindeuten“, „ein möglicher Grund“) — niemals als bewiesene Tatsache (nie „der Grund ist“, „das beweist“, „liegt daran“).'
-      : '\n\nQUALITY SELF-CHECK NOTE: The previous diagnosis was internally rejected (it invented metrics the user did not provide, contained an unproven performance/time promise, a prescribed artificial reaction/enthusiasm or a vague next test — or its claims were not grounded in the provided numbers).' + rulePart + ' NOW produce a clearly better diagnosis: reference ONLY the numbers actually provided (the metrics listed in the prompt), invent NO additional metrics/values/percentages, make NO unproven promise in newHook/optimized/nextTest (no "in just X seconds/minutes/days/weeks", no "+X%", no "more followers", no "go viral"), prescribe NO reaction/enthusiasm and name EXACTLY ONE concrete next test with the metric to watch. Also deliver lengthRecommendation (seconds as a number, structure with time marks, reason) justified ONLY by the provided and calculated numbers — no generic default (e.g. "8-20 seconds is best"), no invented figure. Set all six selfCheck booleans truthfully to passing. Tie every recommendation and the rebuilt version (hook, timedScenes WITH time marks, voiceover, cta, seconds) concretely to the provided VIDEO TOPIC (if present — mention the topic literally; if no topic was given, say honestly that the recommendations stay more general and invent NO topic). Phrase causes ONLY probabilistically ("likely", "may point to", "a possible reason") — never as proven fact (never "the reason is", "this proves", "lies daran").';
+      ? '\n\nHINWEIS VOM QUALITÄTS-SELBSTTEST: Die vorherige Diagnose wurde intern verworfen (sie erfand Kennzahlen, die der Nutzer nicht angegeben hat, enthielt ein unbelegtes Leistungs-/Zeit-Versprechen, eine vorgegebene künstliche Reaktion/Begeisterung oder einen zu vagen nächsten Test — oder ihre Aussagen waren nicht an den gelieferten Zahlen belegt).' + rulePart + contentPart + ' Erzeuge JETZT eine deutlich bessere Diagnose: referenziere AUSSCHLIESSLICH die tatsächlich gelieferten Zahlen (nur die im Prompt gelisteten Metriken), erfinde KEINE zusätzlichen Kennzahlen/Werte/Prozente, mache in newHook/optimized/nextTest KEIN unbelegtes Versprechen (kein „in nur X Sekunden/Minuten/Tagen/Wochen", kein „+X%", kein „mehr Follower", kein „viral gehen"), verordne KEINE Reaktion/Begeisterung und nenne GENAU EINEN konkret umsetzbaren nächsten Test mit der zu beobachtenden Metrik. Liefere außerdem lengthRecommendation (seconds als Zahl, structure mit Zeitangaben, reason) MIT einer Begründung, die ausschließlich an den gelieferten und berechneten Zahlen belegt ist — kein generischer Default (z. B. „8–20 Sekunden sind am besten"), keine erfundene Zahl. Setze alle sechs selfCheck-Booleans ehrlich auf bestehen. Beziehe jede Empfehlung und die neue Video-Version (rebuilt mit hook, timedScenes MIT Zeitangaben, voiceover, cta, seconds) konkret auf das angegebene VIDEO-THEMA (falls vorhanden — nenne das Thema wörtlich; fehlt ein Thema, sage ehrlich, dass die Empfehlungen allgemeiner bleiben, und erfinde KEIN Thema). Formuliere Ursachen NUR probabilistisch („wahrscheinlich“, „kann darauf hindeuten“, „ein möglicher Grund“) — niemals als bewiesene Tatsache (nie „der Grund ist“, „das beweist“, „liegt daran“).'
+      : '\n\nQUALITY SELF-CHECK NOTE: The previous diagnosis was internally rejected (it invented metrics the user did not provide, contained an unproven performance/time promise, a prescribed artificial reaction/enthusiasm or a vague next test — or its claims were not grounded in the provided numbers).' + rulePart + contentPart + ' NOW produce a clearly better diagnosis: reference ONLY the numbers actually provided (the metrics listed in the prompt), invent NO additional metrics/values/percentages, make NO unproven promise in newHook/optimized/nextTest (no "in just X seconds/minutes/days/weeks", no "+X%", no "more followers", no "go viral"), prescribe NO reaction/enthusiasm and name EXACTLY ONE concrete next test with the metric to watch. Also deliver lengthRecommendation (seconds as a number, structure with time marks, reason) justified ONLY by the provided and calculated numbers — no generic default (e.g. "8-20 seconds is best"), no invented figure. Set all six selfCheck booleans truthfully to passing. Tie every recommendation and the rebuilt version (hook, timedScenes WITH time marks, voiceover, cta, seconds) concretely to the provided VIDEO TOPIC (if present — mention the topic literally; if no topic was given, say honestly that the recommendations stay more general and invent NO topic). Phrase causes ONLY probabilistically ("likely", "may point to", "a possible reason") — never as proven fact (never "the reason is", "this proves", "lies daran").';
   }
   const rulePart =
     violations.length > 0
@@ -2629,6 +2774,9 @@ export async function generateTikTok(
   const system = pickSystemPrompt(input.mode, lang);
   let lastViolations: string[] = [];
   let lastMissing: string[] = [];
+  // FIX-BLOCK 4 — Diagnose-Inhaltsregeln (Anlass/CTA): genau EIN Korrektur-
+  // versuch mit gezieltem Hinweis, danach harter Fehler (fail closed).
+  let diagnoseContentCorrections = 0;
 
   for (let attempt = 1; attempt <= MAX_TIKTOK_ATTEMPTS; attempt++) {
     if (signal?.aborted) throw tiktokTimeoutError(lang);
@@ -2710,7 +2858,16 @@ export async function generateTikTok(
         ...provenCauseViolations(blob),
         ...(topicGroundedInRebuilt(input.videoTopic, result) ? [] : ['topic-not-grounded']),
       ];
-      lastViolations = [...violations, ...softV];
+      // FIX-BLOCK 4 — Diagnose-Inhaltsregeln (deterministisch): erfundene
+      // Anlass-/Zielgruppen-Behauptungen (z. B. „Das perfekte Geschenk für jeden
+      // Anlass.") und kauf-/bestell-/download-erzwingende CTAs in den NEU
+      // erzeugten Feldern. Live-Befund Teil 2b: die Regeln galten bisher nur in
+      // den Idee-Modi, nicht im Diagnose-Zweig.
+      const contentV = [
+        ...diagnoseOccasionViolations(result, inventedGroundingBlob(input)),
+        ...diagnoseCtaViolations(result),
+      ];
+      lastViolations = [...violations, ...softV, ...contentV];
       const scRejected = result.selfCheck ? diagnoseSelfCheckRejected(result.selfCheck) : false;
       if (scRejected || violations.length > 0) {
         const reason = scRejected ? 'self-check' : 'Rule A/B';
@@ -2734,6 +2891,23 @@ export async function generateTikTok(
         );
         if (attempt < MAX_TIKTOK_ATTEMPTS) continue;
         console.log('[tiktok] diagnose last attempt still soft-violated — delivering result (soft)');
+      }
+      if (contentV.length > 0) {
+        console.log(
+          `[tiktok] diagnose CONTENT REJECTED (${contentV.join('|')}) (attempt ${attempt}, Korrekturversuche ${diagnoseContentCorrections})`,
+        );
+        // Genau EIN Korrekturversuch mit gezieltem Hinweis (buildRetryHint
+        // contentPart); hält das Modell die Regel danach immer noch nicht ein,
+        // ist das ein HARD FAIL → ehrlicher Fehler statt Ausgabe (fail closed).
+        if (diagnoseContentCorrections < 1 && attempt < MAX_TIKTOK_ATTEMPTS) {
+          diagnoseContentCorrections += 1;
+          continue;
+        }
+        throw new Error(
+          lang === 'de'
+            ? 'Die TikTok-Diagnose enthielt eine erfundene Anlass-/Zielgruppen-Behauptung oder einen kauf-/bestell-/download-erzwingenden Handlungsaufruf. Bitte erneut versuchen.'
+            : 'The TikTok diagnosis contained an invented occasion/audience claim or a purchase/order/download-forcing call-to-action. Please try again.',
+        );
       }
     } else {
       // Qualitäts-Prüfung ERST (Regel-A/B + selfCheck), dann Vollständigkeit:

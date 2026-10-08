@@ -7,6 +7,7 @@ import { ScoreBadge } from '~/components/ScoreBadge';
 import { VariantPicker } from '~/components/VariantPicker';
 import { ScoreCard, scoreFromMetadata } from '~/components/ScoreCard';
 import { useTranslation } from '~/i18n';
+import { formatDateTime } from '~/lib/date';
 import { contentTypeLabel } from '~/lib/content-types';
 import { getProject, getProjectContent, updateChannel } from '~/store/projects';
 import type { ImproveOutcome, VariantAsset } from '~/ai/types';
@@ -130,13 +131,13 @@ function ProjectDetailContent({ project, contents }: { project: Project; content
     <div>
       <Link to="/app" className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-blue-600 transition-colors">
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-        Back to Dashboard
+        {t.proj_back_to_dashboard}
       </Link>
       <div className="mb-8">
         <h1 className="text-2xl font-extrabold text-gray-900">{project.title}</h1>
         <p className="mt-1 text-sm text-gray-500">{project.productIdea}</p>
         <p className="mt-2 text-xs text-gray-400">
-          Created {project.createdAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+          {t.proj_created_at} {formatDateTime(project.createdAt, locale)}
         </p>
         <div className="mt-4 flex flex-wrap gap-1.5">
           {project.contentTypes.map((ct) => {
