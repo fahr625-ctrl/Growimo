@@ -19,6 +19,8 @@ import { summarizeBrief } from '~/ai/strategy-brief';
 import { extractStrategyImage, saveStrategyPrefill } from '~/lib/strategy-image';
 import { formatStrategyBrandContext } from '~/lib/studio-deeplink';
 import { getBrandProfile } from '~/store/brand';
+// FIX-BLOCK 2 (2026-10-08): echter Datei-Export (Markdown) — vorher toter Code.
+import { exportFileName, exportMarkdown } from '~/utils/export';
 
 const CONTENT_TYPE_CONFIG: Record<ContentType, { icon: string; color: string }> = {
   pinterest_pin: { icon: '📌', color: 'bg-red-100 text-red-700' },
@@ -107,6 +109,19 @@ function ProjectDetailPage() {
 function ProjectDetailContent({ project, contents }: { project: Project; contents: StoredContent[] }) {
   const { t, locale } = useTranslation();
   const briefContext = project.metadata?.brief ? summarizeBrief(project.metadata.brief as Record<string, string>, locale === "en" ? "en" : "de") : undefined;
+  // FIX-BLOCK 2 (2026-10-08): das ganze Projekt (alle Kanäle) als Markdown-Datei.
+  // 0 Generierungen — reiner Datei-Export aus bereits vorhandenen Ergebnissen.
+  const handleDownloadProject = () => {
+    try {
+      exportMarkdown(project, contents, {
+        filename: exportFileName(project.title, locale === 'en' ? 'project' : 'projekt', 'md'),
+        locale: locale === 'en' ? 'en' : 'de',
+      });
+    } catch (err) {
+      console.error('Project export failed:', err);
+      window.alert(t.proj_export_error);
+    }
+  };
   return (
     <div>
       <Link to="/app" className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-blue-600 transition-colors">
@@ -129,6 +144,18 @@ function ProjectDetailContent({ project, contents }: { project: Project; content
             ) : null;
           })}
         </div>
+        {contents.length > 0 && (
+          <div className="mt-4">
+            <button
+              type="button"
+              data-testid="project-download-md"
+              onClick={handleDownloadProject}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-all hover:border-blue-300 hover:bg-blue-50"
+            >
+              📥 {t.proj_export_project}
+            </button>
+          </div>
+        )}
       </div>
       {/* Stabilisierung Schritt 4 (Punkt 6): klarer Einstieg in die TikTok-
           Werkstatt MIT diesem Projekt (Projekt-ID + Produktidee + Brief reisen
@@ -149,6 +176,7 @@ function ProjectDetailContent({ project, contents }: { project: Project; content
               <ContentCard
                 key={content.id}
                 content={content}
+                project={project}
                 productIdea={project.productIdea}
                 strategyContext={briefContext}
               />
@@ -173,8 +201,8 @@ function ProjectDetailContent({ project, contents }: { project: Project; content
   );
 }
 
-function ContentCard({ content, productIdea, strategyContext }: { content: StoredContent; productIdea?: string; strategyContext?: string }) {
-  const { t } = useTranslation();
+function ContentCard({ content, project, productIdea, strategyContext }: { content: StoredContent; project: Project; productIdea?: string; strategyContext?: string }) {
+  const { t, locale } = useTranslation();
   const [display, setDisplay] = useState<StoredContent>(content);
   const config = CONTENT_TYPE_CONFIG[display.contentType];
   const [copied, setCopied] = useState(false);
@@ -255,6 +283,22 @@ function ContentCard({ content, productIdea, strategyContext }: { content: Store
     setCopied(true);
     try { trackEvent('content_exported'); } catch {}
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // FIX-BLOCK 2 (2026-10-08): das aktuelle Ergebnis als Markdown-Datei
+  // (growimo-<projekt>-<typ>.md) — gleiche Engine wie copyAllFormatted.
+  const handleDownload = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      exportMarkdown(project, [display], {
+        filename: exportFileName(project.title, display.contentType, 'md'),
+        locale: locale === 'en' ? 'en' : 'de',
+      });
+      try { trackEvent('content_exported'); } catch {}
+    } catch (err) {
+      console.error('Export failed:', err);
+      window.alert(t.proj_export_error);
+    }
   };
 
   return (
@@ -340,7 +384,10 @@ function ContentCard({ content, productIdea, strategyContext }: { content: Store
               }}
             />
           </div>
-          <div className="mt-4 flex justify-end">
+          <div className="mt-4 flex justify-end gap-2">
+            <button type="button" onClick={handleDownload} data-testid="content-download-md" className="inline-flex items-center gap-1.5 rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-600 transition-all hover:bg-gray-200">
+              📥 {t.proj_export_download}
+            </button>
             <button type="button" onClick={handleCopy} className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${copied ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
               {copied ? (
                 <><svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg> {t.common_copied}</>

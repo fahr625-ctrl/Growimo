@@ -502,6 +502,12 @@ export const en: EnShape = {
   proj_export_copy: '📋 Copy',
   proj_export_pdf: '📕 PDF',
   proj_export_word: '📘 Word',
+  // FIX-BLOCK 2 (2026-10-08): real Markdown export on project page + dashboard
+  proj_export_download: '📥 Download',
+  proj_export_project: '📥 Download project',
+  proj_export_latest_hint: 'Save the newest project as a Markdown file',
+  proj_export_empty: 'This project has no results to export yet.',
+  proj_export_error: 'Export failed. Please try again.',
   proj_regenerate_all: '🔄 Regenerate all',
   proj_regenerate: '🔄 Regenerate',
   proj_generated_content: 'Generated content',

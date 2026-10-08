@@ -499,6 +499,12 @@ export const de = {
   proj_export_copy: '📋 Kopieren',
   proj_export_pdf: '📕 PDF',
   proj_export_word: '📘 Word',
+  // FIX-BLOCK 2 (2026-10-08): echter Markdown-Export in Projektseite + Dashboard
+  proj_export_download: '📥 Herunterladen',
+  proj_export_project: '📥 Projekt herunterladen',
+  proj_export_latest_hint: 'Das neueste Projekt als Markdown-Datei speichern',
+  proj_export_empty: 'Für dieses Projekt gibt es noch keine Ergebnisse zum Exportieren.',
+  proj_export_error: 'Export fehlgeschlagen. Bitte versuche es erneut.',
   proj_regenerate_all: '🔄 Alle neu generieren',
   proj_regenerate: '🔄 Neu generieren',
   proj_generated_content: 'Generierte Inhalte',

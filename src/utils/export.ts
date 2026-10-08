@@ -40,37 +40,67 @@ function formatChannelSection(content: StoredContent, asMarkdown: boolean): stri
   ].join('\n');
 }
 
-// ── Markdown Export ────────────────────────────────────────────────────────────
+// ── Dateiname + Dokument-Bauer (rein, ohne DOM → testbar) ─────────────────────
 
-export function exportMarkdown(project: Project, contents: StoredContent[]) {
+/**
+ * Dateiname nach dem Muster `growimo-<projekt>-<typ>.<ext>` (FIX-BLOCK 2).
+ * Beide Teile werden ASCII-sicher slugifiziert (deutsche Umlaute → ae/oe/ue,
+ * ß → ss, sonstige Akzente entfernt).
+ */
+export function exportFileName(projectTitle: string, part: string, ext: 'md' | 'txt' = 'md'): string {
+  const slug = (value: string) =>
+    value
+      .replace(/ä/g, 'ae')
+      .replace(/ö/g, 'oe')
+      .replace(/ü/g, 'ue')
+      .replace(/Ä/g, 'Ae')
+      .replace(/Ö/g, 'Oe')
+      .replace(/Ü/g, 'Ue')
+      .replace(/ß/g, 'ss')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 48) || 'export';
+  return `growimo-${slug(projectTitle)}-${slug(part)}.${ext}`;
+}
+
+/** Baut das Markdown-Dokument (ohne Download) — Grundlage von exportMarkdown. */
+export function buildMarkdownExport(project: Project, contents: StoredContent[], locale: 'de' | 'en' = 'de'): string {
   const configs = contents.map((c) => getContentTypeConfig(c.contentType));
   const channelList = configs.map((c) => `${c?.icon ?? '📄'} ${c?.label ?? ''}`).join(' · ');
+  const created = project.createdAt.toLocaleDateString(locale === 'en' ? 'en-US' : 'de-DE', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 
   const header = [
     `# ${project.title}`,
     '',
     `> ${project.productIdea}`,
     '',
-    `**Erstellt:** ${project.createdAt.toLocaleDateString('de-DE', { year: 'numeric', month: 'long', day: 'numeric' })}`,
+    `**${locale === 'en' ? 'Created' : 'Erstellt'}:** ${created}`,
     '',
-    `**Kanäle:** ${channelList}`,
+    `**${locale === 'en' ? 'Channels' : 'Kanäle'}:** ${channelList}`,
     '',
     '---',
     '',
   ].join('\n');
 
-  const body = contents.map((c) => formatChannelSection(c, true)).join('\n---\n\n');
-  const full = header + body;
-
-  const filename = `${project.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${project.id}.md`;
-  downloadFile(filename, full, 'text/markdown;charset=utf-8');
+  return header + contents.map((c) => formatChannelSection(c, true)).join('\n---\n\n');
 }
 
-// ── Text Export ────────────────────────────────────────────────────────────────
-
-export function exportText(project: Project, contents: StoredContent[]) {
+/** Baut das Klartext-Dokument (ohne Download) — Grundlage von exportText. */
+export function buildTextExport(project: Project, contents: StoredContent[], locale: 'de' | 'en' = 'de'): string {
   const configs = contents.map((c) => getContentTypeConfig(c.contentType));
   const channelList = configs.map((c) => `${c?.icon ?? '📄'} ${c?.label ?? ''}`).join(' · ');
+  const created = project.createdAt.toLocaleDateString(locale === 'en' ? 'en-US' : 'de-DE', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 
   const header = [
     project.title.toUpperCase(),
@@ -78,18 +108,30 @@ export function exportText(project: Project, contents: StoredContent[]) {
     '',
     project.productIdea,
     '',
-    `Erstellt: ${project.createdAt.toLocaleDateString('de-DE', { year: 'numeric', month: 'long', day: 'numeric' })}`,
-    `Kanäle: ${channelList}`,
+    `${locale === 'en' ? 'Created' : 'Erstellt'}: ${created}`,
+    `${locale === 'en' ? 'Channels' : 'Kanäle'}: ${channelList}`,
     '',
     '='.repeat(60),
     '',
   ].join('\n');
 
-  const body = contents.map((c) => formatChannelSection(c, false)).join('');
-  const full = header + body;
+  return header + contents.map((c) => formatChannelSection(c, false)).join('');
+}
 
-  const filename = `${project.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${project.id}.txt`;
-  downloadFile(filename, full, 'text/plain;charset=utf-8');
+// ── Markdown Export ────────────────────────────────────────────────────────────
+
+export function exportMarkdown(project: Project, contents: StoredContent[], opts?: { filename?: string; locale?: 'de' | 'en' }) {
+  const filename =
+    opts?.filename ?? `${project.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${project.id}.md`;
+  downloadFile(filename, buildMarkdownExport(project, contents, opts?.locale ?? 'de'), 'text/markdown;charset=utf-8');
+}
+
+// ── Text Export ────────────────────────────────────────────────────────────────
+
+export function exportText(project: Project, contents: StoredContent[], opts?: { filename?: string; locale?: 'de' | 'en' }) {
+  const filename =
+    opts?.filename ?? `${project.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${project.id}.txt`;
+  downloadFile(filename, buildTextExport(project, contents, opts?.locale ?? 'de'), 'text/plain;charset=utf-8');
 }
 
 // ── Copy All Formatted ─────────────────────────────────────────────────────────

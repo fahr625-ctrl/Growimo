@@ -18,6 +18,8 @@ import {
 } from "~/store/projects";
 import type { ContentType, Project } from "~/store/projects";
 import { timeAgo as timeAgoFromLib } from "~/lib/date";
+// FIX-BLOCK 2 (2026-10-08): echter Datei-Export (Markdown) statt PDF-Alert.
+import { exportFileName, exportMarkdown } from "~/utils/export";
 
 export const Route = createFileRoute("/app/")({
   component: DashboardPage,
@@ -378,6 +380,32 @@ function DashboardContent() {
     }
   };
 
+  // FIX-BLOCK 2 (2026-10-08): Projekt als Markdown-Datei herunterladen.
+  // Die Ergebnisse werden frisch aus der DB geladen (reiner Export,
+  // 0 Generierungen — es wird nichts neu erzeugt).
+  const [exportingId, setExportingId] = useState<string | null>(null);
+  const handleExportProject = async (project: Project) => {
+    if (exportingId) return;
+    setExportingId(project.id);
+    try {
+      const contents = await getProjectContent(project.id);
+      if (contents.length === 0) {
+        window.alert(t.proj_export_empty);
+        return;
+      }
+      exportMarkdown(project, contents, {
+        filename: exportFileName(project.title, locale === "en" ? "project" : "projekt", "md"),
+        locale: locale === "en" ? "en" : "de",
+      });
+      try { trackEvent("content_exported"); } catch { /* Analytics ist optional */ }
+    } catch (err) {
+      console.error("Project export failed:", err);
+      window.alert(t.proj_export_error);
+    } finally {
+      setExportingId(null);
+    }
+  };
+
   const handleDelete = async (projectId: string) => {
     setOpenMenuId(null);
     if (confirm(t.dashboard_delete_confirm)) {
@@ -691,7 +719,7 @@ function DashboardContent() {
         <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <button type="button" onClick={copyAllContent} disabled={copyingAll} className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-3 py-3 text-sm font-semibold text-gray-700 transition hover:border-blue-300 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"><span>📋</span> {copyingAll ? t.common_loading : t.common_copy_all}</button>
-            <button type="button" onClick={() => window.alert(t.common_coming_soon)} className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-3 py-3 text-sm font-semibold text-gray-700 transition hover:border-blue-300 hover:bg-blue-50"><span>📄</span> {t.dashboard_download_pdf}</button>
+            <button type="button" data-testid="dashboard-export-md" title={t.proj_export_latest_hint} onClick={() => void handleExportProject(baseProjects[0])} disabled={exportingId !== null} className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-3 py-3 text-sm font-semibold text-gray-700 transition hover:border-blue-300 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"><span>📥</span> {exportingId ? t.common_loading : t.proj_export_md}</button>
             <Link to="/app/new-project" className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-3 py-3 text-sm font-semibold text-gray-700 transition hover:border-blue-300 hover:bg-blue-50"><span>🔄</span> {t.dashboard_regenerate}</Link>
             <button type="button" onClick={shareDashboard} disabled={sharingDashboard} className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-3 py-3 text-sm font-semibold text-gray-700 transition hover:border-blue-300 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"><span>🔗</span> {sharingDashboard ? t.common_loading : t.dashboard_share}</button>
           </div>
@@ -846,6 +874,8 @@ function DashboardContent() {
                   onFavorite={() => handleToggleFavorite(project.id)}
                   onDuplicate={() => handleDuplicate(project.id)}
                   onDelete={() => handleDelete(project.id)}
+                  onDownload={() => void handleExportProject(project)}
+                  exporting={exportingId === project.id}
                 />
               ))}
             </div>
@@ -1190,6 +1220,8 @@ function ProjectCard({
   onFavorite,
   onDuplicate,
   onDelete,
+  onDownload,
+  exporting,
 }: {
   project: Project;
   isMenuOpen: boolean;
@@ -1197,6 +1229,8 @@ function ProjectCard({
   onFavorite: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  onDownload: () => void;
+  exporting: boolean;
 }) {
   const { t, locale } = useTranslation();
   return (
@@ -1308,6 +1342,22 @@ function ProjectCard({
           {project.productIdea}
         </p>
       </Link>
+
+      {/* FIX-BLOCK 2 (2026-10-08): echter Markdown-Export dieses Projekts —
+          ersetzt den früheren „PDF herunterladen"-Alert-Platzhalter. */}
+      <button
+        type="button"
+        data-testid="project-card-download"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onDownload();
+        }}
+        disabled={exporting}
+        className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 transition hover:border-blue-300 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {exporting ? t.common_loading : `📥 ${t.proj_export_download}`}
+      </button>
     </div>
   );
 }
