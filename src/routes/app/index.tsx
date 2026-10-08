@@ -1,3 +1,4 @@
+import { seoHead } from "~/lib/seo";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useMemo, useEffect } from "react";
 import type { ReactNode } from "react";
@@ -22,6 +23,7 @@ import { timeAgo as timeAgoFromLib } from "~/lib/date";
 import { exportFileName, exportMarkdown } from "~/utils/export";
 
 export const Route = createFileRoute("/app/")({
+  head: () => seoHead({ titleKey: 'meta_app_dashboard_title', canonical: '/app' }),
   component: DashboardPage,
 });
 

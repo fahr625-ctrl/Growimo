@@ -10,6 +10,7 @@ import { useEffect } from "react";
 import { ClerkAuthProvider } from "~/auth/clerk";
 import { AnalyticsConsent } from "~/components/AnalyticsConsent";
 import { I18nProvider, useTranslation } from "~/i18n";
+import { OG_IMAGE_URL } from "~/lib/seo";
 import { trackAnalytics } from "~/lib/analytics-client";
 
 import appCss from "~/styles/app.css?url";
@@ -28,12 +29,15 @@ export const Route = createRootRoute({
       },
       { property: "og:title", content: "Growimo — Gebaut für Wachstum" },
       { property: "og:description", content: "Erstelle Pinterest Pins, Etsy-Mockups und SEO-Content mit KI. Jetzt kostenlos starten." },
-      { property: "og:image", content: "/logo.png" },
+      // FIX-BLOCK 3 (2026-10-08): Social-Images MÜSSEN absolut sein — Crawler
+      // lösen relative Pfade nicht gegen die Seite auf. /logo.png liegt als
+      // statische Datei in /public und ist im Build-Output vorhanden.
+      { property: "og:image", content: OG_IMAGE_URL },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Growimo — Gebaut für Wachstum" },
       { name: "twitter:description", content: "Erstelle Content, verbessere SEO und wachse mit deinem Business — mit einem KI-gestützten Arbeitsbereich." },
-      { name: "twitter:image", content: "/logo.png" },
+      { name: "twitter:image", content: OG_IMAGE_URL },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

@@ -1,3 +1,4 @@
+import { seoHead } from "~/lib/seo";
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState, useMemo, useEffect } from 'react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
@@ -14,6 +15,7 @@ import {
 } from '~/store/analytics';
 
 export const Route = createFileRoute('/app/analytics')({
+  head: () => seoHead({ titleKey: 'meta_app_analytics_title' }),
   component: AnalyticsPage,
 });
 

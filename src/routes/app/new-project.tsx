@@ -1,3 +1,4 @@
+import { seoHead } from "~/lib/seo";
 import { createFileRoute, Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { resolveInitialIdea } from '~/lib/idea-priority';
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
@@ -49,6 +50,7 @@ interface NewProjectSearch {
 
 // ── Route definition ──────────────────────────────────────────────────────────
 export const Route = createFileRoute('/app/new-project')({
+  head: () => seoHead({ titleKey: 'meta_app_new_project_title' }),
   validateSearch: (search: Record<string, unknown>): NewProjectSearch => {
     return {
       idea: typeof search.idea === 'string' ? search.idea : undefined,

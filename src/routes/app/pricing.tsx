@@ -1,3 +1,4 @@
+import { ROBOTS_PUBLIC, seoHead } from "~/lib/seo";
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
@@ -12,6 +13,12 @@ import { useTranslation } from '~/i18n';
 import { track } from '~/lib/tracking-client';
 
 export const Route = createFileRoute('/app/pricing')({
+  head: () =>
+    seoHead({
+      titleKey: 'meta_app_pricing_title',
+      robots: ROBOTS_PUBLIC,
+      canonical: '/app/pricing',
+    }),
   component: PricingPage,
 });
 

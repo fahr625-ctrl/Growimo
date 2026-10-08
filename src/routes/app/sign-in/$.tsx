@@ -1,3 +1,4 @@
+import { ROBOTS_PUBLIC, seoHead } from "~/lib/seo";
 import { createFileRoute } from "@tanstack/react-router";
 import { SignIn } from "@clerk/clerk-react";
 import { isClerkConfigured } from "~/auth/middleware";
@@ -7,6 +8,7 @@ import { isClerkConfigured } from "~/auth/middleware";
 // Beta-Ende (Owner 2026-10-08): BetaRegisteredNotice entfernt (kein
 // Beta-Anmeldeweg mehr).
 export const Route = createFileRoute("/app/sign-in/$")({
+  head: () => seoHead({ titleKey: 'meta_app_sign_in_title', robots: ROBOTS_PUBLIC }),
   component: SignInCatchAll,
 });
 

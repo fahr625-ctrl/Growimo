@@ -1,3 +1,4 @@
+import { seoHead } from "~/lib/seo";
 import { createFileRoute } from '@tanstack/react-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useClerk, useUser } from '@clerk/clerk-react';
@@ -10,6 +11,7 @@ import { TONES, toneLabel } from '~/lib/tones';
 import { contentTypeLabel } from '~/lib/content-types';
 
 export const Route = createFileRoute('/app/settings')({
+  head: () => seoHead({ titleKey: 'meta_app_settings_title' }),
   component: SettingsPage,
 });
 

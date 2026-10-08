@@ -1,3 +1,4 @@
+import { seoHead } from "~/lib/seo";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useUser } from "@clerk/clerk-react";
@@ -34,6 +35,7 @@ const CONTENT_TYPE_CONFIG: Record<
 };
 
 export const Route = createFileRoute("/app/content-library")({
+  head: () => seoHead({ titleKey: 'meta_app_content_library_title' }),
   component: ContentLibraryPage,
 });
 

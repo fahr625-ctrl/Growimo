@@ -1,3 +1,4 @@
+import { seoHead } from "~/lib/seo";
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
@@ -13,6 +14,7 @@ import {
 } from '~/store/feedback';
 
 export const Route = createFileRoute('/app/feedback')({
+  head: () => seoHead({ titleKey: 'meta_app_feedback_title' }),
   component: FeedbackPage,
 });
 

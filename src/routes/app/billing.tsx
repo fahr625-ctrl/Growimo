@@ -1,3 +1,4 @@
+import { seoHead } from "~/lib/seo";
 import { createFileRoute, Link, useSearch } from '@tanstack/react-router';
 import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
@@ -18,6 +19,7 @@ import { createPortalSession } from '~/stripe/portal';
 import { createCheckoutSession } from '~/stripe/checkout';
 
 export const Route = createFileRoute('/app/billing')({
+  head: () => seoHead({ titleKey: 'meta_app_billing_title' }),
   component: BillingPage,
 });
 

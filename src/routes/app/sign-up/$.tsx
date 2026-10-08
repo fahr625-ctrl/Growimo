@@ -1,9 +1,11 @@
+import { ROBOTS_PUBLIC, seoHead } from "~/lib/seo";
 import { createFileRoute } from "@tanstack/react-router";
 import { SignUp } from "@clerk/clerk-react";
 import { isClerkConfigured } from "~/auth/middleware";
 
 // Catch-all route for Clerk sub-paths like /app/sign-up/verify-email-address, etc.
 export const Route = createFileRoute("/app/sign-up/$")({
+  head: () => seoHead({ titleKey: 'meta_app_sign_up_title', robots: ROBOTS_PUBLIC }),
   component: SignUpCatchAll,
 });
 

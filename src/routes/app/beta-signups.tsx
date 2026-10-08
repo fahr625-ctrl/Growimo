@@ -1,10 +1,14 @@
+import { seoHead } from "~/lib/seo";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { ProtectedRoute } from "~/components/ProtectedRoute";
 import { useTranslation } from "~/i18n";
 import { OWNER_USER_ID } from "~/lib/tracking";
-export const Route = createFileRoute("/app/beta-signups")({ component: BetaSignupsPage });
+export const Route = createFileRoute("/app/beta-signups")({
+  head: () => seoHead({ titleKey: 'meta_app_beta_signups_title' }),
+  component: BetaSignupsPage,
+});
 type Signup = { id: string; first_name: string; email: string; created_at: string; approved: boolean };
 // ── Owner-only gate ──────────────────────────────────────────────────────────
 // Same pattern as admin-tracking.tsx: non-owners get a lock screen, never the

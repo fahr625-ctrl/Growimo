@@ -1,3 +1,4 @@
+import { seoHead } from "~/lib/seo";
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 import { useEffect, useRef, useState } from 'react';
@@ -80,7 +81,10 @@ const generateImageServer = createServerFn({ method: 'POST' }).validator((input:
   );
 });
 
-export const Route = createFileRoute('/app/image-studio')({ component: ImageStudioPage });
+export const Route = createFileRoute('/app/image-studio')({
+  head: () => seoHead({ titleKey: 'meta_app_image_studio_title' }),
+  component: ImageStudioPage,
+});
 
 const templates = [
   ['2:3', 'image_studio_template_pinterest', 'image_studio_prompt_base_pinterest'],

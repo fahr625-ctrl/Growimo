@@ -1,3 +1,4 @@
+import { seoHead } from "~/lib/seo";
 import { createFileRoute } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
@@ -14,7 +15,10 @@ import { CHANNEL_METRICS } from '~/ai/performance/metrics';
 import { ScoreBadge } from '~/components/ScoreBadge';
 import { PreferencesCard } from '~/components/PreferencesCard';
 
-export const Route = createFileRoute('/app/performance')({ component: PerformancePage });
+export const Route = createFileRoute('/app/performance')({
+  head: () => seoHead({ titleKey: 'meta_app_performance_title' }),
+  component: PerformancePage,
+});
 
 // ── Types (server rows are plain JSON) ─────────────────────────────────────────
 interface PublishedAsset {

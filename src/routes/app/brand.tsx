@@ -1,3 +1,4 @@
+import { seoHead } from "~/lib/seo";
 import { createFileRoute } from '@tanstack/react-router';
 import { useState, useEffect } from 'react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
@@ -12,6 +13,7 @@ import {
 } from '~/store/brand';
 
 export const Route = createFileRoute('/app/brand')({
+  head: () => seoHead({ titleKey: 'meta_app_brand_title' }),
   component: BrandPage,
 });
 

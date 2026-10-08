@@ -1,0 +1,20 @@
+# robots.txt — Growimo (https://www.growimo.app)
+# FIX-BLOCK 3 (2026-10-08). Statische Datei in /public → Vite kopiert sie nach
+# dist/client und der Vercel-Build nach .vercel/output/static (Route "filesystem"
+# wird vor dem SSR-Handler ausgeliefert).
+#
+# Warum Allow/Disallow gemischt: Der eingeloggte Arbeitsbereich /app/* besteht aus
+# dünnen, hinter Clerk liegenden Seiten (Duplicate-Content-Risiko) und wird nicht
+# gecrawlt — mit Ausnahme der öffentlichen Seiten /app/pricing, /app/sign-in und
+# /app/sign-up. Google wertet die spezifischste (längste) Regel je Pfad aus, daher
+# gewinnt "Allow: /app/pricing" gegen "Disallow: /app/".
+
+User-agent: *
+Allow: /
+Allow: /app/pricing
+Allow: /app/sign-in
+Allow: /app/sign-up
+Disallow: /app/
+Disallow: /api/
+
+Sitemap: https://www.growimo.app/sitemap.xml

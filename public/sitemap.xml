@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Growimo Sitemap — FIX-BLOCK 3 (2026-10-08). Statische Datei in /public.
+     Nur öffentlich indexierbare Seiten: Landing (/) und Preis-Seite
+     (/app/pricing). Keine Auth-Seiten (Projekte, Dashboard, Studio, Settings …),
+     siehe robots.txt (Disallow: /app/). lastmod = Datum der letzten inhaltlichen
+     Änderung dieser Seiten; bei Änderungen mitpflegen. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://www.growimo.app/</loc>
+    <lastmod>2026-10-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://www.growimo.app/app/pricing</loc>
+    <lastmod>2026-10-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+</urlset>

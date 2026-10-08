@@ -1,3 +1,4 @@
+import { ROBOTS_PRIVATE, seoHead } from "~/lib/seo";
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useAuth, useUser, UserButton, SignOutButton } from "@clerk/clerk-react";
@@ -10,6 +11,8 @@ import { OWNER_USER_ID } from "~/lib/tracking";
 import { UsageStatus } from "~/components/UsageStatus";
 
 export const Route = createFileRoute("/app")({
+  head: () =>
+    seoHead({ titleKey: 'meta_app_workspace_title', robots: ROBOTS_PRIVATE }),
   component: AppLayout,
 });
 

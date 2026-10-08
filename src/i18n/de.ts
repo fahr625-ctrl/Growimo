@@ -1808,5 +1808,32 @@ export const de = {
   consent_analytics_decline: 'Ablehnen',
   consent_analytics_note:
     'Ohne Einwilligung zählen Besuche weiterhin anonym als Seitenaufrufe.',
+
+  // SEO-Titel je App-Seite (FIX-BLOCK 3, 2026-10-08) — über src/lib/seo.ts.
+  meta_app_workspace_title: 'Growimo – Arbeitsbereich',
+  meta_app_dashboard_title: 'Dashboard – Growimo',
+  meta_app_pricing_title: 'Preise – Growimo',
+  meta_app_new_project_title: 'Neues Projekt – Growimo',
+  meta_app_package_title: 'Marketing-Paket – Growimo',
+  meta_app_image_studio_title: 'Bild-Studio – Growimo',
+  meta_app_tiktok_title: 'TikTok-Modul – Growimo',
+  meta_app_calendar_title: 'Content-Kalender – Growimo',
+  meta_app_brand_title: 'Markenprofil – Growimo',
+  meta_app_billing_title: 'Abrechnung – Growimo',
+  meta_app_settings_title: 'Einstellungen – Growimo',
+  meta_app_content_library_title: 'Content-Bibliothek – Growimo',
+  meta_app_analytics_title: 'Analytics – Growimo',
+  meta_app_performance_title: 'Performance – Growimo',
+  meta_app_feedback_title: 'Feedback – Growimo',
+  meta_app_project_title: 'Projekt – Growimo',
+  meta_app_generate_pinterest_title: 'Pinterest-Generator – Growimo',
+  meta_app_generate_etsy_title: 'Etsy-Generator – Growimo',
+  meta_app_generate_blog_title: 'Blog-Generator – Growimo',
+  meta_app_admin_analytics_title: 'Analytics (Admin) – Growimo',
+  meta_app_admin_tracking_title: 'Tracking (Admin) – Growimo',
+  meta_app_beta_signups_title: 'Beta-Anmeldungen – Growimo',
+  meta_app_beta_welcome_title: 'Willkommen – Growimo',
+  meta_app_sign_in_title: 'Anmelden – Growimo',
+  meta_app_sign_up_title: 'Registrieren – Growimo',
 } as const;
 

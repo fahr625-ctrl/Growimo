@@ -1,3 +1,4 @@
+import { seoHead } from "~/lib/seo";
 import { createFileRoute, Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
@@ -36,6 +37,7 @@ import {
 } from '~/lib/package-autosave';
 
 export const Route = createFileRoute('/app/package')({
+  head: () => seoHead({ titleKey: 'meta_app_package_title' }),
   // Phase 1 (C3): optionales ?idea= (frische Nutzeridee) — schlägt den Entwurf.
   validateSearch: (search: Record<string, unknown>): { idea?: string } => ({
     idea: typeof search.idea === 'string' ? search.idea : undefined,

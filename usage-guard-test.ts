@@ -22,7 +22,6 @@ import {
   releaseGeneration,
   withGenerationGuard,
   UsageLimitError,
-  RateLimitError,
   ADMIN_OVERRIDE_USER_IDS,
   resolveUserIdFromServerFn,
 } from './src/lib/usage-guard';
@@ -205,8 +204,14 @@ async function main() {
     await sql`DELETE FROM usage_monthly WHERE user_id=(SELECT id FROM users WHERE clerk_id=${u})`;
     await sql`DELETE FROM generation_throttle WHERE user_id=${u}`;
     await sql`DELETE FROM subscriptions WHERE user_id=(SELECT id FROM users WHERE clerk_id=${u})`;
-    const d = await sql`DELETE FROM users WHERE clerk_id=${u}`;
-    console.log(`  removed ${u}: users=${d.count}`);
+    // TS2339 (FIX-BLOCK 3, 2026-10-08): Die Statement-Ergebnisse von
+    // @neondatabase/serverless sind für Nicht-SELECT-Queries als RowList typisiert
+    // und deklarieren `count` (Feld der Neon-Full-Results) nicht. Laufzeit-Feld ist
+    // laut Neon-Doku vorhanden → dokumentierter Cast statt Typ-Lücke.
+    const d = (await sql`DELETE FROM users WHERE clerk_id=${u}`) as unknown as {
+      count?: number;
+    };
+    console.log(`  removed ${u}: users=${d.count ?? 0}`);
   }
   await sql`DELETE FROM generation_throttle WHERE user_id=${TEST_USER}`;
   const leftoverEvents = await sql`SELECT COUNT(*) AS n FROM usage_events WHERE user_id LIKE 'guard-test-%'`;

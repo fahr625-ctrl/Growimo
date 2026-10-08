@@ -1,9 +1,11 @@
+import { ROBOTS_PUBLIC, seoHead } from "~/lib/seo";
 import { createFileRoute } from "@tanstack/react-router";
 import { SignUp } from "@clerk/clerk-react";
 import { isClerkConfigured } from "~/auth/middleware";
 import { useEffect } from "react";
 
 export const Route = createFileRoute("/app/sign-up/")({
+  head: () => seoHead({ titleKey: 'meta_app_sign_up_title', robots: ROBOTS_PUBLIC }),
   component: SignUpPage,
 });
 

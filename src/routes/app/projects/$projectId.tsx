@@ -1,3 +1,4 @@
+import { seoHead } from "~/lib/seo";
 import { trackEvent } from '~/store/analytics';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -35,7 +36,10 @@ const CONTENT_TYPE_CONFIG: Record<ContentType, { icon: string; color: string }> 
   market_intelligence: { icon: '📊', color: 'bg-violet-100 text-violet-700' },
 };
 
-export const Route = createFileRoute('/app/projects/$projectId')({ component: ProjectDetailPage });
+export const Route = createFileRoute('/app/projects/$projectId')({
+  head: () => seoHead({ titleKey: 'meta_app_project_title' }),
+  component: ProjectDetailPage,
+});
 
 function ProjectDetailPage() {
   const { projectId } = Route.useParams();

@@ -1,9 +1,11 @@
+import { seoHead } from "~/lib/seo";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTranslation } from "~/i18n";
 import { useState, useEffect, useCallback } from "react";
 import { ProtectedRoute } from "~/components/ProtectedRoute";
 
 export const Route = createFileRoute("/app/beta-welcome")({
+  head: () => seoHead({ titleKey: 'meta_app_beta_welcome_title' }),
   component: BetaWelcomeRoute,
 });
 

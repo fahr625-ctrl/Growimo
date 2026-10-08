@@ -1,3 +1,4 @@
+import { seoHead } from "~/lib/seo";
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState, type TouchEvent } from 'react';
 import { useUser } from '@clerk/clerk-react';
@@ -10,7 +11,10 @@ import type { ContentType, PublishPlanItem, PublishTask } from '~/ai/types';
 import { buildPublishPlanServer, savePublishPlanServer, updateTaskDoneServer, getPublishPlanServer } from '~/ai/server';
 import { ScoreBadge } from '~/components/ScoreBadge';
 
-export const Route = createFileRoute('/app/calendar')({ component: CalendarPage });
+export const Route = createFileRoute('/app/calendar')({
+  head: () => seoHead({ titleKey: 'meta_app_calendar_title' }),
+  component: CalendarPage,
+});
 
 type View = 'week' | 'month';
 type StoredItem = StoredContent & { projectTitle: string };

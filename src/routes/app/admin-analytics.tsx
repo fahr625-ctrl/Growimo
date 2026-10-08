@@ -1,3 +1,4 @@
+import { seoHead } from "~/lib/seo";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/clerk-react";
@@ -6,6 +7,7 @@ import { useTranslation } from "~/i18n";
 import { OWNER_USER_ID } from "~/lib/tracking";
 
 export const Route = createFileRoute("/app/admin-analytics")({
+  head: () => seoHead({ titleKey: 'meta_app_admin_analytics_title' }),
   component: AdminAnalyticsPage,
 });
 

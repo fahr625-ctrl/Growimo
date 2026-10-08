@@ -1,3 +1,4 @@
+import { seoHead } from "~/lib/seo";
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
@@ -1275,4 +1276,7 @@ function TikTokContent() {
   );
 }
 
-export const Route = createFileRoute('/app/tiktok')({ component: TikTokPage });
+export const Route = createFileRoute('/app/tiktok')({
+  head: () => seoHead({ titleKey: 'meta_app_tiktok_title' }),
+  component: TikTokPage,
+});

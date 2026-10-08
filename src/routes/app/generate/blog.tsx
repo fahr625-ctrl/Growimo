@@ -1,7 +1,9 @@
+import { seoHead } from "~/lib/seo";
 import { createFileRoute, useSearch } from '@tanstack/react-router';
 import { QuickGeneratorPage, type QuickGeneratorProps } from '~/components/QuickGenerator';
 
 export const Route = createFileRoute('/app/generate/blog')({
+  head: () => seoHead({ titleKey: 'meta_app_generate_blog_title' }),
   validateSearch: (search: Record<string, unknown>) => ({
     idea: typeof search.idea === 'string' ? search.idea : undefined,
   }),

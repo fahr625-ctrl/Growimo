@@ -1,3 +1,4 @@
+import { ROBOTS_PUBLIC, seoHead } from "~/lib/seo";
 import { createFileRoute } from "@tanstack/react-router";
 import { SignIn } from "@clerk/clerk-react";
 import { isClerkConfigured } from "~/auth/middleware";
@@ -8,6 +9,7 @@ import { useEffect } from "react";
 // den dieses Flag noch gesetzt werden könnte.
 
 export const Route = createFileRoute("/app/sign-in/")({
+  head: () => seoHead({ titleKey: 'meta_app_sign_in_title', robots: ROBOTS_PUBLIC }),
   component: SignInPage,
 });
 
