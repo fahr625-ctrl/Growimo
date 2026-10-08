@@ -26,6 +26,10 @@
 // Exit 0 nur, wenn alle Checks grün sind.
 // ─────────────────────────────────────────────────────────────────────────────
 import { readFileSync } from 'node:fs';
+// Der OpenAI-Mock laeuft auf Bun.serve; die Bun-Typen sind in diesem tsconfig nicht
+// geladen (wie in den bestehenden tiktok-*-Suiten) -> lokale Deklaration, damit die
+// Suite keine neuen tsc-Fehler einfuehrt.
+declare const Bun: any;
 import {
   diagnoseCtaBlob,
   diagnoseCtaViolations,
@@ -65,7 +69,7 @@ let attemptCounter = 0;
 const seenUserPrompts: string[] = [];
 const server = Bun.serve({
   port: 0,
-  async fetch(req) {
+  async fetch(req: Request) {
     if (req.method !== 'POST') return new Response('method not allowed', { status: 405 });
     const body = (await req.json()) as { messages?: Array<{ role?: string; content?: unknown }> };
     const userMsg = (body?.messages?.find((m) => m.role === 'user')?.content as string | undefined) ?? '';
