@@ -77,28 +77,26 @@ export async function handleBetaApi(req: Request, pathname: string): Promise<Res
   if (!prior || now - prior.at >= 60000) betaRate.set(ip, { count: 1, at: now });
   else prior.count++;
 
-  let body: any;
-  try { body = await req.json(); } catch { return Response.json({ error: "Invalid JSON" }, { status: 400 }); }
-
-  const first = String(body.first_name || "").trim();
-  const email = String(body.email || "").trim().toLowerCase();
-  if (!first) return Response.json({ error: "First name is required" }, { status: 400 });
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return Response.json({ error: "Invalid email" }, { status: 400 });
-
-  // Idempotent: reuse existing row if this email already signed up
-  const existing = await sql`SELECT id, first_name, email, created_at FROM beta_signups WHERE LOWER(email) = ${email} LIMIT 1`;
-  if (existing.length > 0) {
-    console.log(`[beta] Duplicate signup ignored: ${existing[0].first_name} <${email}>`);
-    return Response.json({ success: true, signup: existing[0], already: true });
-  }
-
-  const rows = await sql`INSERT INTO beta_signups (first_name,email,approved) VALUES (${first},${email},true) RETURNING id,created_at`;
-  console.log(`[beta] New signup: ${first} <${email}>`);
-
-  // Write to notification queue for email delivery
-  try { const fd = await import("fs"); fd.appendFileSync("/home/team/shared/beta-notifications.jsonl", JSON.stringify({first_name:first,email,created_at:rows[0].created_at,ts:new Date().toISOString()})+"\n"); } catch {}
-
-  return Response.json({ success: true, signup: rows[0], already: false });
+  // ── BETA-ENDE (Owner-Auftrag 2026-10-08, Phase 10-Vorbereitung) ────────────
+  // Das Beta-Programm ist beendet: neue Anmeldungen werden NICHT mehr
+  // angenommen. Der frühere Pfad schrieb hartkodiert `approved = true` und hat
+  // damit jeder beliebigen neuen E-Mail den lebenslangen 50-%-Pro-Rabatt
+  // geöffnet (das Rabatt-Loch). Jetzt: HTTP 410 Gone, KEIN INSERT in
+  // beta_signups, KEINE Notification, keine Validierung/kein Body-Read.
+  //
+  // Der bestehende Rabatt bleibt unberührt: `isBetaUserEmail()` (unten) und
+  // /api/beta-access lesen weiterhin ausschließlich die bereits vor dem Public
+  // Launch registrierten Zeilen (beta_signups approved = true). Bestehende
+  // Zeilen werden nicht angefasst.
+  return Response.json(
+    {
+      error: "Beta program ended",
+      code: "beta_program_ended",
+      message: "Das Beta-Programm ist beendet. Du kannst dich direkt kostenlos registrieren.",
+      message_en: "The beta program has ended. You can sign up for free right away.",
+    },
+    { status: 410 },
+  );
 }
 
 /**

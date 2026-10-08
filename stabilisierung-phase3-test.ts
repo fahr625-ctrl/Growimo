@@ -281,11 +281,16 @@ async function main(): Promise<void> {
     check('3.3b „Neue Session“ räumt die Persistenz', tik.includes('clearTikTokResult()'));
 
     const app = read('src/routes/app.tsx');
-    check('3.2 Beta-Gate hat ein Fetch-Timeout (10 s)', app.includes('BETA_ACCESS_TIMEOUT_MS = 10_000') && app.includes('setTimeout(() => { if (!cancelled) settle(\'error\'); }, BETA_ACCESS_TIMEOUT_MS)'));
-    check('3.2 leere E-Mail → Schonfrist statt Dauer-„checking“', app.includes('BETA_EMAIL_GRACE_MS = 5_000') && app.includes("if (!email) {"));
-    check('3.2 Deadlock-Ref checkedEmailRef ist entfernt', !app.includes('checkedEmailRef'));
-    check('3.2 verspätete Antworten überschreiben keinen Endzustand', app.includes("setBeta((prev) => (prev === 'checking' ? v : prev))"));
-    check('3.2 Retry-Button öffnet den Check erneut', app.includes('const retryAccessCheck = () =>') && app.includes('setBeta("checking")'));
+    // BETA-ENDE (Owner-Auftrag 2026-10-08): Das Beta-Access-Gate ist aus dem
+    // Layout ENTFERNT. Die früheren Phase-3.2-Assertions (Fetch-Timeout,
+    // E-Mail-Schonfrist, verspätete Antworten, Retry-Button, checkedEmailRef)
+    // prüften Code, der für den offenen Zugang bewusst gelöscht wurde — sie sind
+    // hier 1:1 durch die neuen Invarianten ersetzt (Gesamtzahl der Checks bleibt).
+    check('3.2 kein Beta-Access-Fetch mehr im Layout (Gate entfernt)', !app.includes('fetch("/api/beta-access"'));
+    check('3.2 kein blockierender „checking“-Zustand mehr', !app.includes('beta === "checking"'));
+    check('3.2 ensureUser läuft für JEDEN eingeloggten Nutzer', app.includes('if (!isSignedIn) return;') && !app.includes('beta !== "approved"'));
+    check('3.2 kein WaitlistScreen mehr (öffentliche Registrierung)', !app.includes('function WaitlistScreen'));
+    check('3.2 ProtectedRoute schützt Ausgeloggte weiter', read('src/components/ProtectedRoute.tsx').includes('window.location.href = "/app/sign-in"'));
 
     const pr = read('src/components/ProtectedRoute.tsx');
     check('3.2 ProtectedRoute hat ein Lade-Timeout (12 s)', pr.includes('AUTH_LOAD_TIMEOUT_MS = 12_000'));

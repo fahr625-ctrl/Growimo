@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useAuth, useUser, UserButton, SignOutButton } from "@clerk/clerk-react";
 import { isClerkConfigured } from "~/auth/middleware";
 import { useTranslation } from "~/i18n";
@@ -8,35 +8,34 @@ import FeedbackButton from "~/components/FeedbackButton";
 import { ensureUser } from "~/store/projects";
 import { OWNER_USER_ID } from "~/lib/tracking";
 import { UsageStatus } from "~/components/UsageStatus";
-import {
-  readBetaAccessCache,
-  writeBetaAccessCache,
-  clearBetaAccessCache,
-  shouldKeepBetaState,
-  shouldRecheckOnReturn,
-} from "~/lib/navigation-lifecycle";
 
 export const Route = createFileRoute("/app")({
   component: AppLayout,
 });
 
-// Phase 3.2 (C6) — der Beta-Access-Gate darf nie dauerhaft „Lädt...“ zeigen.
-// Schonfrist, in der Clerk die E-Mail nachliefert (isSignedIn, E-Mail noch leer),
-// danach Fehlerzustand mit Retry. Timeout des Zugriffs-Checks selbst: danach
-// ebenfalls Fehler + Retry statt Endlos-Spinner.
-export const BETA_EMAIL_GRACE_MS = 5_000;
-export const BETA_ACCESS_TIMEOUT_MS = 10_000;
+// ── BETA-ENDE (Owner-Auftrag 2026-10-08, Phase 10-Vorbereitung) ───────────────
+// Das Beta-Access-Gate ist ENTFERNT. Früher prüfte /app die sign-in-E-Mail gegen
+// `beta_signups.approved` und zeigte Nicht-Freigeschalteten den Wartelisten-
+// Bildschirm (Status `checking` → Spinner, `denied` → Waitlist, `error` → Retry).
+// Seit dem Beta-Ende ist die Registrierung öffentlich: JEDER eingeloggte Nutzer
+// (gültige Clerk-Session) kommt direkt in die App — ohne Netzwerk-Check, ohne
+// Warteliste, ohne Beta-Zeile. Der Zugriffsschutz für Ausgeloggte liegt weiterhin
+// in `ProtectedRoute` (Redirect auf /app/sign-in).
+//
+// Der lebenslange 50-%-Beta-Rabatt bleibt davon unberührt: er wird serverseitig
+// in `src/stripe/checkout.ts` über `isBetaUserEmail()` (beta_signups
+// approved = true) entschieden und gilt nur für vor dem Public Launch
+// registrierte Nutzer — nicht für neue.
 
 function AppLayout() {
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
-  const { t } = useTranslation();
 
   // Ensure a `users` row exists in PostgreSQL for the signed-in Clerk user.
   // Hook count stays stable because isClerkConfigured() is a build-time constant
   // (same pattern as AppSidebar below).
   const clerkUser = isClerkConfigured() ? useUser().user : undefined;
-  const { isSignedIn, isLoaded } = isClerkConfigured() ? useAuth() : { isSignedIn: false, isLoaded: true };
+  const { isSignedIn } = isClerkConfigured() ? useAuth() : { isSignedIn: false };
 
   // Public auth pages (sign-in, sign-up) get a minimal layout without sidebar
   const isAuthPage =
@@ -45,104 +44,17 @@ function AppLayout() {
   // Beta welcome page gets full-width minimal layout (no sidebar, no max-w constraint)
   const isBetaWelcome = currentPath === "/app/beta-welcome";
 
-  // ── Beta access gate ────────────────────────────────────────────────────────
-  // Every beta signup is auto-approved; this gate checks the signed-in user's
-  // email against the approved list before showing the app.
-  const [beta, setBeta] = useState<'checking' | 'approved' | 'denied' | 'error'>('checking');
-  const [checkVersion, setCheckVersion] = useState(0);
-
-  const email = clerkUser?.primaryEmailAddress?.emailAddress ?? "";
-
-  useEffect(() => {
-    if (!isLoaded || isAuthPage || isBetaWelcome || !isSignedIn) return;
-    // Erfolgs-/Fehlerzustand ist terminal: er wird nur über retryAccessCheck()
-    // (setzt beta zurück auf 'checking') wieder geöffnet. Dadurch kann der
-    // Effekt nie in einer Schleife neu laden.
-    if (beta !== 'checking') return;
-    // Nur setzen, solange wir noch im 'checking'-Zustand sind — ein später
-    // gesetztes Ergebnis (z. B. verspätete Antwort nach Cleanup) darf einen
-    // bereits erreichten Zustand nicht überschreiben.
-    const settle = (v: 'approved' | 'denied' | 'error') => {
-      setBeta((prev) => (prev === 'checking' ? v : prev));
-      // Phase 4.1 (C6) — bestätigte Freischaltung kurz spiegeln, damit Reload
-      // und Zurück-Navigation die App sofort zeigen statt erneut „Lädt...“.
-      // `denied`/`error` werden bewusst NICHT gecacht (kein Festhängen auf der
-      // Warteliste, wenn der Owner zwischenzeitlich freischaltet).
-      if (v === 'approved') writeBetaAccessCache(email, 'approved');
-      if (v === 'denied') clearBetaAccessCache();
-    };
-    // Phase 4.1 (C6) — Reload/Zurück-Szenario: lag für genau diese E-Mail ein
-    // frischer, bestätigter Zustand vor, wird er ohne erneuten Netzwerk-Check
-    // übernommen (kein Spinner, keine Lade-Schleife).
-    if (readBetaAccessCache(email) === 'approved') {
-      settle('approved');
-      return;
-    }
-    // Phase 3.2 (C6) — kein Dauer-„Lädt...“ mehr:
-    // (i) `email` ist bei isSignedIn kurzzeitig leer (Clerk-Session noch nicht
-    //     vollständig). Statt für immer in 'checking' zu hängen, gibt es eine
-    //     kurze Schonfrist und danach den Fehlerzustand MIT Retry-Button.
-    //     Kommt die E-Mail vorher, läuft der Effekt erneut und prüft normal.
-    if (!email) {
-      const grace = setTimeout(() => settle('error'), BETA_EMAIL_GRACE_MS);
-      return () => clearTimeout(grace);
-    }
-    let cancelled = false;
-    // (ii) Der Fetch selbst hat ein Timeout: antwortet /api/beta-access nie
-    //      (hängender Request, abgerissene Verbindung), wechselt das Gate nach
-    //      BETA_ACCESS_TIMEOUT_MS in 'error' mit Retry-Button.
-    const timer = setTimeout(() => { if (!cancelled) settle('error'); }, BETA_ACCESS_TIMEOUT_MS);
-    (async () => {
-      try {
-        const res = await fetch("/api/beta-access", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
-        });
-        const d = await res.json().catch(() => null);
-        if (cancelled) return;
-        if (d && typeof d.approved === "boolean") settle(d.approved ? "approved" : "denied");
-        else settle("error");
-      } catch {
-        if (!cancelled) settle("error");
-      } finally {
-        clearTimeout(timer);
-      }
-    })();
-    return () => { cancelled = true; clearTimeout(timer); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, isAuthPage, isBetaWelcome, isSignedIn, email, beta, checkVersion]);
-
-  const retryAccessCheck = () => {
-    setBeta("checking");
-    setCheckVersion(v => v + 1);
-  };
-
-  // ── Phase 4.1 (C6/A7) — bfcache-Rückkehr (Android: Zurück/Vor, Tab-Wechsel) ──
-  // Kommt die Seite aus dem Back/Forward-Cache zurück, ist der Zustand bereits
-  // geprüft: `approved` bleibt `approved`, es wird NICHT neu geprüft (kein
-  // Spinner, kein erneuter Netzwerk-Call). Ausnahme: ein während des Einfrierens
-  // abgelaufener Timeout kann fälschlich `error` gesetzt haben — dann genau
-  // einmal neu prüfen statt einen Fehlerbildschirm zu zeigen.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const onPageShow = (event: PageTransitionEvent) => {
-      if (!shouldKeepBetaState(event)) return;
-      // Kein verschachteltes setState (StrictMode-sicher): der Effekt oben hat
-      // `beta` in den Dependencies und läuft durch den Wechsel auf 'checking'
-      // automatisch erneut — ein eigener Versionszähler ist nicht nötig.
-      setBeta((prev) =>
-        prev !== "approved" && shouldRecheckOnReturn(event, prev) ? "checking" : prev,
-      );
-    };
-    window.addEventListener("pageshow", onPageShow);
-    return () => window.removeEventListener("pageshow", onPageShow);
-  }, []);
-
   // Ensure a `users` row exists in PostgreSQL for the signed-in Clerk user.
-  // Only runs once the user's email is confirmed beta-approved.
+  // BETA-ENDE (Owner-Auftrag 2026-10-08): läuft jetzt für JEDEN eingeloggten
+  // Nutzer — nicht mehr erst nach bestätigter Beta-Freischaltung. Früher hing
+  // dieser Effekt an `beta === "approved"`, sodass nur freigeschaltete
+  // Beta-Nutzer beim App-Load ihre users-Zeile bekamen; neue Nutzer ohne
+  // beta_signups-Zeile wurden erst beim ersten App-Pfad angelegt. Seit der
+  // öffentlichen Registrierung legen wir die Zeile für alle an.
+  // Hook-Reihenfolge bleibt stabil, weil isClerkConfigured() eine
+  // Build-Zeit-Konstante ist.
   useEffect(() => {
-    if (beta !== "approved") return;
+    if (!isSignedIn) return;
     if (!clerkUser?.id) return;
     ensureUser(
       clerkUser.id,
@@ -151,7 +63,7 @@ function AppLayout() {
     ).catch((err) => {
       console.error("[db] ensureUser failed:", err);
     });
-  }, [beta, clerkUser?.id]);
+  }, [isSignedIn, clerkUser?.id]);
 
   if (isBetaWelcome) {
     return <Outlet />;
@@ -173,58 +85,12 @@ function AppLayout() {
     );
   }
 
-  // Signed in: wait for the beta access check before showing anything
-  if (isSignedIn && beta === "checking") {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <div className="flex items-center gap-3 text-gray-500">
-          <svg
-            className="h-6 w-6 animate-spin text-blue-600"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-            />
-          </svg>
-          <span className="text-sm font-medium">{t.common_loading}</span>
-        </div>
-      </div>
-    );
-  }
-
-  // Signed in but not beta-approved: show the waitlist screen
-  if (isSignedIn && beta === "denied") {
-    return <WaitlistScreen />;
-  }
-
-  // Signed in but the access check itself failed: offer a retry
-  if (isSignedIn && beta === "error") {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-white px-4">
-        <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-          <h2 className="text-xl font-bold text-gray-900">{t.beta_access_error_title}</h2>
-          <p className="mt-2 text-sm text-gray-500">{t.beta_access_error_text}</p>
-          <button
-            onClick={retryAccessCheck}
-            className="mt-6 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-2.5 font-semibold text-white shadow-sm transition-all hover:from-blue-700 hover:to-purple-700"
-          >
-            {t.beta_access_retry}
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // BETA-ENDE (Owner 2026-10-08): Hier standen drei blockierende Zweige —
+  // `checking` (Dauer-Spinner), `denied` (Warteliste/WaitlistScreen) und
+  // `error` (Retry-Bildschirm). Sie sind entfernt: jeder eingeloggte Nutzer
+  // landet direkt im App-Layout (Sidebar + Outlet). Der Netzwerk-Check
+  // /api/beta-access existiert weiterhin für den Bestands-Rabatt, entscheidet
+  // aber nichts mehr über den Zugang.
 
   return (
     <div className="flex min-h-screen flex-col bg-white md:flex-row">
@@ -238,32 +104,6 @@ function AppLayout() {
         </div>
       </main>
       <FeedbackButton />
-    </div>
-  );
-}
-
-function WaitlistScreen() {
-  const { t } = useTranslation();
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-white px-4">
-      <div className="w-full max-w-md rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-xl">
-        <img src="/logo.png" alt="Growimo" className="mx-auto h-10 w-auto" />
-        <h2 className="mt-6 text-2xl font-bold text-gray-900">{t.beta_waitlist_title}</h2>
-        <p className="mt-3 leading-relaxed text-gray-500">{t.beta_waitlist_text}</p>
-        <Link
-          to="/"
-          className="mt-7 inline-block w-full rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 font-semibold text-white shadow-lg transition-all hover:from-blue-700 hover:to-purple-700"
-        >
-          {t.beta_waitlist_cta}
-        </Link>
-        <div className="mt-5">
-          <SignOutButton>
-            <button className="text-sm text-gray-400 transition-colors hover:text-gray-600">
-              {t.auth_sign_out}
-            </button>
-          </SignOutButton>
-        </div>
-      </div>
     </div>
   );
 }

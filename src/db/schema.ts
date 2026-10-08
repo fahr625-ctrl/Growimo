@@ -38,7 +38,11 @@ CREATE TABLE IF NOT EXISTS beta_signups (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   first_name TEXT NOT NULL,
   email TEXT NOT NULL,
-  approved BOOLEAN NOT NULL DEFAULT TRUE,
+  -- Beta-Ende (Owner-Auftrag 2026-10-08): neue Zeilen sind NIE automatisch
+  -- freigeschaltet. Nur additiv für den Altbestand (vor Public Launch
+  -- registrierte Nutzer, deren Zeile explizit approved = true trägt) bleibt der
+  -- lebenslange 50-%-Rabatt bestehen.
+  approved BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -136,8 +140,15 @@ ALTER TABLE projects ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}';
 ALTER TABLE generated_content DROP CONSTRAINT IF EXISTS generated_content_content_type_check;
 ALTER TABLE generated_content ADD CONSTRAINT generated_content_content_type_check CHECK (content_type IN ('pinterest_pin', 'etsy_listing', 'seo_blog', 'social_post', 'email_newsletter', 'marketing_plan', 'product_idea', 'trend_insight', 'marketing_analysis', 'market_intelligence'));
 
--- approved on beta_signups (beta access gate: every signup is auto-approved)
-ALTER TABLE beta_signups ADD COLUMN IF NOT EXISTS approved BOOLEAN DEFAULT TRUE;
+-- approved on beta_signups (Beta-Ende, Owner 2026-10-08)
+-- Ursprünglich: „beta access gate: every signup is auto-approved" (DEFAULT TRUE).
+-- Seit dem Beta-Ende ist die Auto-Freischaltung aus: der Default ist FALSE, damit
+-- eine (künftige) Zeile ohne explizites approved NIE den lebenslangen Rabatt
+-- erbt. Beide Statements sind idempotent; BESTEHENDE Zeilen werden nicht
+-- angefasst (kein UPDATE) — die vor dem Public Launch registrierten Nutzer
+-- behalten ihre explizite approved = true und damit ihren 50-%-Rabatt.
+ALTER TABLE beta_signups ADD COLUMN IF NOT EXISTS approved BOOLEAN DEFAULT FALSE;
+ALTER TABLE beta_signups ALTER COLUMN approved SET DEFAULT false;
 -- Phase 8.3: updated_at auf subscriptions (Webhook-Upsert setzt es bei jedem Sync)
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 -- P2 Statusabbildung (2026-10-07, Owner-Auftrag vor Public Launch): Kündigungs-

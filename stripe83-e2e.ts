@@ -306,6 +306,7 @@ try {
     jwt[key] = await mintJwt(clerkId);
     check(jwt[key].length > 50, `Clerk-Session-JWT für ${key} gemintet (len=${jwt[key].length})`);
   }
+  // Beta-Ende (2026-10-08): approved=TRUE explizit (DB-Default ist jetzt FALSE).
   await sql`INSERT INTO beta_signups (first_name, email, approved) VALUES (${"E2E"}, ${USERS.beta.email}, TRUE)
             ON CONFLICT DO NOTHING`.catch(() =>
     sql`INSERT INTO beta_signups (first_name, email, approved) VALUES (${"E2E"}, ${USERS.beta.email}, TRUE)`);

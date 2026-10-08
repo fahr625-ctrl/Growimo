@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SignIn } from "@clerk/clerk-react";
 import { isClerkConfigured } from "~/auth/middleware";
-import BetaRegisteredNotice from "~/components/BetaRegisteredNotice";
 
 // Catch-all route for Clerk sub-paths like /app/sign-in/factor-two,
 // /app/sign-in/verify-email-address, etc.
+// Beta-Ende (Owner 2026-10-08): BetaRegisteredNotice entfernt (kein
+// Beta-Anmeldeweg mehr).
 export const Route = createFileRoute("/app/sign-in/$")({
   component: SignInCatchAll,
 });
@@ -25,7 +26,6 @@ function SignInCatchAll() {
 
   return (
     <>
-      <BetaRegisteredNotice />
       <SignIn
         routing="path"
         path="/app/sign-in"

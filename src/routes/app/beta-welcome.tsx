@@ -1,10 +1,26 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useTranslation } from "~/i18n";
 import { useState, useEffect, useCallback } from "react";
+import { ProtectedRoute } from "~/components/ProtectedRoute";
 
 export const Route = createFileRoute("/app/beta-welcome")({
-  component: BetaWelcomePage,
+  component: BetaWelcomeRoute,
 });
+
+// BETA-ENDE (Owner-Auftrag 2026-10-08): Diese Seite lag als einzige /app-Route
+// ohne Auth-Schutz (das Layout gab sie direkt als <Outlet /> aus). Sie hängt
+// jetzt an ProtectedRoute — ausgeloggte Aufrufe landen auf /app/sign-in. Die
+// Inhalte sind entschärft (kein „lebenslanger Rabatt" / „kostenlos während der
+// Beta" mehr), damit neuen Nutzern kein Beta-Versprechen gezeigt wird; das
+// Rabatt-Versprechen gegenüber Bestands-Beta-Nutzern erfüllt weiterhin der
+// Stripe-Coupon BETA50 (Anzeige über den Badge auf /app/pricing).
+function BetaWelcomeRoute() {
+  return (
+    <ProtectedRoute>
+      <BetaWelcomePage />
+    </ProtectedRoute>
+  );
+}
 
 const STORAGE_KEY = "growimo_beta_checklist";
 const CHECKLIST_ITEMS = 4;

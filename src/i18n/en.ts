@@ -1078,8 +1078,8 @@ export const en: EnShape = {
   faq_a3: 'Among others: Pinterest pins, Etsy listings, SEO blog posts, social media posts, newsletters, product ideas, trend analyses, and marketing plans.',
   faq_q4: 'Are the results immediately usable?',
   faq_a4: 'Content can be directly copied, saved, and edited. Users should review product details and brand-specific claims before publishing.',
-  faq_q5: 'Is the beta free?',
-  faq_a5: 'Yes, beta access is currently free.',
+  faq_q5: 'How much does Growimo cost?',
+  faq_a5: 'The Free plan is free forever and includes 5 generations per month. The Pro plan costs €19 per month (€190 per year) and includes 200 generations. No credit card is needed for the Free plan.',
   faq_q6: 'Does Growimo invent product features?',
   faq_a6: 'Growimo is designed to use only the information the user provides about the product. Unconfirmed claims must not be presented as facts.',
 
@@ -1146,15 +1146,20 @@ export const en: EnShape = {
   analytics_event_brand_profile_disabled: 'Brand profile disabled',
   analytics_events_count: '%d event', analytics_events_count_plural: '%d events', analytics_types_suffix: '%d types', analytics_disabled: 'Analytics disabled. No data is being collected.',
 
-  // ── Beta Welcome ──────────────────────────────────────────────────────────────
+  // ── Welcome / first steps ─────────────────────────────────────────────────────
+  // Beta end (owner order 2026-10-08): this page used to be the beta welcome page
+  // and promised "Free access during the beta" and "Lifetime discount on Pro".
+  // Registration is public now, so the copy states launch facts (prices / Free
+  // plan) instead — no beta promise is shown to new users. Existing beta users
+  // keep their 50% discount; it is shown as a badge on the pricing page.
   beta_welcome_title: '🎉 Welcome to Growimo',
-  beta_welcome_subtitle: 'Thank you for being one of our first beta testers. Together with your feedback, we are building Growimo.',
-  beta_benefit1_title: 'Free access during the beta',
-  beta_benefit1_text: 'You can use all features without any limitations — completely free.',
+  beta_welcome_subtitle: 'Great to have you here. Below you find your first steps and everything you need for a good start.',
+  beta_benefit1_title: 'All core features available',
+  beta_benefit1_text: 'On the Free plan you create 5 generations per month — no credit card needed.',
   beta_benefit2_title: 'Direct contact with the developer',
   beta_benefit2_text: 'Your feedback reaches us directly. We listen and we build.',
-  beta_benefit3_title: 'Lifetime discount on Pro',
-  beta_benefit3_text: 'As a beta tester, you secure a permanent discount on the Pro plan.',
+  beta_benefit3_title: 'Upgrade to Pro when you are ready',
+  beta_benefit3_text: 'The Pro plan costs €19 per month (€190 per year) with 200 generations and can be cancelled monthly.',
   beta_benefit4_title: 'Test new features first',
   beta_benefit4_text: 'You get new features before everyone else and can help shape them.',
   beta_checklist_title: 'Your first steps',
@@ -1371,6 +1376,11 @@ export const en: EnShape = {
   beta_access_error_title: 'Couldn’t verify access',
   beta_access_error_text: 'Please try again.',
   beta_access_retry: 'Try again',
+  // Beta end (owner order 2026-10-08): response of the closed
+  // POST /api/beta-signup (HTTP 410). Wording matches the server payload
+  // (code: beta_program_ended) and is ready for any UI that shows the notice.
+  beta_ended_title: 'Beta program ended',
+  beta_ended_text: 'New beta signups are no longer possible. You can sign up for free right away.',
   // Phase 3.2 — no endless "Loading...": hint + reload after timeout.
   gate_slow_title: 'This is taking longer than expected',
   gate_slow_text: 'Sign-in and loading could not complete. Reload the page and try again.',

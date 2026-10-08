@@ -374,6 +374,9 @@ async function main() {
 
     // ── [4] Beta-Berechtigung (isBetaUserEmail) ──────────────────────────────
     console.log('\n[4] Beta-Coupon-Berechtigungslogik (beta_signups approved)');
+    // Beta-Ende (2026-10-08): approved wird explizit gesetzt — der DB-Default ist
+    // jetzt FALSE; nur ein vor dem Public Launch registrierter Nutzer (approved=true)
+    // bekommt den lebenslangen BETA50-Rabatt.
     await sql`INSERT INTO beta_signups (first_name, email, approved) VALUES ('Test', ${TEST_EMAILS[0]}, true)`;
     await sql`INSERT INTO beta_signups (first_name, email, approved) VALUES ('Test2', ${TEST_EMAILS[1]}, false)`;
     check(await isBetaUserEmail(TEST_EMAILS[0]) === true, 'approved=true → beta (50-%-Berechtigt)');

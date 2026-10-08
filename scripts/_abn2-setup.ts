@@ -46,6 +46,9 @@ async function main() {
   const email: string = u.json.email_addresses?.[0]?.email_address ?? TEST_EMAIL;
   console.log("USER", userId, email);
   const sql = getDb();
+  // Beta-Ende (Owner-Auftrag 2026-10-08): `approved` MUSS hier explizit TRUE sein —
+    // der DB-Default ist jetzt FALSE (keine Auto-Freischaltung mehr). Ohne diesen
+    // expliziten Wert gäbe es für den Testnutzer keinen BETA50-Rabatt mehr.
   await sql`INSERT INTO beta_signups (first_name, email, approved)
     VALUES (${FIRST + " " + LAST}, ${email}, TRUE)`;
   const beta: any = await sql`SELECT email, approved FROM beta_signups WHERE email = ${email}`;

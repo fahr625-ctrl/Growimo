@@ -79,20 +79,27 @@ console.log('\n── 4.1 Gate-Zustand in sessionStorage ───────�
 console.log('\n── 4.1 Verdrahtung app.tsx / ProtectedRoute.tsx ─────────────────');
 {
   const app = readFileSync('./src/routes/app.tsx', 'utf8');
-  check('app.tsx importiert das Lifecycle-Modul', app.includes('~/lib/navigation-lifecycle'));
-  check('app.tsx liest den gespiegelten Gate-Zustand vor dem Netzwerk-Check', app.includes('readBetaAccessCache(email) === \'approved\''));
-  check('app.tsx schreibt den Zustand erst bei approved', /if \(v === 'approved'\) writeBetaAccessCache/.test(app));
-  check('app.tsx räumt den Cache bei denied auf', app.includes("if (v === 'denied') clearBetaAccessCache()"));
-  check('app.tsx registriert pageshow-Listener', app.includes('window.addEventListener("pageshow"'));
-  check('app.tsx räumt den pageshow-Listener wieder ab', app.includes('window.removeEventListener("pageshow"'));
-  check('app.tsx behält approved bei bfcache-Rückkehr', /shouldKeepBetaState\(event\)/.test(app));
-  check('app.tsx prüft nur im Fehlerfall erneut', /shouldRecheckOnReturn\(event, prev\)/.test(app));
-  check('kein verschachteltes setState im pageshow-Handler', !/setBeta\(\(prev\) => \{[\s\S]{0,200}setCheckVersion/.test(app));
-  check('Rückkehr-Zustand wird nicht über checkVersion erzwungen', app.includes('ein eigener Versionszähler ist nicht nötig'));
-  // Phase 3.2-Verhalten unverändert:
-  check('Phase-3.2-Schonfrist unverändert vorhanden', app.includes('BETA_EMAIL_GRACE_MS = 5_000'));
-  check('Phase-3.2-Zugriffs-Timeout unverändert vorhanden', app.includes('BETA_ACCESS_TIMEOUT_MS = 10_000'));
-  check('Terminalzustand bleibt terminal (retryAccessCheck)', app.includes('setBeta("checking")'));
+  // BETA-ENDE (Owner-Auftrag 2026-10-08): Das Beta-Access-Gate (Zustandsmaschine
+  // checking/approved/denied/error, sessionStorage-Spiegel, pageshow-Re-Check) ist
+  // bewusst ENTFERNT — die Phase-4.1-Gate-Assertions prüften damit eine entfernte
+  // Funktion und sind hier 1:1 durch die neuen Invarianten ersetzt (Gesamtzahl der
+  // Checks bleibt). Die Lifecycle-Helfer selbst bleiben erhalten und werden von
+  // ProtectedRoute weiter genutzt (Checks unten).
+  check('app.tsx hat keinen Beta-Gate-Fetch mehr', !app.includes('fetch("/api/beta-access"'));
+  check('app.tsx importiert das Gate-Cache-Modul nicht mehr', !app.includes('~/lib/navigation-lifecycle'));
+  check('app.tsx nutzt keinen sessionStorage-Gate-Spiegel mehr', !app.includes('readBetaAccessCache') && !app.includes('writeBetaAccessCache'));
+  check('app.tsx kennt keinen „checking“-Zustand mehr', !app.includes('beta === "checking"'));
+  check('app.tsx kennt keinen „denied“-Zustand (Warteliste) mehr', !app.includes('beta === "denied"'));
+  check('app.tsx kennt keinen „error“-Retry-Zweig mehr', !app.includes('beta === "error"'));
+  check('app.tsx hat keinen WaitlistScreen mehr', !app.includes('function WaitlistScreen'));
+  check('app.tsx legt die users-Zeile für jeden eingeloggten Nutzer an', app.includes('if (!isSignedIn) return;'));
+  check('app.tsx koppelt ensureUser nicht mehr an beta = approved', !app.includes('beta !== "approved"'));
+  check('app.tsx rendert für Eingeloggte Sidebar + Outlet', app.includes('<AppSidebar />') && app.includes('<Outlet />'));
+  check('app.tsx behält die Layout-Ausnahme für /app/beta-welcome', app.includes('if (isBetaWelcome)'));
+  check('beta-welcome ist jetzt auth-geschützt (ProtectedRoute)',
+    readFileSync('./src/routes/app/beta-welcome.tsx', 'utf8').includes('<ProtectedRoute>'));
+  check('Landing-CTAs führen zur öffentlichen Registrierung',
+    readFileSync('./src/components/LandingPage.tsx', 'utf8').includes('href="/app/sign-up"'));
 
   const pr = readFileSync('./src/components/ProtectedRoute.tsx', 'utf8');
   check('ProtectedRoute nutzt den bfcache-Helfer', pr.includes('isBfcacheReturn'));

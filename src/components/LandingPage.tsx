@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useTranslation } from "~/i18n";
 import LanguageSwitcher from "~/components/LanguageSwitcher";
-import BetaSignupModal, { openBetaSignup } from "~/components/BetaSignupModal";
+// Beta-Ende (Owner 2026-10-08): Das Beta-Anmelde-Modal ist entfernt. Alle
+// Landing-CTAs führen jetzt direkt zur öffentlichen Registrierung /app/sign-up
+// — Growimo ist offen, es gibt keine Warteliste und keinen Beta-Zugang mehr.
 
 // ── Icons (kept minimal, reused) ────────────────────────────────────────────────
 
@@ -115,12 +117,12 @@ function NavBar() {
           <a href="/app/sign-in" className="text-sm font-medium text-gray-600 transition-colors hover:text-blue-600">
             {t.header_login}
           </a>
-          <button
-            onClick={openBetaSignup}
+          <a
+            href="/app/sign-up"
             className="inline-flex items-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-blue-200 transition-all hover:from-blue-700 hover:to-purple-700 hover:shadow-lg"
           >
             {t.header_cta}
-          </button>
+          </a>
         </div>
 
         {/* Mobile: hamburger only — LanguageSwitcher moved into menu */}
@@ -166,12 +168,13 @@ function NavBar() {
             >
               {t.header_login}
             </a>
-            <button
-              onClick={() => { setMenuOpen(false); openBetaSignup(); }}
+            <a
+              href="/app/sign-up"
+              onClick={() => setMenuOpen(false)}
               className="mt-1 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-3 text-center text-sm font-semibold text-white shadow-md"
             >
               {t.header_cta}
-            </button>
+            </a>
           </div>
         </div>
       )}
@@ -235,12 +238,12 @@ function HeroSection() {
             </ul>
 
             <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-              <button
-                onClick={openBetaSignup}
+              <a
+                href="/app/sign-up"
                 className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-8 py-4 text-lg font-semibold text-white sm:text-base shadow-lg shadow-gray-900/10 transition-all hover:bg-gray-800 hover:shadow-xl hover:shadow-gray-900/15 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
               >
                 {t.hero_cta_primary}
-              </button>
+              </a>
               <a
                 href="#how-it-works"
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-8 py-4 text-lg font-semibold text-gray-700 sm:text-base shadow-sm transition-all hover:border-gray-300 hover:bg-gray-50 hover:shadow-md hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400"
@@ -767,12 +770,12 @@ function StartFreeSection() {
             </ul>
 
             <div className="mt-10">
-              <button
-                onClick={openBetaSignup}
+              <a
+                href="/app/sign-up"
                 className="inline-flex items-center justify-center rounded-xl bg-white px-10 py-4 text-base font-bold text-blue-700 shadow-xl shadow-black/10 transition-all hover:bg-gray-50 hover:shadow-2xl hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
                 {t.cta_banner_button}
-              </button>
+              </a>
             </div>
           </div>
         </div>
@@ -832,7 +835,7 @@ function FinalCtaSection() {
           <SectionHeading>{t.cta_final_headline}</SectionHeading>
           <p className="mt-4 text-lg text-gray-500">{t.cta_final_text}</p>
           <div className="mt-10">
-            <button onClick={openBetaSignup} className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg">{t.cta_final_button}</button>
+            <a href="/app/sign-up" className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg">{t.cta_final_button}</a>
           </div>
         </div>
       </SectionContainer>
@@ -934,7 +937,6 @@ export default function LandingPage() {
       <FaqSection />
       <FinalCtaSection />
       <Footer />
-      <BetaSignupModal />
     </div>
   );
 }

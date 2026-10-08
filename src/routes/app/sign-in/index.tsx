@@ -2,7 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SignIn } from "@clerk/clerk-react";
 import { isClerkConfigured } from "~/auth/middleware";
 import { useEffect } from "react";
-import BetaRegisteredNotice from "~/components/BetaRegisteredNotice";
+
+// Beta-Ende (Owner 2026-10-08): der Beta-Hinweis (BetaRegisteredNotice für
+// „?beta=registered“) ist entfernt — es gibt keinen Beta-Anmeldeweg mehr, über
+// den dieses Flag noch gesetzt werden könnte.
 
 export const Route = createFileRoute("/app/sign-in/")({
   component: SignInPage,
@@ -28,7 +31,6 @@ function SignInPage() {
 
   return (
     <>
-      <BetaRegisteredNotice />
       <SignIn
         routing="path"
         path="/app/sign-in"

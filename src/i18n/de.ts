@@ -1080,8 +1080,8 @@ export const de = {
   faq_a3: 'Unter anderem Pinterest-Pins, Etsy-Listings, SEO-Blogartikel, Social-Media-Beiträge, Newsletter, Produktideen, Trendanalysen und Marketingpläne.',
   faq_q4: 'Sind die Ergebnisse sofort verwendbar?',
   faq_a4: 'Die Inhalte können direkt kopiert, gespeichert und weiterbearbeitet werden. Nutzer sollten Produktangaben und markenspezifische Aussagen vor der Veröffentlichung prüfen.',
-  faq_q5: 'Ist die Beta kostenlos?',
-  faq_a5: 'Ja, der Beta-Zugang ist derzeit kostenlos.',
+  faq_q5: 'Was kostet Growimo?',
+  faq_a5: 'Der Free-Tarif ist dauerhaft kostenlos und enthält 5 Generierungen pro Monat. Der Pro-Tarif kostet 19 € pro Monat (Jahresplan 190 €) und enthält 200 Generierungen. Für den Free-Tarif brauchst du keine Kreditkarte.',
   faq_q6: 'Erfindet Growimo Produkteigenschaften?',
   faq_a6: 'Growimo soll ausschließlich die Angaben verwenden, die der Nutzer zum Produkt bereitstellt. Nicht bestätigte Angaben dürfen nicht als Fakten dargestellt werden.',
 
@@ -1148,15 +1148,21 @@ export const de = {
   analytics_event_brand_profile_disabled: 'Markenprofil ausgeschaltet',
   analytics_events_count: '%d Ereignis', analytics_events_count_plural: '%d Ereignisse', analytics_types_suffix: '%d Typen', analytics_disabled: 'Analytics deaktiviert. Es werden keine Daten erfasst.',
 
-  // ── Beta Welcome ──────────────────────────────────────────────────────────────
+  // ── Willkommen / erste Schritte ───────────────────────────────────────────────
+  // BETA-ENDE (Owner 2026-10-08): Diese Seite war die Beta-Willkommensseite und
+  // versprach „Kostenloser Zugang während der Beta" und „Lebenslanger Rabatt auf
+  // Pro". Da die Registrierung jetzt öffentlich ist, sind die Texte auf
+  // launch-taugliche Aussagen umgestellt (Preise/Free-Tarif) — neuen Nutzern
+  // wird kein Beta-Versprechen mehr gezeigt. Bestands-Beta-Nutzer behalten ihren
+  // 50-%-Rabatt; sichtbar über den Badge auf der Preisseite.
   beta_welcome_title: '🎉 Willkommen bei Growimo',
-  beta_welcome_subtitle: 'Danke, dass du einer unserer ersten Beta-Tester bist. Mit deinem Feedback entwickeln wir Growimo gemeinsam weiter.',
-  beta_benefit1_title: 'Kostenloser Zugang während der Beta',
-  beta_benefit1_text: 'Du nutzt alle Funktionen ohne Einschränkungen — komplett kostenlos.',
+  beta_welcome_subtitle: 'Schön, dass du da bist. Hier findest du deine ersten Schritte und alles, was du für den Start brauchst.',
+  beta_benefit1_title: 'Alle Kernfunktionen nutzbar',
+  beta_benefit1_text: 'Im Free-Tarif erstellst du 5 Generierungen pro Monat — ohne Kreditkarte.',
   beta_benefit2_title: 'Direkter Kontakt zum Entwickler',
   beta_benefit2_text: 'Dein Feedback erreicht uns direkt. Wir hören zu und setzen um.',
-  beta_benefit3_title: 'Lebenslanger Rabatt auf Pro',
-  beta_benefit3_text: 'Als Beta-Tester sicherst du dir einen dauerhaften Rabatt auf den Pro-Tarif.',
+  beta_benefit3_title: 'Auf Pro wechseln, wenn du bereit bist',
+  beta_benefit3_text: 'Der Pro-Tarif kostet 19 € pro Monat (Jahresplan 190 €) mit 200 Generierungen und ist monatlich kündbar.',
   beta_benefit4_title: 'Neue Funktionen zuerst testen',
   beta_benefit4_text: 'Du bekommst neue Features vor allen anderen und kannst sie mitgestalten.',
   beta_checklist_title: 'Deine ersten Schritte',
@@ -1374,6 +1380,11 @@ export const de = {
   beta_access_error_title: 'Zugriff konnte nicht geprüft werden',
   beta_access_error_text: 'Bitte versuche es erneut.',
   beta_access_retry: 'Erneut versuchen',
+  // Beta-Ende (Owner 2026-10-08): Antwort des geschlossenen
+  // POST /api/beta-signup (HTTP 410). Wortgleich zum Server-Payload
+  // (code: beta_program_ended) und für jede UI bereit, die den Hinweis zeigt.
+  beta_ended_title: 'Beta-Programm beendet',
+  beta_ended_text: 'Neue Beta-Anmeldungen sind nicht mehr möglich. Du kannst dich direkt kostenlos registrieren.',
   // Phase 3.2 — kein dauerhaftes „Lädt...“: Hinweis + Neuladen nach Timeout.
   gate_slow_title: 'Das dauert länger als erwartet',
   gate_slow_text: 'Anmeldung und Laden konnten nicht abgeschlossen werden. Lade die Seite neu und versuche es noch einmal.',
