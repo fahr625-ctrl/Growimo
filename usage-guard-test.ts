@@ -198,6 +198,10 @@ async function main() {
   // ── 8. Cleanup aller Testdaten ──────────────────────────────────────────────
   console.log('\n[8] Cleanup');
   for (const u of [TEST_USER, proUser, rateUser]) {
+    // FIX-BLOCK 2 (2026-10-08): Der Usage-Guard schreibt seit FIX-BLOCK 1 eine
+    // usage_events-Zeile pro Verbrauch. Ohne diesen Delete blieb pro Lauf eine
+    // Restzeile in der Prod-DB liegen (Wachstum 1/Lauf).
+    await sql`DELETE FROM usage_events WHERE user_id=${u}`;
     await sql`DELETE FROM usage_monthly WHERE user_id=(SELECT id FROM users WHERE clerk_id=${u})`;
     await sql`DELETE FROM generation_throttle WHERE user_id=${u}`;
     await sql`DELETE FROM subscriptions WHERE user_id=(SELECT id FROM users WHERE clerk_id=${u})`;
@@ -205,6 +209,8 @@ async function main() {
     console.log(`  removed ${u}: users=${d.count}`);
   }
   await sql`DELETE FROM generation_throttle WHERE user_id=${TEST_USER}`;
+  const leftoverEvents = await sql`SELECT COUNT(*) AS n FROM usage_events WHERE user_id LIKE 'guard-test-%'`;
+  check(Number(leftoverEvents[0].n) === 0, `keine Test-Ledger-Zeilen übrig (${leftoverEvents[0].n})`);
 
   console.log(`\n=== usage-guard-test: ${passed} PASS, ${failed} FAIL ===`);
   if (failed > 0) {
@@ -219,5 +225,6 @@ main().catch((e) => {
   // Aufräumversuch (best effort), damit Testnutzer nie liegen bleiben.
   sql`DELETE FROM users WHERE clerk_id LIKE 'guard-test-%'`.catch(() => {});
   sql`DELETE FROM generation_throttle WHERE user_id LIKE 'guard-test-%'`.catch(() => {});
+  sql`DELETE FROM usage_events WHERE user_id LIKE 'guard-test-%'`.catch(() => {});
   process.exit(1);
 });

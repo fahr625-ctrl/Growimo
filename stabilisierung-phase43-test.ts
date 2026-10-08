@@ -413,9 +413,17 @@ async function main(): Promise<void> {
     check('jeder Eintrag hat einen Speichern-Button', routeSrc.includes('data-testid="tiktok-recent-save"'));
     check('neue i18n-Keys werden in der UI verwendet', routeSrc.includes('t.tiktok_recent_title') && routeSrc.includes('t.tiktok_recent_save'));
     check('„Neue Idee" leert die Liste NICHT (Ergebnisse bleiben)', !/const reset = \(\) => \{[\s\S]*?clearRecentList\(\)[\s\S]*?\};/.test(routeSrc));
+    // FIX-BLOCK 2 (2026-10-08): Der Check gilt der DDL, nicht der Prosa. Der
+    // Doku-Kommentar der usage_events-Migration nennt einen Aktions-Schlüssel
+    // als Beispiel (Beschreibung, kein Schema-Eingriff). Darum werden
+    // Kommentare vor dem Grep entfernt — geprüft wird weiterhin, dass weder
+    // Tabelle noch Spalte einen TikTok-Eintrag bekommen.
+    const schemaDdl = readFileSync('src/db/schema.ts', 'utf8')
+      .replace(/--[^\n]*/g, '')
+      .replace(/\/\/[^\n]*/g, '');
     check(
-      'kein DB-Schema-Eingriff (kein tiktok in schema.ts)',
-      !readFileSync('src/db/schema.ts', 'utf8').toLowerCase().includes('tiktok'),
+      'kein DB-Schema-Eingriff (kein tiktok in der DDL von schema.ts)',
+      !schemaDdl.toLowerCase().includes('tiktok'),
     );
     const typesSrc = readFileSync('src/ai/types.ts', 'utf8');
     const union = typesSrc.slice(typesSrc.indexOf('export type ContentType'), typesSrc.indexOf('export interface ContentRequest'));
@@ -451,11 +459,9 @@ async function main(): Promise<void> {
     check('i18n keine fehlenden Schlüssel', dk.every((k) => k in en) && ek.every((k) => k in de));
   }
 
-  // FIX-BLOCK 1 (2026-10-08): mit dem Guard entstehen usage_events-Zeilen —
-// die Testdaten dieses Laufs werden mit entfernt.
-try {
-  await sql`DELETE FROM usage_events WHERE user_id LIKE 'phase43%'`;
-} catch {}
+// FIX-BLOCK 2 (2026-10-08): Der hier in FIX-BLOCK 1 eingefügte Ledger-Cleanup
+// wurde ENTFERNT — er war ein No-op (kein `sql`-Binding) und diese Suite ist
+// laut Kopfkommentar DB-frei, schreibt also gar keine usage_events-Zeilen.
 console.log(`\n=== stabilisierung-phase43-test: ${passed} PASS, ${failures.length} FAIL ===`);
   if (failures.length > 0) {
     console.log('Failures:', failures.join(' | '));

@@ -301,11 +301,9 @@ async function main(): Promise<void> {
     check('i18n keine fehlenden Schlüssel', dk.every((k) => k in en) && ek.every((k) => k in de));
   }
 
-  // FIX-BLOCK 1 (2026-10-08): mit dem Guard entstehen usage_events-Zeilen —
-// die Testdaten dieses Laufs werden mit entfernt.
-try {
-  await sql`DELETE FROM usage_events WHERE user_id LIKE 'phase43%'`;
-} catch {}
+// FIX-BLOCK 2 (2026-10-08): Der hier in FIX-BLOCK 1 eingefügte Ledger-Cleanup
+// wurde ENTFERNT — er war ein No-op (kein `sql`-Binding) und diese Suite ist
+// laut Kopfkommentar DB-frei, schreibt also gar keine usage_events-Zeilen.
 console.log(`\n=== stabilisierung-phase43b-test: ${passed} PASS, ${failures.length} FAIL ===`);
   if (failures.length > 0) {
     console.log('Failures:', failures.join(' | '));

@@ -10,7 +10,6 @@ import {
   getUserSubscription,
   setUserSubscription,
   getGenerationLimit,
-  getRemainingGenerations,
   isStripeConfigured,
 } from '~/store/subscriptions';
 import { getSubscriptionStatus } from '~/stripe/subscription';

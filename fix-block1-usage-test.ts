@@ -74,7 +74,11 @@ async function main() {
     detail: 'diagnose',
   });
   const afterDiag = await qGetUsage(U_DIAG, period);
-  check(diagFnRan === true, 'Diagnose-Call ausgeführt');
+  // FIX-BLOCK 2 (2026-10-08): `diagFnRan === true` war für tsc ein TS2367
+  // (das Flag wird nur in der Callback-Closure gesetzt, die Kontrollfluss-
+  // Analyse sieht dort weiterhin literal `false`). Korrigiert statt
+  // unterdrückt: `check(diagFnRan, …)` ist semantisch identisch (boolean).
+  check(diagFnRan, 'Diagnose-Call ausgeführt');
   check(afterDiag === beforeDiag + 1, `Diagnose 1 Diagnose = +1 Generierung (${beforeDiag} → ${afterDiag})`);
   const diagInfo = await getUsageInfo(U_DIAG);
   check(
