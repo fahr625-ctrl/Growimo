@@ -387,6 +387,10 @@ export const de = {
   strategy_tile_content_desc: 'SEO-Blogbeitrag + E-Mail-Newsletter in einem Lauf',
   strategy_tile_ideas: 'Produktideen',
   strategy_tile_ideas_desc: 'Neue Produktideen mit beobachtbarem Trend- und Marktblick',
+  // FIX-BLOCK 5 (M4): Der Kachel-Lauf liefert Inhalt + Aktionsplan; der
+  // 0–100-Score mit konkreten Verbesserungen kommt über die Entscheidungs-Ebene.
+  strategy_score_scope_note:
+    'Ein einzelnes Kachel-Ergebnis liefert dir den Inhalt und den Schritt-für-Schritt-Aktionsplan. Den 0–100-Qualitäts-Score mit konkreten Verbesserungsmaßnahmen liefert die Entscheidungs-Ebene: „A/B-Varianten“ bewerten jede Alternative einzeln und empfehlen die beste.',
   strategy_tiles_selected: '%d von %d ausgewählt',
   strategy_results_singular: '%d Ergebnis',
   strategy_results_plural: '%d Ergebnisse',
@@ -1050,8 +1054,13 @@ export const de = {
   diff_col2_item1: 'Eine Produktbeschreibung genügt',
   diff_col2_item2: 'Mehrere Marketingkanäle gleichzeitig',
   diff_col2_item3: 'Strukturierte und speicherbare Projekte',
-  diff_col2_item4: 'KI-Analyse und konkrete Empfehlungen',
+  // FIX-BLOCK 5 (Owner-Entscheidung 2026-10-08, Punkt M4): Der 0–100-Score wird
+  // hier ausdrücklich an die Entscheidungs-/A/B-Funktion gebunden — nicht an
+  // "jedes Ergebnis". Ein einzelnes Kachel-Ergebnis liefert Inhalt + Aktionsplan
+  // (siehe strategy_score_scope_note im Kachel-Flow).
+  diff_col2_item4: 'KI-Analyse mit 0–100-Score und konkreten Verbesserungen (über die A/B-Bewertung)',
   diff_col2_item5: 'Export und Wiederverwendung',
+  diff_col2_item6: 'A/B-Varianten bewerten jede Alternative einzeln und empfehlen die beste — mit Score 0–100',
 
   // Target audience
   audience_headline: 'Entwickelt für Menschen, die gute Produkte verkaufen – nicht für Marketingagenturen mit riesigen Teams.',
@@ -1533,7 +1542,7 @@ export const de = {
   package_kernel_fallback_note: 'Der Strategie-Kern wurde automatisch aus der Produktidee abgeleitet.',
   package_channels_title: 'Deine 5 Kanäle',
   package_channels_subtitle:
-    'Jeder Kanal nutzt denselben Kern — mit eigenem F1-Qualitäts-Score und einem Klick „Verbessern“.',
+    'Alle Kanäle nutzen denselben Kern. Den 0–100-Score mit konkreten Verbesserungen liefert die Entscheidungs-Ebene — pro Kanal über „Verbessern“, im Vergleich über „A/B-Varianten“.',
   package_result_badge: 'Fertiges Paket',
   package_channel_failed: 'Dieser Kanal konnte nicht generiert werden und wurde übersprungen.',
   package_channel_generating: 'Dieser Kanal wird gerade generiert…',

@@ -649,6 +649,9 @@ function DifferentiationSection() {
     t.diff_col2_item3,
     t.diff_col2_item4,
     t.diff_col2_item5,
+    // FIX-BLOCK 5 (M4): der 0–100-Score gehört sichtbar zur A/B-Entscheidungs-
+    // Funktion — nicht zu „jedem Ergebnis".
+    t.diff_col2_item6,
   ];
 
   return (

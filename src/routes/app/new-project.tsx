@@ -981,6 +981,18 @@ function Step1Strategy({
           })}
         </div>
 
+        {/* FIX-BLOCK 5 (Owner-Entscheidung 2026-10-08, Punkt M4): Produktversprechen
+            präzisiert — der reine Kachel-Lauf liefert Inhalt + Aktionsplan; der
+            0–100-Score mit konkreten Verbesserungen kommt über die Entscheidungs-
+            Ebene (A/B-Varianten / Verbessern). Reine Beschriftung, keine
+            Funktionsänderung. */}
+        <p
+          data-testid="strategy-score-scope-note"
+          className="mt-6 rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-3 text-xs leading-relaxed text-gray-600"
+        >
+          {t.strategy_score_scope_note}
+        </p>
+
         {/* Generate CTA + transparente Ergebnis-/Kosten-Anzeige */}
         <div className="mt-8 flex flex-col items-center gap-2">
           <button

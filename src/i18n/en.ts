@@ -390,6 +390,10 @@ export const en: EnShape = {
   strategy_tile_content_desc: 'SEO blog post + email newsletter in one run',
   strategy_tile_ideas: 'Product ideas',
   strategy_tile_ideas_desc: 'New product ideas with an observable trend and market view',
+  // FIX-BLOCK 5 (M4): a tile run delivers content + an action plan; the 0–100
+  // score with concrete improvements comes from the decision layer.
+  strategy_score_scope_note:
+    'A single tile result gives you the content and the step-by-step action plan. The 0–100 quality score with concrete improvements comes from the decision layer: “A/B variants” scores each alternative separately and recommends the best.',
   strategy_tiles_selected: '%d of %d selected',
   strategy_results_singular: '%d result',
   strategy_results_plural: '%d results',
@@ -1048,8 +1052,12 @@ export const en: EnShape = {
   diff_col2_item1: 'One product description is enough',
   diff_col2_item2: 'Multiple marketing channels simultaneously',
   diff_col2_item3: 'Structured and saveable projects',
-  diff_col2_item4: 'AI analysis and concrete recommendations',
+  // FIX-BLOCK 5 (owner decision 2026-10-08, item M4): the 0–100 score is tied to
+  // the decision/A-B layer on purpose — not to "every result". A single tile
+  // result delivers content + an action plan (see strategy_score_scope_note).
+  diff_col2_item4: 'AI analysis with a 0–100 score and concrete improvements (via the A/B evaluation)',
   diff_col2_item5: 'Export and reuse',
+  diff_col2_item6: 'A/B variants score each alternative separately and recommend the best — with a 0–100 score',
 
   // Target audience
   audience_headline: 'Built for people who sell great products — not for marketing agencies with huge teams.',
@@ -1526,7 +1534,7 @@ export const en: EnShape = {
   package_kernel_fallback_note: 'The strategic core was derived automatically from the product idea.',
   package_channels_title: 'Your 5 channels',
   package_channels_subtitle:
-    'Every channel uses the same core — with its own F1 quality score and a one-click “Improve”.',
+    'All channels use the same core. The 0–100 score with concrete improvements comes from the decision layer — “Improve” per channel, “A/B variants” for the comparison.',
   package_result_badge: 'Finished package',
   package_channel_failed: 'This channel could not be generated and was skipped.',
   package_channel_generating: 'This channel is currently being generated…',
