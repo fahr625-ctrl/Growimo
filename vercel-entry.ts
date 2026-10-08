@@ -17,6 +17,7 @@ import { handleTrackingApi } from "./src/api/tracking";
 import { handleAnalyticsApi } from "./src/api/analytics";
 import { handleAdminAnalyticsApi } from "./src/api/admin-analytics";
 import { handleGenerateStreamApi } from "./src/api/generate-stream";
+import { handleImageStreamApi } from "./src/api/image-stream";
 import { handleStripeWebhookApi } from "./src/api/stripe-webhook";
 
 // Initialise the database once at cold start
@@ -126,6 +127,22 @@ export default async function vercelHandler(
       adminAnalyticsResponse.headers.forEach((value, key) => res.setHeader(key, value));
       if (adminAnalyticsResponse.body) {
         const reader = adminAnalyticsResponse.body.getReader();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          res.write(value);
+        }
+      }
+      res.end();
+      return;
+    }
+    // SSE image-generation stream (Option 1 Bild-Latenz): echte Zwischenbilder.
+    const imageStreamResponse = await handleImageStreamApi(webReq, url.pathname);
+    if (imageStreamResponse) {
+      res.statusCode = imageStreamResponse.status;
+      imageStreamResponse.headers.forEach((value, key) => res.setHeader(key, value));
+      if (imageStreamResponse.body) {
+        const reader = imageStreamResponse.body.getReader();
         for (;;) {
           const { done, value } = await reader.read();
           if (done) break;

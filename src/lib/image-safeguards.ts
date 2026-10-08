@@ -46,8 +46,16 @@ export interface GuardedImageRun<T> {
  * Messbasis: real 16–23 s Generierung plus Cold-Start/Kaltstart-Reserve
  * (`/home/team/shared/image-gen-latency-analysis.md`); bewusst großzügig,
  * damit ein langsamer, aber erfolgreicher Lauf nicht abgeschnitten wird.
+ *
+ * Option 1 (Bild-Latenz, Owner-Freigabe 2026-10-07): 120 s → **240 s**. Die
+ * Live-Messung mit gpt-image-2/`quality high` ergab 74–90 s pro Bild
+ * (TTFB 73,7–83,5 s; ~99 % davon OpenAI-Inferenz, unser Anteil ~0,5 s). Mit
+ * nur 120 s wäre ein bezahlter Lauf bei einer Spitze > 120 s abgeschnitten —
+ * das Budget deckt jetzt die gemessene Varianz mit Reserve ab. Das Streaming
+ * verkürzt die WAHRGENOMMENE Zeit (Zwischenbilder nach wenigen Sekunden), nicht
+ * die Gesamtdauer; deshalb bleibt der Gesamt-Timeout großzügig.
  */
-export const IMAGE_CLIENT_TIMEOUT_MS = 120_000;
+export const IMAGE_CLIENT_TIMEOUT_MS = 240_000;
 
 export function guardImageRun<T>(
   run: (signal: AbortSignal) => Promise<T>,

@@ -3,6 +3,8 @@ import {
   extensionForMime,
   imageRunMode,
   parseImageDataUrl,
+  // Bild-Lauf-Modus ('edit' | 'generate') — wird in ImageStreamOutcome typisiert.
+  type ImageRunMode,
 } from './reference';
 import type { ImageAspectRatio } from './types';
 
@@ -126,4 +128,151 @@ export async function generateImage(
   const b64 = response.data?.[0]?.b64_json;
   if (!b64) throw new Error('[image-generation] OpenAI returned no image data');
   return { url: `data:image/png;base64,${b64}` };
+}
+
+// ── Option 1 (Owner-Freigabe 2026-10-07): Streaming mit echten Zwischenbildern ─
+// Befund der Latenz-Analyse (bild-performance-analyse-2026-10-07.md): ~99 % der
+// Klick→Bild-Zeit (~74 s) ist OpenAI-Inferenz und NICHT reduzierbar, solange
+// gpt-image-2 / `quality=high` / die exakten Größen gelten. Der einzige wirksame
+// Hebel ist die WAHRGENOMMENE Wartezeit: `stream: true` + `partial_images`
+// liefert echte Modell-Zwischenstände, die sich vor den Augen des Nutzers
+// verfeinern.
+//
+// WICHTIG — hier wird NICHTS an der Qualität gedreht: derselbe Modellname
+// (`MODEL`), dieselbe Quality (`resolveImageQuality()`, Default `high`),
+// dieselbe exakte Größe (`SIZES`), derselbe Prompt, dasselbe PNG-Ausgabeformat
+// (`data:image/png;base64,…` wie bei `generateImage`). Die Zwischenbilder sind
+// reine Vorschau-Stände; das ERSTE gelieferte Bild ist nicht das Endergebnis.
+//
+// Kosten (recherchiert, OpenAI-Doku „Image generation" → Abschnitt
+// „Partial images cost"): jedes Zwischenbild kostet zusätzlich 100 image output
+// tokens. gpt-image-2 Standard: $15 / 1M image output tokens
+// (developers.openai.com/api/docs/pricing) → $0,0015 je Zwischenbild, also
+// ~0,3 US-Cent pro Bild bei 2 Zwischenbildern (gegen $0,165 für ein
+// gpt-image-2/high-1024x1536-Bild laut Doku-Tabelle, ≈ +1,8 %).
+
+/** Anzahl der Zwischenbilder (SDK erlaubt 0–3). 2 = ein früher Zwischenstand +
+ *  ein verfeinerter Zwischenstand, danach das Endbild — sichtbarer Fortschritt,
+ *  minimale Zusatzkosten. */
+export const IMAGE_PARTIAL_COUNT = 2;
+
+export interface ImageStreamPartial {
+  /** 0-basierte Reihenfolge des Zwischenbilds (aus dem Streaming-Event). */
+  index: number;
+  /** `data:image/png;base64,…` — direkt als `<img src>` anzeigbar. */
+  dataUrl: string;
+}
+
+export interface ImageStreamOutcome {
+  /** Endbild als data-URL — identisches Format wie `generateImage`. */
+  url: string;
+  mode: ImageRunMode;
+  /** Anzahl tatsächlich empfangener Zwischenbilder (0 = Fallback/keine). */
+  partials: number;
+  /** true = Streaming nicht möglich, klassisch generiert (fail-closed). */
+  usedFallback: boolean;
+}
+
+/** Minimale, gemeinsame Sicht auf beide Streaming-Event-Familien
+ *  (`image_generation.*` aus images.generate, `image_edit.*` aus images.edit). */
+interface StreamEventLike {
+  type: string;
+  b64_json?: string;
+  output_format?: string;
+  partial_image_index?: number;
+}
+
+/**
+ * data-URL wie im bisherigen Pfad. Für `png` (unser Default, weil `output_format`
+ * nie gesetzt wird) entsteht byte-identisch `data:image/png;base64,…`.
+ */
+function streamDataUrl(b64: string, format?: string): string {
+  const mime = format === 'jpeg' || format === 'webp' ? format : 'png';
+  return `data:image/${mime};base64,${b64}`;
+}
+
+/**
+ * Wie `generateImage`, aber mit `stream: true` + `partial_images`:
+ *   • jedes Zwischenbild geht sofort an `onPartial` (Client zeigt es live),
+ *   • Rückgabe ist das ENDBILD (unveränderte Qualität/Format/Größe),
+ *   • schlägt der Streaming-Aufruf fehl, BEVOR ein Zwischenbild ankam (z. B.
+ *     API-Version/Parameter nicht unterstützt), fällt der Pfad fail-closed auf
+ *     die bisherige, nicht-streamende Generierung zurück (`usedFallback: true`).
+ *     Kam schon ein Zwischenbild an, wird NICHT erneut generiert — ein zweiter
+ *     Lauf wäre ein doppelter, bezahlter Modell-Call.
+ */
+export async function generateImageStreaming(
+  prompt: string,
+  aspectRatio: string,
+  referenceImageData: string | undefined,
+  onPartial: (partial: ImageStreamPartial) => void,
+): Promise<ImageStreamOutcome> {
+  const ratio = aspectRatio as ImageAspectRatio;
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('[image-generation] OPENAI_API_KEY is not configured');
+  const client = new OpenAI({ apiKey });
+  const size = SIZES[ratio] ?? '1024x1024';
+  const mode = imageRunMode(referenceImageData);
+  const quality = resolveImageQuality();
+
+  let partials = 0;
+  try {
+    let stream: AsyncIterable<StreamEventLike>;
+    if (mode === 'edit') {
+      const parsed = parseImageDataUrl(referenceImageData);
+      if (!parsed) throw new Error('[image-generation] Referenzbild ist kein gültiges Bild');
+      const image = await toFile(parsed.bytes, `reference.${extensionForMime(parsed.mime)}`, {
+        type: parsed.mime,
+      });
+      // Identische Parameter wie im nicht-streamenden Edit-Pfad oben — nur
+      // zusätzlich stream/partial_images.
+      stream = (await client.images.edit({
+        model: MODEL,
+        image,
+        prompt,
+        size,
+        quality,
+        input_fidelity: 'high',
+        n: 1,
+        stream: true,
+        partial_images: IMAGE_PARTIAL_COUNT,
+      })) as unknown as AsyncIterable<StreamEventLike>;
+    } else {
+      stream = (await client.images.generate({
+        model: MODEL,
+        prompt,
+        size,
+        quality,
+        n: 1,
+        stream: true,
+        partial_images: IMAGE_PARTIAL_COUNT,
+      })) as unknown as AsyncIterable<StreamEventLike>;
+    }
+
+    let final: { b64: string; format?: string } | null = null;
+    for await (const event of stream) {
+      const type = event?.type ?? '';
+      if (type.endsWith('partial_image') && typeof event.b64_json === 'string') {
+        partials += 1;
+        onPartial({
+          index: typeof event.partial_image_index === 'number' ? event.partial_image_index : partials - 1,
+          dataUrl: streamDataUrl(event.b64_json, event.output_format),
+        });
+        continue;
+      }
+      if (type.endsWith('completed') && typeof event.b64_json === 'string') {
+        final = { b64: event.b64_json, format: event.output_format };
+      }
+    }
+    if (!final) throw new Error('[image-generation] Streaming lieferte kein Endbild');
+    return { url: streamDataUrl(final.b64, final.format), mode, partials, usedFallback: false };
+  } catch (err) {
+    // Fail-closed-Fallback NUR ohne vorheriges Zwischenbild (siehe Doku oben).
+    if (partials > 0) throw err;
+    console.warn('[image-generation] Streaming nicht verfügbar — Fallback auf klassische Generierung:', err);
+  }
+
+  // Rückwärts-Pfad: exakt der bisherige, nicht-streamende Aufruf.
+  const fallback = await generateImage(prompt, aspectRatio, referenceImageData);
+  return { url: fallback.url, mode, partials: 0, usedFallback: true };
 }

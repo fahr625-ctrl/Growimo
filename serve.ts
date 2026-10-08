@@ -15,6 +15,7 @@ import { handleTrackingApi } from "./src/api/tracking";
 import { handleAnalyticsApi } from "./src/api/analytics";
 import { handleAdminAnalyticsApi } from "./src/api/admin-analytics";
 import { handleGenerateStreamApi } from "./src/api/generate-stream";
+import { handleImageStreamApi } from "./src/api/image-stream";
 import { handleStripeWebhookApi } from "./src/api/stripe-webhook";
 
 // Initialise the Neon PostgreSQL schema before serving. Wrapped in try/catch so
@@ -74,6 +75,8 @@ for (let attempt = 1; ; attempt++) {
         if (adminAnalyticsResponse) return adminAnalyticsResponse;
         const streamResponse = await handleGenerateStreamApi(req, pathname);
         if (streamResponse) return streamResponse;
+        const imageStreamResponse = await handleImageStreamApi(req, pathname);
+        if (imageStreamResponse) return imageStreamResponse;
         if (pathname.startsWith("/generated/")) {
           const file = Bun.file(GENERATED_DIR + pathname.slice("/generated".length));
           if (await file.exists()) {

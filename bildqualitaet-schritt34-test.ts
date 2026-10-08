@@ -59,9 +59,11 @@ console.log('### SCHRITT 3 — Modell + Format-Wahrheit ###');
 
 // ── 3.1 Modell ──────────────────────────────────────────────────────────────
 check('(3.1) MODEL ist gpt-image-2', /const MODEL = 'gpt-image-2';/.test(GENERATE));
+const modelCallSites34 = (GENERATE.match(/client\.images\.(generate|edit)\(/g) ?? []).length;
 check('(3.1) genau eine Modell-Konstante, kein zweites Modell im Code',
   (GENERATE.match(/const MODEL = '/g) ?? []).length === 1 &&
-  (GENERATE.match(/model: MODEL/g) ?? []).length === 2 &&
+  modelCallSites34 >= 2 &&
+  (GENERATE.match(/model: MODEL/g) ?? []).length === modelCallSites34 &&
   !/model:\s*'/.test(GENERATE));
 check('(3.1) SDK kennt gpt-image-2 (ImageModel in images.d.ts)',
   /'gpt-image-2'/.test(read('node_modules/openai/resources/images.d.ts')));
@@ -109,8 +111,8 @@ check('(3.2) Trefferfläche der Map deckt alle 5 Studio-Formate ab',
 // ── 3.3 Edit-Pfad bleibt funktional unverändert ────────────────────────────
 check('(3.3) images.edit + input_fidelity high + toFile unverändert',
   GENERATE.includes('client.images.edit({') && GENERATE.includes("input_fidelity: 'high',") && GENERATE.includes('toFile(parsed.bytes'));
-check('(3.3) quality-Schalter (Schritt 2) gilt für beide Pfade',
-  (GENERATE.match(/^\s+quality,$/gm) ?? []).length === 2 && GENERATE.includes('resolveImageQuality()'));
+check('(3.3) quality-Schalter (Schritt 2) gilt für ALLE Modell-Pfade (inkl. Streaming)',
+  (GENERATE.match(/^\s+quality,$/gm) ?? []).length === modelCallSites34 && GENERATE.includes('resolveImageQuality()'));
 check('(3.3) Rückgabe unverändert (b64_json → data-URL, n: 1)',
   GENERATE.includes('data:image/png;base64,') && GENERATE.includes('n: 1'));
 check('(3.3) SDK-Typ erlaubt freie Auflösungen für BEIDE Pfade (string & {})',

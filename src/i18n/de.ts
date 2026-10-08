@@ -697,6 +697,11 @@ export const de = {
   image_studio_error_timeout: 'Zeitüberschreitung: Die Bildgenerierung wurde nach %s Sekunden abgebrochen. Bitte erneut versuchen.',
   image_studio_error_aborted: 'Generierung abgebrochen. Du kannst sie erneut starten.',
   image_studio_abort: 'Abbrechen',
+  // Option 1 (Bild-Latenz, Owner-Freigabe 2026-10-07) — echter Streaming-Hinweis:
+  // wird NUR gezeigt, solange echte Zwischenbilder (partial images) ankommen.
+  // Beim fail-closed-Fallback (usedFallback) bleibt es beim normalen Warten.
+  image_studio_streaming_refining: 'Bild wird in Echtzeit verfeinert…',
+  image_studio_streaming_preview_badge: 'Live-Vorschau',
   // Phase 3.3d — Rückweg zur TikTok-Idee (Ergebnis bleibt erhalten).
   image_studio_back_to_tiktok: 'Zurück zur TikTok-Idee',
   // Phase 3.4 — Galerie-Begrenzung (%s = Anzahl sichtbarer Bilder).

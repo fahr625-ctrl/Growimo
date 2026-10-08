@@ -157,7 +157,7 @@ async function main(): Promise<void> {
     check('3.1 erfolgreicher Lauf setzt keinen Abbruchgrund (Timer wird geräumt)', guard.reason() === null);
     const okSig = signal as AbortSignal | null;
     check('3.1 erfolgreicher Lauf bricht das Signal nicht ab', okSig !== null && okSig.aborted === false);
-    check('3.1 Timeout-Konstante = 120 s (Messbasis 16–23 s + Reserve)', IMAGE_CLIENT_TIMEOUT_MS === 120_000);
+    check('3.1 Timeout-Konstante = 240 s (Option 1: gemessene 74–90 s + Varianz-Reserve)', IMAGE_CLIENT_TIMEOUT_MS === 240_000);
 
     const serverErr = new Error('Monatliches Limit erreicht');
     const guard2 = guardImageRun(() => Promise.reject(serverErr), 5_000);
@@ -254,8 +254,13 @@ async function main(): Promise<void> {
     const studio = read('src/routes/app/image-studio.tsx');
     check('3.1 Studio nutzt die Guard (guardImageRun)', studio.includes('guardImageRun(') && studio.includes("} from '~/lib/image-safeguards'"));
     check('3.1 Guard wird für Hauptkarte UND Karten-Aktionen genutzt', (studio.match(/guardImageRun\(/g) || []).length >= 2);
-    check('3.1 ServerFn erhält das AbortSignal', studio.includes('aspectRatio: selectedRatio }, signal }') && studio.includes('aspectRatio: image.aspectRatio }, signal }'));
-    check('3.1 loading endet garantiert im finally', studio.includes('finally { runGuardRef.current = null; setLoading(false); }'));
+    // Option 1: Das Signal geht zuerst in den Streaming-Lauf und wird an den
+    // ServerFn-Rückfall weitergereicht — der Abbruch erreicht beide Wege.
+    check('3.1 AbortSignal erreicht Streaming-Lauf und ServerFn-Rückfall',
+      studio.includes('onPartial: (partial) => setStreamPreview(partial.dataUrl),\n      signal,') &&
+      studio.includes('fallback: (s) => generateImageServer({') &&
+      studio.includes('signal: s })'));
+    check('3.1 loading endet garantiert im finally', studio.includes('finally { runGuardRef.current = null; setLoading(false); setStreamPreview(null); }'));
     check('3.1 „Abbrechen“-Button ruft abort("user")', studio.includes("runGuardRef.current?.abort('user')") && studio.includes('{t.image_studio_abort}'));
     check('3.1 Banner zeigt Timeout-/Abbruch-Text mit Retry', studio.includes('{usageError ?? errorText}') && studio.includes('{t.analysis_retry}'));
     check('3.1 kein direkter ServerFn-Aufruf mehr außerhalb der Guard', !/await generateImageServer\(/.test(studio));

@@ -696,6 +696,11 @@ export const en: EnShape = {
   image_studio_error_timeout: 'Timeout: image generation was cancelled after %s seconds. Please try again.',
   image_studio_error_aborted: 'Generation cancelled. You can start it again.',
   image_studio_abort: 'Cancel',
+  // Option 1 (image latency, owner approval 2026-10-07) — real streaming hint:
+  // shown ONLY while real partial images arrive. With the fail-closed fallback
+  // (usedFallback) the normal waiting state stays.
+  image_studio_streaming_refining: 'Image is being refined in real time…',
+  image_studio_streaming_preview_badge: 'Live preview',
   // Phase 3.3d — way back to the TikTok idea (result stays).
   image_studio_back_to_tiktok: 'Back to the TikTok idea',
   // Phase 3.4 — gallery cap (%s = number of visible images).
