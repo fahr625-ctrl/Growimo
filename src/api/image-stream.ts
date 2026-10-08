@@ -182,8 +182,12 @@ export async function handleImageStreamApi(
         // ServerFn-Pfad (withGenerationGuard reserviert atomar und kompensiert
         // bei Fehlern → netto 0 bei Fehlschlag). Owner-Override bleibt.
         const { withGenerationGuard } = await import("../lib/usage-guard");
-        await withGenerationGuard(subject, () =>
-          emitImageStreamEvents({ body: parsed, send }),
+        // FIX-BLOCK 1: Aktion + Format im usage_events-Ledger zuordnen.
+        await withGenerationGuard(
+          subject,
+          () => emitImageStreamEvents({ body: parsed, send }),
+          "de",
+          { action: "image_stream", detail: parsed.aspectRatio },
         );
       } catch (err) {
         // Ehrlicher Fehler statt Zombie-Promise: der Client bekommt ein

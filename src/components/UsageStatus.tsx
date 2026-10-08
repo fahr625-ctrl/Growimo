@@ -6,56 +6,30 @@
 //      erreicht (X/Y)" mit Tarif-Hinweis und Upgrade-CTA als Platzhalter-Link
 //      zur Pricing-Seite (KEIN Stripe-Checkout-Link — Checkout ist erst in der
 //      8.3-Checkout-Phase produktiv).
-// Quelle ist die vorhandene ServerFunction getSubscriptionStatus (8.3, nutzt den
+// Quelle ist die ServerFunction getSubscriptionStatus (8.3, nutzt den
 // 8.2-Usage-Guard getUsageInfo) — keine neue Datenquelle.
+// FIX-BLOCK 1 (Owner-Auftrag 2026-10-08): Diese Anzeige liest den Server-Wert
+// jetzt über den gemeinsamen Client-Hook `useServerUsage` (src/lib/usage-client.ts)
+// — DIESELBE Quelle wie die Kosten-Hinweise und die Vorab-Prüfungen. Ein
+// eigenständiger lokaler Zähler existiert nicht mehr, deshalb kann die Anzeige
+// nicht mehr von der DB abweichen (live belegter Bug: „2 von 5 verbleibend"
+// während die DB 5/5 hatte).
 // Owner-/Admin-Override (harte Clerk-ID): bewusst KEINE Anzeige (Vorgabe 8.2).
-// Daten werden beim Mount, bei jeder Routenänderung und bei Fenster-Fokus neu
-// geladen (nach einer Generierung aktualisiert sich der Zähler damit automatisch).
-import { Link, useRouterState } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+// Neu geladen wird beim Mount, bei jeder Routenänderung, bei Fenster-Fokus und
+// nach jedem Verbrauch (`growimo:usage-refresh`) — der Wert ist damit immer der
+// DB-Stand, auch direkt nach einer Generierung.
+import { Link } from '@tanstack/react-router';
 import { useTranslation } from '~/i18n';
-import { getSubscriptionStatus } from '~/stripe/subscription';
-import { OWNER_USER_ID } from '~/lib/tracking';
-
-interface UsageData {
-  used: number;
-  remaining: number;
-  limit: number;
-  planTier: 'free' | 'pro';
-}
+import { useServerUsage } from '~/lib/usage-client';
 
 export function UsageStatus({ userId }: { userId?: string }) {
   const { t } = useTranslation();
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const [usage, setUsage] = useState<UsageData | null>(null);
-
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    const load = () => {
-      getSubscriptionStatus()
-        .then((status) => {
-          if (cancelled) return;
-          setUsage(status.usage ?? null);
-        })
-        .catch(() => {
-          // fail-silent: keine Anzeige statt kaputtem Layout (DB/Session-Fehler)
-          if (!cancelled) setUsage(null);
-        });
-    };
-    load();
-    const onFocus = () => load();
-    window.addEventListener('focus', onFocus);
-    return () => {
-      cancelled = true;
-      window.removeEventListener('focus', onFocus);
-    };
-  }, [userId, pathname]);
+  const { usage, isOwner } = useServerUsage(userId);
 
   // Owner-/Admin-Override: KEINE Zähler-Anzeige, KEIN Banner (Vorgabe aus 8.2 —
   // die Ausnahme ist bewusst unsichtbar).
-  if (!userId || userId === OWNER_USER_ID) return null;
-  // Noch nicht geladen oder Fehler → nichts anzeigen.
+  if (!userId || isOwner) return null;
+  // Noch nicht geladen oder Fehler → nichts anzeigen (kein geratener Wert).
   if (usage === null) return null;
 
   const limitReached = usage.remaining <= 0 && usage.limit > 0;

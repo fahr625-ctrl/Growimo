@@ -854,7 +854,7 @@ export const en: EnShape = {
   // ── Limits ───────────────────────────────────────────────────────────────────
   usage_limit_title: 'Limit reached',
   usage_limit_desc:
-    'You have used all %d free generations for this month. Upgrade to Pro for unlimited AI generations and the full Growimo feature set.',
+    'You have used all %d free generations for this month. With Pro you get 200 AI generations per month and the full Growimo feature set.',
   usage_limit_cta: 'View plans',
   usage_limit_later: 'Maybe later',
   usage_limit_alert: 'Limit reached. Upgrade to Pro for unlimited generations.',
@@ -1576,6 +1576,16 @@ export const en: EnShape = {
     '3 alternatives, each with its own quality score. Adopt the best variant — it replaces the current content (including its score).',
   variant_adopt: 'Adopt this variant',
   variant_letter: 'Variant %s',
+  // FIX-BLOCK 1 (owner order 2026-10-08): the A/B fetch is a paid AI feature
+  // (1 generation) — communicated honestly.
+  variant_cost_hint:
+    'Fetching the A/B variants costs 1 generation: you will have %d of %d left afterwards.',
+  variant_cost_hint_plain: 'Fetching the A/B variants costs 1 generation.',
+  variant_cost_done: '1 generation used — %d of %d remaining.',
+  variant_cost_done_plain: '1 generation used.',
+  variant_cost_confirm: 'You only have %d generation(s) left — this fetch uses 1 of them. Continue anyway?',
+  variant_cost_confirm_yes: 'Yes, fetch variants',
+  variant_cost_confirm_no: 'Cancel',
   // Owner 2026-10-03 (step 1, point 1c): the real evaluation on display
   variant_recommended: 'Recommended',
   variant_score_delta: '+%d points ahead of the runner-up',

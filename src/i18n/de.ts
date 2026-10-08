@@ -856,7 +856,7 @@ export const de = {
   // ── Limits ───────────────────────────────────────────────────────────────────
   usage_limit_title: 'Limit erreicht',
   usage_limit_desc:
-    'Du hast alle %d kostenlosen Generierungen für diesen Monat genutzt. Wechsle zu Pro für unbegrenzte KI-Generierungen und den vollen Funktionsumfang von Growimo.',
+    'Du hast alle %d kostenlosen Generierungen für diesen Monat genutzt. Mit Pro erhältst du 200 KI-Generierungen pro Monat und den vollen Funktionsumfang von Growimo.',
   usage_limit_cta: 'Pläne ansehen',
   usage_limit_later: 'Vielleicht später',
   usage_limit_alert: 'Limit erreicht. Wechsle zu Pro für unbegrenzte Generierungen.',
@@ -1583,6 +1583,17 @@ export const de = {
     '3 Alternativen, jede mit eigenem Qualitäts-Score. Übernimm die beste Variante — sie ersetzt den aktuellen Inhalt (inklusive Score).',
   variant_adopt: 'Diese Variante übernehmen',
   variant_letter: 'Variante %s',
+  // FIX-BLOCK 1 (Owner-Auftrag 2026-10-08): Der A/B-Abruf ist eine
+  // kostenpflichtige KI-Funktion (1 Generierung) — ehrlich kommuniziert.
+  variant_cost_hint:
+    'Der Abruf der A/B-Varianten kostet 1 Generierung: Danach bleiben dir noch %d von %d.',
+  variant_cost_hint_plain: 'Der Abruf der A/B-Varianten kostet 1 Generierung.',
+  variant_cost_done: '1 Generierung verbraucht — noch %d von %d verbleibend.',
+  variant_cost_done_plain: '1 Generierung verbraucht.',
+  variant_cost_confirm:
+    'Du hast nur noch %d Generierung(en) — dieser Abruf verbraucht 1 davon. Trotzdem fortfahren?',
+  variant_cost_confirm_yes: 'Ja, Varianten abrufen',
+  variant_cost_confirm_no: 'Abbrechen',
   // Owner 2026-10-03 (Schritt 1, Punkt 1c): echte Bewertungsanzeige
   variant_recommended: 'Empfehlung',
   variant_score_delta: '+%d Punkte zur zweitbesten Variante',

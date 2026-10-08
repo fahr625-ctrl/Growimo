@@ -1,7 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
+import { useUser } from '@clerk/clerk-react';
 import type { ContentResult, VariantAsset, VariantsResult } from '~/ai/types';
 import { generateVariantsServer } from '~/ai/server';
 import { useTranslation } from '~/i18n';
+import { refreshUsage, useServerUsage } from '~/lib/usage-client';
 import { ScoreCard } from './ScoreCard';
 import { rankVariants } from './variantRanking';
 
@@ -46,10 +48,21 @@ export function VariantPicker({
   const tLookup = t as unknown as Record<string, string>;
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [variants, setVariants] = useState<VariantAsset[] | null>(null);
+  // FIX-BLOCK 1 (Owner-Auftrag 2026-10-08): Der A/B-Abruf ist eine
+  // kostenpflichtige KI-Funktion und zählt 1 Generierung. Deshalb (a) ehrlicher
+  // Hinweis VOR dem Klick, (b) Bestätigung, wenn < 2 Generierungen übrig sind,
+  // (c) sichtbarer Verbrauch NACH dem Klick. Die Zahl kommt aus derselben
+  // DB-Quelle wie das Limit-Banner (useServerUsage → getSubscriptionStatus).
+  const { user } = useUser();
+  const { usage, isOwner } = useServerUsage(user?.id);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [consumed, setConsumed] = useState<{ remaining: number; limit: number } | null>(null);
+  const [limitHint, setLimitHint] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!content) return;
     setStatus('loading');
+    setLimitHint(null);
     try {
       // createServerFn's generic typing is broken in this codebase
       // (pre-existing) — the result is `unknown`, cast to the known contract
@@ -68,7 +81,18 @@ export function VariantPicker({
       if (outcome && outcome.variants.length > 0) {
         setVariants(outcome.variants);
         setStatus('idle');
+        // (c) Sichtbarer Verbrauch: 1 Abruf = 1 Generierung. Der Wert ist der
+        // Server-Stand vor dem Abruf minus 1 (der Server hat genau diese Einheit
+        // gerade verbraucht); der Banner-Refresh holt kurz darauf den DB-Stand.
+        if (!isOwner && usage) {
+          setConsumed({ remaining: Math.max(usage.remaining - 1, 0), limit: usage.limit });
+        } else if (!isOwner) {
+          setConsumed({ remaining: -1, limit: -1 });
+        }
+        refreshUsage();
       } else {
+        // Keine Varianten erstellt → der Server hat die Einheit kompensiert
+        // (netto 0 Verbrauch, siehe generateVariantsServer).
         setVariants(null);
         setStatus('error');
       }
@@ -76,13 +100,34 @@ export function VariantPicker({
       console.error('[VariantPicker] failed:', err);
       setVariants(null);
       setStatus('error');
+      // 2a: Limit-Fehler ehrlich benennen (der Call wurde vom Guard blockiert,
+      // es wurde NICHTS verbraucht).
+      const msg = err instanceof Error ? err.message : '';
+      if (/limit|aufgebraucht|used up/i.test(msg)) setLimitHint(msg);
     }
-  }, [content, productIdea, strategyContext, locale]);
+  }, [content, productIdea, strategyContext, locale, isOwner, usage]);
 
   const close = useCallback(() => {
     setStatus('idle');
     setVariants(null);
+    setConsumed(null);
+    setLimitHint(null);
+    setConfirmOpen(false);
   }, []);
+
+  /**
+   * FIX-BLOCK 1: Bei < 2 verbleibenden Generierungen zuerst nachfragen (der
+   * Abruf kostet 1). Bei 0 übrig läuft der Aufruf trotzdem zum Server — der
+   * Guard blockiert ihn dann mit der ehrlichen Limit-Meldung und verbraucht
+   * NICHTS (fail-closed, keine lokale Blockade).
+   */
+  const handleTriggerClick = useCallback(() => {
+    if (usage && usage.remaining > 0 && usage.remaining < 2) {
+      setConfirmOpen(true);
+      return;
+    }
+    void load();
+  }, [usage, load]);
 
   // 1c: Sortierung nach echter Bewertung + Empfehlung + Abstand zur zweitbesten.
   const ranking = useMemo(() => (variants ? rankVariants(variants) : null), [variants]);
@@ -97,17 +142,57 @@ export function VariantPicker({
 
   return (
     <div className={className}>
-      {/* Trigger */}
+      {/* Trigger + ehrlicher Kosten-Hinweis VOR dem Klick (FIX-BLOCK 1) */}
       {variants == null && status !== 'loading' && (
-        <button
-          type="button"
-          onClick={() => void load()}
-          disabled={!content}
-          className="inline-flex items-center gap-2 rounded-xl border border-indigo-300 bg-white px-4 py-2.5 text-sm font-semibold text-indigo-700 shadow-sm transition-all hover:bg-indigo-50 hover:shadow disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <span>🅰️🅱️</span>
-          {tLookup.variant_btn}
-        </button>
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={handleTriggerClick}
+            disabled={!content}
+            className="inline-flex items-center gap-2 rounded-xl border border-indigo-300 bg-white px-4 py-2.5 text-sm font-semibold text-indigo-700 shadow-sm transition-all hover:bg-indigo-50 hover:shadow disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <span>🅰️🅱️</span>
+            {tLookup.variant_btn}
+          </button>
+          {/* Owner-/Admin-Override: keine Zähler-Anzeige (Vorgabe 8.2). */}
+          {!isOwner && (
+            <p className="text-[11px] leading-relaxed text-gray-500">
+              {usage
+                ? (tLookup.variant_cost_hint ?? '')
+                    .replace('%d', String(Math.max(usage.remaining - 1, 0)))
+                    .replace('%d', String(usage.limit))
+                : tLookup.variant_cost_hint_plain}
+            </p>
+          )}
+          {/* Optional (Empfehlung des Checks): Bestätigung bei < 2 verbleibenden
+              Generierungen — der Abruf kostet eine davon. */}
+          {confirmOpen && usage && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2.5">
+              <p className="text-[11px] font-semibold text-amber-800">
+                {(tLookup.variant_cost_confirm ?? '').replace('%d', String(usage.remaining))}
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmOpen(false);
+                    void load();
+                  }}
+                  className="rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm transition-colors hover:bg-amber-700"
+                >
+                  {tLookup.variant_cost_confirm_yes}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmOpen(false)}
+                  className="rounded-lg border border-amber-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-amber-800 transition-colors hover:bg-amber-100"
+                >
+                  {tLookup.variant_cost_confirm_no}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Loading */}
@@ -130,6 +215,9 @@ export function VariantPicker({
           <p className="mt-0.5 text-[11px] leading-relaxed text-amber-700/90">
             {tLookup.variant_error_desc}
           </p>
+          {/* Server-Meldung bei erreichtem Monatslimit (ehrlich benannt, es
+              wurde nichts verbraucht — der Guard hat den Call blockiert). */}
+          {limitHint && <p className="mt-1 text-[11px] font-bold text-red-700">{limitHint}</p>}
           <div className="mt-2 flex gap-2">
             <button
               type="button"
@@ -161,6 +249,16 @@ export function VariantPicker({
               {ranking && ranking.bestTotal != null && (
                 <p className="mt-0.5 text-[11px] font-semibold text-emerald-700">
                   {tLookup.variant_ranked_note}
+                </p>
+              )}
+              {/* (c) Sichtbarer Verbrauch nach dem Abruf (FIX-BLOCK 1). */}
+              {consumed && (
+                <p className="mt-0.5 text-[11px] font-bold text-indigo-700">
+                  {consumed.remaining >= 0
+                    ? (tLookup.variant_cost_done ?? '')
+                        .replace('%d', String(consumed.remaining))
+                        .replace('%d', String(consumed.limit))
+                    : tLookup.variant_cost_done_plain}
                 </p>
               )}
             </div>

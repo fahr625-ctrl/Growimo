@@ -3,6 +3,14 @@
 //   Free = 5 Generierungen/Monat · Pro = 200/Monat · 1 Bild = 1 Generierung ·
 //   Strategie-Paket = 1 pro Kanal · interne Retries/Scoring/Verbessern = 0.
 //
+// FIX-BLOCK 1 (Owner-Auftrag 2026-10-08, verbindlich): Die TikTok-Diagnose v2
+// und der A/B-Varianten-Abruf sind kostenpflichtige KI-Funktionen (vollwertige
+// LLM-Generierungen mit neuem Ergebnis) und zählen daher je 1 Generierung —
+// sie laufen durch denselben konditionalen Guard wie alle anderen Pfade.
+// Unverändert 0 bleiben ausschließlich echte interne Retries, Scoring und
+// „Verbessern" (dokumentiert in /home/team/shared/fix-block1-usage-2026-10-08.md).
+// Jeder Verbrauch schreibt zusätzlich ein Zuordnungs-Event (usage_events).
+//
 // Nur von SERVER-seitigem Code importieren (DB + JWKS-Verify) — niemals vom
 // Client. Einstiegspunkte: src/api/generate-stream.ts (Strategie-Stream je
 // Kanal), src/ai/server.ts (Einzel-Asset / Paket / TikTok), src/routes/app/
@@ -20,6 +28,7 @@ import {
   qGetPlanTier,
   qGetRemaining,
   qIncrementUsage,
+  qInsertUsageEvent,
   qReleaseUsage,
   qTryThrottle,
 } from '../db/queries';
@@ -102,6 +111,35 @@ export interface UsageInfo {
   period: string;
 }
 
+/**
+ * FIX-BLOCK 1 (Owner-Auftrag 2026-10-08) — Zuordnung einer verbrauchten
+ * Generierung für das Usage-Event-Ledger (usage_events). Jede Verbrauchsstelle
+ * nennt ihre Aktion, damit jede Zähler-Zeile im Nachhinein zuordenbar ist.
+ * `detail` trägt Kontext ohne PII (Kanal/Content-Type/Modus), `contentId`
+ * einen Ergebnis-Bezug, wenn er serverseitig vorhanden ist.
+ */
+export interface UsageEventContext {
+  /** Technischer Aktions-Schlüssel, z. B. 'tiktok_diagnose', 'ab_variants'. */
+  action: string;
+  /** Kanal/Content-Type/Modus — frei von PII. */
+  detail?: string | null;
+  /** Projekt-/Content-UUID, falls vorhanden. */
+  contentId?: string | null;
+}
+
+/** Zentraler Aktions-Katalog (dokumentiert, welche Aktionen zählen). */
+export const USAGE_ACTIONS = {
+  generateContent: 'generate_content',
+  packageChannel: 'package_channel',
+  streamChannel: 'stream_channel',
+  tiktokTodayIdea: 'tiktok_todayidea',
+  tiktokConcept: 'tiktok_concept',
+  tiktokDiagnose: 'tiktok_diagnose',
+  abVariants: 'ab_variants',
+  image: 'image',
+  imageStream: 'image_stream',
+} as const;
+
 /** Lese-Info über Kontingent eines Nutzers (clerk_id). Verbraucht nichts. */
 export async function getUsageInfo(clerkUserId: string): Promise<UsageInfo> {
   const planTier = await qGetPlanTier(clerkUserId);
@@ -145,14 +183,18 @@ export async function assertCanGenerate(
 export async function recordGeneration(
   clerkUserId: string,
   lang: 'de' | 'en' = 'de',
-): Promise<{ remaining: number; limit: number }> {
+  ctx?: UsageEventContext,
+): Promise<{ remaining: number; limit: number; used: number }> {
   // Admin-/Owner-Override: kein Zähler-Increment (Owner frei testen können).
+  // Bewusst AUCH KEIN Usage-Event: der Owner läuft ohne Zähler (Vorgabe 8.2,
+  // die Ausnahme ist unsichtbar) — das Ledger bleibt deckungsgleich zum Zähler.
   if (isAdminOverride(clerkUserId)) {
-    return { remaining: Number.MAX_SAFE_INTEGER, limit: Number.MAX_SAFE_INTEGER };
+    return { remaining: Number.MAX_SAFE_INTEGER, limit: Number.MAX_SAFE_INTEGER, used: 0 };
   }
   const planTier = await qGetPlanTier(clerkUserId);
   const limit = limitForPlan(planTier);
-  const next = await qIncrementUsage(clerkUserId, currentPeriod(), limit);
+  const period = currentPeriod();
+  const next = await qIncrementUsage(clerkUserId, period, limit);
   if (next == null) {
     throw new UsageLimitError(usageLimitMessage(lang, planTier, limit), {
       remaining: 0,
@@ -160,7 +202,16 @@ export async function recordGeneration(
       planTier,
     });
   }
-  return { remaining: Math.max(limit - next, 0), limit };
+  // FIX-BLOCK 1: Verbrauch im Ledger festhalten (fail-soft, wirft nie).
+  await qInsertUsageEvent(clerkUserId, {
+    action: ctx?.action ?? 'generation',
+    detail: ctx?.detail ?? null,
+    contentId: ctx?.contentId ?? null,
+    period,
+    countAfter: next,
+    limit,
+  });
+  return { remaining: Math.max(limit - next, 0), limit, used: next };
 }
 
 /** Fehlgeschlagene Generierung kompensieren (Zähler −1, mindestens 0). */
@@ -181,6 +232,7 @@ export async function withGenerationGuard<T>(
   callerId: string | null | undefined,
   fn: () => Promise<T>,
   lang: 'de' | 'en' = 'de',
+  ctx?: UsageEventContext,
 ): Promise<T> {
   if (!callerId) {
     throw new Error(
@@ -190,7 +242,9 @@ export async function withGenerationGuard<T>(
     );
   }
   // Admin-/Owner-Override: unbegrenzt — keinerlei DB-Reservierung/-Increment,
-  // der Call läuft direkt durch (Owner frei testen können).
+  // der Call läuft direkt durch (Owner frei testen können). Bewusst auch KEIN
+  // Usage-Event (kein Zähler ⇒ kein Ledger-Eintrag, Vorgabe 8.2 bleibt sichtbar
+  // unverändert).
   if (isAdminOverride(callerId)) {
     return fn();
   }
@@ -206,7 +260,19 @@ export async function withGenerationGuard<T>(
     });
   }
   try {
-    return await fn();
+    const result = await fn();
+    // FIX-BLOCK 1: NUR ein erfolgreicher Lauf ist ein Verbrauch — der Eintrag
+    // entsteht nach Erfolg, damit das Ledger netto exakt dem Zähler entspricht
+    // (kompensierte Fehlläufe schreiben nichts).
+    await qInsertUsageEvent(callerId, {
+      action: ctx?.action ?? 'generation',
+      detail: ctx?.detail ?? null,
+      contentId: ctx?.contentId ?? null,
+      period,
+      countAfter: next,
+      limit,
+    });
+    return result;
   } catch (err) {
     try {
       await qReleaseUsage(callerId, period);

@@ -144,16 +144,19 @@ async function main() {
   await withGenerationGuard(up, failOnce, 'de').catch(() => {});
   check((await qGetUsage(up, period)) === 1, 'Fehlgeschlagenes Bild → Zähler bleibt 1 (0 Verbrauch)');
 
-  // ── A4. TikTok: Konzept = 1, Diagnose = 0, interne Retries = 0 ─────────────
-  console.log('\n[A4] TikTok (generateTikTokServer): Konzept = 1 · Diagnose = 0 · Retries intern = 0');
+  // ── A4. TikTok: Konzept = 1, Diagnose = 1 (FIX-BLOCK 1), Retries intern = 0 ─
+  console.log('\n[A4] TikTok (generateTikTokServer): Konzept = 1 · Diagnose = 1 · Retries intern = 0');
   const ut = TEST_USERS[2];
   await resetUsage(ut);
   const konzept = await withGenerationGuard(ut, succeed, 'de');
   check(konzept === 'fertig' && (await qGetUsage(ut, period)) === 1, '1 TikTok-Konzept (todayIdea/concept) → Zähler exakt 1');
-  // Diagnose-Pfad (server.ts:1038-1041): läuft OHNE withGenerationGuard — hier
-  // exakt nachgebaut (direkter Call, kein Guard) → 0 Verbrauch.
-  const diagnoseOk = await Promise.resolve('diagnose-fertig');
-  check(diagnoseOk === 'diagnose-fertig' && (await qGetUsage(ut, period)) === 1, 'TikTok-Diagnose (ohne Guard, wie IST-Fn) → Zähler bleibt 1 (0 Generierungen)');
+  // FIX-BLOCK 1 (Owner-Auftrag 2026-10-08, verbindlich): Die Diagnose v2 ist
+  // eine vollwertige LLM-Generierung (neues Ergebnis „NEUE VIDEO-VERSION") und
+  // läuft jetzt durch DIESELBE Guard-Kette → 1 Diagnose = 1 Generierung.
+  const diagnoseOk = await withGenerationGuard(ut, async () => 'diagnose-fertig', 'de', {
+    action: 'tiktok_diagnose',
+  });
+  check(diagnoseOk === 'diagnose-fertig' && (await qGetUsage(ut, period)) === 2, 'TikTok-Diagnose (mit Guard, wie NEU-Fn) → Zähler +1 (1 → 2)');
   // Interne Retries: die TikTok-Engine probiert bis zu 4× INNERHALB EINES Guards
   // (Retry-Schleife fängt eigene Fehler — wie src/ai/tiktok.ts) → zählt 1.
   await resetUsage(ut);
@@ -238,20 +241,21 @@ async function main() {
   check(!sect('improveContentServer').includes('withGenerationGuard'), 'Verbessern (improveContentServer) → KEIN withGenerationGuard (0)');
   check(!sect('improveByScoreServer').includes('withGenerationGuard'), 'Auto-Verbessern (improveByScoreServer) → KEIN withGenerationGuard (0)');
   check(!sect('improveToScoreServer').includes('withGenerationGuard'), 'Auf-80+-Verbessern (improveToScoreServer) → KEIN withGenerationGuard (0)');
-  check(sect('generateVariantsServer').includes('withGenerationGuard'), 'Varianten (generateVariantsServer) → withGenerationGuard (1)');
+  check(sect('generateVariantsServer').includes('withGenerationGuard') && sect('generateVariantsServer').includes('ab_variants'), 'Varianten (generateVariantsServer) → withGenerationGuard (1, Aktion ab_variants)');
   check(sect('generatePackageChannelServer').includes('withGenerationGuard'), 'Paket-Kanal einzeln (generatePackageChannelServer) → withGenerationGuard (1)');
   const tiktokSect = sect('generateTikTokServer');
-  check(tiktokSect.includes("data.mode === 'diagnose'") && tiktokSect.includes('withGenerationGuard'), 'TikTok: diagnose-Zweig existiert + Konzept-Zweig mit withGenerationGuard (1)');
+  check(tiktokSect.includes("data.mode === 'diagnose'") && tiktokSect.includes('withGenerationGuard') && tiktokSect.includes('tiktok_diagnose'), 'TikTok: ALLE Modi (todayIdea/concept/diagnose) durch withGenerationGuard (je 1)');
   check(pkgSrc.includes('withGenerationGuard(') && pkgSrc.includes('PACKAGE_CHANNELS.map'), 'Paket-Flow (package.ts): je Kanal 1× withGenerationGuard (N Kanäle = N)');
   check(streamSrc.includes('withGenerationGuard(options.userId'), 'Strategie-Stream (stream.ts): je Kanal 1× withGenerationGuard (1/Kanal)');
   check(genStreamSrc.includes('assertRateOk'), 'generate-stream.ts: Drossel am Stream-Start (Rest-Schutz serverseitig)');
-  check(imageSrc.includes('withGenerationGuard(userId, () => generateImage'), 'Bild (image-studio.tsx): withGenerationGuard (1 Bild = 1)');
+  check(imageSrc.includes('withGenerationGuard(') && imageSrc.includes("action: 'image'"), 'Bild (image-studio.tsx): withGenerationGuard (1 Bild = 1, Aktion image)');
   check(querySrc.includes('ON CONFLICT (user_id, period) DO UPDATE') && querySrc.includes('WHERE usage_monthly.count <'), 'qIncrementUsage: atomares, konditionales Increment (keine TOCTOU-Race, Limit nie überschreitbar)');
   check(schemaSrc.includes('PRIMARY KEY (user_id, period)') && schemaSrc.includes('usage_monthly'), 'usage_monthly: PRIMARY KEY (user_id, period) + Unique-Semantik');
 
   // ── Cleanup aller Testdaten ────────────────────────────────────────────────
   console.log('\n[Cleanup]');
   for (const u of TEST_USERS) {
+    await sql`DELETE FROM usage_events WHERE user_id=${u}`;
     await sql`DELETE FROM usage_monthly WHERE user_id=(SELECT id FROM users WHERE clerk_id=${u})`;
     await sql`DELETE FROM generation_throttle WHERE user_id=${u}`;
     await sql`DELETE FROM subscriptions WHERE user_id=(SELECT id FROM users WHERE clerk_id=${u})`;

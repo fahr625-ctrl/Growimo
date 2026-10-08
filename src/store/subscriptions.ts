@@ -18,6 +18,14 @@ export interface UserSubscription {
 // ── In-memory store ────────────────────────────────────────────────────────────
 
 const subscriptionsMap = new Map<string, UserSubscription>();
+// FIX-BLOCK 1 (Owner-Auftrag 2026-10-08): KEIN eigenständiger lokaler Zähler
+// mehr. `usageMap` ist ausschließlich ein SPIEGEL des serverseitigen Werts
+// (ServerFn getSubscriptionStatus → usage-guard → usage_monthly.count). Er wird
+// von `hydrateUsageFromServer` gesetzt; `recordGeneration` zählt nur optimistisch
+// mit (Sofort-Feedback der laufenden Sitzung) und stößt sofort einen
+// Server-Refresh an, der den Spiegel überschreibt. Anzeigen lesen den
+// Server-Wert (siehe src/lib/usage-client.ts) — dadurch kann kein Banner mehr
+// von der DB abweichen.
 const usageMap = new Map<string, number>(); // userId -> generation count this month
 
 // ── Subscription API ───────────────────────────────────────────────────────────
@@ -53,9 +61,45 @@ export function getUsageThisMonth(userId: string): number {
   return usageMap.get(userId) ?? 0;
 }
 
+/**
+ * FIX-BLOCK 1: Spiegel des DB-Zählers setzen (Quelle: getSubscriptionStatus →
+ * usage-guard). Überschreibt IMMER die lokale Sicht mit dem Server-Wert — der
+ * Server ist die Autorität für Limit und Anzeige.
+ */
+export function hydrateUsageFromServer(
+  userId: string,
+  used: number,
+  planTier?: SubscriptionTier,
+): void {
+  if (!userId) return;
+  usageMap.set(userId, Math.max(0, Math.floor(used)));
+  // FIX-BLOCK 1: auch der Tarif kommt aus der Server-Antwort — sonst würde eine
+  // Pro-Sitzung client-seitig weiter mit dem Free-Limit (5) rechnen.
+  if (planTier === 'free' || planTier === 'pro') {
+    const existing = subscriptionsMap.get(userId);
+    subscriptionsMap.set(userId, {
+      ...(existing ?? { userId, status: 'active' as const }),
+      userId,
+      tier: planTier,
+    });
+  }
+}
+
+/**
+ * Optimistisches Sofort-Feedback (+1) NACH einer erfolgreichen Generierung.
+ * Kein eigener Zähler: direkt danach wird der Server-Wert neu geladen
+ * (usage-refresh-Event) und der Spiegel damit auf die DB-Wahrheit gesetzt.
+ */
 export function recordGeneration(userId: string): void {
   const current = usageMap.get(userId) ?? 0;
   usageMap.set(userId, current + 1);
+  if (typeof window !== 'undefined') {
+    try {
+      window.dispatchEvent(new Event('growimo:usage-refresh'));
+    } catch {
+      // Anzeige-Refresh darf niemals eine Generierung stören.
+    }
+  }
 }
 
 export function canGenerate(userId: string): boolean {

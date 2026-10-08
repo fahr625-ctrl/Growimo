@@ -8,9 +8,25 @@ import { diagnoseRetentionGaps } from './tiktok';
 // Client-Bundle nie DB/JWKS-Code zieht (gleiche Strategie wie die dynamischen
 // Engine-Imports in den Handlern unten). Guards: Einzel-Asset, Paket-Kanäle,
 // TikTok todayIdea/concept, Varianten = je 1 Generierung; Verbessern/Scoring/
-// Analyse/Diagnose/Priorisierung = 0 (Owner-Entscheidung 2026-09-12).
+// Analyse/Priorisierung = 0 (Owner-Entscheidung 2026-09-12).
+// FIX-BLOCK 1 (Owner-Auftrag 2026-10-08): Auch die TikTok-Diagnose v2 zählt
+// jetzt 1 Generierung (vollwertige LLM-Generierung) — nur echte interne
+// Retries/Scoring/Verbessern bleiben bei 0. Jeder Verbrauch wird im
+// usage_events-Ledger mit seiner Aktion zugeordnet (siehe usage-guard.ts).
 async function usageGuard() {
   return import('../lib/usage-guard');
+}
+
+/**
+ * FIX-BLOCK 1 — interner Marker: die A/B-Engine liefert bei Fehlern `null`.
+ * Der Guard kompensiert daraufhin die reservierte Einheit (netto 0) und der
+ * Handler antwortet wie bisher mit `null` („nie blockieren, Original bleibt").
+ */
+class VariantGenerationUnavailable extends Error {
+  constructor() {
+    super('VARIANT_GENERATION_UNAVAILABLE');
+    this.name = 'VariantGenerationUnavailable';
+  }
 }
 
 /** Phase 8.2 — Nutzer-Identität (Clerk) auflösen; fail-closed bei Generierung. */
@@ -112,8 +128,12 @@ export const generateContentServer = createServerFn({ method: 'POST' })
     // Stabilisierung Schritt 2, Punkt 5: JEDER Kanal-Pfad (QuickGenerator,
     // Projekt-Flow, Kanal-Paket) läuft durch den Fakten-Post-Check. Server-seitig
     // gesetzt (nicht vom Client manipulierbar). Nicht-Kanal-Typen bleiben wie bisher.
-    return g.withGenerationGuard(userId, () =>
-      generateContent({ ...data, enforceFacts: shouldEnforceFacts(data.contentType) }),
+    // FIX-BLOCK 1: Zuordnung im Ledger = Aktion + Kanal (Content-Type).
+    return g.withGenerationGuard(
+      userId,
+      () => generateContent({ ...data, enforceFacts: shouldEnforceFacts(data.contentType) }),
+      'de',
+      { action: 'generate_content', detail: String(data.contentType) },
     );
   });
 
@@ -422,20 +442,44 @@ export const generateVariantsServer = createServerFn({ method: 'POST' })
       body: data.currentBody,
       metadata: data.metadata,
     };
-    const result = await g.withGenerationGuard(userId, () =>
-      generateVariants(
-        {
-          contentType: data.contentType,
-          productIdea: data.productIdea,
-          strategyContext: data.strategyContext,
+    // FIX-BLOCK 1: Der A/B-Abruf ist ein vollwertiges neues LLM-Ergebnis und
+    // zählt 1 Generierung — er läuft deshalb durch DIESELBE konditionale
+    // Guard-Kette wie alle anderen Pfade (Reservierung vor dem Call,
+    // Kompensation bei Fehler, Limit blockiert den Call).
+    let result: VariantsResult | null = null;
+    try {
+      result = await g.withGenerationGuard(
+        userId,
+        async () => {
+          const r = await generateVariants(
+            {
+              contentType: data.contentType,
+              productIdea: data.productIdea,
+              strategyContext: data.strategyContext,
+            },
+            original,
+            data.lang,
+          );
+          // Die Engine liefert bei Fehlern `null` statt zu werfen. Damit
+          // „1 Generierung = 1 fertiges Ergebnis" gilt, wird dieser Fall wie ein
+          // Fehler behandelt: der Guard kompensiert (netto 0 Verbrauch) und das
+          // Ledger schreibt keinen Verbrauch.
+          if (!r) throw new VariantGenerationUnavailable();
+          return r;
         },
-        original,
         data.lang,
-      ),
-    );
+        { action: 'ab_variants', detail: String(data.contentType) },
+      );
+    } catch (err) {
+      if (err instanceof VariantGenerationUnavailable) {
+        result = null; // bisheriges Verhalten: nie blockieren, Original bleibt
+      } else {
+        throw err; // UsageLimitError/Rate-Limit müssen beim Client ankommen
+      }
+    }
     console.log(
       '[server.generateVariants] outcome:',
-      result ? `${result.variants.length} variants scored` : 'null (failed)',
+      result ? `${result.variants.length} variants scored` : 'null (failed, Einheit freigegeben)',
     );
     return result;
   });
@@ -927,8 +971,12 @@ export const generatePackageChannelServer = createServerFn({ method: 'POST' })
     const g = await usageGuard();
     const userId = await guardUserId();
     const { generatePackageChannelWithContext } = await import('./package/package');
-    return g.withGenerationGuard(userId, () =>
-      generatePackageChannelWithContext(data.contentType, data.productIdea, data.context, data.grounding),
+    return g.withGenerationGuard(
+      userId,
+      () =>
+        generatePackageChannelWithContext(data.contentType, data.productIdea, data.context, data.grounding),
+      'de',
+      { action: 'package_channel', detail: String(data.contentType) },
     );
   });
 export const finalizePackagePrioritiesServer = createServerFn({ method: 'POST' })
@@ -1099,8 +1147,11 @@ export const generateTikTokServer = createServerFn({ method: 'POST' })
   })
   .handler(async ({ data }): Promise<TikTokResult> => {
     console.log('[server.generateTikTok]', data.mode, 'lang:', data.lang, 'biz:', data.biz.slice(0, 60));
-    // Phase 8.2 — todayIdea/concept = je 1 Generierung (nur bei Erfolg);
-    // diagnose = 0 Generierungen (Owner-Entscheidung). Drossel gilt für alle.
+    // Phase 8.2 — todayIdea/concept = je 1 Generierung (nur bei Erfolg).
+    // FIX-BLOCK 1 (Owner-Auftrag 2026-10-08, verbindlich): Die Diagnose v2 ist
+    // eine vollwertige LLM-Generierung mit neuem Ergebnis (NEUE VIDEO-VERSION)
+    // und zählt deshalb ebenfalls 1 Generierung — zuvor umging sie den
+    // Kostenschutz komplett (Kostenleck, live belegt). Drossel gilt für alle.
     const g = await usageGuard();
     const userId = await guardUserId();
     await g.assertRateOk(userId, { lang: data.lang });
@@ -1113,14 +1164,21 @@ export const generateTikTokServer = createServerFn({ method: 'POST' })
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), TIKTOK_TIMEOUT_MS);
     try {
-      if (data.mode === 'diagnose') {
-        // Diagnose zählt 0 Generierungen — kein Quota-Verbrauch.
-        return await generateTikTok(data, data.lang, ctrl.signal);
-      }
+      // FIX-BLOCK 1: alle drei TikTok-Modi (todayIdea / concept / diagnose)
+      // laufen durch denselben konditionalen Guard — je 1 Generierung, nur bei
+      // Erfolg, Limit blockiert den Call, Owner-Override unverändert unbegrenzt.
+      // Die Aktion landet im usage_events-Ledger (Zuordenbarkeit der Zähler-Zeile).
+      const action =
+        data.mode === 'diagnose'
+          ? 'tiktok_diagnose'
+          : data.mode === 'todayIdea'
+            ? 'tiktok_todayidea'
+            : 'tiktok_concept';
       return await g.withGenerationGuard(
         userId,
         () => generateTikTok(data, data.lang, ctrl.signal),
         data.lang,
+        { action, detail: data.mode },
       );
     } finally {
       clearTimeout(timer);

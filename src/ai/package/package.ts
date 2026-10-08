@@ -142,6 +142,9 @@ export async function generateMarketingPackage(
                 learnContext,
                 opts.brandContext,
               ),
+            'de',
+            // FIX-BLOCK 1: Aktion + Kanal im usage_events-Ledger zuordnen.
+            { action: 'package_channel', detail: String(contentType) },
           );
         } else {
           channels[key as keyof PackageChannelResult] = await generatePackageChannel(

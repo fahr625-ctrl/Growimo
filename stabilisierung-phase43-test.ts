@@ -451,7 +451,12 @@ async function main(): Promise<void> {
     check('i18n keine fehlenden Schlüssel', dk.every((k) => k in en) && ek.every((k) => k in de));
   }
 
-  console.log(`\n=== stabilisierung-phase43-test: ${passed} PASS, ${failures.length} FAIL ===`);
+  // FIX-BLOCK 1 (2026-10-08): mit dem Guard entstehen usage_events-Zeilen —
+// die Testdaten dieses Laufs werden mit entfernt.
+try {
+  await sql`DELETE FROM usage_events WHERE user_id LIKE 'phase43%'`;
+} catch {}
+console.log(`\n=== stabilisierung-phase43-test: ${passed} PASS, ${failures.length} FAIL ===`);
   if (failures.length > 0) {
     console.log('Failures:', failures.join(' | '));
     process.exitCode = 1;

@@ -126,7 +126,11 @@ export async function runStrategyStream(
         let result: ContentResult;
         if (options.userId) {
           const { withGenerationGuard } = await import('../lib/usage-guard');
-          result = await withGenerationGuard(options.userId, () => runner(req));
+          // FIX-BLOCK 1: Aktion + Kanal im usage_events-Ledger zuordnen.
+          result = await withGenerationGuard(options.userId, () => runner(req), 'de', {
+            action: 'stream_channel',
+            detail: String(req.contentType),
+          });
         } else {
           result = await runner(req);
         }

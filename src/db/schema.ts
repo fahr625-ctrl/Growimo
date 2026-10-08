@@ -244,4 +244,31 @@ CREATE TABLE IF NOT EXISTS generation_throttle (
   last_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- ── FIX-BLOCK 1 (Owner-Auftrag 2026-10-08): Usage-Event-Log ───────────────────
+-- Zweck: Jede Zeile des Monatszählers ist zuordenbar — WELCHE Aktion hat die
+-- Einheit verbraucht (Diagnose, A/B-Varianten, Kanal, Bild …). Reines
+-- Verbrauchs-Ledger, EINE Zeile je tatsächlich verbrauchter Generierung (netto,
+-- interne Retries/Scoring/Verbessern schreiben nichts). Additiv und idempotent,
+-- ohne FK (wie tracking_events: user_id = Clerk-ID als TEXT, bewusst ohne
+-- Kopplung an die users-UUID) — ein fehlendes Log darf eine Generierung NIE
+-- verhindern (Insert ist fail-soft, siehe qInsertUsageEvent).
+--   action       : technischer Aktions-Schlüssel, z. B. 'tiktok_diagnose'
+--   detail       : Kontext ohne PII (Kanal/Content-Type/Modus), optional
+--   content_id   : Bezug zum Ergebnis (Projekt-/Content-UUID), optional
+--   count_after  : Zählerstand (usage_monthly.count) NACH dem Increment
+--   limit_value  : gültiges Monatslimit zum Zeitpunkt des Verbrauchs
+CREATE TABLE IF NOT EXISTS usage_events (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  detail TEXT,
+  content_id TEXT,
+  period TEXT,
+  count_after INTEGER,
+  limit_value INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_usage_events_user_created ON usage_events(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_usage_events_action_created ON usage_events(action, created_at);
 `;

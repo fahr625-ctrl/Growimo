@@ -186,10 +186,13 @@ function BillingContent() {
   };
 
   const isPro = sub.tier === 'pro';
-  // Server-Zähler bevorzugt (echte Free-5/Pro-200); Fallback Client-Store.
+  // FIX-BLOCK 1 (2026-10-08): Rest-Anzeige ausschließlich aus dem Server-Zähler
+  // (getSubscriptionStatus → usage-guard → usage_monthly.count). Vorher fiel die
+  // Anzeige hier auf den lokalen Client-Zähler zurück, der bei jedem Aufruf bei 0
+  // begann — eine zweite, nicht DB-identische Quelle.
   const used = usage?.used ?? 0;
   const limit = usage?.limit ?? getGenerationLimit(sub.tier);
-  const remaining = usage?.remaining ?? getRemainingGenerations(userId);
+  const remaining = usage?.remaining ?? Math.max(limit - used, 0);
   const usagePercent =
     limit <= 0 || !isFinite(limit) ? 0 : Math.min(100, Math.round((used / limit) * 100));
   const isProLimit = usage?.planTier === 'pro' || (!usage && sub.tier === 'pro');

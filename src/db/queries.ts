@@ -1127,6 +1127,105 @@ export async function qTryThrottle(userId: string, minIntervalMs: number): Promi
   `;
   return rows.length > 0;
 }
+
+// ── FIX-BLOCK 1 (Owner-Auftrag 2026-10-08): Usage-Event-Ledger ────────────────
+// Eine Zeile pro TATSÄCHLICH verbrauchter Generierung (netto) — damit ist jede
+// Zähler-Zeile zuordenbar (welche Aktion hat gezählt). Geschrieben wird
+// ausschließlich aus dem Usage-Guard (src/lib/usage-guard.ts), direkt nach dem
+// atomaren Increment. Fail-soft: ein Log-Fehler darf eine Generierung NIE
+// scheitern lassen. Die Tabelle wird lazy/idempotent angelegt, damit auch ein
+// Deployment ohne vorherigen `initDb()`-Lauf lückenlos loggt (DDL steht
+// zusätzlich kanonisch in src/db/schema.ts).
+export interface UsageEventInput {
+  action: string;
+  /** Kontext ohne PII: Kanal/Content-Type/Modus. */
+  detail?: string | null;
+  /** Bezug zum Ergebnis (Projekt-/Content-UUID), wenn vorhanden. */
+  contentId?: string | null;
+  period?: string | null;
+  /** Zählerstand NACH dem Increment. */
+  countAfter?: number | null;
+  limit?: number | null;
+}
+
+export interface UsageEventRow {
+  id: string;
+  userId: string;
+  action: string;
+  detail: string | null;
+  contentId: string | null;
+  period: string | null;
+  countAfter: number | null;
+  limitValue: number | null;
+  createdAt: string;
+}
+
+let usageEventsTableReady: Promise<void> | null = null;
+/** Legt usage_events + Indizes idempotent an (einmal pro Prozess). */
+function ensureUsageEventsTable(): Promise<void> {
+  if (!usageEventsTableReady) {
+    usageEventsTableReady = (async () => {
+      const sql = getDb();
+      await sql`
+        CREATE TABLE IF NOT EXISTS usage_events (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          user_id TEXT NOT NULL,
+          action TEXT NOT NULL,
+          detail TEXT,
+          content_id TEXT,
+          period TEXT,
+          count_after INTEGER,
+          limit_value INTEGER,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS idx_usage_events_user_created ON usage_events(user_id, created_at)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_usage_events_action_created ON usage_events(action, created_at)`;
+    })().catch((err) => {
+      // Nicht cachen, damit ein späterer Versuch erneut anlegt.
+      usageEventsTableReady = null;
+      throw err;
+    });
+  }
+  return usageEventsTableReady;
+}
+
+/** Usage-Event schreiben (fire-and-forget, wirft NIE). */
+export async function qInsertUsageEvent(userId: string, ev: UsageEventInput): Promise<void> {
+  try {
+    await ensureUsageEventsTable();
+    const sql = getDb();
+    await sql`
+      INSERT INTO usage_events (user_id, action, detail, content_id, period, count_after, limit_value)
+      VALUES (${userId}, ${ev.action}, ${ev.detail ?? null}, ${ev.contentId ?? null},
+              ${ev.period ?? null}, ${ev.countAfter ?? null}, ${ev.limit ?? null})
+    `;
+  } catch (err) {
+    console.error('[usage-events] insert failed:', err);
+  }
+}
+
+/** Letzte Usage-Events eines Nutzers (Tests/Diagnose). Neueste zuerst. */
+export async function qGetUsageEvents(userId: string, max = 50): Promise<UsageEventRow[]> {
+  const sql = getDb();
+  const rows = await sql`
+    SELECT id, user_id, action, detail, content_id, period, count_after, limit_value, created_at
+    FROM usage_events WHERE user_id = ${userId}
+    ORDER BY created_at DESC, id DESC LIMIT ${max}
+  `;
+  return rows.map((r) => ({
+    id: String(r.id),
+    userId: String(r.user_id),
+    action: String(r.action),
+    detail: r.detail == null ? null : String(r.detail),
+    contentId: r.content_id == null ? null : String(r.content_id),
+    period: r.period == null ? null : String(r.period),
+    countAfter: r.count_after == null ? null : Number(r.count_after),
+    limitValue: r.limit_value == null ? null : Number(r.limit_value),
+    createdAt: new Date(r.created_at as string).toISOString(),
+  }));
+}
+
 // ── Phase 8.3 Stripe-Subscription-Sync (Webhook → subscriptions-Tabelle) ───────
 // Owner-Entscheidung 2026-09-12: Pro = 19 €/Monat (200 Generierungen) bzw.
 // 190 €/Jahr; kein „unbegrenzt"-Tarif. qGetPlanTier (oben, Phase 8.2) liest

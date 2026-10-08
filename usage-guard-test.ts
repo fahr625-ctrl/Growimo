@@ -96,6 +96,7 @@ async function main() {
   // ── 2. Kompensation: Fehler verbraucht 0 ────────────────────────────────────
   console.log('\n[2] Kompensation (Fehler = 0 Verbrauch)');
   // Frischen Zählerstand herstellen (nach [1] ist der Nutzer auf 5/5).
+  await sql`DELETE FROM usage_events WHERE user_id=${TEST_USER}`;
   await sql`DELETE FROM usage_monthly WHERE user_id=(SELECT id FROM users WHERE clerk_id=${TEST_USER})`;
   const before = await qGetUsage(TEST_USER, p);
   check(before === 0, 'Ausgangslage Kompensation: Zähler=0');

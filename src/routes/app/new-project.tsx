@@ -33,7 +33,8 @@ import { saveProject, getProjectsByUser } from '~/store/projects';
 import type { Project } from '~/store/projects';
 import { getBrandContext, getBrandProfile } from '~/store/brand';
 import { formatStrategyBrandContext } from '~/lib/studio-deeplink';
-import { canGenerate, recordGeneration, getRemainingGenerations } from '~/store/subscriptions';
+import { canGenerate, recordGeneration } from '~/store/subscriptions';
+import { useServerUsage } from '~/lib/usage-client';
 import { trackEvent } from '~/store/analytics';
 import { analyticsChannelForContentType } from '~/lib/analytics';
 import { trackAnalytics } from '~/lib/analytics-client';
@@ -223,6 +224,11 @@ function NewProjectContent() {
   // ── Auto-save draft to localStorage ───────────────────────────────────────
   const uid = user?.id ?? 'anonymous';
   const draftKey = `growimo_draft_${uid}`;
+
+  // FIX-BLOCK 1 (2026-10-08): Rest-/Limit-Anzeige aus der einen DB-Quelle
+  // (identisch zum Banner in src/components/UsageStatus.tsx).
+  const { usage: serverUsage } = useServerUsage(user?.id);
+  const FREE_LIMIT_FALLBACK = 5;
 
   // Restore draft on mount
   useEffect(() => {
@@ -688,9 +694,12 @@ function NewProjectContent() {
 
       {/* Upsell Modal */}
       {showUpsell && (
+        // FIX-BLOCK 1 (2026-10-08): Der Verbrauch in der Limit-Meldung kommt aus
+        // der Server-Quelle (usage-guard → usage_monthly), nicht aus dem lokalen
+        // Client-Zähler.
         <UpsellModal
           onClose={() => setShowUpsell(false)}
-          remaining={getRemainingGenerations(user?.id ?? 'anonymous')}
+          used={serverUsage?.used ?? serverUsage?.limit ?? FREE_LIMIT_FALLBACK}
         />
       )}
     </div>
@@ -1563,10 +1572,11 @@ function CopyButton({ text }: { text: string }) {
 
 function UpsellModal({
   onClose,
-  remaining,
+  used,
 }: {
   onClose: () => void;
-  remaining: number;
+  /** Verbrauchte Einheiten dieses Monats (Server-Zähler). */
+  used: number;
 }) {
   const { t } = useTranslation();
   return (
@@ -1579,7 +1589,7 @@ function UpsellModal({
           {t.usage_limit_title}
         </h3>
         <p className="mt-2 text-center text-sm text-gray-500">
-          {t.usage_limit_desc.replace('%d', String(5 - remaining))}
+          {t.usage_limit_desc.replace('%d', String(used))}
         </p>
         <div className="mt-6 space-y-3">
           <Link

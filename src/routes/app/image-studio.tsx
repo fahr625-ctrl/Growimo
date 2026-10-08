@@ -71,8 +71,12 @@ const generateImageServer = createServerFn({ method: 'POST' }).validator((input:
   const { generateImage } = await import('~/ai/image-providers/generate');
   // Mit Referenz läuft `generateImage` über images.edit (Produkt bleibt
   // identisch) — die Entscheidung selbst liegt in imageRunMode (testbar).
-  return guard.withGenerationGuard(userId, () =>
-    generateImage(data.prompt, data.aspectRatio, data.referenceImageData),
+  // FIX-BLOCK 1: Aktion + Format im usage_events-Ledger zuordnen (1 Bild = 1).
+  return guard.withGenerationGuard(
+    userId,
+    () => generateImage(data.prompt, data.aspectRatio, data.referenceImageData),
+    'de',
+    { action: 'image', detail: data.aspectRatio },
   );
 });
 
