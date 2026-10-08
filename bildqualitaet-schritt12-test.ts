@@ -238,7 +238,9 @@ const modelCallSites12 = (genSrc.match(/client\.images\.(generate|edit)\(/g) ?? 
 check('(2) alle Modell-Pfade übergeben `quality,` (generate + edit, inkl. Streaming)',
   modelCallSites12 >= 2 && (genSrc.match(/\n\s*quality,\n/g) ?? []).length === modelCallSites12,
   `sites=${modelCallSites12} quality=${(genSrc.match(/\n\s*quality,\n/g) ?? []).length}`);
-check('(2) images.edit-Pfad: input_fidelity unverändert high', /input_fidelity:\s*'high'/.test(genSrc));
+check('(2) images.edit-Pfad: input_fidelity modellabhängig (gpt-image-2: weglassen, sonst 400)',
+  /export function editFidelityOptions/.test(genSrc) && /modelSupportsInputFidelity/.test(genSrc) &&
+  (genSrc.match(/\n\s*\.\.\.editFidelityOptions\(\),/g) ?? []).length === 2);
 // Schritt 3 (2026-10-07) hat das Modell auf gpt-image-2 gehoben — hier wird die
 // AKTUELLE Wahrheit geprueft (Modell, n:1, unveraenderte 2:3-Auflösung).
 check('(2) model/size/n unverändert (Schritt 3: gpt-image-2, n: 1 je Modell-Call, SIZES-Map)', /const MODEL = 'gpt-image-2';/.test(genSrc) && (genSrc.match(/n: 1,/g) ?? []).length === modelCallSites12 && /'2:3': '1024x1536'/.test(genSrc), `n:1=${(genSrc.match(/n: 1,/g) ?? []).length} sites=${modelCallSites12}`);

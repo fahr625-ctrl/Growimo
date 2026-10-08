@@ -109,8 +109,8 @@ check('(3.2) Trefferfläche der Map deckt alle 5 Studio-Formate ab',
   IMAGE_ASPECT_RATIOS.every((r) => r in sizes), JSON.stringify(IMAGE_ASPECT_RATIOS));
 
 // ── 3.3 Edit-Pfad bleibt funktional unverändert ────────────────────────────
-check('(3.3) images.edit + input_fidelity high + toFile unverändert',
-  GENERATE.includes('client.images.edit({') && GENERATE.includes("input_fidelity: 'high',") && GENERATE.includes('toFile(parsed.bytes'));
+check('(3.3) images.edit + modellabhängige input_fidelity-Option + toFile unverändert',
+  GENERATE.includes('client.images.edit({') && GENERATE.includes('...editFidelityOptions()') && GENERATE.includes('toFile(parsed.bytes'));
 check('(3.3) quality-Schalter (Schritt 2) gilt für ALLE Modell-Pfade (inkl. Streaming)',
   (GENERATE.match(/^\s+quality,$/gm) ?? []).length === modelCallSites34 && GENERATE.includes('resolveImageQuality()'));
 check('(3.3) Rückgabe unverändert (b64_json → data-URL, n: 1)',

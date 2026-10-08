@@ -67,13 +67,50 @@ export function resolveImageQuality(): ImageQuality {
   return raw === 'low' || raw === 'medium' || raw === 'high' ? raw : 'high';
 }
 
+// ── Modellabhängige Edit-/Variations-Optionen (Launch-Fix 2026-10-08) ─────────
+// `input_fidelity` ist ein gpt-image-1-only Parameter: die OpenAI-API lehnt ihn
+// für `gpt-image-2` mit HTTP 400 ab („The model 'gpt-image-2' does not support
+// the 'input_fidelity' parameter", 100 % reproduzierbar im Launch-Test Teil 1
+// vom 2026-10-08). Betroffen war damit der KOMPLETTE Variations-/Edit-/
+// Referenz-Pfad, weil der Parameter dort hart verdrahtet an `images.edit` ging
+// — auch der fail-closed-Rückfall scheiterte, weil er denselben Wert sendet.
+// Die SDK-Typdefinition (node_modules/openai/resources/images.d.ts) prüft den
+// Modellnamen NICHT (der Parameter ist an allen ImageModel-Werten typisiert);
+// die Zurückweisung passiert erst serverseitig. Der Kommentar am alten Aufruf
+// („gültig für gpt-image-1.5 und spätere Modelle") war insofern falsch.
+//
+// Deshalb wird die Option modellabhängig zusammengesetzt und per Conditional
+// Spread in den Request gehängt: nur wenn das aktive Modell den Parameter
+// wirklich unterstützt, geht `input_fidelity` mit — bei gpt-image-2 entfällt er
+// ersatzlos (die Bindung ans Referenzbild kommt dort aus dem Bild selbst, nicht
+// aus dem Parameter). Der Text→Bild-Pfad (`images.generate`) sendet den
+// Parameter ohnehin nie und bleibt unverändert.
+export function modelSupportsInputFidelity(model: string = MODEL): boolean {
+  // Nur die gpt-image-1-Familie (gpt-image-1, gpt-image-1.5, …) kennt den
+  // Parameter. Bewusst positiv geprüft statt „alles außer gpt-image-2", damit
+  // ein künftiges Modell nicht stillschweigend wieder einen 400er erzeugt.
+  return model === 'gpt-image-1' || model.startsWith('gpt-image-1.');
+}
+
+/**
+ * `{ input_fidelity: 'high' }` nur für Modelle, die den Parameter unterstützen,
+ * sonst `{}` — am Aufruf gespreizt (`...editFidelityOptions()`). `model` ist
+ * injizierbar, damit die Suiten beide Zweige ohne echten API-Call beweisen
+ * können; ohne Argument gilt das aktive `MODEL`.
+ */
+export function editFidelityOptions(model: string = MODEL): { input_fidelity?: 'high' } {
+  return modelSupportsInputFidelity(model) ? { input_fidelity: 'high' } : {};
+}
+
 // gpt-image-1 always returns b64_json, so we hand the client a
 // data:image/png;base64 URL directly. No filesystem writes are involved — this
 // keeps the function compatible with Vercel serverless (read-only filesystem).
 //
 // `referenceImageData` (optional, data-URL eines Nutzer-/Produktbilds):
 // Sobald sie vorhanden ist, läuft die Generierung über `images.edit` und das
-// Produkt bleibt visuell gebunden (input_fidelity: 'high'). Ohne sie bleibt es
+// Produkt bleibt visuell gebunden (bei gpt-image-1 zusätzlich über
+// `input_fidelity: 'high'` — modellabhängig, siehe editFidelityOptions; für
+// gpt-image-2 entfällt der Parameter, die API lehnt ihn ab). Ohne sie bleibt es
 // bei Text→Bild — aber NIE stillschweigend als „Variation" verkauft; der
 // Aufrufer (Bild-Studio) kennzeichnet den Fall ehrlich.
 export async function generateImage(
@@ -105,12 +142,12 @@ export async function generateImage(
       size,
       quality,
       // Produkttreue: das Modell soll das Eingabebild so genau wie möglich
-      // übernehmen. `input_fidelity` ist laut SDK für „gpt-image-1 und
-      // gpt-image-1.5 und spätere Modelle" gültig — gpt-image-2 also inklusive
-      // (images.d.ts). Der Edit-/Varianten-Pfad bleibt damit FUNKTIONAL
-      // unverändert; Schritt 3 ändert hier nur die Modell-Konstante, Schritt 2
+      // übernehmen. `input_fidelity` geht NUR bei Modellen in den Request, die
+      // den Parameter serverseitig akzeptieren (gpt-image-1-Familie) —
+      // gpt-image-2 lehnt ihn mit 400 ab (`modelSupportsInputFidelity`). Daher
+      // modellabhängig per Conditional Spread statt fest verdrahtet; Schritt 2
       // hängt `quality` am selben Env-Schalter wie der Generate-Pfad.
-      input_fidelity: 'high',
+      ...editFidelityOptions(),
       n: 1,
     });
     const editedB64 = editResponse.data?.[0]?.b64_json;
@@ -225,14 +262,15 @@ export async function generateImageStreaming(
         type: parsed.mime,
       });
       // Identische Parameter wie im nicht-streamenden Edit-Pfad oben — nur
-      // zusätzlich stream/partial_images.
+      // zusätzlich stream/partial_images. `input_fidelity` ebenfalls
+      // modellabhängig (gpt-image-2: weglassen, sonst 400).
       stream = (await client.images.edit({
         model: MODEL,
         image,
         prompt,
         size,
         quality,
-        input_fidelity: 'high',
+        ...editFidelityOptions(),
         n: 1,
         stream: true,
         partial_images: IMAGE_PARTIAL_COUNT,

@@ -7,6 +7,9 @@
 //   C) generateImageStreaming mit GEMOCKTEM openai-Modul (kein API-Call):
 //      Zwischenbilder kommen durch, Endbild = letztes Event, fail-closed-Fallback
 //      NUR ohne vorheriges Zwischenbild (kein zweiter Modell-Call).
+//      Launch-Fix 2026-10-08: im Edit-/Variations-Pfad darf für gpt-image-2 KEIN
+//      `input_fidelity` im Request stehen (die API lehnt ihn mit 400 ab); bei
+//      gpt-image-1 wird er weiterhin gesendet (C11–C17).
 //   D) Timeout 240 s, i18n-Parität de/en, Client-Verdrahtung, unveränderte
 //      Qualitäts-/Formatparameter (gpt-image-2, quality high, exakte Sizes).
 import { mock } from 'bun:test';
@@ -388,7 +391,13 @@ mock.module('openai', () => {
 
 process.env.OPENAI_API_KEY = 'test-key';
 delete process.env.IMAGE_QUALITY;
-const { generateImageStreaming, IMAGE_PARTIAL_COUNT } = await import('./src/ai/image-providers/generate');
+const {
+  generateImageStreaming,
+  generateImage,
+  IMAGE_PARTIAL_COUNT,
+  modelSupportsInputFidelity,
+  editFidelityOptions,
+} = await import('./src/ai/image-providers/generate');
 
 {
   // Happy path: 2 Zwischenbilder, dann das Endbild.
@@ -458,9 +467,46 @@ const { generateImageStreaming, IMAGE_PARTIAL_COUNT } = await import('./src/ai/i
   const ref = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==';
   const outcome = await generateImageStreaming('prompt', '4:3', ref, () => {});
   const editCall = calls.find((c) => c.path === 'edit');
-  check('C11 Edit-Variante streamt mit identischen Parametern (input_fidelity, 1152x864, high)',
+  check('C11 Edit-Variante streamt (1152x864, high, model/quality/size unverändert)',
     outcome.mode === 'edit' && outcome.url === 'data:image/png;base64,ZZZ' && outcome.partials === 1 &&
-    editCall?.params.input_fidelity === 'high' && editCall?.params.size === '1152x864' && editCall?.params.quality === 'high');
+    editCall?.params.model === 'gpt-image-2' && editCall?.params.size === '1152x864' && editCall?.params.quality === 'high');
+  // Launch-Fix 2026-10-08: gpt-image-2 lehnt `input_fidelity` mit 400 ab — der
+  // Schlüssel darf im Streaming-Edit-Request GAR NICHT vorkommen (nicht nur null).
+  check('C12 gpt-image-2: KEIN input_fidelity im Streaming-Edit-Request (400-Fix)',
+    editCall !== undefined && !('input_fidelity' in editCall.params),
+    `keys=${editCall ? Object.keys(editCall.params).join(',') : 'kein edit-Call'}`);
+}
+
+{
+  // Nicht-streamender Edit-Pfad (Rückfall auf generateImage mit Referenz) —
+  // derselbe Fix: kein input_fidelity, sonst wäre der fail-closed-Rückfall selbst 400.
+  calls.length = 0;
+  streamScript = () => (async function* () {})();
+  const ref = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==';
+  const out = await generateImage('prompt', '4:3', ref);
+  const editCall = calls.find((c) => c.path === 'edit');
+  check('C13 Nicht-streamender Edit-Pfad: kein input_fidelity, Größe/Qualität unverändert',
+    out.url === 'data:image/png;base64,EDIT' && editCall !== undefined &&
+    !('input_fidelity' in editCall.params) &&
+    editCall.params.size === '1152x864' && editCall.params.quality === 'high' &&
+    editCall.params.model === 'gpt-image-2');
+  check('C14 generierte (Text→Bild) Requests bleiben ohne input_fidelity',
+    calls.filter((c) => c.path === 'generate').every((c) => !('input_fidelity' in c.params)));
+}
+
+{
+  // Modellabhängigkeit selbst (ohne API-Call): nur die gpt-image-1-Familie kennt
+  // den Parameter. gpt-image-2 → Option entfällt; default = aktives MODEL.
+  check('C15 modelSupportsInputFidelity: gpt-image-2 false, gpt-image-1(.x) true',
+    modelSupportsInputFidelity('gpt-image-2') === false &&
+    modelSupportsInputFidelity('gpt-image-1') === true &&
+    modelSupportsInputFidelity('gpt-image-1.5') === true &&
+    modelSupportsInputFidelity('unbekannt') === false);
+  check('C16 editFidelityOptions: gpt-image-1 → high, gpt-image-2 → leer',
+    editFidelityOptions('gpt-image-1').input_fidelity === 'high' &&
+    Object.keys(editFidelityOptions('gpt-image-2')).length === 0);
+  check('C17 Default (aktives MODEL=gpt-image-2) → keine input_fidelity-Option',
+    Object.keys(editFidelityOptions()).length === 0);
 }
 
 // ── D) Timeout, i18n, Verdrahtung, unveränderte Parameter ────────────────────
@@ -512,6 +558,18 @@ check('D14 quality default high (fail-closed) unverändert',
 check('D15 Text-im-Bild-Regeln unverändert vorhanden',
   read('src/lib/studio-deeplink.ts').includes('IMAGE_PROMPT_RULES') ||
   read('src/i18n/de.ts').includes('image_studio_prompt_rule_overlay'));
+// Launch-Fix 2026-10-08 (Variation/Edit-Pfad, gpt-image-2 lehnt input_fidelity ab).
+check('D16 input_fidelity NICHT mehr hart verdrahtet — beide Edit-Pfade nutzen den Spread',
+  !/^\s+input_fidelity:/m.test(gen) &&
+  (gen.match(/\n\s*\.\.\.editFidelityOptions\(\),/g) ?? []).length === 2 &&
+  (gen.match(/client\.images\.edit\(\{/g) ?? []).length === 2);
+check('D17 Begründung im Code (modellabhängig, gpt-image-2-Ablehnung dokumentiert)',
+  gen.includes('modelSupportsInputFidelity') &&
+  gen.includes("model === 'gpt-image-1'") &&
+  gen.includes('gpt-image-1-only Parameter'));
+check('D18 Text→Bild-Pfad unberührt (images.generate ohne editFidelityOptions)',
+  (gen.match(/client\.images\.generate\(\{/g) ?? []).length === 2 &&
+  !/generate\(\{[\s\S]{0,400}editFidelityOptions/.test(gen));
 
 console.log(`\n=== image-streaming-test: ${pass} PASS, ${fail} FAIL ===`);
 if (fail > 0) {
