@@ -23,6 +23,7 @@
 // zusätzlich bleibt das Limit auch bei PARALLELEN Kanälen (Strategie-Stream,
 // Paket) exakt eingehalten — ein reines assert-vorher+increment-nachher würde
 // bei 10 parallelen Kanälen über das Limit hinausschießen.
+import { OWNER_CLERK_ID } from './owner-id';
 import { verifySessionSubject } from '../api/tracking';
 import {
   qGetPlanTier,
@@ -48,7 +49,9 @@ export const RATE_WINDOW_MS = 2000;
 // den normalen Tarifregeln (Free 5 / Pro 200). Es gibt KEIN Badge und KEINEN
 // UI-Hinweis — der Override ist bewusst unsichtbar.
 export const ADMIN_OVERRIDE_USER_IDS: ReadonlySet<string> = new Set([
-  'user_3H2trJXHwzXmJF2XTGQ2PMEwjkD', // Owner (Clerk-User-ID)
+  // Owner (Clerk-User-ID) — zentral in src/lib/owner-id.ts, dort per Env
+  // OWNER_CLERK_ID übersteuerbar (Clerk-Migration, Plan §3.5 Punkt 1).
+  OWNER_CLERK_ID,
 ]);
 
 /** Prüft, ob eine Clerk-User-ID dem internen Admin-/Test-Override unterliegt. */

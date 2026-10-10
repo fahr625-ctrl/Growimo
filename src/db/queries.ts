@@ -73,20 +73,67 @@ export async function ensureUserRow(
   name?: string,
 ): Promise<string> {
   const sql = getDb();
-  const rows = await sql`
-    INSERT INTO users (clerk_id, email, name)
-    VALUES (
-      ${clerkId},
-      ${email && email.trim() ? email.trim() : `anon-${clerkId}@growimo.local`},
-      ${name && name.trim() ? name.trim() : null}
-    )
-    ON CONFLICT (clerk_id) DO UPDATE
-      SET email = EXCLUDED.email,
-          name = EXCLUDED.name,
-          updated_at = NOW()
-    RETURNING id
-  `;
-  return String(rows[0].id);
+  const mail =
+    email && email.trim() ? email.trim() : `anon-${clerkId}@growimo.local`;
+  const displayName = name && name.trim() ? name.trim() : null;
+  try {
+    const rows = await sql`
+      INSERT INTO users (clerk_id, email, name)
+      VALUES (${clerkId}, ${mail}, ${displayName})
+      ON CONFLICT (clerk_id) DO UPDATE
+        SET email = EXCLUDED.email,
+            name = EXCLUDED.name,
+            updated_at = NOW()
+      RETURNING id
+    `;
+    return String(rows[0].id);
+  } catch (err) {
+    // Zweiter Konfliktpfad (Clerk-Migration, Plan §3.5 Punkt 2): dieselbe
+    // E-Mail existiert bereits unter einer ANDEREN clerk_id. Genau das ist
+    // nach dem Wechsel auf die Production-Instanz der Normalfall für jeden
+    // Bestandsnutzer, dessen users-Zeile noch die ALTE Clerk-ID trägt:
+    // neuer `sub` + bereits vorhandene E-Mail. Das alte Verhalten ließ den
+    // INSERT hart scheitern (UNIQUE `users_email_key`), und der Aufrufer
+    // (src/routes/app.tsx) fing den Fehler nur mit console.error → der Nutzer
+    // landete OHNE Meldung in einem leeren Workspace.
+    //
+    // Postgres erlaubt nur EIN `ON CONFLICT`-Ziel pro INSERT, deshalb ist der
+    // E-Mail-Pfad hier als Heilung nachgezogen: die BESTEHENDE Zeile (gleiche
+    // E-Mail) übernimmt die neue clerk_id. `users.id` bleibt unberührt →
+    // Projekte, Inhalte, Nutzung und das Abo bleiben verbunden.
+    if (!isEmailUniqueViolation(err)) throw err;
+    const healed = await sql`
+      UPDATE users
+         SET clerk_id = ${clerkId},
+             name = COALESCE(${displayName}, name),
+             updated_at = NOW()
+       WHERE lower(email) = lower(${mail})
+         AND clerk_id <> ${clerkId}
+      RETURNING id
+    `;
+    // KORREKTUR 2026-10-09: Nicht „0 Zeilen" ist der Fehlerfall, sondern
+    // „NICHT GENAU EINE Zeile". `lower(email)` ist nicht UNIQUE (keine
+    // funktionaler Index), also könnte der UPDATE bei mehreren Zeilen mit
+    // derselben E-Mail MEHRERE `users.id`-Zeilen auf dieselbe clerk_id
+    // umschreiben → danach existieren zwei Zeilen mit identischer clerk_id
+    // (Verletzung der 1:1-Annahme, Projekte/Nutzung nicht mehr eindeutig
+    // zuordenbar). Fail-closed heißt hier: bei 0 ODER >1 geheilter Zeile den
+    // Original-Fehler werfen statt eine mehrdeutige Heilung zu akzeptieren.
+    if (healed.length !== 1) throw err; // nicht genau eine Zeile geheilt → Original-Fehler
+    return String(healed[0].id);
+  }
+}
+
+/**
+ * Eng gefasster Diskriminator für die UNIQUE-Verletzung auf `users.email`
+ * (Postgres 23505). Absichtlich NICHT allgemein: eine Kollision auf
+ * `users_clerk_id_key` darf den E-Mail-Heilungspfad nicht auslösen.
+ */
+function isEmailUniqueViolation(err: unknown): boolean {
+  const e = err as { code?: string; constraint?: string; message?: string } | null;
+  if (!e || e.code !== '23505') return false;
+  if (e.constraint) return e.constraint === 'users_email_key';
+  return typeof e.message === 'string' && /users_email_key|users\.email/i.test(e.message);
 }
 
 /** Returns the users UUID for a clerk_id, or null if the user has no row yet. */
@@ -1329,6 +1376,29 @@ export async function qUpsertSubscription(input: UpsertSubscriptionInput): Promi
         THEN EXCLUDED.cancel_at ELSE subscriptions.cancel_at END,
       updated_at = NOW()
   `;
+}
+/**
+ * Aktuelle Clerk-ID der `users`-Zeile, die über einen Stripe-Kunden verknüpft
+ * ist (Clerk-Migration, Plan §4.3). Der Stripe-Kunde ist instanz-neutral,
+ * während `session.client_reference_id`/`metadata.userId` die beim Checkout
+ * eingefrorene ALTE Clerk-ID tragen. Auflösungsreihenfolge im Webhook:
+ * erst über `stripe_customer_id` (diese Funktion), dann über die Event-Clerk-ID.
+ */
+export async function qGetClerkIdByStripeCustomer(
+  stripeCustomerId: string,
+): Promise<string | null> {
+  if (!stripeCustomerId) return null;
+  const sql = getDb();
+  const rows = await sql`
+    SELECT u.clerk_id
+    FROM subscriptions s
+    JOIN users u ON u.id = s.user_id
+    WHERE s.stripe_customer_id = ${stripeCustomerId}
+      AND u.clerk_id IS NOT NULL
+    ORDER BY s.created_at DESC
+    LIMIT 1
+  `;
+  return rows.length > 0 && rows[0].clerk_id ? String(rows[0].clerk_id) : null;
 }
 /** Subscription per Stripe-Subscription-ID (für Event-Verarbeitung + Webhook-Retry). */
 export async function qGetSubscriptionByStripeId(

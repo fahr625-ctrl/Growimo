@@ -27,6 +27,7 @@
 // eigene Spiegel-Tabelle wäre eine zweite Wahrheit, die bei fehlender
 // Event-Zustellung still falsch bliebe. Stripe ist die Autorität.
 import {
+  qGetClerkIdByStripeCustomer,
   qGetSubscriptionByStripeId,
   qUpsertSubscription,
 } from "../db/queries";
@@ -195,7 +196,17 @@ export async function processStripeEvent(
       typeof session.customer === "string"
         ? session.customer
         : (session.customer as { id?: string } | null)?.id ?? null;
-    if (!clerkUserId || !subscriptionId) return; // nicht abbildbar → ignorieren
+    // Clerk-Migration (Plan §4.3): `client_reference_id` / `metadata.userId`
+    // wurden beim Checkout eingefroren und tragen nach dem Instanzwechsel die
+    // ALTE Clerk-ID. Der Stripe-Kunde ist instanz-neutral → existiert zu ihm
+    // schon eine subscriptions-Zeile, gewinnt deren aktuelle users.clerk_id.
+    // Ohne diese Auflösung legte der Webhook eine Geisterzeile
+    // `anon-<alte ID>@growimo.local` an, und der echte Nutzer verlöre Pro still.
+    const clerkIdByCustomer = customerId
+      ? await qGetClerkIdByStripeCustomer(customerId)
+      : null;
+    const resolvedClerkUserId = clerkIdByCustomer ?? clerkUserId;
+    if (!resolvedClerkUserId || !subscriptionId) return; // nicht abbildbar → ignorieren
     if (!retrieveSubscription) {
       throw new Error("checkout.session.completed requires retrieveSubscription");
     }
@@ -208,7 +219,7 @@ export async function processStripeEvent(
       (await existingTierBySubscription(subscriptionId)) ??
       "free";
     await qUpsertSubscription({
-      clerkUserId,
+      clerkUserId: resolvedClerkUserId,
       stripeCustomerId: customerId,
       stripeSubscriptionId: subscriptionId,
       planTier: tier,

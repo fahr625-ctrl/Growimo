@@ -8,7 +8,13 @@
 //  - NO emails, NO avatars, NO names, NO content of projects/postings/images/pins.
 //  - metadata is limited to harmless contextual values (channel, aspectRatio,
 //    page, source). No content payloads.
-export const OWNER_USER_ID = "user_3H2trJXHwzXmJF2XTGQ2PMEwjkD";
+// Clerk-Migration (Plan §3.5 Punkt 1): zentrale, per Env (OWNER_CLERK_ID)
+// übersteuerbare Owner-ID — nach dem Instanzwechsel nur ein Env-Wert.
+import { OWNER_CLERK_ID } from "./owner-id";
+
+// Clerk-Migration (Plan §3.5 Punkt 1): zentrale, per Env (OWNER_CLERK_ID)
+// übersteuerbare Owner-ID — nach dem Instanzwechsel nur ein Env-Wert.
+export const OWNER_USER_ID = OWNER_CLERK_ID;
 
 // Users whose activity is treated as "internal / test" (the owner's own testing).
 // The admin dashboard hides these by default via its "hide own test activity"
