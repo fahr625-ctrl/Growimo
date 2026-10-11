@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useClerk, useUser } from '@clerk/clerk-react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
+import { OWNER_USER_ID } from '~/lib/tracking';
 import { useTranslation } from '~/i18n';
 import { getApiKeyStatusServer } from '~/ai/server';
 import { CONTENT_TYPE_REGISTRY } from '~/ai/content-types';
@@ -55,6 +56,8 @@ function SettingsPage() {
 
 function SettingsContent() {
   const { user } = useUser();
+  // Owner-Auftrag 2026-10-11: sichtbarer Owner-Hinweis nur fuer das Owner-Konto
+  const isOwner = user?.id === OWNER_USER_ID;
   const { openUserProfile } = useClerk();
   const { t, locale, setLocale } = useTranslation();
 
@@ -139,6 +142,19 @@ function SettingsContent() {
           {t.settings_subtitle}
         </p>
       </div>
+
+      {/* Owner / Administration - nur fuer das Owner-Konto sichtbar */}
+      {isOwner ? (
+        <div
+          className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50/70 px-5 py-4"
+          data-testid="settings-owner-badge"
+        >
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-700">
+              👑 {t.settings_owner_active}
+          </span>
+          <span className="text-sm text-amber-800">{t.settings_owner_active_hint}</span>
+        </div>
+      ) : null}
 
       {/* ── Profile ─────────────────────────────────────────────────────────── */}
       <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">

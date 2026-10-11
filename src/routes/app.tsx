@@ -116,10 +116,16 @@ function AppSidebar() {
   const currentPath = routerState.location.pathname;
   const { t } = useTranslation();
 
+  // Owner-only admin navigation. Rendered as its own section (below) and only
+  // when the signed-in Clerk user id equals OWNER_USER_ID (Owner order 2026-10-11).
+  const ownerNavItems = [
+    { label: t.sidebar_beta_signups, to: "/app/beta-signups", icon: (active: boolean) => <svg className={`h-5 w-5 ${active ? "text-blue-600" : "text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2m7-8a4 4 0 100-8 4 4 0 000 8zm7-5h4m-2-2v4" /></svg> },
+    { label: t.sidebar_owner_admin_tracking, to: "/app/admin-tracking", icon: (active: boolean) => <svg className={`h-5 w-5 ${active ? "text-blue-600" : "text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12h3.5l2.5 6.5L13 4.5l2.5 7.5H21" /></svg> },
+    { label: t.sidebar_owner_admin_analytics, to: "/app/admin-analytics", icon: (active: boolean) => <svg className={`h-5 w-5 ${active ? "text-blue-600" : "text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 20V11m5 9V4m5 16v-6m5 6V8" /></svg> },
+  ];
+
   // Navigation items — defined inside component to access t
   const navItems = [
-    { label: t.sidebar_beta_signups, to: "/app/beta-signups", icon: (active: boolean) => <svg className={`h-5 w-5 ${active ? "text-blue-600" : "text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2m7-8a4 4 0 100-8 4 4 0 000 8zm7-5h4m-2-2v4" /></svg> },
-
     {
       label: t.sidebar_dashboard,
       to: "/app",
@@ -374,7 +380,6 @@ function AppSidebar() {
   const { isSignedIn } = useAuth();
   const { user } = useUser();
   const isOwner = user?.id === OWNER_USER_ID;
-  const visibleNavItems = isOwner ? navItems : navItems.filter((item) => item.to !== "/app/beta-signups");
 
   return (
     <aside className="flex w-full shrink-0 flex-col border-b border-gray-100 bg-white md:w-64 md:border-b-0 md:border-r">
@@ -383,7 +388,7 @@ function AppSidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         <ul className="space-y-1">
-          {visibleNavItems.map((item) => {
+          {navItems.map((item) => {
             const active = isActive(item.to);
             return (
               <li key={item.label}>
@@ -402,6 +407,35 @@ function AppSidebar() {
             );
           })}
         </ul>
+
+        {/* Owner / Administration - nur fuer das Owner-Konto sichtbar */}
+        {isOwner ? (
+          <div className="mt-5" data-testid="sidebar-owner-section">
+            <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+              {t.sidebar_owner_admin}
+            </p>
+            <ul className="space-y-1">
+              {ownerNavItems.map((item) => {
+                const active = isActive(item.to);
+                return (
+                  <li key={`owner-${item.label}`}>
+                    <Link
+                      to={item.to}
+                      className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                        active
+                          ? "bg-blue-50 text-blue-700"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      {item.icon(active)}
+                      {item.label}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
       </nav>
 
       {/* User section */}

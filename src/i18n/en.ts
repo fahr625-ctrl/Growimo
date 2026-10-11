@@ -887,6 +887,9 @@ export const en: EnShape = {
 
   // ── Settings ─────────────────────────────────────────────────────────────────
   settings_title: 'Settings',
+  // Owner badge in settings (owner order 2026-10-11)
+  settings_owner_active: 'Owner access active',
+  settings_owner_active_hint: 'Unlimited generations and the admin area are unlocked for this account.',
   settings_language: 'Language',
   settings_language_de: '🇩🇪 Deutsch',
   settings_language_en: '🇬🇧 English',
@@ -1408,6 +1411,11 @@ export const en: EnShape = {
   beta_admin_date: 'Registered',
   beta_admin_empty: 'No signups yet.',
   sidebar_beta_signups: 'Beta signups',
+  // ── Owner / Administration (owner order 2026-10-11) ────────────────────────
+  // Visible menu section - owner account only.
+  sidebar_owner_admin: 'Owner / Administration',
+  sidebar_owner_admin_tracking: 'Admin Tracking',
+  sidebar_owner_admin_analytics: 'Admin Analytics',
   // ── F1 quality score ─────────────────────────────────────────────────────
   score_badge: 'Quality',
   score_unavailable: 'Score unavailable',

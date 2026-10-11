@@ -889,6 +889,9 @@ export const de = {
 
   // ── Settings ─────────────────────────────────────────────────────────────────
   settings_title: 'Einstellungen',
+  // Owner-Badge in den Einstellungen (Owner-Auftrag 2026-10-11)
+  settings_owner_active: 'Owner-Zugriff aktiv',
+  settings_owner_active_hint: 'Unbegrenzte Generierungen und der Admin-Bereich sind fuer dieses Konto freigeschaltet.',
   settings_language: 'Sprache',
   settings_language_de: '🇩🇪 Deutsch',
   settings_language_en: '🇬🇧 English',
@@ -1414,6 +1417,11 @@ export const de = {
   beta_admin_empty: 'Noch keine Anmeldungen.',
 
   sidebar_beta_signups: 'Beta-Anmeldungen',
+  // ── Owner / Administration (Owner-Auftrag 2026-10-11) ──────────────────────
+  // Sichtbarer Menuebereich - nur fuer das Owner-Konto.
+  sidebar_owner_admin: 'Owner / Administration',
+  sidebar_owner_admin_tracking: 'Admin-Tracking',
+  sidebar_owner_admin_analytics: 'Admin-Analytics',
   // ── F1 Qualitäts-Score ───────────────────────────────────────────────────
   score_badge: 'Qualität',
   score_unavailable: 'Bewertung nicht verfügbar',
