@@ -7,6 +7,8 @@
     "dev": "vite dev",
     "build": "vite build",
     "build:vercel": "bash ./build-vercel.sh",
+    "gate:predeploy": "bash ./scripts/prod-bundle-gate.sh",
+    "deploy:prod": "bash ./deploy-prod.sh",
     "start": "bun run serve.ts",
     "publish": "bash ./publish.sh",
     "go-live": "bash ./go-live.sh",
