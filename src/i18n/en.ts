@@ -1336,15 +1336,30 @@ export const en: EnShape = {
   image_studio_prompt_variant_4: 'Dramatic low-angle shot from a low camera position, the main subject dominating the foreground, high-contrast lighting with pronounced shadows, shallow depth of field.',
   image_studio_prompt_variant_5: 'Wide shot with lots of surrounding space, the main subject placed comparatively small in the frame, generous negative space, soft diffused morning light, sharp focus throughout.',
   image_studio_prompt_variant_6: 'Strong detail close-up with intense perspective, the main subject centered, warm side lighting with a soft shadow gradient, very shallow depth of field with a heavily blurred background.',
-  image_studio_prompt_upload_variation: 'Create a variation based on uploaded image',
+  image_studio_prompt_upload_variation: 'Create a variation of the uploaded template.',
+  // Image variation fix (owner approval 2026-10-12): the upload path now
+  // describes the TEMPLATE (instead of a photographic scene) and requires the
+  // requested change as a mandatory field (%s).
+  image_studio_prompt_upload_change_request: 'The only permitted difference from the template: %s. Everything else about the template stays unchanged.',
+  // Fix A (owner 2026-10-12) — template-fidelity block for the UPLOAD path
+  // only (flat finished design with headline/typography). Text protection for
+  // EVERY reference image is handled by reference_text_lock (fix D).
+  image_studio_prompt_design_fidelity: 'TEMPLATE FIDELITY (binding): the uploaded template is a FINISHED DESIGN and is taken over unchanged as a whole. All existing texts are preserved letter by letter: same wording, same spelling, same punctuation, same order. Typography (font family, size, colour, position), colours, graphics, symbols, frames, logo, layout, proportions and all image elements also stay unchanged. Change ONLY the explicitly requested modification. Add nothing, omit nothing, rephrase nothing and do not misspell any text that is present.',
+  // Fix D (owner 2026-10-12) — text protection for EVERY reference image
+  // (product photo, design template, card variation); no "described above" condition.
+  image_studio_prompt_reference_text_lock: 'TEXT PROTECTION for the reference image: every text present in the reference image is preserved unchanged — same wording, same spelling, same punctuation, same typography, same colour and position. No text is added, shortened, rephrased, replaced or misspelled — whether or not it is explicitly described above.',
+  // Fix C (owner 2026-10-12) — mandatory "What should change?" field on upload.
+  image_studio_upload_change_label: 'What should change?',
+  image_studio_upload_change_placeholder: 'e.g. background in a wood look — describe only this one point',
+  image_studio_upload_change_required: 'Required field: please describe exactly what should change — without it nothing is changed.',
 
   // Stabilisierung Schritt 3 (Punkt 3) — hard product-fidelity block.
-  image_studio_prompt_reference_lock: 'IMPORTANT — product fidelity: vary ONLY the background, setting, perspective, lighting or framing. The product is identical to the reference image: same shape, colour, material, proportions and details — add or omit nothing on the product, no invented logos or labels. A text overlay explicitly described above is allowed.',
-  image_studio_upload_reference_active: 'Product reference active: this image is sent as a binding reference — your product stays identical while background, lighting, perspective and framing may vary.',
+  image_studio_prompt_reference_lock: 'IMPORTANT — product fidelity: vary ONLY the background, setting, perspective, lighting or framing. The product is identical to the reference image: same shape, colour, material, proportions and details — add or omit nothing on the product, no invented logos or labels. Existing image text is preserved unchanged: same wording, same spelling, same typography — even when it is not explicitly described above.',
+  image_studio_upload_reference_active: 'Template active (template format: %s): the image is sent as a binding reference — texts, typography and design are meant to stay unchanged, only the point you name is changed. AI results can differ in details.',
   image_studio_upload_reading: 'Reading…',
   image_studio_upload_reference_missing: 'No image reference — please upload a JPG, PNG or WebP.',
-  image_studio_reference_sent_hint: 'With reference image: your product stays identical while background, lighting, perspective and framing may vary.',
-  image_studio_upload_variation_btn: 'Variation with product fidelity',
+  image_studio_reference_sent_hint: 'With reference image: the image is sent as a binding reference — existing texts and design are meant to stay unchanged, only the explicitly named point is changed. AI results can differ in details.',
+  image_studio_upload_variation_btn: 'Create variation — template (text & design) stays intact',
   // Stabilisierung Schritt 3 (Punkt 5) — "create image now" everywhere.
   image_studio_create_image_now: '🎨 Create image now',
   image_studio_create_image_now_hint: 'Prompt, format, product idea, brand profile and any existing product image are carried over automatically — nothing to copy, generate right away.',

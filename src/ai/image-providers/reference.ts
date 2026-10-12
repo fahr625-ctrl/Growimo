@@ -74,22 +74,41 @@ export function extensionForMime(mime: string): string {
 }
 
 /**
- * Hängt den harten Produkttreue-Baustein an den Prompt — aber nur, wenn wirklich
- * eine Referenz mitgeht, und niemals doppelt (idempotent, weil der Baustein im
- * gespeicherten Karten-Prompt landet und bei Folge-Variationen erneut angehängt
- * würde).
+ * Hängt einen oder mehrere harte Bausteine an den Prompt — nur wenn wirklich eine
+ * Referenz mitgeht, niemals doppelt (idempotent, weil die Bausteine im
+ * gespeicherten Karten-Prompt landen und bei Folge-Variationen erneut angehängt
+ * würden) und in der übergebenen Reihenfolge.
+ *
+ * Bildvariations-Fix A+D (Owner-Freigabe 2026-10-12): Der Upload-Pfad braucht
+ * ZWEI Bausteine — Produkttreue + Textschutz (Fix D) + optional den
+ * Design-/Vorlagentreue-Baustein (Fix A). Deshalb Liste statt Einzelzeile.
+ */
+export function composePromptWithReferenceLocks(
+  prompt: string,
+  lockLines: Array<string | null | undefined>,
+  hasReference: boolean,
+): string {
+  let out = String(prompt ?? '').trim();
+  if (!hasReference) return out;
+  for (const raw of lockLines) {
+    const lock = String(raw ?? '').trim();
+    if (!lock) continue;
+    if (out.includes(lock)) continue;
+    out = out ? `${out}\n\n${lock}` : lock;
+  }
+  return out;
+}
+
+/**
+ * Einzel-Baustein-Variante des obigen Helfers (Rückwärtskompatibilität für
+ * bestehende Aufrufer/Tests).
  */
 export function composePromptWithReferenceLock(
   prompt: string,
   lockLine: string,
   hasReference: boolean,
 ): string {
-  const base = String(prompt ?? '').trim();
-  if (!hasReference) return base;
-  const lock = String(lockLine ?? '').trim();
-  if (!lock) return base;
-  if (base.includes(lock)) return base;
-  return base ? `${base}\n\n${lock}` : lock;
+  return composePromptWithReferenceLocks(prompt, [lockLine], hasReference);
 }
 
 /**

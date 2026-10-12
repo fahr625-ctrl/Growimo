@@ -1340,16 +1340,31 @@ export const de = {
   image_studio_prompt_variant_4: 'Dramatische Untersicht aus tiefer Kameraposition, das Hauptobjekt dominiert den Bildvordergrund, kontrastreiches Licht mit ausgeprägten Schatten, geringe Tiefenschärfe.',
   image_studio_prompt_variant_5: 'Weite Aufnahme mit viel Umgebungsraum, das Hauptobjekt vergleichsweise klein im Bild platziert, großzügige negative Fläche, weiches diffuses Morgenlicht, durchgehende Schärfe.',
   image_studio_prompt_variant_6: 'Starke Detail-Nahaufnahme mit intensiver Perspektive, das Hauptobjekt zentriert, warmes seitliches Licht mit sanftem Schattenverlauf, sehr geringe Tiefenschärfe mit stark weichgezeichnetem Hintergrund.',
-  image_studio_prompt_upload_variation: 'Erstelle eine Variation basierend auf dem hochgeladenen Bild',
+  image_studio_prompt_upload_variation: 'Erstelle eine Variation der hochgeladenen Vorlage.',
+  // Bildvariations-Fix (Owner-Freigabe 2026-10-12): Der Upload-Pfad beschreibt
+  // jetzt die VORLAGE (statt einer fotografischen Szene) und verlangt den
+  // Änderungswunsch als Pflichtangabe (%s).
+  image_studio_prompt_upload_change_request: 'Der einzige erlaubte Unterschied zur Vorlage: %s. Alles andere an der Vorlage bleibt unverändert.',
+  // Fix A (Owner 2026-10-12) — Design-/Vorlagentreue-Baustein NUR für den
+  // Upload-Pfad (flaches, fertiges Design mit Spruch/Typografie). Die
+  // Text-Sicherung für JEDES Referenzbild macht reference_text_lock (Fix D).
+  image_studio_prompt_design_fidelity: 'VORLAGENTREUE (verbindlich): Die hochgeladene Vorlage ist ein FERTIGES DESIGN und wird als Ganzes unverändert übernommen. Alle vorhandenen Texte bleiben buchstabengenau erhalten: gleicher Wortlaut, gleiche Rechtschreibung, gleiche Zeichensetzung, gleiche Reihenfolge. Unverändert bleiben ebenso Typografie (Schriftfamilie, Größe, Farbe, Position), Farben, Grafiken, Symbole, Rahmen, Logo, Layout, Proportionen und alle Bildelemente. Geändert wird AUSSCHLIESSLICH der ausdrücklich genannte Änderungswunsch. Füge nichts hinzu, lasse nichts weg, formuliere nichts um und schreibe keinen vorhandenen Text falsch.',
+  // Fix D (Owner 2026-10-12) — Textschutz für JEDES Referenzbild (Produktfoto,
+  // Design-Vorlage, Karten-Variation); ohne Bedingung „oben beschrieben".
+  image_studio_prompt_reference_text_lock: 'TEXTSCHUTZ für das Referenzbild: Jeder im Referenzbild vorhandene Text bleibt unverändert erhalten — gleicher Wortlaut, gleiche Rechtschreibung, gleiche Zeichensetzung, gleiche Typografie, gleiche Farbe und Position. Kein Text wird ergänzt, gekürzt, umformuliert, ersetzt oder falsch geschrieben — unabhängig davon, ob er oben ausdrücklich beschrieben ist.',
+  // Fix C (Owner 2026-10-12) — Pflichtfeld „Was soll sich ändern?" am Upload.
+  image_studio_upload_change_label: 'Was soll sich ändern?',
+  image_studio_upload_change_placeholder: 'z. B. Hintergrund in Holzoptik — nur diesen einen Punkt beschreiben',
+  image_studio_upload_change_required: 'Pflichtfeld: Bitte beschreibe genau, was sich ändern soll — ohne Angabe wird nichts geändert.',
 
   // Stabilisierung Schritt 3 (Punkt 3) — harter Produkttreue-Baustein der
   // Variations-Pipeline. Greift NUR, wenn eine echte Bildreferenz mitgeht.
-  image_studio_prompt_reference_lock: 'WICHTIG — Produkttreue: Variiere NUR Hintergrund, Setting, Perspektive, Licht oder Bildausschnitt. Das Produkt ist identisch zum Referenzbild: gleiche Form, Farbe, Material, Proportion und Details — nichts am Produkt hinzufügen oder weglassen, keine erfundenen Logos oder Beschriftungen. Ein oben ausdrücklich beschriebener Text-Overlay ist erlaubt.',
-  image_studio_upload_reference_active: 'Produktvorlage aktiv: Dieses Bild wird als verbindliche Referenz mitgesendet — dein Produkt bleibt identisch, variiert werden Hintergrund, Licht, Perspektive und Ausschnitt.',
+  image_studio_prompt_reference_lock: 'WICHTIG — Produkttreue: Variiere NUR Hintergrund, Setting, Perspektive, Licht oder Bildausschnitt. Das Produkt ist identisch zum Referenzbild: gleiche Form, Farbe, Material, Proportion und Details — nichts am Produkt hinzufügen oder weglassen, keine erfundenen Logos oder Beschriftungen. Vorhandener Bildtext bleibt unverändert erhalten: gleicher Wortlaut, gleiche Rechtschreibung, gleiche Typografie — auch dann, wenn er oben nicht ausdrücklich beschrieben ist.',
+  image_studio_upload_reference_active: 'Vorlage aktiv (Format der Vorlage: %s): Das Bild geht als verbindliche Referenz mit — Texte, Typografie und Gestaltung sollen unverändert erhalten bleiben, geändert wird nur der von dir genannte Punkt. KI-Ergebnisse können in Details abweichen.',
   image_studio_upload_reading: 'Wird eingelesen…',
   image_studio_upload_reference_missing: 'Keine Bildreferenz — bitte als JPG, PNG oder WebP hochladen.',
-  image_studio_reference_sent_hint: 'Mit Referenzbild: Dein Produkt bleibt identisch, variiert werden Hintergrund, Licht, Perspektive und Ausschnitt.',
-  image_studio_upload_variation_btn: 'Variation mit Produkttreue',
+  image_studio_reference_sent_hint: 'Mit Referenzbild: Das Bild geht als verbindliche Referenz mit — vorhandene Texte und Gestaltung sollen unverändert bleiben, geändert wird nur der ausdrücklich genannte Punkt. KI-Ergebnisse können in Details abweichen.',
+  image_studio_upload_variation_btn: 'Variation erstellen — Vorlage (Texte & Gestaltung) bleibt erhalten',
   // Stabilisierung Schritt 3 (Punkt 5) — „Bild jetzt erstellen" überall.
   image_studio_create_image_now: '🎨 Bild jetzt erstellen',
   image_studio_create_image_now_hint: 'Prompt, Format, Produktidee, Markenprofil und vorhandenes Produktbild werden automatisch übernommen — nichts kopieren, direkt generieren.',

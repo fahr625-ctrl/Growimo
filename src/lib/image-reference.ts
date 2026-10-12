@@ -11,6 +11,7 @@ import {
   MAX_REFERENCE_DATA_URL_LENGTH,
   sanitizeReferenceImageData,
 } from '~/ai/image-providers/reference';
+import { nearestImageAspectRatio, type ImageAspectRatio } from '~/ai/image-providers/types';
 
 /** Status eines hochgeladenen Bilds (ehrliche UI: lesen/bereit/nicht lesbar). */
 export type UploadStatus = 'reading' | 'ready' | 'failed';
@@ -23,6 +24,17 @@ export interface UploadEntry {
   dataUrl: string | null;
   mime: string;
   status: UploadStatus;
+  /**
+   * Bildvariations-Fix B (Owner 2026-10-12) — aus den Maßen der Vorlage
+   * abgeleitetes Growimo-Format. `null`/`undefined` = nicht bestimmbar; der
+   * Aufrufer fällt dann auf 1:1 zurück (fail-closed, keine Rate-Raterei).
+   */
+  aspectRatio?: ImageAspectRatio | null;
+  /**
+   * Bildvariations-Fix C (Owner 2026-10-12) — Pflichtfeld „Was soll sich ändern?".
+   * Nur DIESER Punkt wird als Änderungswunsch in den Prompt übernommen.
+   */
+  changeRequest?: string;
 }
 
 /** Liest eine Datei als data-URL (FileReader, client-only). */
@@ -90,6 +102,26 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     img.onerror = () => reject(new Error('Bild konnte nicht geladen werden'));
     img.src = src;
   });
+}
+
+/**
+ * Bildvariations-Fix B (Owner 2026-10-12) — Format der hochgeladenen VORLAGE
+ * bestimmen (data-URL → Image → Maße → nächstes Growimo-Format).
+ *
+ * Fail-closed: `null` bei unlesbarem/ungültigem Bild; der Aufrufer entscheidet
+ * dann über den Rückfall (Upload-Pfad: 1:1). Eine 2:3-Pinterest-Vorlage bleibt
+ * damit 2:3 statt hart auf 1:1 umgebaut zu werden.
+ */
+export async function detectImageAspectRatio(dataUrl: string): Promise<ImageAspectRatio | null> {
+  if (!sanitizeReferenceImageData(dataUrl)) return null;
+  try {
+    const image = await loadImage(dataUrl);
+    const width = image.naturalWidth || image.width;
+    const height = image.naturalHeight || image.height;
+    return nearestImageAspectRatio(width, height);
+  } catch {
+    return null;
+  }
 }
 
 /**
