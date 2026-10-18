@@ -430,6 +430,9 @@ export const de = {
   gen_generate_etsy: 'Etsy-Listing generieren',
   gen_generate_blog: 'Blogartikel generieren',
   gen_save_project: 'In Projekt speichern',
+  // K3 (Owner-Entscheid 2026-10-18) — Hinweis des Auto-Save nach einer Einzel-Generierung
+  gen_autosaved: '✅ Automatisch gespeichert',
+  gen_autosaving: '⏳ Wird automatisch gespeichert…',
   gen_open_strategy: 'In voller Strategie öffnen',
   gen_idea_label: 'Produktidee',
   // Phase 1 (C3) — Hinweis, wenn eine frische Nutzereingabe den Entwurf verdrängt hat
@@ -1799,6 +1802,9 @@ export const de = {
   image_studio_gallery_restored_hint: 'Aus deiner Sitzung wiederhergestellt: %s Bilder — als Vorschau, damit beim Navigieren nichts verloren geht.',
   image_studio_gallery_preview_badge: 'Vorschau',
   image_studio_gallery_preview_hint: 'Wiederhergestellte Vorschau — das Original stand nur in der laufenden Sitzung zur Verfügung.',
+  // K4-A (Owner-Entscheid 2026-10-18): ehrlicher Download + Sitzungs-Hinweis.
+  image_studio_download_preview: 'Vorschau herunterladen',
+  image_studio_gallery_session_hint: 'Bilder bleiben nur in dieser Sitzung verfügbar – lade sie jetzt in Originalqualität herunter.',
   // ── Phase Analytics-Erweiterung (Owner-Auftrag 2026-09-27, Variante A) ────
   // Unique Visitors (Consent-gated) + Owner-Bereich „Fehleranalyse".
   analytics_range_today: 'Heute',

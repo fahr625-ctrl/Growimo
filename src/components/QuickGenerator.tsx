@@ -17,6 +17,13 @@ import { useTranslation } from '~/i18n';
 import { saveProject, updateChannel } from '~/store/projects';
 import { getBrandContext } from '~/store/brand';
 import { resolveInitialIdea } from '~/lib/idea-priority';
+// K3 (Owner-Entscheid 2026-10-18): Auto-Save nach erfolgreicher Einzel-Generierung.
+import {
+  quickProjectTitle,
+  shouldAutoSaveQuick,
+  type QuickAutoSaveStatus,
+} from '~/lib/quick-autosave';
+import { contentTypeLabel } from '~/lib/content-types';
 import BrandProfileToggle from '~/components/BrandProfileToggle';
 import { canGenerate, recordGeneration } from '~/store/subscriptions';
 import { trackEvent } from '~/store/analytics';
@@ -116,6 +123,13 @@ function QuickGeneratorContent({
   const [result, setResult] = useState<ContentResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
+  // K3 (Owner-Entscheid 2026-10-18): Zustand des automatischen Speicherns.
+  const [autoSaveStatus, setAutoSaveStatus] = useState<QuickAutoSaveStatus>('idle');
+  // Idempotenz-Merker (Muster package.tsx): Projekt dieses Laufs — gesetzt vom
+  // Auto-Save ODER vom manuellen Speichern; verhindert ein zweites Projekt.
+  const savedProjectRef = useRef<string | null>(null);
+  // Duplikat-Schutz: läuft gerade ein Speichervorgang?
+  const saveInFlightRef = useRef(false);
   const [showUpsell, setShowUpsell] = useState(false);
   // Phase 1 (C3): Wenn die mitgegebene Nutzeridee (?idea=) einen gespeicherten
   // Entwurf verdrängt hat, merken wir uns den Entwurf → sichtbarer Hinweis +
@@ -178,6 +192,61 @@ function QuickGeneratorContent({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading]);
 
+  // ── Speichern (manuell UND automatisch — derselbe Pfad) ────────────────────
+  // K3 (Owner-Entscheid 2026-10-18): EIN Pfad für beide Auslöser. Identische
+  // Tabellen/Struktur (projects + generated_content) und KEIN usage-guard —
+  // Speichern kostet weiterhin 0 Generierungen (bestehende Zähl-Regel).
+  // `auto` steuert nur den UI-Hinweis, nicht die Persistenz. Jede
+  // Einzelgenerierung bekommt ein EIGENES Projekt; der Projektname besteht aus
+  // Kanal-Label (i18n) + Kurzform der Idee.
+  const persistResult = useCallback(
+    async (content: ContentResult, uid: string, auto: boolean): Promise<boolean> => {
+      if (!content || !content.body) return false;
+      // Duplikat-Schutz: kein zweiter Speichervorgang, solange einer läuft.
+      if (saveInFlightRef.current) return false;
+      saveInFlightRef.current = true;
+      if (auto) setAutoSaveStatus('saving');
+      try {
+        const saved = await saveProject(
+          uid,
+          {
+            userId: uid,
+            title: quickProjectTitle(contentTypeLabel(t, contentType), productIdea),
+            productIdea,
+            contentTypes: [contentType],
+            status: 'completed',
+            // F6: Strategie-Brief wird mit dem Projekt persistiert (metadata.brief).
+            metadata: hasBriefAnswers(brief) ? { brief } : undefined,
+          },
+          [
+            {
+              contentType,
+              title: content.title,
+              body: content.body,
+              metadata: {
+                ...(content.metadata ?? {}),
+                // F1: persist the score with the asset so it survives reloads
+                score: content.score ?? undefined,
+              },
+            },
+          ],
+        );
+        savedProjectRef.current = saved.id;
+        setSavedProjectId(saved.id);
+        if (auto) setAutoSaveStatus('saved');
+        return true;
+      } catch (err) {
+        console.error('saveProject failed:', err);
+        // Fail-closed: kein Hinweis „gespeichert", wenn das Speichern scheiterte.
+        if (auto) setAutoSaveStatus('idle');
+        return false;
+      } finally {
+        saveInFlightRef.current = false;
+      }
+    },
+    [contentType, productIdea, brief, t],
+  );
+
   // ── Generate ───────────────────────────────────────────────────────────────
   const handleGenerate = useCallback(async () => {
     if (!productIdea.trim()) return;
@@ -192,6 +261,9 @@ function QuickGeneratorContent({
     setIsLoading(true);
     setResult(null);
     setSavedProjectId(null);
+    // K3: je Lauf genau ein Projekt + genau eine Auto-Save-Chance.
+    savedProjectRef.current = null;
+    setAutoSaveStatus('idle');
 
     // Admin-Analytics MVP Phase 1 (additive): quick generation started.
     const analyticsChannel = analyticsChannelForContentType(contentType);
@@ -252,6 +324,28 @@ function QuickGeneratorContent({
       setResult(generated);
       recordGeneration(uid);
 
+      // AUTO-SAVE nach erfolgreicher Einzel-Generierung (Owner-Entscheid
+      // 2026-10-18, K3): Der bezahlte Output landet SOFORT in einem eigenen
+      // Projekt — vorher lebte er ausschließlich im React-State und war nach
+      // einem Reload verloren. Nutzt exakt den Pfad des Buttons „In Projekt
+      // speichern" (persistResult → store.saveProject → qSaveProject) und läuft
+      // NICHT durch den usage-guard → 0 zusätzliche Generierungen.
+      // Idempotent: je Lauf genau ein Projekt, ein manueller Klick erzeugt
+      // KEIN zweites; Verbessern/A/B-Varianten schreiben über savedProjectId in
+      // dasselbe Projekt (updateChannel).
+      if (
+        shouldAutoSaveQuick({
+          runFinished: true,
+          hasContent: Boolean(generated?.body),
+          alreadySaved: savedProjectRef.current !== null,
+          saveInFlight: saveInFlightRef.current,
+        })
+      ) {
+        // Bewusst fire-and-forget: der Speichervorgang darf die Anzeige des
+        // Ergebnisses nicht verzögern (Fehler werden intern fail-closed behandelt).
+        void persistResult(generated, uid, true);
+      }
+
       // Admin-Analytics MVP Phase 1 (additive): quick generation finished.
       try {
         if (analyticsChannel) {
@@ -298,45 +392,17 @@ function QuickGeneratorContent({
     } finally {
       setIsLoading(false);
     }
-  }, [productIdea, tone, brief, contentType, user?.id, locale]);
+  }, [productIdea, tone, brief, contentType, user?.id, locale, persistResult]);
 
   // ── Save to project ────────────────────────────────────────────────────────
+  // K3: Der Button bleibt erhalten, ist aber idempotent — ist dieser Lauf schon
+  // (automatisch ODER manuell) gespeichert, entsteht KEIN zweites Projekt.
   const handleSaveProject = useCallback(async () => {
     if (!result) return;
+    if (savedProjectRef.current) return;
     const uid = user?.id ?? 'anonymous';
-    const projectTitle =
-      productIdea.length > 50 ? productIdea.slice(0, 50) + '...' : productIdea;
-
-    try {
-      const saved = await saveProject(
-      uid,
-      {
-        userId: uid,
-        title: projectTitle,
-        productIdea,
-        contentTypes: [contentType],
-        status: 'completed',
-        // F6: Strategie-Brief wird mit dem Projekt persistiert (metadata.brief).
-        metadata: hasBriefAnswers(brief) ? { brief } : undefined,
-      },
-      [
-        {
-          contentType,
-          title: result.title,
-          body: result.body,
-          metadata: {
-            ...(result.metadata ?? {}),
-            // F1: persist the score with the asset so it survives reloads
-            score: result.score ?? undefined,
-          },
-        },
-      ],
-    );
-      setSavedProjectId(saved.id);
-    } catch (err) {
-      console.error('saveProject failed:', err);
-    }
-  }, [result, productIdea, contentType, user?.id, brief]);
+    await persistResult(result, uid, false);
+  }, [result, persistResult, user?.id]);
 
   // ── Copy helper ────────────────────────────────────────────────────────────
   const copyText = useCallback(async (text: string): Promise<boolean> => {
@@ -368,9 +434,12 @@ function QuickGeneratorContent({
       setResult(improved);
       // Overwrite the saved asset (simpler correct option) and keep
       // metadata.score updated so the library/detail show the new score.
-      if (savedProjectId) {
+      // K3: Der Auto-Save setzt savedProjectRef sofort; savedProjectId ist der
+      // gerenderte Zwilling → Verbessern schreibt in DASSELBE Projekt.
+      const projectId = savedProjectRef.current ?? savedProjectId;
+      if (projectId) {
         try {
-          await updateChannel(savedProjectId, contentType, {
+          await updateChannel(projectId, contentType, {
             title: improved.title,
             body: improved.body,
             metadata: {
@@ -400,9 +469,11 @@ function QuickGeneratorContent({
       setResult(adopted);
       // Persist like F2/F2.1 (updateChannel) — the variant's score stays on
       // the asset so the library/detail show the new state after reload.
-      if (savedProjectId) {
+      // K3: same project as the auto-saved run (savedProjectRef/savedProjectId).
+      const projectId = savedProjectRef.current ?? savedProjectId;
+      if (projectId) {
         try {
-          await updateChannel(savedProjectId, contentType, {
+          await updateChannel(projectId, contentType, {
             title: adopted.title,
             body: adopted.body,
             metadata: {
@@ -577,6 +648,19 @@ function QuickGeneratorContent({
               >
                 💾 {t.gen_save_project}
               </button>
+              {/* K3: sichtbarer Hinweis, dass der Output automatisch gesichert ist */}
+              {autoSaveStatus !== 'idle' && (
+                <span
+                  data-testid="quick-autosave-hint"
+                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-semibold ${
+                    autoSaveStatus === 'saved'
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : 'bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  {autoSaveStatus === 'saved' ? t.gen_autosaved : t.gen_autosaving}
+                </span>
+              )}
               {/* F7 A/B-Varianten — 3 gescorte Alternativen, die beste übernehmen */}
               <VariantPicker
                 content={result}

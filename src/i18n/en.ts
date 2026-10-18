@@ -433,6 +433,9 @@ export const en: EnShape = {
   gen_generate_etsy: 'Generate Etsy Listing',
   gen_generate_blog: 'Generate Blog Post',
   gen_save_project: 'Save to Project',
+  // K3 (Owner decision 2026-10-18) — auto-save notice after a single generation
+  gen_autosaved: '✅ Saved automatically',
+  gen_autosaving: '⏳ Saving automatically…',
   gen_open_strategy: 'Open in Full Strategy',
   gen_idea_label: 'Product Idea',
   // Phase 1 (C3) — notice when a fresh user idea overrode the saved draft
@@ -1790,6 +1793,9 @@ export const en: EnShape = {
   image_studio_gallery_restored_hint: 'Restored from your session: %s images — as previews, so nothing is lost while navigating.',
   image_studio_gallery_preview_badge: 'Preview',
   image_studio_gallery_preview_hint: 'Restored preview — the original was only available in the live session.',
+  // K4-A (Owner decision 2026-10-18): honest download label + session notice.
+  image_studio_download_preview: 'Download preview',
+  image_studio_gallery_session_hint: 'Images remain available only in this session – download them now in original quality.',
   // ── Phase "Analytics extension" (owner request 2026-09-27, variant A) ─────
   // Unique visitors (consent-gated) + owner section "Error analysis".
   analytics_range_today: 'Today',
