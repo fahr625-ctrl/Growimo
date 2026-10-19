@@ -41,6 +41,12 @@ export type ImageSseEvent =
       mode: ImageStreamOutcome["mode"];
       partials: number;
       usedFallback: boolean;
+      /** K4-B: wurde das Original dauerhaft gespeichert? */
+      saved?: boolean;
+      /** Grund bei saved=false: capacity | unavailable | invalid | duplicate | error */
+      saveReason?: string;
+      /** generated_images.id — nur bei saved=true. */
+      imageId?: string;
     }
   | { type: "error"; message: string };
 
@@ -61,6 +67,8 @@ export interface ImageStreamBody {
   prompt: string;
   aspectRatio: string;
   referenceImageData?: string;
+  /** K4-B: optionale Projekt-Zuordnung für die dauerhafte Speicherung. */
+  projectId?: string;
 }
 
 /** Body-Validierung identisch streng wie der ServerFn-Validator im Studio. */
@@ -69,10 +77,16 @@ export function parseImageStreamBody(body: unknown): ImageStreamBody | { error: 
   const prompt = typeof raw.prompt === "string" ? raw.prompt.trim() : "";
   if (!prompt) return { error: "prompt is required" };
   const aspectRatio = isImageAspectRatio(raw.aspectRatio) ? raw.aspectRatio : "1:1";
+  const projectId =
+    typeof raw.projectId === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw.projectId.trim())
+      ? raw.projectId.trim()
+      : undefined;
   return {
     prompt,
     aspectRatio,
     referenceImageData: sanitizeReferenceImageData(raw.referenceImageData),
+    projectId,
   };
 }
 
@@ -81,11 +95,24 @@ export function parseImageStreamBody(body: unknown): ImageStreamBody | { error: 
  * die Reihenfolge-Garantie (partials VOR done, inkrementell geflusht) ohne
  * Netzwerk und ohne OpenAI-Aufruf getestet werden kann (Test-Hook `generate`).
  */
+/** Ergebnis der dauerhaften Speicherung (K4-B) — optional, nie blockierend. */
+export interface ImageStreamSaveOutcome {
+  saved: boolean;
+  reason?: string;
+  imageId?: string;
+}
+
 export async function emitImageStreamEvents(args: {
   body: ImageStreamBody;
   send: (event: ImageSseEvent) => void;
   /** Test-Hook; Default = echte gpt-image-2-Streaming-Funktion. */
   generate?: (onPartial: (partial: ImageStreamPartial) => void) => Promise<ImageStreamOutcome>;
+  /**
+   * K4-B: wird NACH dem Endbild aufgerufen (dauerhafte Speicherung). Ein Fehler
+   * hier darf den erfolgreichen Lauf NIE kaputtmachen — die Generierung ist
+   * bezahlt, das Bild bleibt in der Sitzung (K4-A-Pfad).
+   */
+  finalize?: (outcome: ImageStreamOutcome) => Promise<ImageStreamSaveOutcome | null>;
 }): Promise<ImageStreamOutcome> {
   const generate =
     args.generate ??
@@ -103,12 +130,23 @@ export async function emitImageStreamEvents(args: {
   const outcome = await generate((partial) => {
     args.send({ type: "partial", index: partial.index, dataUrl: partial.dataUrl });
   });
+  // K4-B: Speicherung NACH dem Endbild, aber VOR dem done-Event — so erfährt die
+  // UI im selben Ereignis, ob das Original dauerhaft liegt oder nicht.
+  let save: ImageStreamSaveOutcome | null = null;
+  if (args.finalize) {
+    try {
+      save = await args.finalize(outcome);
+    } catch {
+      save = { saved: false, reason: "error" };
+    }
+  }
   args.send({
     type: "done",
     url: outcome.url,
     mode: outcome.mode,
     partials: outcome.partials,
     usedFallback: outcome.usedFallback,
+    ...(save ? { saved: save.saved, saveReason: save.reason, imageId: save.imageId } : {}),
   });
   return outcome;
 }
@@ -156,6 +194,12 @@ export async function handleImageStreamApi(
   }
   activeStreams.add(subject);
 
+  // K4-B: Identität für die Speicherung einmal auflösen (clerk_id → users.id UUID).
+  // Fail-closed: ohne users-Zeile wird nicht gespeichert, der Lauf selbst bleibt
+  // aber erfolgreich (bezahlte Generierung darf nie an der Ablage scheitern).
+  const { tryResolveUserId } = await import("../lib/generated-images-save");
+  const ownerUserId = await tryResolveUserId(subject);
+
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
@@ -185,7 +229,24 @@ export async function handleImageStreamApi(
         // FIX-BLOCK 1: Aktion + Format im usage_events-Ledger zuordnen.
         await withGenerationGuard(
           subject,
-          () => emitImageStreamEvents({ body: parsed, send }),
+          () =>
+            emitImageStreamEvents({
+              body: parsed,
+              send,
+              finalize: ownerUserId
+                ? async (outcome) => {
+                    const { saveGeneratedImage } = await import("../lib/generated-images-service");
+                    const result = await saveGeneratedImage({
+                      userId: ownerUserId,
+                      dataUrl: outcome.url,
+                      aspectRatio: parsed.aspectRatio,
+                      prompt: parsed.prompt,
+                      projectId: parsed.projectId ?? null,
+                    });
+                    return { saved: result.saved, reason: result.reason, imageId: result.imageId };
+                  }
+                : undefined,
+            }),
           "de",
           { action: "image_stream", detail: parsed.aspectRatio },
         );

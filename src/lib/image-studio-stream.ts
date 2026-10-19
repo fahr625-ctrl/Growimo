@@ -25,6 +25,10 @@ export interface ImageStreamDoneEvent {
   mode: string;
   partials: number;
   usedFallback: boolean;
+  /** K4-B: Original dauerhaft gespeichert? (fehlt bei alten Servern) */
+  saved?: boolean;
+  saveReason?: string;
+  imageId?: string;
 }
 
 export interface ImageStreamErrorEvent {
@@ -88,6 +92,9 @@ export function parseSseBlock(block: string): ImageSseEvent | null {
       mode: typeof ev.mode === 'string' ? ev.mode : 'generate',
       partials: typeof ev.partials === 'number' ? ev.partials : 0,
       usedFallback: ev.usedFallback === true,
+      ...(typeof ev.saved === 'boolean' ? { saved: ev.saved } : {}),
+      ...(typeof ev.saveReason === 'string' ? { saveReason: ev.saveReason } : {}),
+      ...(typeof ev.imageId === 'string' ? { imageId: ev.imageId } : {}),
     };
   }
   if (ev.type === 'error') {
@@ -193,6 +200,10 @@ export interface StudioImageRunResult {
   /** true = klassisch generiert (Server-Fallback bzw. ServerFn-Rückfall). */
   usedFallback: boolean;
   mode: string;
+  /** K4-B: dauerhafte Speicherung dieses Originals (undefined = alter Server). */
+  saved?: boolean;
+  saveReason?: string;
+  imageId?: string;
 }
 
 /**
@@ -205,9 +216,40 @@ export interface StudioImageRunResult {
  *   3. Kam bereits ein Zwischenbild an, gibt es KEINEN zweiten Aufruf — der
  *      Fehler wird gemeldet (nie zwei bezahlte Läufe für ein Bild).
  */
+/**
+ * K4-B: Der ServerFn-Rückfall kennt die SSE-Route nicht — sein Ergebnis wird
+ * über POST /api/images in denselben Speicherpfad gebracht (gleiche Guard-/Cap-/
+ * TTL-Kette). Ein Fehler hier ist NICHT fatal: das Bild bleibt in der Sitzung
+ * sichtbar und herunterladbar (K4-A), es wird nur nicht dauerhaft gespeichert.
+ */
+async function persistFallbackResult(
+  url: string,
+  body: { prompt: string; aspectRatio: string; projectId?: string },
+): Promise<{ saved?: boolean; saveReason?: string; imageId?: string }> {
+  try {
+    const response = await fetch('/api/images', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        dataUrl: url,
+        aspectRatio: body.aspectRatio,
+        prompt: body.prompt,
+        projectId: body.projectId,
+      }),
+    });
+    const parsed = (await response.json()) as { saved?: boolean; reason?: string; imageId?: string };
+    return { saved: parsed.saved === true, saveReason: parsed.reason, imageId: parsed.imageId };
+  } catch {
+    return { saved: false, saveReason: 'error' };
+  }
+}
+
 export async function runStudioImage(args: {
   body: { prompt: string; aspectRatio: string; referenceImageData?: string };
   fallback: (signal: AbortSignal) => Promise<{ url: string }>;
+  /** K4-B: optionale Projekt-Zuordnung für die Speicherung im Rückfall-Pfad. */
+  projectId?: string;
   onPartial: (partial: { index: number; dataUrl: string }) => void;
   signal: AbortSignal;
   /** Test-Hooks. */
@@ -233,10 +275,14 @@ export async function runStudioImage(args: {
       streamed: !result.usedFallback && result.partials > 0,
       usedFallback: result.usedFallback,
       mode: result.mode,
+      saved: result.saved,
+      saveReason: result.saveReason,
+      imageId: result.imageId,
     };
   } catch (err) {
     if (!(err instanceof ImageStreamUnavailableError) || partialCount > 0) throw err;
     const fallback = await args.fallback(args.signal);
-    return { url: fallback.url, streamed: false, usedFallback: true, mode: 'generate' };
+    const saved = await persistFallbackResult(fallback.url, args.body);
+    return { url: fallback.url, streamed: false, usedFallback: true, mode: 'generate', ...saved };
   }
 }

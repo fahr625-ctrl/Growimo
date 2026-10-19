@@ -271,4 +271,63 @@ CREATE TABLE IF NOT EXISTS usage_events (
 );
 CREATE INDEX IF NOT EXISTS idx_usage_events_user_created ON usage_events(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_usage_events_action_created ON usage_events(action, created_at);
+
+-- ── K4-B (Owner-Freigabe 2026-10-19): dauerhafte Originalbild-Referenzen ──────
+-- Rein additive, idempotente Migration. Referenzdatei (identischer Wortlaut, fuer
+-- einen direkten psql-Lauf gegen eine lokale Postgres-Kopie):
+-- migrations/generated_images.migration.sql
+-- Eigenschaften: keine Aenderung an bestehenden Tabellen, keine Datenmigration.
+-- WICHTIG fuer diesen Migrationspfad: in Kommentaren darf KEIN Semikolon stehen,
+-- weil init.ts schemaSQL am Semikolon splittet und alles in EINER Transaktion
+-- faehrt (CREATE INDEX CONCURRENTLY ist daher nicht zulaessig und hier bewusst
+-- nicht verwendet).
+-- user_id ist users.id (UUID) - NICHT die Clerk-ID (usage_monthly und
+-- usage_events speichern dagegen TEXT-Clerk-Ids).
+-- project_id ist ON DELETE SET NULL (Owner-Entscheidung b): eine Projekt-Loeschung
+-- darf NIE ein bezahltes Originalbild mitloeschen. Deshalb gibt es auch keinen
+-- Loeschgrund 'project_cleanup'.
+-- expires_at hat BEWUSST KEINEN DB-DEFAULT: der Wert kommt aus IMAGE_TTL_DAYS,
+-- damit es nur EINE Wahrheit gibt. Fehlt er, scheitert das INSERT laut, statt
+-- still nie zu loeschen (fail-closed).
+CREATE TABLE IF NOT EXISTS generated_images (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+  blob_path TEXT NOT NULL,
+  blob_url TEXT,
+  aspect_ratio TEXT,
+  mime_type TEXT,
+  size_bytes BIGINT CHECK (size_bytes IS NULL OR size_bytes >= 0),
+  prompt TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  deleted_at TIMESTAMPTZ,
+  delete_reason TEXT
+);
+-- Ein Pfad gehoert genau einer Zeile (1 Blob = 1 Zeile, Retry-Idempotenz).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_generated_images_blob_path
+  ON generated_images(blob_path);
+-- Cap/Galerie-Liste: lebende Bilder eines Nutzers, neueste zuerst (Sliding Window)
+CREATE INDEX IF NOT EXISTS idx_generated_images_user_live
+  ON generated_images(user_id, created_at DESC)
+  WHERE deleted_at IS NULL;
+-- Projektansicht: lebende Bilder eines Projekts
+CREATE INDEX IF NOT EXISTS idx_generated_images_project_live
+  ON generated_images(project_id)
+  WHERE deleted_at IS NULL;
+-- TTL-Sweeper: faellige, noch nicht markierte Bilder (taeglicher Cron)
+CREATE INDEX IF NOT EXISTS idx_generated_images_expires_live
+  ON generated_images(expires_at)
+  WHERE deleted_at IS NULL;
+-- Wiederanlauf-Sweeper: markierte Bilder, deren Blob-Delete noch aussteht.
+-- Bewusst KEIN Index auf size_bytes: der Guard summiert ueber hoechstens rund 500
+-- Zeilen (volle Hobby-Auslastung), ein Sequenz-Scan ist billiger (Design-Freeze
+-- Abschnitt 2, Neu-Bewertung nach 1 Monat Realdaten im Rahmen der 8.4-Kalibrierung).
+CREATE INDEX IF NOT EXISTS idx_generated_images_deleted_pending
+  ON generated_images(deleted_at)
+  WHERE deleted_at IS NOT NULL;
+-- Whitelist des Loeschgrunds: verhindert freie Texte und haelt Logs inhaltsfrei.
+ALTER TABLE generated_images DROP CONSTRAINT IF EXISTS generated_images_delete_reason_check;
+ALTER TABLE generated_images ADD CONSTRAINT generated_images_delete_reason_check
+  CHECK (delete_reason IS NULL OR delete_reason IN ('cap_200', 'ttl_90d', 'account_deleted', 'manual'));
 `;

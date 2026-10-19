@@ -19,6 +19,9 @@ import { handleAdminAnalyticsApi } from "./src/api/admin-analytics";
 import { handleGenerateStreamApi } from "./src/api/generate-stream";
 import { handleImageStreamApi } from "./src/api/image-stream";
 import { handleStripeWebhookApi } from "./src/api/stripe-webhook";
+// K4-B (Owner-Freigabe 2026-10-19): dauerhafte Bildspeicherung + TTL-Tageslauf.
+import { handleImagesApi } from "./src/api/images";
+import { handleCronBlobTtlApi } from "./src/api/cron-blob-ttl";
 
 // Initialise the database once at cold start
 try { await initDb(); } catch (err) { console.error("[vercel] Database init failed:", err); }
@@ -169,6 +172,39 @@ export default async function vercelHandler(
       return;
     }
     
+    // K4-B: Bild-Meta-Liste, Original-Download und Löschen (/api/images[/<id>]).
+    const imagesResponse = await handleImagesApi(webReq, url.pathname);
+    if (imagesResponse) {
+      res.statusCode = imagesResponse.status;
+      imagesResponse.headers.forEach((value, key) => res.setHeader(key, value));
+      if (imagesResponse.body) {
+        const reader = imagesResponse.body.getReader();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          res.write(value);
+        }
+      }
+      res.end();
+      return;
+    }
+    // K4-B: Tageslauf für abgelaufene Bilder (nur mit CRON_SECRET, fail-closed 401).
+    const cronBlobTtlResponse = await handleCronBlobTtlApi(webReq, url.pathname);
+    if (cronBlobTtlResponse) {
+      res.statusCode = cronBlobTtlResponse.status;
+      cronBlobTtlResponse.headers.forEach((value, key) => res.setHeader(key, value));
+      if (cronBlobTtlResponse.body) {
+        const reader = cronBlobTtlResponse.body.getReader();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          res.write(value);
+        }
+      }
+      res.end();
+      return;
+    }
+
     const webRes = await fetchHandler.fetch(webReq);
     res.statusCode = webRes.status;
     webRes.headers.forEach((value, key) => res.setHeader(key, value));
