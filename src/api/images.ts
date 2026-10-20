@@ -70,6 +70,24 @@ export async function handleImagesApi(req: Request, pathname: string): Promise<R
   const userId = await resolveUserId(subject);
   if (!userId) return json({ error: 'Unauthorized', code: 'no_user_row' }, 401);
 
+  // Fail-closed (Incident 2026-10-20): wenn die Schema-Initialisierung
+  // fehlgeschlagen ist, sind die `generated_images`-Migrationen NICHT in der DB
+  // angekommen. Dann ehrlich 503 melden statt 500 (uncaught) oder gar 200.
+  {
+    const { dbInitState } = await import('../db/init');
+    const init = dbInitState();
+    if (init.status === 'failed') {
+      return json(
+        {
+          error: 'Bildspeicher ist nicht bereit (Schema-Initialisierung fehlgeschlagen)',
+          code: 'db_init_failed',
+          detail: { code: init.code, at: init.at },
+        },
+        503,
+      );
+    }
+  }
+
   if (isCollection && req.method === 'GET') {
     const { listOwnImages } = await import('../lib/generated-images-api');
     const result = await listOwnImages(userId, IMAGE_LIST_LIMIT_DEFAULT);

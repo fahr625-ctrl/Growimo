@@ -67,7 +67,10 @@ interface ResolvedDeps {
 }
 
 async function resolveDeps(deps: ImageServiceDeps): Promise<ResolvedDeps> {
-  const { getDb } = await import('../db');
+  // Explizit '../db/index' — NICHT '../db' (das löst auf die Datei src/db.ts auf,
+  // die nur `sql` exportiert; im Bundle schrumpft sie durch
+  // `"sideEffects": false` auf ein leeres Objekt → `getDb is not a function`).
+  const { getDb } = await import('../db/index');
   const { resolveImageLimits } = await import('./generated-images-logic');
   const { blobStoreOrNull } = await import('./blob-store');
   return {

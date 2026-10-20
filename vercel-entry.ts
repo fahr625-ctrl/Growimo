@@ -11,7 +11,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import handler from "./dist/server/server.js";
-import { initDb } from "./src/db/init";
+import { dbInitState, initDb } from "./src/db/init";
 import { handleBetaApi } from "./src/api/beta";
 import { handleTrackingApi } from "./src/api/tracking";
 import { handleAnalyticsApi } from "./src/api/analytics";
@@ -23,8 +23,30 @@ import { handleStripeWebhookApi } from "./src/api/stripe-webhook";
 import { handleImagesApi } from "./src/api/images";
 import { handleCronBlobTtlApi } from "./src/api/cron-blob-ttl";
 
-// Initialise the database once at cold start
-try { await initDb(); } catch (err) { console.error("[vercel] Database init failed:", err); }
+// Initialise the database once at cold start.
+// Fail-LOUD (Incident 2026-10-20): a failed schema init means migrations did NOT
+// reach the database — that must never be silent again. initDb() records the
+// outcome in a state (it does not throw, so the app can still render), and this
+// log line makes the failure visible in the function logs. Routes that need the
+// new schema answer fail-closed (503) via dbSchemaReady().
+try {
+  await initDb();
+  const dbInit = dbInitState();
+  if (dbInit.status === "ok") {
+    console.log(`[vercel] DB schema ready (${dbInit.statements} statements).`);
+  } else if (dbInit.status === "skipped") {
+    console.log("[vercel] DB schema init skipped — DATABASE_URL not configured.");
+  } else if (dbInit.status === "failed") {
+    console.error(
+      "[vercel] DB SCHEMA NOT INITIALIZED — migrations did not reach the database. code=%s at=%s error=%s",
+      dbInit.code ?? "n/a",
+      dbInit.at,
+      dbInit.error,
+    );
+  }
+} catch (err) {
+  console.error("[vercel] DB INIT CRASHED (unexpected):", err);
+}
 
 const fetchHandler = handler as {
   fetch: (request: Request) => Response | Promise<Response>;

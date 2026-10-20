@@ -64,7 +64,12 @@ export async function listOwnImages(
   limit: number,
   deps: ImageReportDeps = {},
 ): Promise<ImageListReport> {
-  const sql = deps.sql ?? ((await import('../db')).getDb() as unknown as ImageSql);
+  // WICHTIG: explizit '../db/index' — ein blosses '../db' löst auf die DATEI
+  // src/db.ts auf (die nur `sql` exportiert) und nicht auf das Verzeichnis
+  // src/db/ (mit `getDb`). Weil `"sideEffects": false` gesetzt ist, schrumpft
+  // src/db.ts im Vercel-Bundle sogar auf ein leeres Objekt → `getDb is not a
+  // function` → ungefangener TypeError → 500 (Live-Befund 2026-10-20).
+  const sql = deps.sql ?? ((await import('../db/index')).getDb() as unknown as ImageSql);
   const limits = deps.limits ?? resolveImageLimits(process.env);
   const rows = await qListLiveImages(sql, userId, limit);
   const count = await qCountLiveImages(sql, userId);

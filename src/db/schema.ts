@@ -144,7 +144,7 @@ ALTER TABLE generated_content ADD CONSTRAINT generated_content_content_type_chec
 -- Ursprünglich: „beta access gate: every signup is auto-approved" (DEFAULT TRUE).
 -- Seit dem Beta-Ende ist die Auto-Freischaltung aus: der Default ist FALSE, damit
 -- eine (künftige) Zeile ohne explizites approved NIE den lebenslangen Rabatt
--- erbt. Beide Statements sind idempotent; BESTEHENDE Zeilen werden nicht
+-- erbt. Beide Statements sind idempotent — BESTEHENDE Zeilen werden nicht
 -- angefasst (kein UPDATE) — die vor dem Public Launch registrierten Nutzer
 -- behalten ihre explizite approved = true und damit ihren 50-%-Rabatt.
 ALTER TABLE beta_signups ADD COLUMN IF NOT EXISTS approved BOOLEAN DEFAULT FALSE;
