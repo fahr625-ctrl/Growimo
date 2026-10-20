@@ -13,6 +13,12 @@ import { getProject, getProjectContent, updateChannel } from '~/store/projects';
 import type { ImproveOutcome, VariantAsset } from '~/ai/types';
 import type { ContentType, Project, StoredContent } from '~/store/projects';
 import { ImageStudio } from '~/components/ImageStudio';
+// K4-B (UI-Anbindung, 2026-10-19) — "Gespeicherte Bilder dieses Projekts":
+// eigener, selbsttragender Abschnitt (GET /api/images, Filter auf projectId).
+// Die Bilder tragen ihre projectId — deshalb ist die Zuordnung ohne Umbau
+// möglich. Ist die Lese-Route nicht erreichbar (Live-Version vor K4-B, 404),
+// blendet der Abschnitt sich selbst aus: die Projektseite bleibt unverändert nutzbar.
+import { SavedImagesPanel } from '~/components/SavedImages';
 // Stabilisierung Schritt 4 (Punkt 6) — durchgängiger Workflow: „Weiter mit …".
 import { NextActions } from '~/components/NextActions';
 import { PrioritizeCard } from '~/components/PrioritizeCard';
@@ -201,6 +207,7 @@ function ProjectDetailContent({ project, contents }: { project: Project; content
           />
         </div>
       )}
+      <SavedImagesPanel projectId={project.id} />
       {contents.length > 0 && <ImageStudio productIdea={project.productIdea} />}
     </div>
   );

@@ -1872,6 +1872,23 @@ export const de = {
   meta_app_beta_signups_title: 'Beta-Anmeldungen – Growimo',
   meta_app_beta_welcome_title: 'Willkommen – Growimo',
   meta_app_sign_in_title: 'Anmelden – Growimo',
+  // K4-B (UI-Anbindung 2026-10-19) — dauerhaft gespeicherte Bilder in Galerie/Projekt.
+  image_studio_saved_title: 'Gespeicherte Bilder',
+  image_studio_saved_badge: 'Gespeichert',
+  image_studio_saved_badge_hint: 'Dauerhaft in deinem Konto gespeichert — Download jederzeit möglich.',
+  image_studio_saved_status: '%s von %s Bildern · %s',
+  image_studio_saved_status_nocap: '%s Bilder · %s',
+  image_studio_saved_warning: 'Der Bildspeicher wird knapp: %s von %s belegt. Bald werden ältere Bilder entfernt.',
+  image_studio_saved_unavailable: 'Der dauerhafte Bildspeicher ist noch nicht aktiviert. Bilder bleiben deshalb nur in dieser Sitzung verfügbar — lade sie jetzt herunter.',
+  image_studio_saved_not_configured: 'Der Speicher für den Original-Download ist aktuell nicht konfiguriert — neue Bilder werden nicht dauerhaft abgelegt.',
+  image_studio_saved_download: 'Original herunterladen',
+  image_studio_saved_download_failed: 'Download fehlgeschlagen — bitte erneut versuchen.',
+  image_studio_saved_expires: 'Aufbewahrung bis %s',
+  image_studio_saved_loading_preview: 'Vorschau wird geladen…',
+  image_studio_saved_preview_failed: 'Keine Vorschau verfügbar — der Download liefert das Original.',
+  image_studio_saved_more: '%s weitere gespeicherte Bilder anzeigen',
+  proj_saved_images_title: 'Gespeicherte Bilder dieses Projekts',
+  proj_saved_images_empty: 'Für dieses Projekt ist noch kein Bild dauerhaft gespeichert.',
   meta_app_sign_up_title: 'Registrieren – Growimo',
 } as const;
 
