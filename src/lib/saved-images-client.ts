@@ -176,6 +176,114 @@ export async function fetchSavedImages(
   return { kind: 'ok', report };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// WIEDERHOLUNGSVERSUCH (Live-Fund 2026-10-20)
+// ─────────────────────────────────────────────────────────────────────────────
+// Belegt: Nach einem Reload der Studio-Seite kam der EIGENE Ladeaufruf der App
+// mit HTTP 503 an, ein identischer Aufruf 11 ms später mit 200 (Netzwerk-
+// Mitschnitt). Der erste Aufruf einer frisch gestarteten Serverless-Funktion kann
+// so scheitern (Aufwärm-/Kaltstart-Effekt), ohne dass Daten fehlen — ein einziger
+// Fehlversuch darf deshalb nicht als „nichts gespeichert" in der Galerie landen.
+//
+// Regeln (bewusst eng):
+//  * GENAU EIN Wiederholungsversuch, kein Backoff-Loop, keine Endlosschleife.
+//  * Wiederholt wird nur, was vorübergehend sein kann: Netzfehler (status 0) und
+//    HTTP 5xx inklusive 503 `storage_unavailable`. 401/403 (keine Sitzung) und
+//    404 (Route in der Live-Version nicht vorhanden) werden NICHT wiederholt —
+//    die ändern sich in 1 s nicht.
+//  * Lesen kostet 0 Generierungen; der zweite Lauf erzeugt keine Doppel-Ladung,
+//    weil der Aufrufer nur das ERGEBNIS des letzten Versuchs verwendet.
+//  * Das Ergebnis bleibt strukturiert (`SavedImagesFetchResult`) — ein
+//    endgültiger Fehlschlag wird nie zu einem stillen „leer".
+
+/** Wartezeit zwischen Erstversuch und Wiederholung (ms). */
+export const SAVED_IMAGES_RETRY_DELAY_MS = 1000;
+
+/** Standard-Anzahl der Wiederholungen (1 = genau ein zweiter Versuch). */
+export const SAVED_IMAGES_RETRIES = 1;
+
+/**
+ * true ⇒ dieser Fehlschlag darf einmal wiederholt werden. `ok` und die
+ * auth-/versionsbedingten Zustände sind ausdrücklich NICHT wiederholbar.
+ */
+export function isRetryableSavedImagesFailure(result: SavedImagesFetchResult): boolean {
+  if (result.kind === 'ok' || result.kind === 'unauthorized') return false;
+  if (result.kind === 'storage_unavailable') return true; // status 503
+  return result.status === 0 || result.status >= 500;
+}
+
+/**
+ * true ⇒ die UI MUSS einen sichtbaren Hinweis zeigen (endgültiger Ladefehler:
+ * Netzfehler, 5xx, unlesbare Antwort). 404 bleibt ausgenommen: das heißt
+ * „diese Live-Version hat die Route nicht" und ist kein Ladefehler des Nutzers.
+ */
+export function isSavedImagesHardError(result: SavedImagesFetchResult | null): boolean {
+  if (!result || result.kind !== 'error') return false;
+  return result.status !== 404;
+}
+
+/** Ergebnis eines Abrufs MIT Wiederholungsversuch. */
+export interface SavedImagesRetryOutcome {
+  /** Der Zustand des LETZTEN Versuchs — der einzige, der zählt. */
+  result: SavedImagesFetchResult;
+  /** Anzahl tatsächlich gestarteter Requests (1 = kein Retry nötig). */
+  attempts: number;
+  /** true ⇒ es wurde mindestens einmal wiederholt. */
+  retried: boolean;
+}
+
+export interface SavedImagesRetryOptions {
+  fetchImpl?: typeof fetch;
+  url?: string;
+  /** Zusätzliche Versuche nach dem ersten (Default: 1). */
+  retries?: number;
+  delayMs?: number;
+  /** Injizierbar für Tests (Default: echtes `setTimeout`). */
+  sleep?: (ms: number) => Promise<void>;
+  /** Wird vor jedem Wiederholungsversuch aufgerufen (z. B. UI-Status). */
+  onRetry?: (attempt: number) => void;
+  /** false ⇒ keine weiteren Versuche (Abbruch/Unmount). */
+  shouldContinue?: () => boolean;
+}
+
+function defaultSleep(ms: number): Promise<void> {
+  return new Promise((resolve) => { setTimeout(resolve, ms); });
+}
+
+/**
+ * Holt die Meta-Liste mit genau einem Wiederholungsversuch bei vorübergehenden
+ * Fehlern. Liefert IMMER ein strukturiertes Ergebnis plus Versuchszähler.
+ */
+export async function fetchSavedImagesWithRetry(
+  options: SavedImagesRetryOptions = {},
+): Promise<SavedImagesRetryOutcome> {
+  const {
+    fetchImpl = fetch,
+    url = SAVED_IMAGES_PATH,
+    retries = SAVED_IMAGES_RETRIES,
+    delayMs = SAVED_IMAGES_RETRY_DELAY_MS,
+    sleep = defaultSleep,
+    onRetry,
+    shouldContinue,
+  } = options;
+  const extra = Number.isFinite(retries) && retries > 0 ? Math.floor(retries) : 0;
+  const maxAttempts = 1 + extra;
+  let attempts = 0;
+  let result: SavedImagesFetchResult = { kind: 'error', status: 0 };
+  while (attempts < maxAttempts) {
+    attempts += 1;
+    result = await fetchSavedImages(fetchImpl, url);
+    if (result.kind === 'ok') break;
+    if (!isRetryableSavedImagesFailure(result)) break;
+    if (attempts >= maxAttempts) break;
+    if (shouldContinue && !shouldContinue()) break;
+    onRetry?.(attempts + 1);
+    await sleep(delayMs);
+    if (shouldContinue && !shouldContinue()) break;
+  }
+  return { result, attempts, retried: attempts > 1 };
+}
+
 /**
  * Lädt die ORIGINAL-Bytes eines gespeicherten Bildes (nie die private Store-URL)
  * und liefert sie als Blob plus den ehrlichen Dateinamen zum echten MIME-Typ.

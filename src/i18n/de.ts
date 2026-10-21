@@ -1883,6 +1883,9 @@ export const de = {
   image_studio_saved_not_configured: 'Der Speicher für den Original-Download ist aktuell nicht konfiguriert — neue Bilder werden nicht dauerhaft abgelegt.',
   image_studio_saved_download: 'Original herunterladen',
   image_studio_saved_download_failed: 'Download fehlgeschlagen — bitte erneut versuchen.',
+  // Live-Fund 2026-10-20: ein endgültiger Ladefehler darf nicht als „keine Bilder" erscheinen.
+  image_studio_saved_load_failed: 'Die gespeicherten Bilder konnten nicht geladen werden. Deine Bilder sind nicht verloren — bitte noch einmal versuchen.',
+  image_studio_saved_load_retry: 'Erneut versuchen',
   image_studio_saved_expires: 'Aufbewahrung bis %s',
   image_studio_saved_loading_preview: 'Vorschau wird geladen…',
   image_studio_saved_preview_failed: 'Keine Vorschau verfügbar — der Download liefert das Original.',

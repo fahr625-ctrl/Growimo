@@ -1874,6 +1874,9 @@ export const en: EnShape = {
   image_studio_saved_not_configured: 'The store for original downloads is currently not configured — new images are not kept permanently.',
   image_studio_saved_download: 'Download original',
   image_studio_saved_download_failed: 'Download failed — please try again.',
+  // Live finding 2026-10-20: a final load failure must not look like "no images".
+  image_studio_saved_load_failed: 'Your saved images could not be loaded. Your images are not lost — please try again.',
+  image_studio_saved_load_retry: 'Try again',
   image_studio_saved_expires: 'Kept until %s',
   image_studio_saved_loading_preview: 'Loading preview…',
   image_studio_saved_preview_failed: 'No preview available — the download gives you the original.',

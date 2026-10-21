@@ -20,8 +20,10 @@ import { useTranslation } from '~/i18n';
 import { imageDownloadFilename } from '~/lib/image-download';
 import { formatDateTime } from '~/lib/date';
 import {
+  SAVED_IMAGES_RETRY_DELAY_MS,
   fetchSavedImageBytes,
-  fetchSavedImages,
+  fetchSavedImagesWithRetry,
+  isSavedImagesHardError,
   storageStatusParts,
   type GalleryEntry,
   type SavedImagesFetchResult,
@@ -57,6 +59,15 @@ export async function downloadSavedImage(id: string): Promise<boolean> {
 export interface SavedImagesState {
   result: SavedImagesFetchResult | null;
   loading: boolean;
+  /** true ⇒ der einzige Wiederholungsversuch läuft gerade (Live-Fund 2026-10-20). */
+  retrying: boolean;
+  /** Anzahl gestarteter Requests des letzten Laufs (1 = ohne Wiederholung). */
+  attempts: number;
+  /**
+   * true ⇒ ENDGÜLTIGER Lade-/Netzwerkfehler (kein 404). Die UI muss das sichtbar
+   * zeigen — eine still leere Galerie wäre eine falsche Aussage über die Daten.
+   */
+  failed: boolean;
   /** Fertige Liste (leer, wenn der Abruf nicht `ok` war — nie geraten). */
   images: GalleryEntry[];
   /** Der volle Bericht für Statuszeile und Warnung (nur bei `ok`). */
@@ -76,8 +87,14 @@ export function useSavedImages(options: { projectId?: string | null; enabled?: b
   const { projectId = null, enabled = true } = options;
   const [result, setResult] = useState<SavedImagesFetchResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [attempts, setAttempts] = useState(0);
   const [nonce, setNonce] = useState(0);
   const aliveRef = useRef(true);
+  // Jeder Lauf bekommt eine Nummer: nur der JÜNGSTE darf den Zustand setzen. So
+  // kann ein verspäteter (oder wiederholter) Abruf keinen neueren überschreiben
+  // und es landet nie eine doppelte Ladung in der Galerie.
+  const runRef = useRef(0);
 
   useEffect(() => {
     aliveRef.current = true;
@@ -86,12 +103,27 @@ export function useSavedImages(options: { projectId?: string | null; enabled?: b
 
   useEffect(() => {
     if (!enabled) return;
+    const run = runRef.current + 1;
+    runRef.current = run;
+    const isCurrent = () => aliveRef.current && runRef.current === run;
     setLoading(true);
-    void fetchSavedImages().then((res) => {
-      if (!aliveRef.current) return;
-      setResult(res);
+    setRetrying(false);
+    // EIN Wiederholungsversuch bei Netzfehler/5xx (Live-Fund 2026-10-20: der
+    // eigene Aufruf kam mit 503, derselbe Aufruf 11 ms später mit 200). Lesen
+    // kostet 0 Generierungen; das Ergebnis des LETZTEN Versuchs gewinnt.
+    void fetchSavedImagesWithRetry({
+      delayMs: SAVED_IMAGES_RETRY_DELAY_MS,
+      onRetry: () => { if (isCurrent()) setRetrying(true); },
+      shouldContinue: isCurrent,
+      sleep: (ms) => new Promise<void>((resolve) => { setTimeout(resolve, ms); }),
+    }).then((outcome) => {
+      if (!isCurrent()) return;
+      setResult(outcome.result);
+      setAttempts(outcome.attempts);
+      setRetrying(false);
       setLoading(false);
     });
+    return () => { /* `runRef` entwertet den Lauf; kein setState nach Unmount */ };
   }, [enabled, nonce, projectId]);
 
   const refresh = useCallback(() => setNonce((n) => n + 1), []);
@@ -116,7 +148,7 @@ export function useSavedImages(options: { projectId?: string | null; enabled?: b
         }))
     : [];
 
-  return { result, loading, images, report, refresh };
+  return { result, loading, retrying, attempts, failed: isSavedImagesHardError(result), images, report, refresh };
 }
 
 /** Ehrliche Statuszeile („X von 200 Bildern · Y MB") + Warnung, sonst `null`. */
@@ -239,8 +271,10 @@ export function SavedImageCard({
  * Fertiger Abschnitt „Gespeicherte Bilder" (Projektseite). Selbsttragend: eigener
  * Abruf, ehrliche Zustände, keine Erfolgsmeldung ohne Daten.
  *
- *  * `error`/`unauthorized`  → der Abschnitt verschwindet vollständig (die Seite
+ *  * `unauthorized`/404     → der Abschnitt verschwindet vollständig (die Seite
  *    bleibt genau wie vor K4-B nutzbar; die Route fehlt in der Live-Version noch).
+ *  * `error` (endgültig)     → sichtbarer Hinweis + „erneut versuchen" statt einer
+ *    still leeren Galerie (Live-Fund 2026-10-20).
  *  * `storage_unavailable`   → klarer Hinweis statt kaputter Galerie.
  *  * `storageConfigured:false` → getrennter Hinweis (Liste geht, Ablegen nicht).
  */
@@ -254,17 +288,36 @@ export function SavedImagesPanel({
   emptyKey?: 'proj_saved_images_empty';
 }) {
   const { t } = useTranslation();
-  const { result, images, report, loading } = useSavedImages({ projectId });
+  const { result, images, report, loading, refresh } = useSavedImages({ projectId });
   const { status, warning } = useSavedStorageStatus(report);
   const [visible, setVisible] = useState(SAVED_PREVIEW_PAGE);
   const [downloadError, setDownloadError] = useState(false);
 
-  if (!result || result.kind === 'error' || result.kind === 'unauthorized') return null;
+  if (!result || result.kind === 'unauthorized') return null;
   if (result.kind === 'storage_unavailable') {
     return (
       <section data-testid="saved-images-unavailable" className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5">
         <h2 className="text-lg font-bold text-amber-900">{t[titleKey]}</h2>
         <p className="mt-1 text-sm text-amber-800">{t.image_studio_saved_unavailable}</p>
+      </section>
+    );
+  }
+  if (result.kind !== 'ok') {
+    // Live-Fund 2026-10-20: ein endgültiger Ladefehler darf NICHT als „keine
+    // Bilder" durchgehen. 404 (Route fehlt in dieser Version) bleibt still.
+    if (!isSavedImagesHardError(result)) return null;
+    return (
+      <section data-testid="saved-images-load-error" className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-5">
+        <h2 className="text-lg font-bold text-red-900">{t[titleKey]}</h2>
+        <p className="mt-1 text-sm text-red-800">{t.image_studio_saved_load_failed}</p>
+        <button
+          type="button"
+          data-testid="saved-images-load-retry"
+          onClick={refresh}
+          className="mt-3 rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+        >
+          {t.image_studio_saved_load_retry}
+        </button>
       </section>
     );
   }
