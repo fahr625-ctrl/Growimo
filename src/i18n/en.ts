@@ -546,7 +546,7 @@ export const en: EnShape = {
   pricing_free_name: 'Free',
   pricing_free_desc: 'Perfect for trying out Growimo.',
   pricing_free_features: [
-    '5 AI generations per month',
+    '3 AI generations (one-time)',
     'All 8 content types',
     'Pinterest, Etsy, SEO & more',
     'Basic support',

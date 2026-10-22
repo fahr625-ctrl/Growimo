@@ -1,6 +1,6 @@
 // ── Phase 8.2 Serverseitiges Usage-/Limit-System (Kostenschutz) ───────────────
 // Owner-Entscheidung 2026-09-12 (verbindlich):
-//   Free = 5 Generierungen/Monat · Pro = 200/Monat · 1 Bild = 1 Generierung ·
+//   Free = 3 Generierungen EINMALIG (Owner 2026-10-22) · Pro = 200/Monat · 1 Bild = 1 Generierung ·
 //   Strategie-Paket = 1 pro Kanal · interne Retries/Scoring/Verbessern = 0.
 //
 // OWNER-ENTSCHEIDUNG 2026-10-22 (verbindlich, ersetzt das Free-Monatslimit):

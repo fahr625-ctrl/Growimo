@@ -53,8 +53,27 @@ function isQuotaExhaustedMessage(msg: unknown): boolean {
   return s.includes('aufgebraucht') || s.includes('used up');
 }
 
+/**
+ * Strukturelle Erkennung (R4-Fix 2026-10-22): der Server markiert den
+ * Kontingent-Fehler typisiert (`UsageLimitError.code = 'USAGE_LIMIT'`).
+ * Überlebt auch eine umformulierte Server-Meldung (i18n-Änderung) und ist damit
+ * robuster als der reine Textvergleich. Sucht in .cause/.data/details (max. 3
+ * Ebenen), weil TanStack-Start ServerFn-Fehler strukturiert verpackt.
+ */
+function hasUsageLimitCode(value: unknown, depth = 0): boolean {
+  if (depth > 3 || value == null) return false;
+  if (typeof value === 'string') return value.includes('USAGE_LIMIT');
+  if (typeof value !== 'object') return false;
+  const o = value as Record<string, unknown>;
+  if (o.code === 'USAGE_LIMIT' || o.name === 'UsageLimitError') return true;
+  return ['cause', 'data', 'details', 'error'].some((k) => hasUsageLimitCode(o[k], depth + 1));
+}
+
 /** Wie oben, aber auch für ServerFn-Fehler mit Details in .cause/.data. */
 function isQuotaExhaustedError(err: unknown): boolean {
+  // 1) strukturell (Code/Name) — unabhängig von der Formulierung
+  if (hasUsageLimitCode(err)) return true;
+  // 2) Text (Fallback, z. B. Stream-Event ohne Code)
   if (isQuotaExhaustedMessage(err instanceof Error ? err.message : err)) return true;
   try {
     if (!err || typeof err !== 'object') return false;
@@ -112,6 +131,8 @@ interface StreamChannelEvent {
   order?: number;
   result?: ContentResult;
   message?: string;
+  /** R4-Fix (2026-10-22): typisierter Fehler-Code, z. B. 'USAGE_LIMIT'. */
+  code?: string;
 }
 
 /**
@@ -396,7 +417,14 @@ function NewProjectContent() {
     setQuotaNotice(false);
 
     // Check usage limits
+    // R4-Fix (2026-10-22): Der Client-Spiegel (`canGenerate`, gespeist aus dem
+    // Server-Zähler via hydrateUsageFromServer) blockt den Lauf hier VOR dem
+    // Request. Genau dadurch wurde der laufbezogene Banner (`quotaNotice`)
+    // nie erreicht — der Nutzer sah nur den Upsell-Modal. Jeder Pfad, der in
+    // „Kontingent erschöpft" endet, setzt jetzt den Banner; die Sperre selbst
+    // bleibt unverändert Server-Sache (usage-guard, fail-closed).
     if (!canGenerate(uid)) {
+      setQuotaNotice(true);
       setShowUpsell(true);
       return;
     }
@@ -473,7 +501,9 @@ function NewProjectContent() {
             // Isolated: mark only this channel card, keep the rest running.
             // R4 (Owner 2026-10-22): Ein erschöpftes Kontingent darf nicht nur in
             // der Konsole landen — der Nutzer bekommt den sichtbaren Abo-Hinweis.
-            if (isQuotaExhaustedMessage(event.message)) setQuotaNotice(true);
+            if (event.code === 'USAGE_LIMIT' || isQuotaExhaustedMessage(event.message)) {
+              setQuotaNotice(true);
+            }
             console.error('Channel generation failed (stream):', event.stepId, event.message);
           } else if (event.type === 'fatal') {
             streamFailed = event.message ?? 'Unbekannter Fehler';

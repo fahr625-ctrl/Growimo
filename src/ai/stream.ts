@@ -9,7 +9,11 @@
 //   { type: "step", stepId, title, status: "running" }
 //   { type: "step", stepId, title, status: "done"|"error", durationMs }
 //   { type: "result", stepId, result }          — complete ContentResult per channel
-//   { type: "error", stepId, message }          — channel failure (isolated, NOT fatal)
+//   { type: "error", stepId, message, code? }   — channel failure (isolated, NOT fatal)
+//                                               code = typisierter Fehler-Code, z. B.
+//                                               'USAGE_LIMIT' (UsageLimitError) — der Client
+//                                               erkennt ein erschöpftes Kontingent damit
+//                                               strukturell statt nur am Meldungstext.
 //   { type: "fatal", message }                  — whole-pipeline failure
 //   { type: "done", runId }
 //
@@ -25,7 +29,7 @@ export type StreamEvent =
   | { type: "started"; runId: string; totalSteps: number }
   | { type: "step"; stepId: string; title: string; status: StreamStepStatus; durationMs?: number; order: number }
   | { type: "result"; stepId: string; result: ContentResult }
-  | { type: "error"; stepId: string; message: string }
+  | { type: "error"; stepId: string; message: string; code?: string }
   | { type: "fatal"; message: string }
   | { type: "done"; runId: string };
 
@@ -155,7 +159,16 @@ export async function runStrategyStream(
           durationMs: Date.now() - startedAt[i],
           order: i,
         });
-        emit({ type: "error", stepId, message });
+        emit({
+          type: "error",
+          stepId,
+          message,
+          // R4-Fix (2026-10-22): typisierten Code mitgeben, damit der Client ein
+          // erschöpftes Kontingent unabhängig von der Formulierung erkennt.
+          code: typeof (err as { code?: unknown })?.code === "string"
+            ? ((err as { code: string }).code)
+            : undefined,
+        });
         // Channel-null pattern (F4 package path): skip, keep the rest running.
         return null;
       }

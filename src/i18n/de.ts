@@ -543,7 +543,7 @@ export const de = {
   pricing_free_name: 'Free',
   pricing_free_desc: 'Perfekt zum Ausprobieren von Growimo.',
   pricing_free_features: [
-    '5 KI-Generierungen pro Monat',
+    '3 KI-Generierungen (einmalig)',
     'Alle 8 Inhaltstypen',
     'Pinterest, Etsy, SEO & mehr',
     'Basis-Support',

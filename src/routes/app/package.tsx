@@ -18,7 +18,7 @@ import { ActionPlanCard } from '~/components/ActionPlanCard';
 import { useTranslation } from '~/i18n';
 import { contentTypeLabel } from '~/lib/content-types';
 import { saveProject, updateChannel } from '~/store/projects';
-import { canGenerate, recordGeneration } from '~/store/subscriptions';
+import { canGenerate, getGenerationLimit, recordGeneration } from '~/store/subscriptions';
 import { trackEvent } from '~/store/analytics';
 import { trackAnalytics } from '~/lib/analytics-client';
 import { classifyGenerationError } from '~/lib/analytics-error';
@@ -807,7 +807,7 @@ function PackageContent() {
               ⚡
             </div>
             <h3 className="mt-4 text-center text-lg font-bold text-gray-900">{t.usage_limit_title}</h3>
-            <p className="mt-2 text-center text-sm text-gray-500">{t.usage_limit_desc.replace('%d', '5')}</p>
+            <p className="mt-2 text-center text-sm text-gray-500">{t.usage_limit_desc.replace('%d', String(getGenerationLimit('free')))}</p>
             <div className="mt-6 space-y-3">
               <Link
                 to="/app/pricing"
