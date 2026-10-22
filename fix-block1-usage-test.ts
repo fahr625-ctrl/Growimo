@@ -26,18 +26,20 @@ import { readFileSync } from 'node:fs';
 import {
   FREE_LIMIT,
   UsageLimitError,
-  currentPeriod,
   FREE_ONCE_PERIOD,
   getUsageInfo,
   isAdminOverride,
   limitForPlan,
   recordGeneration,
   withGenerationGuard,
+  ADMIN_OVERRIDE_USER_IDS,
 } from './src/lib/usage-guard';
 import { qGetUsage, qGetUsageEvents, qGetPlanTier, ensureUserRow } from './src/db/queries';
 import { getDb } from './src/db/index';
 
-const OWNER_ID = 'user_3H2trJXHwzXmJF2XTGQ2PMEwjkD';
+// Owner-Clerk-ID aus der EINZIGEN Quelle — die alte hartkodierte Dev-ID
+// (user_3H2trJ…) stammte aus der Zeit vor der Clerk-Migration (2026-10-11).
+const OWNER_ID = [...ADMIN_OVERRIDE_USER_IDS][0]!;
 const STAMP = Date.now().toString(36);
 const U_DIAG = `fb1-diag-${STAMP}`;
 const U_AB = `fb1-ab-${STAMP}`;

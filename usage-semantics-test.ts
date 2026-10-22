@@ -26,7 +26,6 @@ import { readFileSync } from 'node:fs';
 import {
   assertCanGenerate,
   assertRateOk,
-  currentPeriod,
   FREE_ONCE_PERIOD,
   isAdminOverride,
   withGenerationGuard,
