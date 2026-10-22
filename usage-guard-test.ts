@@ -16,6 +16,9 @@ import {
   assertCanGenerate,
   assertRateOk,
   currentPeriod,
+  FREE_ONCE_PERIOD,
+  usagePeriodForPlan,
+  getUsageInfo,
   isAdminOverride,
   limitForPlan,
   recordGeneration,
@@ -28,7 +31,10 @@ import {
 import { qGetPlanTier, qGetUsage, qIncrementUsage, ensureUserRow } from './src/db/queries';
 import { getDb } from './src/db/index';
 
-const OWNER_ID = 'user_3H2trJXHwzXmJF2XTGQ2PMEwjkD';
+// Owner-Clerk-ID aus der EINZIGEN Quelle (src/lib/owner-id.ts, über den Guard
+// exportiert) statt einer Kopie im Test — die Kopie war veraltet und erzeugte
+// zwei Dauer-Fails (2026-10-22).
+const OWNER_ID = [...ADMIN_OVERRIDE_USER_IDS][0]!;
 const TEST_USER = `guard-test-${Date.now().toString(36)}`;
 const sql = getDb();
 
@@ -70,24 +76,27 @@ async function main() {
   check(!isAdminOverride(TEST_USER), 'isAdminOverride(normal) === false');
   check(!isAdminOverride(null) && !isAdminOverride(undefined), 'isAdminOverride(null|undefined) === false');
 
-  // ── 1. Free-Limit: 5/5 verbraucht → 6. blockiert ───────────────────────────
-  console.log('\n[1] Free-Limit (5/Monat)');
-  let p = currentPeriod();
+  // ── 1. Free-Kontingent: 3 EINMALIG verbraucht → 4. blockiert ───────────────
+  // Owner-Entscheidung 2026-10-22: Free = 3 Generierungen einmalig pro Nutzer,
+  // Periode 'once' (kein Monats-Rollover, kein Reset nach Kündigung).
+  console.log('\n[1] Free-Kontingent (3 einmalig, Periode "once")');
+  const p = FREE_ONCE_PERIOD;
+  check(usagePeriodForPlan('free') === 'once', 'usagePeriodForPlan(free) === "once"');
   const first = await assertCanGenerate(TEST_USER, 'de');
-  check(first.ok === true && first.remaining === 5, 'frischer Nutzer: assertCanGenerate ok, remaining=5');
-  for (let i = 0; i < 5; i++) await recordGeneration(TEST_USER, 'de');
-  const used5 = await qGetUsage(TEST_USER, p);
-  check(used5 === 5, `5 recordGeneration → Zähler=${used5}/5`);
+  check(first.ok === true && first.remaining === 3, 'frischer Nutzer: assertCanGenerate ok, remaining=3');
+  for (let i = 0; i < 3; i++) await recordGeneration(TEST_USER, 'de');
+  const used3 = await qGetUsage(TEST_USER, p);
+  check(used3 === 3, `3 recordGeneration → Zähler=${used3}/3 (Periode "once")`);
   const blockErr = await expectThrow(
     () => recordGeneration(TEST_USER, 'de'),
     'USAGE_LIMIT',
-    '6. recordGeneration blockiert mit UsageLimitError',
+    '4. recordGeneration blockiert mit UsageLimitError',
   );
   if (blockErr instanceof UsageLimitError) {
-    check(blockErr.remaining === 0 && blockErr.limit === 5, 'Fehler trägt remaining=0/limit=5');
+    check(blockErr.remaining === 0 && blockErr.limit === 3, 'Fehler trägt remaining=0/limit=3');
     check(
-      blockErr.message.includes('5/Monat') && blockErr.message.includes('200'),
-      `Fehlermeldung mit Limit-Hinweis: "${blockErr.message.slice(0, 70)}…"`,
+      blockErr.message.includes('aufgebraucht') && blockErr.message.includes('19'),
+      `Fehlermeldung ohne "monatlich", mit Abo-Hinweis: "${blockErr.message.slice(0, 70)}…"`,
     );
   }
   await expectThrow(() => assertCanGenerate(TEST_USER, 'de'), 'USAGE_LIMIT', 'assertCanGenerate bei 0 Rest blockiert');
@@ -113,15 +122,34 @@ async function main() {
   await releaseGeneration(TEST_USER);
   check((await qGetUsage(TEST_USER, p)) === before, 'releaseGeneration → Zähler −1');
 
-  // ── 3. Monatswechsel: alte Periode zählt nicht ──────────────────────────────
-  console.log('\n[3] Monatswechsel');
+  // ── 3. KEIN Monats-Reset für Free (Periode 'once') ──────────────────────────
+  console.log('\n[3] Monats-Reset (Free: keiner)');
+  // (a) Eine ALTE Monatszeile ('2099-01') darf das einmalige Kontingent nicht
+  // berühren — Free liest ausschließlich die 'once'-Zeile.
   const oldPeriod = '2099-01';
   await sql`INSERT INTO usage_monthly (user_id, period, count) VALUES ((SELECT id FROM users WHERE clerk_id=${TEST_USER}), ${oldPeriod}, 5)
             ON CONFLICT (user_id, period) DO UPDATE SET count = 5`;
-  const cur = await qGetUsage(TEST_USER, currentPeriod());
+  const onceCount = await qGetUsage(TEST_USER, p);
   const rem = (await assertCanGenerate(TEST_USER, 'de')).remaining;
-  check(cur < 5 && rem === 5 - cur, `Verbrauch alter Periode (${oldPeriod}) zählt nicht (remaining=${rem})`);
+  check(onceCount === 0 && rem === 3, `Monatszeile (${oldPeriod}) zählt für Free nicht (remaining=${rem}/3)`);
   await sql`DELETE FROM usage_monthly WHERE user_id=(SELECT id FROM users WHERE clerk_id=${TEST_USER}) AND period=${oldPeriod}`;
+  // (b) Monatswechsel (Date-Mock): Free bleibt 'once', Pro rollt weiter.
+  const dec = new Date(2026, 11, 31, 23, 59, 59);
+  const jan = new Date(2027, 0, 1, 0, 0, 1);
+  check(
+    usagePeriodForPlan('free', dec) === 'once' && usagePeriodForPlan('free', jan) === 'once',
+    'Monatswechsel: Free-Periode bleibt konstant "once" (31.12. → 01.01.)',
+  );
+  check(
+    usagePeriodForPlan('pro', dec) === '2026-12' && usagePeriodForPlan('pro', jan) === '2027-01',
+    'Monatswechsel: Pro-Periode rollt 2026-12 → 2027-01',
+  );
+  // (c) getUsageInfo: Free liefert {limit:3, period:'once'}.
+  const infoFree = await getUsageInfo(TEST_USER);
+  check(
+    infoFree.limit === 3 && infoFree.period === 'once' && infoFree.planTier === 'free',
+    `getUsageInfo(free) → limit=${infoFree.limit}, period="${infoFree.period}", remaining=${infoFree.remaining}`,
+  );
 
   // ── 4. Pro-Limit (200) via plan_tier-Lookup ─────────────────────────────────
   console.log('\n[4] Pro-Limit (200/Monat)');
@@ -132,11 +160,13 @@ async function main() {
             ON CONFLICT DO NOTHING`;
   const tier = await qGetPlanTier(proUser);
   check(tier === 'pro' && limitForPlan(tier) === 200, 'qGetPlanTier → pro, Limit=200');
+  const pPro = usagePeriodForPlan('pro'); // 'YYYY-MM' — Pro rollt monatlich
+  check(pPro === currentPeriod(), `Pro-Periode = aktueller Monat (${pPro})`);
   for (let i = 0; i < 200; i++) {
-    const n = await qIncrementUsage(proUser, p, 200);
+    const n = await qIncrementUsage(proUser, pPro, 200);
     if (n == null) { check(false, `Pro-Increment ${i + 1} unerwartet blockiert`); break; }
   }
-  const proUsed = await qGetUsage(proUser, p);
+  const proUsed = await qGetUsage(proUser, pPro);
   check(proUsed === 200, `200 Pro-Generierungen ok (Zähler=${proUsed})`);
   const proErr = await expectThrow(() => recordGeneration(proUser, 'de'), 'USAGE_LIMIT', '201. Pro-Generierung blockiert');
   if (proErr instanceof UsageLimitError) check(proErr.limit === 200, 'Pro-Fehler trägt limit=200');

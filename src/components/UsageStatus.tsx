@@ -1,5 +1,6 @@
 // ── Phase 8.4a — Rest-Anzeige + Limit-Banner im Dashboard ──────────────────────
-// Zeigt dem angemeldeten Nutzer sein Monatskontingent (Free 5 / Pro 200):
+// Zeigt dem angemeldeten Nutzer sein Kontingent (Free 3 EINMALIG / Pro 200
+// pro Monat — Owner-Entscheidung 2026-10-22):
 //   1. Rest-Anzeige („X von Y Generierungen verbleibend") als kompakte Kennzahl
 //      über dem Seiteninhalt (Header-Zone aller /app-Seiten).
 //   2. Limit-Banner (role=status, a11y) sobald remaining === 0: „Monatslimit
@@ -33,14 +34,20 @@ export function UsageStatus({ userId }: { userId?: string }) {
   if (usage === null) return null;
 
   const limitReached = usage.remaining <= 0 && usage.limit > 0;
-  const remainingText =
-    usage.remaining === 1
-      ? t.usage_remaining_singular
-        .replace('%d', String(usage.remaining))
-        .replace('%d', String(usage.limit))
-      : t.usage_remaining_plural
-        .replace('%d', String(usage.remaining))
-        .replace('%d', String(usage.limit));
+  // Free (Owner-Entscheidung 2026-10-22): eigenes Wording („X von 3
+  // kostenlosen Generierungen"), weil das Kontingent einmalig ist. Pro bleibt
+  // unverändert („X von 200 Generierungen verbleibend").
+  const remainingTemplate =
+    usage.planTier === 'free'
+      ? usage.remaining === 1
+        ? t.usage_remaining_free_singular
+        : t.usage_remaining_free_plural
+      : usage.remaining === 1
+        ? t.usage_remaining_singular
+        : t.usage_remaining_plural;
+  const remainingText = remainingTemplate
+    .replace('%d', String(usage.remaining))
+    .replace('%d', String(usage.limit));
 
   if (limitReached) {
     const countLabel = t.usage_banner_count
@@ -70,7 +77,8 @@ export function UsageStatus({ userId }: { userId?: string }) {
             </svg>
             <div>
               <p className="text-sm font-bold text-red-800">
-                {t.usage_banner_title} <span className="font-semibold">{countLabel}</span>
+                {usage.planTier === 'free' ? t.usage_banner_title_free : t.usage_banner_title}{' '}
+                <span className="font-semibold">{countLabel}</span>
               </p>
               <p className="mt-0.5 text-sm text-red-700">
                 {usage.planTier === 'pro' ? t.usage_banner_pro : t.usage_banner_free}

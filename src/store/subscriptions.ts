@@ -51,8 +51,10 @@ export function getGenerationLimit(tier: SubscriptionTier): number {
   // Owner-Entscheidung 2026-09-12: Pro = 200 Generierungen/Monat — es gibt
   // KEINEN „unbegrenzt"-Tarif. Der Server (usage-guard) ist die Autorität;
   // dieser Store ist nur der Client-Anzeige-Fallback bis zum Server-Refresh.
+  // Owner-Entscheidung 2026-10-22: Free = 3 Generierungen EINMALIG pro Nutzer
+  // (kein Monats-Reset) — deckungsgleich mit FREE_ONCE_GRANT im Server-Guard.
   if (tier === 'pro') return 200;
-  return 5; // free tier: 5 generations per month
+  return 3; // free tier: 3 one-time generations (no monthly reset)
 }
 
 // ── Usage tracking ─────────────────────────────────────────────────────────────

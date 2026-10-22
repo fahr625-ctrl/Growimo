@@ -27,6 +27,7 @@ import {
   assertCanGenerate,
   assertRateOk,
   currentPeriod,
+  FREE_ONCE_PERIOD,
   isAdminOverride,
   withGenerationGuard,
   UsageLimitError,
@@ -35,7 +36,8 @@ import {
 import { qGetUsage, ensureUserRow } from './src/db/queries';
 import { getDb } from './src/db/index';
 
-const OWNER_ID = 'user_3H2trJXHwzXmJF2XTGQ2PMEwjkD';
+// Owner-Clerk-ID aus der EINZIGEN Quelle (src/lib/owner-id.ts via Guard).
+const OWNER_ID = [...ADMIN_OVERRIDE_USER_IDS][0]!;
 const RUN = Date.now().toString(36);
 const TEST_USERS = [`sem-${RUN}`, `sem-${RUN}-pkg`, `sem-${RUN}-tt`];
 const sql = getDb();
@@ -75,7 +77,8 @@ const CHANNELS = ['pinterest', 'etsy', 'seo', 'social', 'newsletter'] as const;
 
 async function main() {
   console.log('— usage-semantics-test (Zähl-Semantik „1 fertiges Ergebnis = 1") —\n');
-  const period = currentPeriod();
+  // Free-Kontingent (Owner-Entscheidung 2026-10-22): 3 EINMALIG, Periode 'once'.
+  const period = FREE_ONCE_PERIOD;
 
   // ── Vorbereitung: synthetische Nutzer (Fixtures) ───────────────────────────
   for (const u of TEST_USERS) await ensureUserRow(u);
@@ -90,10 +93,10 @@ async function main() {
   check(a1 === 'fertig' && (await qGetUsage(u1, period)) === 1, '1x withGenerationGuard(Erfolg) → Zähler exakt 1');
   await withGenerationGuard(u1, failOnce, 'de').catch(() => {});
   check((await qGetUsage(u1, period)) === 1, 'Fehlgeschlagene Einzel-Asset-Generierung → Zähler bleibt 1 (Kompensation, 0 Verbrauch)');
-  for (let i = 2; i <= 5; i++) await withGenerationGuard(u1, succeed, 'de');
-  check((await qGetUsage(u1, period)) === 5, '5 Einzel-Assets erfolgreich → Zähler exakt 5 (Free-Limit erreicht)');
-  const err1 = await expectThrow(() => withGenerationGuard(u1, succeed, 'de'), 'USAGE_LIMIT', '6. Einzel-Asset blockiert (UsageLimitError)');
-  if (err1 instanceof UsageLimitError) check(err1.limit === 5, 'Einzel-Asset-Limit-Fehler trägt limit=5');
+  for (let i = 2; i <= 3; i++) await withGenerationGuard(u1, succeed, 'de');
+  check((await qGetUsage(u1, period)) === 3, '3 Einzel-Assets erfolgreich → Zähler exakt 3 (Free-Kontingent erreicht)');
+  const err1 = await expectThrow(() => withGenerationGuard(u1, succeed, 'de'), 'USAGE_LIMIT', '4. Einzel-Asset blockiert (UsageLimitError)');
+  if (err1 instanceof UsageLimitError) check(err1.limit === 3, 'Einzel-Asset-Limit-Fehler trägt limit=3');
 
   // ── A2. Strategie-Paket: N Kanäle = N (nur erfolgreiche) ───────────────────
   console.log('\n[A2] Strategie-Paket (generatePackageServer): N Kanäle = N Generierungen');
@@ -105,9 +108,13 @@ async function main() {
   const resultsAll = await Promise.all(
     CHANNELS.map(() => withGenerationGuard(up, succeed, 'de').catch(() => null)),
   );
+  // Owner-Entscheidung 2026-10-22: Free-Kontingent = 3. Ein 5-Kanal-Paket wird
+  // deshalb bei 3 Erfolgen gedeckelt — der Beweis „je Kanal genau 1, Limit nie
+  // überschritten" wird damit sogar strenger (3 von 5 statt 5 von 5).
+  const allOk = resultsAll.filter(Boolean).length;
   check(
-    resultsAll.filter(Boolean).length === 5 && (await qGetUsage(up, period)) === 5,
-    'Paket mit 5 erfolgreichen Kanälen → Zähler exakt 5 (je Kanal 1)',
+    allOk === 3 && (await qGetUsage(up, period)) === 3,
+    `Paket mit 5 Kanälen bei Free-Limit 3 → genau 3 Erfolge (Zähler ${await qGetUsage(up, period)}, je Kanal 1)`,
   );
   // Hist 2: 1 Kanal schlägt fehl → nur erfolgreiche zählen (Fehler isoliert).
   await resetUsage(up);
@@ -115,25 +122,23 @@ async function main() {
     withGenerationGuard(up, succeed, 'de').catch(() => null),
     withGenerationGuard(up, failOnce, 'de').catch(() => null),
     withGenerationGuard(up, succeed, 'de').catch(() => null),
-    withGenerationGuard(up, succeed, 'de').catch(() => null),
-    withGenerationGuard(up, succeed, 'de').catch(() => null),
   ]);
   check(
-    resultsMixed.filter(Boolean).length === 4 && (await qGetUsage(up, period)) === 4,
-    'Paket mit 1 fehlgeschlagenem Kanal → Zähler exakt 4 (nur erfolgreiche; Fehler isoliert, 0 Verbrauch)',
+    resultsMixed.filter(Boolean).length === 2 && (await qGetUsage(up, period)) === 2,
+    'Paket mit 1 fehlgeschlagenem Kanal (3 Kanäle) → Zähler exakt 2 (nur erfolgreiche; Fehler isoliert, 0 Verbrauch)',
   );
-  // Hist 3: Limit exakt einhalten bei PARALLELEN Kanälen (Rest 4, 5 Kanäle):
-  // 4 dürfen durch, der 5. erhält USAGE_LIMIT — Zähler nie über dem Limit.
+  // Hist 3: Limit exakt einhalten bei PARALLELEN Kanälen (Rest 2, 5 Kanäle):
+  // 2 dürfen durch, die übrigen erhalten USAGE_LIMIT — Zähler nie über dem Limit.
   await resetUsage(up);
-  await withGenerationGuard(up, succeed, 'de'); // Verbrauch = 1, Rest = 4
+  await withGenerationGuard(up, succeed, 'de'); // Verbrauch = 1, Rest = 2
   const parallel = await Promise.all(
     CHANNELS.map(() => withGenerationGuard(up, succeed, 'de').catch((e: unknown) => e)),
   );
   const blocked = parallel.filter((r) => r instanceof UsageLimitError).length;
   const won = parallel.filter((r) => r === 'fertig').length;
   check(
-    won === 4 && blocked === 1 && (await qGetUsage(up, period)) === 5,
-    `5 parallele Kanäle bei Rest 4 → genau 4 Erfolge (Zähler 5) + 1 USAGE_LIMIT (blocked=${blocked})`,
+    won === 2 && blocked === 3 && (await qGetUsage(up, period)) === 3,
+    `5 parallele Kanäle bei Rest 2 → genau 2 Erfolge (Zähler 3) + 3 USAGE_LIMIT (blocked=${blocked})`,
   );
 
   // ── A3. Bild = 1 (image-studio generateImageServer) ────────────────────────
@@ -191,7 +196,7 @@ async function main() {
   check((await qGetUsage(ut, period)) === 0, 'Scoring/Qualitäts-Prüfung (kein Guard-Pfad) → Zähler bleibt 0');
 
   // ── A6. Owner-Override: auch bei count = LIMIT immer erlaubt ───────────────
-  console.log('\n[A6] Owner-Override (user_3H2tr…): immer erlaubt — auch bei count = Limit');
+  console.log('\n[A6] Owner-Override (Owner-Clerk-ID): immer erlaubt — auch bei count = Limit');
   check(isAdminOverride(OWNER_ID) && ADMIN_OVERRIDE_USER_IDS.has(OWNER_ID), 'Owner-ID im Override-Set');
   const ownerRows = await sql`SELECT id FROM users WHERE clerk_id=${OWNER_ID} LIMIT 1`;
   const ownerUid = ownerRows.length ? String((ownerRows[0] as { id: string }).id) : null;

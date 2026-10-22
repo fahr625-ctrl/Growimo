@@ -128,7 +128,7 @@ export const en: EnShape = {
   landing_pricing_free_period: '/month',
   landing_pricing_free_desc: 'Perfect to try it out',
   landing_pricing_free_features: [
-    '5 generations per month',
+    '3 free generations (one-time)',
     'All 8 content types',
     'Basic analytics',
     'Community support',
@@ -169,7 +169,7 @@ export const en: EnShape = {
     'You describe your product idea in one sentence, choose the content types you want, and our AI generates everything in seconds. No complicated prompts, no templates, no prior knowledge needed.',
   landing_faq_q2: 'Is there a free trial?',
   landing_faq_a2:
-    'Yes! Our Free plan offers 5 free generations per month — no credit card required. This lets you try Growimo at your own pace.',
+    'Yes! Our Free plan includes 3 free generations — one-time per account and no credit card required. This lets you try Growimo at your own pace. After that, a subscription is needed for further AI features.',
   landing_faq_q3: 'Which platforms are supported?',
   landing_faq_a3:
     'Growimo generates content for Pinterest, Etsy, Instagram, Facebook, TikTok, email platforms, and your blog. More platforms are planned.',
@@ -573,12 +573,12 @@ export const en: EnShape = {
   billing_status_cancelled_until: 'Canceled – active until %s',
   billing_cancelled_hint: 'Your plan stays active until the end of the current period and will not renew.',
   billing_pro_desc: 'Pro plan: 200 AI generations per month.',
-  billing_free_desc: 'You are on the Free plan with limited generations (5/month).',
+  billing_free_desc: 'You are on the Free plan with 3 free generations (one-time, no monthly reset).',
   billing_period_ends: 'Current period ends:', billing_manage_subscription: 'Manage subscription', billing_redirecting: 'Redirecting...',
   billing_upgrade_pro: 'Upgrade to Pro', billing_view_plans: 'View plans', billing_usage_title: 'Usage this month',
   billing_generations: 'AI generations', billing_usage_of: '%s of %s',
   billing_remaining_singular: '%d generation left this month.', billing_remaining_plural: '%d generations left this month.',
-  billing_limit_used_up: 'You have used up all your free generations for this month.',
+  billing_limit_used_up: 'You have used up your 3 free generations.',
   billing_unlimited: 'Pro: 200 AI generations per month — plenty for active growth.',
   billing_refresh_status: 'Refresh status',
   billing_session_pending: 'Payment is being processed …',
@@ -867,23 +867,33 @@ export const en: EnShape = {
   // ── Limits ───────────────────────────────────────────────────────────────────
   usage_limit_title: 'Limit reached',
   usage_limit_desc:
-    'You have used all %d free generations for this month. With Pro you get 200 AI generations per month and the full Growimo feature set.',
+    'You have used all %d free generations. With Pro you get 200 AI generations per month and the full Growimo feature set.',
   usage_limit_cta: 'View plans',
   usage_limit_later: 'Maybe later',
-  usage_limit_alert: 'Limit reached. Upgrade to Pro for unlimited generations.',
+  usage_limit_alert: 'Limit reached. Upgrade to Pro for 200 generations per month.',
   usage_limit_generation_error: 'Generation error. Please try again.',
-  // Phase 8.2 — server-side monthly limit (Free 5 / Pro 200, since 2026-09-12).
-  usage_limit_exhausted: 'Your monthly limit is used up (5/month on the Free plan). Upgrade for 200 per month.',
+  // Phase 8.2 — server-side limit. Owner decision 2026-10-22: Free is ONE-TIME
+  // (3, no monthly reset), Pro stays 200/month.
+  usage_limit_exhausted: 'Your 3 free generations are used up. For more you need a subscription (Pro €19/month).',
   usage_rate_limit: 'Too many requests. Please wait a moment.',
   // Phase 8.4a — remaining counter + limit banner in the dashboard (since 2026-09-16).
   usage_remaining_singular: '%d of %d generation remaining',
   usage_remaining_plural: '%d of %d generations remaining',
+  // The Free quota is ONE-TIME (owner decision 2026-10-22): own wording so the
+  // remaining counter does not read like a monthly allowance.
+  usage_remaining_free_singular: '%d of %d free generation remaining',
+  usage_remaining_free_plural: '%d of %d free generations remaining',
   usage_banner_title: 'Monthly limit reached',
+  usage_banner_title_free: 'Free generations used up',
   usage_banner_count: '(%d/%d)',
-  usage_banner_free: 'Your free quota is used up. With Pro you get 200 generations per month.',
+  usage_banner_free: 'Your 3 free generations are used up (one-time). With Pro you get 200 generations per month.',
   usage_banner_pro: 'Your Pro quota is used up. New generations become available again next month.',
   usage_banner_upgrade: 'Upgrade to Pro',
   usage_banner_plans: 'View plans',
+  // R4 (owner decision 2026-10-22): visible notice in the strategy/package/
+  // stream run when the quota is exhausted (previously console only).
+  quota_subscription_required:
+    'Quota exhausted — a subscription is required for more generations (Pro €19/month).',
 
   // ── Billing ──────────────────────────────────────────────────────────────────
   billing_manage: 'Manage billing',
@@ -1083,7 +1093,7 @@ export const en: EnShape = {
   // Start Free CTA banner
   cta_banner_headline: 'Start growing today — free.',
   cta_banner_text: 'Create your first Pinterest pins, Etsy listings and SEO content in seconds. No credit card required.',
-  cta_banner_benefit1: 'Free plan with 5 generations per month',
+  cta_banner_benefit1: 'Free plan with 3 generations (one-time)',
   cta_banner_benefit2: 'All content types included',
   cta_banner_benefit3: 'Cancel anytime',
   cta_banner_button: 'Start Free',
@@ -1099,7 +1109,7 @@ export const en: EnShape = {
   faq_q4: 'Are the results immediately usable?',
   faq_a4: 'Content can be directly copied, saved, and edited. Users should review product details and brand-specific claims before publishing.',
   faq_q5: 'How much does Growimo cost?',
-  faq_a5: 'The Free plan is free forever and includes 5 generations per month. The Pro plan costs €19 per month (€190 per year) and includes 200 generations. No credit card is needed for the Free plan.',
+  faq_a5: 'The Free plan includes 3 free generations — one-time per account, no credit card needed. The Pro plan costs €19 per month (€190 per year) and includes 200 generations per month.',
   faq_q6: 'Does Growimo invent product features?',
   faq_a6: 'Growimo is designed to use only the information the user provides about the product. Unconfirmed claims must not be presented as facts.',
 
@@ -1175,7 +1185,7 @@ export const en: EnShape = {
   beta_welcome_title: '🎉 Welcome to Growimo',
   beta_welcome_subtitle: 'Great to have you here. Below you find your first steps and everything you need for a good start.',
   beta_benefit1_title: 'All core features available',
-  beta_benefit1_text: 'On the Free plan you create 5 generations per month — no credit card needed.',
+  beta_benefit1_text: 'On the Free plan you create 3 generations (one-time) — no credit card needed.',
   beta_benefit2_title: 'Direct contact with the developer',
   beta_benefit2_text: 'Your feedback reaches us directly. We listen and we build.',
   beta_benefit3_title: 'Upgrade to Pro when you are ready',

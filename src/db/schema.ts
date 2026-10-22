@@ -223,8 +223,9 @@ CREATE INDEX IF NOT EXISTS idx_analytics_visitor_created ON analytics_events(vis
 -- (Server-Zeit). 1 Zeile pro Nutzer+Monat — PRIMARY KEY (user_id, period)
 -- verhindert Doppelzählung. Monatswechsel ergibt sich automatisch über den
 -- period-Schlüssel — kein Cleanup-Job nötig, alte Monate bleiben als Historie.
--- Werte: Free = 5/Monat, Pro = 200/Monat, 1 Bild = 1, Strategie-Kanal = 1,
--- interne Retries/Scoring/Verbessern = 0.
+-- Werte (Owner-Entscheidung 2026-10-22): Free = 3 einmalig pro Nutzer (period
+-- = 'once', kein Rollover), Pro = 200/Monat (period = 'YYYY-MM'), 1 Bild = 1,
+-- Strategie-Kanal = 1, interne Retries/Scoring/Verbessern = 0.
 CREATE TABLE IF NOT EXISTS usage_monthly (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   period TEXT NOT NULL,

@@ -1075,8 +1075,13 @@ export async function qGetTrackingReport(
 
 // ── Phase 8.2 Usage-/Limit-System (usage_monthly + generation_throttle) ──────
 // Owner-Entscheidung 2026-09-12: Free = 5 Generierungen/Monat, Pro = 200/Monat.
-// Der Zähler ist pro (user_id, period 'YYYY-MM') — der Monatswechsel ergibt
-// sich automatisch über den period-Schlüssel (kein Cleanup nötig).
+// Owner-Entscheidung 2026-10-22 (ersetzt das Free-Monatslimit): Free = 3
+// Generierungen EINMALIG pro Nutzer — sie liegen in der Pseudo-Periode 'once'
+// (kein Rollover, kein Reset bei Kündigung), Pro bleibt 200/Monat.
+// Der Zähler ist pro (user_id, period) — bei Pro ergibt sich der Monatswechsel
+// automatisch über den 'YYYY-MM'-Schlüssel (kein Cleanup nötig), bei Free gibt
+// es genau eine 'once'-Zeile pro Nutzer. Die Periode bestimmt ausschließlich
+// usagePeriodForPlan() in src/lib/usage-guard.ts.
 
 /** Monatszähler eines Nutzers lesen (clerk_id). Fehlende Zeile → 0. */
 export async function qGetUsage(userId: string, period: string): Promise<number> {
@@ -1144,13 +1149,19 @@ export async function qGetPlanTier(userId: string): Promise<'free' | 'pro'> {
   return rows.length > 0 && rows[0].plan_tier === 'pro' ? 'pro' : 'free';
 }
 
-/** Restkontingent = Limit − Verbrauch (nie negativ). */
+/**
+ * Restkontingent = Limit − Verbrauch (nie negativ).
+ * `limit` kommt vom Aufrufer (usage-guard → limitForPlan), damit die eine
+ * Limit-Quelle erhalten bleibt und hier KEINE zweite, hartkodierte Zahl
+ * existiert (Owner-Entscheidung 2026-10-22: Free 3 einmalig / Pro 200). Ein
+ * Import von usage-guard wäre hier ein Zyklus (usage-guard importiert dieses
+ * Modul).
+ */
 export async function qGetRemaining(
   userId: string,
-  planTier: 'free' | 'pro',
   period: string,
+  limit: number,
 ): Promise<number> {
-  const limit = planTier === 'pro' ? 200 : 5;
   const used = await qGetUsage(userId, period);
   return Math.max(limit - used, 0);
 }

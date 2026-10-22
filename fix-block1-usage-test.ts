@@ -27,6 +27,7 @@ import {
   FREE_LIMIT,
   UsageLimitError,
   currentPeriod,
+  FREE_ONCE_PERIOD,
   getUsageInfo,
   isAdminOverride,
   limitForPlan,
@@ -58,7 +59,8 @@ const check = (cond: boolean, label: string) => {
   }
 };
 const src = (p: string) => readFileSync(p, 'utf8');
-const period = currentPeriod();
+// Owner-Entscheidung 2026-10-22: Free-Kontingent liegt in der Periode 'once'.
+const period = FREE_ONCE_PERIOD;
 
 async function main() {
   console.log('— fix-block1-usage-test —\n');
@@ -201,7 +203,7 @@ async function main() {
     await recordGeneration(U_LIMIT, 'de', { action: 'generate_content', detail: 'pinterest_pin' });
   }
   const limitUsed = await qGetUsage(U_LIMIT, period);
-  check(limitUsed === FREE_LIMIT, `5 Verbräuche → Zähler ${limitUsed}/${FREE_LIMIT}`);
+  check(limitUsed === FREE_LIMIT, `${FREE_LIMIT} Verbräuche → Zähler ${limitUsed}/${FREE_LIMIT}`);
   let ranOnLimit = false;
   let limitErr: unknown = null;
   try {
@@ -217,7 +219,7 @@ async function main() {
   const limitEvents = await qGetUsageEvents(U_LIMIT, 20);
   check(
     limitEvents.length === FREE_LIMIT,
-    `Ledger hat genau ${FREE_LIMIT} Zeilen (blockierter 6. Verbrauch schreibt nichts: ${limitEvents.length})`,
+    `Ledger hat genau ${FREE_LIMIT} Zeilen (blockierter nächster Verbrauch schreibt nichts: ${limitEvents.length})`,
   );
   check(
     limitEvents.every((e) => e.action === 'generate_content'),

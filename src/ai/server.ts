@@ -198,11 +198,24 @@ Generiere eine verbesserte Version des ${channelLabel}. Behalte das gleiche Form
     const { generateContent } = await import('./generate');
     // Phase 8.2 — Verbessern zählt 0 Generierungen (Owner-Entscheidung), aber
     // die Drossel (2 s) gilt auch hier (LLM-Kosten).
+    // P3 (Owner-Entscheidung 2026-10-22): „Nach den 3 Gratisgenerierungen sind
+    // ALLE KI-Funktionen nur mit aktivem Abo nutzbar" — deshalb ist dieser
+    // 0-Einheiten-Pfad bei erschöpftem Kontingent fail-closed gesperrt
+    // (assertCanGenerate, verbraucht selbst nichts). Nur der Fall „keine
+    // Sitzung" bleibt wie bisher (kein harter Guard) — der UsageLimitError
+    // wird NIE geschluckt.
+    // Der Guard-Modul-Import liegt AUSSERHALB des try: nur so ist die Klasse
+    // UsageLimitError im catch verfügbar und der Kontingent-Fehler wird
+    // garantiert weitergeworfen (nie still geschluckt).
+    const g = await usageGuard();
     try {
-      const g = await usageGuard();
       const uid = await guardUserId();
       await g.assertRateOk(uid);
-    } catch { /* ohne Sitzung: Verbessern läuft wie bisher (kein harter Guard) */ }
+      await g.assertCanGenerate(uid);
+    } catch (err) {
+      if (err instanceof g.UsageLimitError) throw err;
+      /* ohne Sitzung: Verbessern läuft wie bisher (kein harter Guard) */
+    }
     const result = await generateContent(improvementRequest);
     console.log('[server.improveContent] Result:', result.title);
     return result;
@@ -240,11 +253,19 @@ export const improveByScoreServer = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<ImproveOutcome> => {
     console.log('[server.improveByScore]', data.contentType, 'old score:', data.score.total);
     // Phase 8.2 — Auto-Verbessern = 0 Generierungen; nur Drossel.
+    // P3 (Owner-Entscheidung 2026-10-22): 0-Einheiten-Pfad, aber bei
+    // erschöpftem Kontingent fail-closed gesperrt (assertCanGenerate verbraucht
+    // selbst nichts). Nur „keine Sitzung" bleibt wie bisher — der
+    // UsageLimitError wird NIE geschluckt.
+    const g = await usageGuard();
     try {
-      const g = await usageGuard();
       const uid = await guardUserId();
       await g.assertRateOk(uid);
-    } catch { /* ohne Sitzung unverändert laufen lassen */ }
+      await g.assertCanGenerate(uid);
+    } catch (err) {
+      if (err instanceof g.UsageLimitError) throw err;
+      /* ohne Sitzung unverändert laufen lassen */
+    }
     const { improveByScore } = await import('./improve');
     const outcome = await improveByScore(
       { contentType: data.contentType, productIdea: data.productIdea },
@@ -302,11 +323,19 @@ export const improveToScoreServer = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<ImproveOutcome> => {
     console.log('[server.improveToScore]', data.contentType, 'old:', data.score.total, 'target:', data.target);
     // Phase 8.2 — Auto-Verbessern = 0 Generierungen; nur Drossel.
+    // P3 (Owner-Entscheidung 2026-10-22): 0-Einheiten-Pfad, aber bei
+    // erschöpftem Kontingent fail-closed gesperrt (assertCanGenerate verbraucht
+    // selbst nichts). Nur „keine Sitzung" bleibt wie bisher — der
+    // UsageLimitError wird NIE geschluckt.
+    const g = await usageGuard();
     try {
-      const g = await usageGuard();
       const uid = await guardUserId();
       await g.assertRateOk(uid);
-    } catch { /* ohne Sitzung unverändert laufen lassen */ }
+      await g.assertCanGenerate(uid);
+    } catch (err) {
+      if (err instanceof g.UsageLimitError) throw err;
+      /* ohne Sitzung unverändert laufen lassen */
+    }
     const { improveToScore } = await import('./improve');
     const outcome = await improveToScore(
       { contentType: data.contentType, productIdea: data.productIdea },
@@ -371,11 +400,19 @@ export const autoImproveSectionServer = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<AutoImproveSectionOutcome> => {
     console.log('[server.autoImproveSection]', data.contentType, 'field:', data.field);
     // Phase 8.2 — bereichsgenaues Auto-Verbessern = 0 Generierungen; nur Drossel.
+    // P3 (Owner-Entscheidung 2026-10-22): 0-Einheiten-Pfad, aber bei
+    // erschöpftem Kontingent fail-closed gesperrt (assertCanGenerate verbraucht
+    // selbst nichts). Nur „keine Sitzung" bleibt wie bisher — der
+    // UsageLimitError wird NIE geschluckt.
+    const g = await usageGuard();
     try {
-      const g = await usageGuard();
       const uid = await guardUserId();
       await g.assertRateOk(uid, { lang: data.lang });
-    } catch { /* ohne Sitzung unverändert laufen lassen */ }
+      await g.assertCanGenerate(uid, data.lang);
+    } catch (err) {
+      if (err instanceof g.UsageLimitError) throw err;
+      /* ohne Sitzung unverändert laufen lassen */
+    }
     const { autoImproveSection } = await import('./auto-improve');
     const original: ContentResult = {
       contentType: data.contentType,
@@ -513,11 +550,19 @@ export const prioritizeServer = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<PrioritizeOutcome | null> => {
     console.log('[server.prioritize]', data.assets.length, 'assets, lang:', data.lang);
     // Phase 8.2 — Priorisierung = Analyse = 0 Generierungen; nur Drossel.
+    // P3 (Owner-Entscheidung 2026-10-22): 0-Einheiten-Pfad, aber bei
+    // erschöpftem Kontingent fail-closed gesperrt (assertCanGenerate verbraucht
+    // selbst nichts). Nur „keine Sitzung" bleibt wie bisher — der
+    // UsageLimitError wird NIE geschluckt.
+    const g = await usageGuard();
     try {
-      const g = await usageGuard();
       const uid = await guardUserId();
       await g.assertRateOk(uid, { lang: data.lang });
-    } catch { /* ohne Sitzung unverändert laufen lassen */ }
+      await g.assertCanGenerate(uid, data.lang);
+    } catch (err) {
+      if (err instanceof g.UsageLimitError) throw err;
+      /* ohne Sitzung unverändert laufen lassen */
+    }
     const { prioritizeChannels } = await import('./prioritize');
     const outcome = await prioritizeChannels(data.assets, {
       productIdea: data.productIdea,

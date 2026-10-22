@@ -125,7 +125,7 @@ export const de = {
   landing_pricing_free_period: '/Monat',
   landing_pricing_free_desc: 'Perfekt zum Ausprobieren',
   landing_pricing_free_features: [
-    '5 Generierungen pro Monat',
+    '3 kostenlose Generierungen (einmalig)',
     'Alle 8 Content-Typen',
     'Basis-Analyse',
     'Community-Support',
@@ -166,7 +166,7 @@ export const de = {
     'Du beschreibst deine Produktidee in einem Satz, wählst die gewünschten Content-Typen aus und unsere KI generiert alles in Sekunden. Keine komplizierten Prompts, keine Templates, kein Vorwissen nötig.',
   landing_faq_q2: 'Gibt es eine kostenlose Testversion?',
   landing_faq_a2:
-    'Ja! Unser Free-Tarif bietet 5 kostenlose Generierungen pro Monat — ohne Kreditkarte. So kannst du Growimo in Ruhe ausprobieren.',
+    'Ja! Unser Free-Tarif enthält 3 kostenlose Generierungen — einmalig pro Konto und ohne Kreditkarte. So kannst du Growimo in Ruhe ausprobieren. Danach brauchst du für weitere KI-Funktionen ein Abo.',
   landing_faq_q3: 'Welche Plattformen werden unterstützt?',
   landing_faq_a3:
     'Growimo generiert Inhalte für Pinterest, Etsy, Instagram, Facebook, TikTok, E-Mail-Plattformen und deinen Blog. Weitere Plattformen sind in Planung.',
@@ -570,12 +570,12 @@ export const de = {
   billing_status_cancelled_until: 'Gekündigt – läuft bis %s',
   billing_cancelled_hint: 'Dein Abo bleibt bis zum Ende des laufenden Zeitraums aktiv und verlängert sich danach nicht.',
   billing_pro_desc: 'Pro-Tarif: 200 KI-Generierungen pro Monat.',
-  billing_free_desc: 'Du bist im Free-Tarif mit begrenzten Generierungen (5/Monat).',
+  billing_free_desc: 'Du bist im Free-Tarif mit 3 kostenlosen Generierungen (einmalig, kein Monats-Reset).',
   billing_period_ends: 'Aktueller Zeitraum endet:', billing_manage_subscription: 'Abonnement verwalten', billing_redirecting: 'Wird weitergeleitet...',
   billing_upgrade_pro: 'Zu Pro wechseln', billing_view_plans: 'Pläne ansehen', billing_usage_title: 'Nutzung diesen Monat',
   billing_generations: 'KI-Generierungen', billing_usage_of: '%s von %s',
   billing_remaining_singular: '%d Generierung in diesem Monat übrig.', billing_remaining_plural: '%d Generierungen in diesem Monat übrig.',
-  billing_limit_used_up: 'Du hast alle deine kostenlosen Generierungen für diesen Monat genutzt.',
+  billing_limit_used_up: 'Du hast deine 3 kostenlosen Generierungen aufgebraucht.',
   billing_unlimited: 'Pro: 200 KI-Generierungen pro Monat — genug für aktives Wachstum.',
   billing_refresh_status: 'Status aktualisieren',
   billing_session_pending: 'Zahlung wird verarbeitet …',
@@ -869,23 +869,33 @@ export const de = {
   // ── Limits ───────────────────────────────────────────────────────────────────
   usage_limit_title: 'Limit erreicht',
   usage_limit_desc:
-    'Du hast alle %d kostenlosen Generierungen für diesen Monat genutzt. Mit Pro erhältst du 200 KI-Generierungen pro Monat und den vollen Funktionsumfang von Growimo.',
+    'Du hast alle %d kostenlosen Generierungen genutzt. Mit Pro erhältst du 200 KI-Generierungen pro Monat und den vollen Funktionsumfang von Growimo.',
   usage_limit_cta: 'Pläne ansehen',
   usage_limit_later: 'Vielleicht später',
-  usage_limit_alert: 'Limit erreicht. Wechsle zu Pro für unbegrenzte Generierungen.',
+  usage_limit_alert: 'Limit erreicht. Wechsle zu Pro für 200 Generierungen pro Monat.',
   usage_limit_generation_error: 'Fehler beim Generieren. Bitte versuche es erneut.',
-  // Phase 8.2 — serverseitiges Monatslimit (Free 5 / Pro 200, ab 2026-09-12).
-  usage_limit_exhausted: 'Dein monatliches Limit ist aufgebraucht (5/Monat im Free-Plan). Upgrade für 200 pro Monat.',
+  // Phase 8.2 — serverseitiges Limit. Owner-Entscheidung 2026-10-22: Free ist
+  // EINMALIG (3, kein Monats-Reset), Pro bleibt 200/Monat.
+  usage_limit_exhausted: 'Deine 3 kostenlosen Generierungen sind aufgebraucht. Für weitere brauchst du ein Abo (Pro 19 €/Monat).',
   usage_rate_limit: 'Zu viele Anfragen. Bitte einen Moment warten.',
   // Phase 8.4a — Rest-Anzeige + Limit-Banner im Dashboard (ab 2026-09-16).
   usage_remaining_singular: '%d von %d Generierung verbleibend',
   usage_remaining_plural: '%d von %d Generierungen verbleibend',
+  // Free-Kontingent ist EINMALIG (Owner-Entscheidung 2026-10-22): eigenes
+  // Wording, damit der Rest nicht wie ein Monats-Rest klingt.
+  usage_remaining_free_singular: '%d von %d kostenloser Generierung verbleibend',
+  usage_remaining_free_plural: '%d von %d kostenlosen Generierungen verbleibend',
   usage_banner_title: 'Monatslimit erreicht',
+  usage_banner_title_free: 'Kostenlose Generierungen aufgebraucht',
   usage_banner_count: '(%d/%d)',
-  usage_banner_free: 'Dein Free-Kontingent ist aufgebraucht. Mit Pro erhältst du 200 Generierungen pro Monat.',
+  usage_banner_free: 'Deine 3 kostenlosen Generierungen sind einmalig aufgebraucht. Mit Pro erhältst du 200 Generierungen pro Monat.',
   usage_banner_pro: 'Dein Pro-Kontingent ist aufgebraucht. Neue Generierungen sind ab dem nächsten Monat wieder möglich.',
   usage_banner_upgrade: 'Zu Pro upgraden',
   usage_banner_plans: 'Pläne ansehen',
+  // R4 (Owner-Entscheidung 2026-10-22): sichtbarer Hinweis im Strategie-/
+  // Paket-/Stream-Lauf, wenn das Kontingent erschöpft ist (vorher nur Konsole).
+  quota_subscription_required:
+    'Kontingent erschöpft — für weitere Generierungen ist ein Abo nötig (Pro 19 €/Monat).',
 
   // ── Billing ──────────────────────────────────────────────────────────────────
   billing_manage: 'Abrechnung verwalten',
@@ -1086,7 +1096,7 @@ export const de = {
   // Start Free CTA banner
   cta_banner_headline: 'Starte noch heute – kostenlos.',
   cta_banner_text: 'Erstelle deine ersten Pinterest-Pins, Etsy-Listings und SEO-Inhalte in Sekunden. Keine Kreditkarte nötig.',
-  cta_banner_benefit1: 'Kostenloser Plan mit 5 Generierungen pro Monat',
+  cta_banner_benefit1: 'Kostenloser Plan mit 3 Generierungen (einmalig)',
   cta_banner_benefit2: 'Alle Content-Typen inklusive',
   cta_banner_benefit3: 'Jederzeit kündbar',
   cta_banner_button: 'Kostenlos starten',
@@ -1102,7 +1112,7 @@ export const de = {
   faq_q4: 'Sind die Ergebnisse sofort verwendbar?',
   faq_a4: 'Die Inhalte können direkt kopiert, gespeichert und weiterbearbeitet werden. Nutzer sollten Produktangaben und markenspezifische Aussagen vor der Veröffentlichung prüfen.',
   faq_q5: 'Was kostet Growimo?',
-  faq_a5: 'Der Free-Tarif ist dauerhaft kostenlos und enthält 5 Generierungen pro Monat. Der Pro-Tarif kostet 19 € pro Monat (Jahresplan 190 €) und enthält 200 Generierungen. Für den Free-Tarif brauchst du keine Kreditkarte.',
+  faq_a5: 'Der Free-Tarif enthält 3 kostenlose Generierungen — einmalig pro Konto, ohne Kreditkarte. Der Pro-Tarif kostet 19 € pro Monat (Jahresplan 190 €) und enthält 200 Generierungen pro Monat.',
   faq_q6: 'Erfindet Growimo Produkteigenschaften?',
   faq_a6: 'Growimo soll ausschließlich die Angaben verwenden, die der Nutzer zum Produkt bereitstellt. Nicht bestätigte Angaben dürfen nicht als Fakten dargestellt werden.',
 
@@ -1179,7 +1189,7 @@ export const de = {
   beta_welcome_title: '🎉 Willkommen bei Growimo',
   beta_welcome_subtitle: 'Schön, dass du da bist. Hier findest du deine ersten Schritte und alles, was du für den Start brauchst.',
   beta_benefit1_title: 'Alle Kernfunktionen nutzbar',
-  beta_benefit1_text: 'Im Free-Tarif erstellst du 5 Generierungen pro Monat — ohne Kreditkarte.',
+  beta_benefit1_text: 'Im Free-Tarif erstellst du 3 Generierungen (einmalig) — ohne Kreditkarte.',
   beta_benefit2_title: 'Direkter Kontakt zum Entwickler',
   beta_benefit2_text: 'Dein Feedback erreicht uns direkt. Wir hören zu und setzen um.',
   beta_benefit3_title: 'Auf Pro wechseln, wenn du bereit bist',

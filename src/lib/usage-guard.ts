@@ -3,6 +3,17 @@
 //   Free = 5 Generierungen/Monat · Pro = 200/Monat · 1 Bild = 1 Generierung ·
 //   Strategie-Paket = 1 pro Kanal · interne Retries/Scoring/Verbessern = 0.
 //
+// OWNER-ENTSCHEIDUNG 2026-10-22 (verbindlich, ersetzt das Free-Monatslimit):
+//   Free = 3 Generierungen EINMALIG pro Nutzer (kein Monats-Reset), danach ist
+//   jede KI-Funktion nur mit aktivem Pro-Abo nutzbar. Pro = unverändert
+//   200/Monat. Kündigung eines Pro-Abos setzt das einmalige Gratis-Kontingent
+//   NICHT zurück (die Zeile bleibt mit ihrem count bestehen). Bestands-Beta-
+//   Nutzer erhalten dieselben 3 einmaligen Gratisgenerierungen; früherer
+//   Free-Verbrauch (alte 'YYYY-MM'-Zeilen) zählt ab dem Stichtag nicht mehr.
+//   Umsetzung: Free-Verbrauch liegt in der Pseudo-Periode 'once'
+//   (FREE_ONCE_PERIOD) — dieselbe atomare, konditionale Mechanik wie Pro,
+//   nur ohne Monats-Rollover.
+//
 // FIX-BLOCK 1 (Owner-Auftrag 2026-10-08, verbindlich): Die TikTok-Diagnose v2
 // und der A/B-Varianten-Abruf sind kostenpflichtige KI-Funktionen (vollwertige
 // LLM-Generierungen mit neuem Ergebnis) und zählen daher je 1 Generierung —
@@ -34,7 +45,20 @@ import {
   qTryThrottle,
 } from '../db/queries';
 
-export const FREE_LIMIT = 5;
+export const FREE_ONCE_GRANT = 3;
+/**
+ * Alias auf {@link FREE_ONCE_GRANT} — Bestandsname für Aufrufer/Suiten, die das
+ * Free-Limit unter „FREE_LIMIT" lesen. Einzige Quelle bleibt FREE_ONCE_GRANT
+ * (bzw. limitForPlan()); der Alias existiert nur, damit kein Aufrufer still eine
+ * zweite, abweichende Zahl mitführt.
+ */
+export const FREE_LIMIT = FREE_ONCE_GRANT;
+/**
+ * Pseudo-Periode des EINMALIGEN Free-Kontingents (Owner-Entscheidung
+ * 2026-10-22). Kein Monats-Rollover: die Zeile in usage_monthly bleibt für
+ * immer bestehen — auch nach einer Kündigung des Pro-Abos (kein Reset).
+ */
+export const FREE_ONCE_PERIOD = 'once';
 export const PRO_LIMIT = 200;
 /** Minimaler Abstand zwischen zwei Generierungen desselben Nutzers (Drossel). */
 export const RATE_WINDOW_MS = 2000;
@@ -91,19 +115,44 @@ export function currentPeriod(d: Date = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-export function limitForPlan(planTier: 'free' | 'pro'): number {
-  return planTier === 'pro' ? PRO_LIMIT : FREE_LIMIT;
+/**
+ * Periode, in der das Kontingent des Tarifs liegt:
+ *   · free → FREE_ONCE_PERIOD ('once'): einmalig pro Nutzer, KEIN Rollover —
+ *     auch ein Monatswechsel oder eine Pro-Kündigung setzt nichts zurück.
+ *   · pro  → currentPeriod() ('YYYY-MM'): 200 pro Kalendermonat, Rollover am
+ *     Monatsersten (unverändert wie seit 2026-09-12).
+ * EINZIGE Stelle, die die Periode tarifabhängig bestimmt — alle Verbrauchs-,
+ * Kompensations- und Anzeige-Pfade gehen hier durch.
+ */
+export function usagePeriodForPlan(
+  planTier: 'free' | 'pro',
+  d: Date = new Date(),
+): string {
+  return planTier === 'pro' ? currentPeriod(d) : FREE_ONCE_PERIOD;
 }
 
-/** Exakte, vom Owner vorgegebene Limit-Meldung (de/en). */
+export function limitForPlan(planTier: 'free' | 'pro'): number {
+  return planTier === 'pro' ? PRO_LIMIT : FREE_ONCE_GRANT;
+}
+
+/**
+ * Limit-Meldung (de/en).
+ * Free (Owner-Entscheidung 2026-10-22): KEIN „monatlich" mehr — das Kontingent
+ * ist einmalig, danach ist ein Abo nötig. Pro: unverändert monatlich.
+ */
 export function usageLimitMessage(
   lang: 'de' | 'en',
   planTier: 'free' | 'pro',
   limit: number,
 ): string {
+  if (planTier === 'pro') {
+    return lang === 'en'
+      ? `Your monthly limit is used up (${limit}/month on the Pro plan). Upgrade for ${PRO_LIMIT} per month.`
+      : `Dein monatliches Limit ist aufgebraucht (${limit}/Monat im Pro-Plan). Upgrade für ${PRO_LIMIT} pro Monat.`;
+  }
   return lang === 'en'
-    ? `Your monthly limit is used up (${limit}/month on the ${planTier === 'pro' ? 'Pro' : 'Free'} plan). Upgrade for ${PRO_LIMIT} per month.`
-    : `Dein monatliches Limit ist aufgebraucht (${limit}/Monat im ${planTier === 'pro' ? 'Pro' : 'Free'}-Plan). Upgrade für ${PRO_LIMIT} pro Monat.`;
+    ? `Your ${limit} free generations are used up — for more you need a subscription (Pro 19 €/month).`
+    : `Deine ${limit} kostenlosen Generierungen sind aufgebraucht — für weitere brauchst du ein Abo (Pro 19 €/Monat).`;
 }
 
 export interface UsageInfo {
@@ -147,8 +196,8 @@ export const USAGE_ACTIONS = {
 export async function getUsageInfo(clerkUserId: string): Promise<UsageInfo> {
   const planTier = await qGetPlanTier(clerkUserId);
   const limit = limitForPlan(planTier);
-  const period = currentPeriod();
-  const remaining = await qGetRemaining(clerkUserId, planTier, period);
+  const period = usagePeriodForPlan(planTier);
+  const remaining = await qGetRemaining(clerkUserId, period, limit);
   return { used: limit - remaining, remaining, limit, planTier, period };
 }
 
@@ -196,7 +245,7 @@ export async function recordGeneration(
   }
   const planTier = await qGetPlanTier(clerkUserId);
   const limit = limitForPlan(planTier);
-  const period = currentPeriod();
+  const period = usagePeriodForPlan(planTier);
   const next = await qIncrementUsage(clerkUserId, period, limit);
   if (next == null) {
     throw new UsageLimitError(usageLimitMessage(lang, planTier, limit), {
@@ -217,9 +266,14 @@ export async function recordGeneration(
   return { remaining: Math.max(limit - next, 0), limit, used: next };
 }
 
-/** Fehlgeschlagene Generierung kompensieren (Zähler −1, mindestens 0). */
+/**
+ * Fehlgeschlagene Generierung kompensieren (Zähler −1, mindestens 0).
+ * Die Periode wird tarifabhängig bestimmt (free → 'once', pro → 'YYYY-MM'):
+ * eine Free-Kompensation darf niemals eine Monatszeile berühren und umgekehrt.
+ */
 export async function releaseGeneration(clerkUserId: string): Promise<void> {
-  await qReleaseUsage(clerkUserId, currentPeriod());
+  const planTier = await qGetPlanTier(clerkUserId);
+  await qReleaseUsage(clerkUserId, usagePeriodForPlan(planTier));
 }
 
 /**
@@ -253,7 +307,7 @@ export async function withGenerationGuard<T>(
   }
   const planTier = await qGetPlanTier(callerId);
   const limit = limitForPlan(planTier);
-  const period = currentPeriod();
+  const period = usagePeriodForPlan(planTier);
   const next = await qIncrementUsage(callerId, period, limit);
   if (next == null) {
     throw new UsageLimitError(usageLimitMessage(lang, planTier, limit), {

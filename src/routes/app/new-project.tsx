@@ -38,6 +38,34 @@ import { canGenerate, recordGeneration } from '~/store/subscriptions';
 import { useServerUsage } from '~/lib/usage-client';
 import { trackEvent } from '~/store/analytics';
 import { analyticsChannelForContentType } from '~/lib/analytics';
+
+/**
+ * R4 (Owner-Entscheidung 2026-10-22): Erkennung eines erschöpften Kontingents
+ * am Fehlertext. Der Server (usage-guard → usageLimitMessage) liefert für Free
+ * und Pro je eine feste Formulierung in der Nutzersprache; beide enthalten
+ * „aufgebraucht" bzw. „used up". Der Stream-Pfad verpackt den UsageLimitError
+ * als Kanal-`error`-Event (message = derselbe Text). Diese Prüfung dient NUR
+ * der Anzeige — die Sperre selbst entscheidet der Server (fail-closed).
+ */
+function isQuotaExhaustedMessage(msg: unknown): boolean {
+  if (typeof msg !== 'string' || msg.length === 0) return false;
+  const s = msg.toLowerCase();
+  return s.includes('aufgebraucht') || s.includes('used up');
+}
+
+/** Wie oben, aber auch für ServerFn-Fehler mit Details in .cause/.data. */
+function isQuotaExhaustedError(err: unknown): boolean {
+  if (isQuotaExhaustedMessage(err instanceof Error ? err.message : err)) return true;
+  try {
+    if (!err || typeof err !== 'object') return false;
+    const e = err as { message?: unknown; cause?: unknown; data?: unknown };
+    return isQuotaExhaustedMessage(
+      JSON.stringify({ message: e.message, cause: e.cause, data: e.data }),
+    );
+  } catch {
+    return false;
+  }
+}
 import { trackAnalytics } from '~/lib/analytics-client';
 import { classifyGenerationError } from '~/lib/analytics-error';
 
@@ -198,6 +226,10 @@ function NewProjectContent() {
   // Upsell modal for usage limits
   const [showUpsell, setShowUpsell] = useState(false);
 
+  // R4 (Owner-Entscheidung 2026-10-22): sichtbarer Hinweis, wenn das
+  // (einmalige) Kontingent erschöpft ist — vorher landete das nur in der Konsole.
+  const [quotaNotice, setQuotaNotice] = useState(false);
+
 
   // ── Cycle loading messages ────────────────────────────────────────────────
   useEffect(() => {
@@ -230,7 +262,9 @@ function NewProjectContent() {
   // FIX-BLOCK 1 (2026-10-08): Rest-/Limit-Anzeige aus der einen DB-Quelle
   // (identisch zum Banner in src/components/UsageStatus.tsx).
   const { usage: serverUsage } = useServerUsage(user?.id);
-  const FREE_LIMIT_FALLBACK = 5;
+  // Owner-Entscheidung 2026-10-22: Free = 3 Generierungen EINMALIG (kein
+  // Monats-Reset). Nur Anzeige-Fallback — die Autorität ist der Server-Guard.
+  const FREE_LIMIT_FALLBACK = 3;
 
   // Restore draft on mount
   useEffect(() => {
@@ -359,6 +393,7 @@ function NewProjectContent() {
 
     const uid = user?.id ?? 'anonymous';
     setErrorMessage(null);
+    setQuotaNotice(false);
 
     // Check usage limits
     if (!canGenerate(uid)) {
@@ -436,6 +471,9 @@ function NewProjectContent() {
             setResults((prev) => [...prev, event.result as ContentResult]);
           } else if (event.type === 'error' && event.stepId) {
             // Isolated: mark only this channel card, keep the rest running.
+            // R4 (Owner 2026-10-22): Ein erschöpftes Kontingent darf nicht nur in
+            // der Konsole landen — der Nutzer bekommt den sichtbaren Abo-Hinweis.
+            if (isQuotaExhaustedMessage(event.message)) setQuotaNotice(true);
             console.error('Channel generation failed (stream):', event.stepId, event.message);
           } else if (event.type === 'fatal') {
             streamFailed = event.message ?? 'Unbekannter Fehler';
@@ -538,9 +576,15 @@ function NewProjectContent() {
       } catch (stringifyError) {
         console.error('Generation failed - could not stringify error:', stringifyError);
       }
-      const message = t.common_unknown_error;
       setResults([]);
-      setErrorMessage(message);
+      // R4 (Owner 2026-10-22): Kontingent-Fehler bekommen den sichtbaren
+      // Abo-Hinweis statt der generischen „Unbekannter Fehler"-Meldung.
+      if (isQuotaExhaustedError(error)) {
+        setQuotaNotice(true);
+        setErrorMessage(null);
+      } else {
+        setErrorMessage(t.common_unknown_error);
+      }
       // Admin-Analytics MVP Phase 1 (additive): finished/error per channel.
       // Phase Analytics-Erweiterung: EINE Klassifizierung für den gesamten
       // fehlgeschlagenen Lauf — alle Kanäle desselben Fehlers erhalten dieselbe
@@ -692,6 +736,24 @@ function NewProjectContent() {
           }}
           onImproveResult={handleImproveResult}
         />
+      )}
+
+      {/* R4 (Owner-Entscheidung 2026-10-22): sichtbarer Kontingent-Hinweis im
+          Strategie-/Paket-/Stream-Lauf (vorher nur Konsole). */}
+      {quotaNotice && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-6 flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p className="text-sm font-semibold text-amber-900">{t.quota_subscription_required}</p>
+          <Link
+            to="/app/pricing"
+            className="inline-flex shrink-0 items-center justify-center rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-amber-700"
+          >
+            {t.usage_banner_upgrade}
+          </Link>
+        </div>
       )}
 
       {/* Upsell Modal */}
