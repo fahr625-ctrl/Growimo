@@ -107,7 +107,11 @@ export function parseSseBlock(block: string): ImageSseEvent | null {
 }
 
 export interface RunImageStreamArgs {
-  body: { prompt: string; aspectRatio: string; referenceImageData?: string };
+  /** `projectId` (K4-B, Owner-Freigabe 2026-10-22): optionale Projekt-Zuordnung
+   *  für die dauerhafte Speicherung — die Route validiert sie als UUID und legt
+   *  das Original mit `generated_images.project_id` ab. Sie berührt WEDER den
+   *  Prompt NOCH die Usage-Zählung (1 Bild = 1, unverändert). */
+  body: { prompt: string; aspectRatio: string; referenceImageData?: string; projectId?: string };
   onPartial: (partial: { index: number; dataUrl: string }) => void;
   signal?: AbortSignal;
   /** Überschreibbar für Tests (Default: globales fetch). */
@@ -225,9 +229,10 @@ export interface StudioImageRunResult {
 async function persistFallbackResult(
   url: string,
   body: { prompt: string; aspectRatio: string; projectId?: string },
+  fetchImpl: typeof fetch = fetch,
 ): Promise<{ saved?: boolean; saveReason?: string; imageId?: string }> {
   try {
-    const response = await fetch('/api/images', {
+    const response = await fetchImpl('/api/images', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
@@ -246,9 +251,11 @@ async function persistFallbackResult(
 }
 
 export async function runStudioImage(args: {
-  body: { prompt: string; aspectRatio: string; referenceImageData?: string };
+  /** `projectId` gehört in den body: so reist es sowohl zum Stream
+   *  (`/api/image/stream`) als auch in die Rückfall-Speicherung (`POST /api/images`). */
+  body: { prompt: string; aspectRatio: string; referenceImageData?: string; projectId?: string };
   fallback: (signal: AbortSignal) => Promise<{ url: string }>;
-  /** K4-B: optionale Projekt-Zuordnung für die Speicherung im Rückfall-Pfad. */
+  /** K4-B: Vorrang-Override für die Speicherung im Rückfall-Pfad (body.projectId bleibt der Default). */
   projectId?: string;
   onPartial: (partial: { index: number; dataUrl: string }) => void;
   signal: AbortSignal;
@@ -282,7 +289,10 @@ export async function runStudioImage(args: {
   } catch (err) {
     if (!(err instanceof ImageStreamUnavailableError) || partialCount > 0) throw err;
     const fallback = await args.fallback(args.signal);
-    const saved = await persistFallbackResult(fallback.url, args.body);
+    const saved = await persistFallbackResult(fallback.url, {
+      ...args.body,
+      projectId: args.projectId ?? args.body.projectId,
+    }, args.fetchImpl ?? fetch);
     return { url: fallback.url, streamed: false, usedFallback: true, mode: 'generate', ...saved };
   }
 }

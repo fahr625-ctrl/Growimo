@@ -571,6 +571,123 @@ check('D18 Text→Bild-Pfad unberührt (images.generate ohne editFidelityOptions
   (gen.match(/client\.images\.generate\(\{/g) ?? []).length === 2 &&
   !/generate\(\{[\s\S]{0,400}editFidelityOptions/.test(gen));
 
+// ── E) projectId-Durchreichung (Owner-Freigabe 2026-10-22) ───────────────────
+// Befund: das Studio schickte die im Dropdown gewählte Projekt-ID nicht mit —
+// alle Originale landeten mit `generated_images.project_id = NULL` und tauchten
+// im Projekt nicht auf. Hier wird die clientseitige Kette belegt: der
+// Stream-Body trägt die ID, ohne Projekt wird sie weggelassen, der
+// Rückfall-Speicherpfad (POST /api/images) trägt sie ebenso — und sie berührt
+// weder den Prompt noch das Format.
+const PROJECT_ID = '5f0f0c1e-1111-4a2b-9c3d-0123456789ab';
+const jsonResponse = (payload: unknown, status = 200) =>
+  new Response(JSON.stringify(payload), { status, headers: { 'content-type': 'application/json' } });
+
+{
+  const calls: Array<{ url: string; body: Record<string, unknown> }> = [];
+  const fetchImpl = (async (url: unknown, init?: RequestInit) => {
+    calls.push({ url: String(url), body: JSON.parse(String(init?.body ?? '{}')) });
+    return sseResponse([{ text: sse({ type: 'done', url: PNG_FINAL, mode: 'generate', partials: 0, usedFallback: false, saved: true, imageId: 'img-1' }) }]);
+  }) as unknown as typeof fetch;
+  const result = await runStudioImage({
+    body: { prompt: 'produkt', aspectRatio: '2:3', projectId: PROJECT_ID },
+    fallback: async () => ({ url: PNG_FINAL }),
+    onPartial: () => {},
+    signal: new AbortController().signal,
+    fetchImpl,
+  });
+  check('E1 Stream-Body trägt die gewählte projectId',
+    calls.length === 1 && calls[0].url === '/api/image/stream' && calls[0].body.projectId === PROJECT_ID);
+  check('E2 projectId verändert weder Prompt noch Format',
+    calls[0].body.prompt === 'produkt' && calls[0].body.aspectRatio === '2:3');
+  check('E3 projektbehafteter Streaming-Lauf bleibt 1 Modell-Call (kein Rückfall)',
+    result.usedFallback === false && result.streamed === false && calls.length === 1);
+}
+
+{
+  // Ohne Projekt bleibt der Request projektlos — das Feld wird nicht gesendet.
+  const bodies: Array<Record<string, unknown>> = [];
+  const fallbackBodies: Array<Record<string, unknown>> = [];
+  const fetchImpl = (async (url: unknown, init?: RequestInit) => {
+    const parsed = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+    if (String(url) === '/api/image/stream') {
+      bodies.push(parsed);
+      return sseResponse([{ text: sse({ type: 'done', url: PNG_FINAL, mode: 'generate', partials: 0, usedFallback: false }) }]);
+    }
+    fallbackBodies.push(parsed);
+    return jsonResponse({ saved: true, imageId: 'img-3' }, 201);
+  }) as unknown as typeof fetch;
+  await runStudioImage({
+    body: { prompt: 'produkt', aspectRatio: '2:3' },
+    fallback: async () => ({ url: PNG_FINAL }),
+    onPartial: () => {},
+    signal: new AbortController().signal,
+    fetchImpl,
+  });
+  check('E4 ohne Projekt kein projectId-Feld im Stream-Body',
+    bodies.length === 1 && !('projectId' in bodies[0]));
+}
+
+{
+  // Rückfall (Route nicht erreichbar) → Speicherung über POST /api/images.
+  const calls: Array<{ url: string; body: Record<string, unknown> }> = [];
+  const fetchImpl = (async (url: unknown, init?: RequestInit) => {
+    const target = String(url);
+    if (target === '/api/image/stream') {
+      return sseResponse([{ text: '<html>Not found</html>' }], { status: 404, contentType: 'text/html' });
+    }
+    calls.push({ url: target, body: JSON.parse(String(init?.body ?? '{}')) });
+    return jsonResponse({ saved: true, imageId: 'img-2' }, 201);
+  }) as unknown as typeof fetch;
+  const result = await runStudioImage({
+    body: { prompt: 'produkt', aspectRatio: '2:3', projectId: PROJECT_ID },
+    fallback: async () => ({ url: PNG_FINAL }),
+    onPartial: () => {},
+    signal: new AbortController().signal,
+    fetchImpl,
+  });
+  check('E5 Rückfall speichert mit derselben projectId (POST /api/images)',
+    result.usedFallback === true && result.saved === true &&
+    calls.length === 1 && calls[0].url === '/api/images' && calls[0].body.projectId === PROJECT_ID);
+}
+
+{
+  // Rückfall OHNE Projekt → POST /api/images ohne projectId (weiterhin projektlos).
+  const calls: Array<{ url: string; body: Record<string, unknown> }> = [];
+  const fetchImpl = (async (url: unknown, init?: RequestInit) => {
+    const target = String(url);
+    if (target === '/api/image/stream') {
+      return sseResponse([{ text: '<html>Not found</html>' }], { status: 404, contentType: 'text/html' });
+    }
+    calls.push({ url: target, body: JSON.parse(String(init?.body ?? '{}')) });
+    return jsonResponse({ saved: true, imageId: 'img-4' }, 201);
+  }) as unknown as typeof fetch;
+  await runStudioImage({
+    body: { prompt: 'produkt', aspectRatio: '2:3' },
+    fallback: async () => ({ url: PNG_FINAL }),
+    onPartial: () => {},
+    signal: new AbortController().signal,
+    fetchImpl,
+  });
+  check('E6 Rückfall ohne Projekt sendet kein projectId',
+    calls.length === 1 && !('projectId' in calls[0].body));
+}
+
+const studioSrc = read('src/routes/app/image-studio.tsx');
+check('E7 Studio reicht die Projekt-ID an BEIDE Aufrufe (Stream + ServerFn, 2 Aufrufstellen)',
+  (studioSrc.match(/projectId: studioProjectId\(selectedProject\)/g) ?? []).length === 4);
+check('E8 Studio: leeres/ungültiges Projekt ⇒ undefined (Request bleibt projektlos)',
+  studioSrc.includes('const studioProjectId = (value: string): string | undefined =>') &&
+  studioSrc.includes('return STUDIO_PROJECT_ID_RE.test(trimmed) ? trimmed : undefined;'));
+check('E9 ServerFn generateImageServer nimmt projectId an (UUID-validiert)',
+  /projectId: typeof raw\.projectId === 'string' && STUDIO_PROJECT_ID_RE\.test\(raw\.projectId\.trim\(\)\)/.test(studioSrc));
+const streamRouteSrc = read('src/api/image-stream.ts');
+check('E10 Stream-Route speichert die projectId (UUID-validiert, fail-closed)',
+  streamRouteSrc.includes('projectId: parsed.projectId ?? null') &&
+  streamRouteSrc.includes('[0-9a-f]{12}$/i.test(raw.projectId.trim())'));
+const imagesDbSrc = read('src/db/generated-images.ts');
+check('E11 Speicherung schreibt project_id ins INSERT',
+  imagesDbSrc.includes('${args.projectId}::uuid'));
+
 console.log(`\n=== image-streaming-test: ${pass} PASS, ${fail} FAIL ===`);
 if (fail > 0) {
   console.log('Fehlgeschlagen: ' + failures.join(' | '));

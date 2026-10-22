@@ -61,17 +61,38 @@ import { SAVED_PREVIEW_AUTOLOAD, SavedImageCard, useSavedImages, useSavedStorage
  *  (nicht das Original-Datenbild der laufenden Sitzung). */
 type StudioImage = GeneratedImage & { preview?: boolean; saved?: boolean };
 
+// K4-B (Owner-Freigabe 2026-10-22): Die im Studio gewählte Projekt-ID reist
+// jetzt mit dem Bildauftrag — vorher landeten alle Originale mit
+// `generated_images.project_id = NULL` und tauchten im Projekt nicht auf.
+// Regeln bewusst eng: leerer Wert („kein Projekt") ⇒ `undefined` ⇒ Request
+// bleibt projektlos wie bisher; ungültiges Format ⇒ `undefined` (Spiegel der
+// Server-Validierung, die nur UUIDs akzeptiert). Die ID geht NUR in den
+// Speicherpfad — Prompt und Usage-Zählung (1 Bild = 1) bleiben unberührt.
+const STUDIO_PROJECT_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const studioProjectId = (value: string): string | undefined => {
+  const trimmed = value.trim();
+  return STUDIO_PROJECT_ID_RE.test(trimmed) ? trimmed : undefined;
+};
+
 // Stabilisierung Schritt 3 (Punkt 3): Der Validator akzeptiert jetzt zusätzlich
 // `referenceImageData` (data-URL des Produkt-/Vorlagenbilds). Ein ungültiger
 // Wert wird auf `undefined` normalisiert (fail-closed → Text→Bild statt eines
 // kaputten Requests an OpenAI). Damit kann die Bildidentität überhaupt erst
 // durch die ServerFn reisen — vorher war sie hier hart abgeschnitten.
 const generateImageServer = createServerFn({ method: 'POST' }).validator((input: unknown) => {
-  const raw = (input ?? {}) as { prompt?: unknown; aspectRatio?: unknown; referenceImageData?: unknown };
+  const raw = (input ?? {}) as { prompt?: unknown; aspectRatio?: unknown; referenceImageData?: unknown; projectId?: unknown };
   return {
     prompt: typeof raw.prompt === 'string' ? raw.prompt : '',
     aspectRatio: typeof raw.aspectRatio === 'string' ? raw.aspectRatio : '1:1',
     referenceImageData: sanitizeReferenceImageData(raw.referenceImageData),
+    // K4-B (Owner-Freigabe 2026-10-22): Projekt-ID wird entgegengenommen, damit
+    // der Aufruf sie tragen kann. Gespeichert wird sie hier NICHT — dieser
+    // ServerFn erzeugt nur das Bild; abgelegt wird das Original direkt danach
+    // über `POST /api/images` (Rückfall-Pfad in runStudioImage), und die
+    // Streaming-Route legt es selbst mit derselben projectId ab.
+    projectId: typeof raw.projectId === 'string' && STUDIO_PROJECT_ID_RE.test(raw.projectId.trim())
+      ? raw.projectId.trim()
+      : undefined,
   };
 }).handler(async ({ data }) => {
   // Phase 8.2 — 1 Bild = 1 Generierung (nur bei erfolgreichem Bild); Identität
@@ -360,8 +381,8 @@ function ImageStudioContent() {
     // runStudioImage auf den bestehenden ServerFn zurück; kam schon eins an,
     // gibt es keinen zweiten Modell-Call.
     const guard = guardImageRun((signal) => runStudioImage({
-      body: { prompt: finalPrompt, aspectRatio: selectedRatio, referenceImageData: reference },
-      fallback: (s) => generateImageServer({ data: { prompt: finalPrompt, aspectRatio: selectedRatio, referenceImageData: reference }, signal: s }),
+      body: { prompt: finalPrompt, aspectRatio: selectedRatio, referenceImageData: reference, projectId: studioProjectId(selectedProject) },
+      fallback: (s) => generateImageServer({ data: { prompt: finalPrompt, aspectRatio: selectedRatio, referenceImageData: reference, projectId: studioProjectId(selectedProject) }, signal: s }),
       onPartial: (partial) => setStreamPreview(partial.dataUrl),
       signal,
     }));
@@ -404,8 +425,8 @@ function ImageStudioContent() {
     // Phase 3.1 — auch Karten-Aktionen laufen über die Guard (kein Hänger).
     setStreamPreview(null);
     const guard = guardImageRun((signal) => runStudioImage({
-      body: { prompt: finalPrompt, aspectRatio: image.aspectRatio, referenceImageData: reference },
-      fallback: (s) => generateImageServer({ data: { prompt: finalPrompt, aspectRatio: image.aspectRatio, referenceImageData: reference }, signal: s }),
+      body: { prompt: finalPrompt, aspectRatio: image.aspectRatio, referenceImageData: reference, projectId: studioProjectId(selectedProject) },
+      fallback: (s) => generateImageServer({ data: { prompt: finalPrompt, aspectRatio: image.aspectRatio, referenceImageData: reference, projectId: studioProjectId(selectedProject) }, signal: s }),
       // Karten-Aktionen haben keine eigene Vorschau-Karte (der Spinner sitzt am
       // Kartenknopf) — Partials werden nur gezählt, damit der Rückfall ehrlich bleibt.
       onPartial: () => { /* kein Vorschau-Element vorhanden */ },
