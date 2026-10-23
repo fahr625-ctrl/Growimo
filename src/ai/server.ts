@@ -29,14 +29,16 @@ class VariantGenerationUnavailable extends Error {
   }
 }
 
-/** Phase 8.2 — Nutzer-Identität (Clerk) auflösen; fail-closed bei Generierung. */
+/**
+ * Phase 8.2 — Nutzer-Identität (Clerk) auflösen; fail-closed bei Generierung.
+ * P3-Härtung (Owner 2026-10-22): das Gate selbst liegt in usage-guard
+ * (`requireUserIdFromServerFn`), damit der Fail-closed-Vertrag auf
+ * Guard-Ebene testbar ist. Die 5 0-Einheiten-Pfade rufen es OHNE try/catch —
+ * ohne gültige Sitzung kein KI-Aufruf (FAIL-CLOSED).
+ */
 async function guardUserId(payloadFallback?: string): Promise<string> {
   const g = await usageGuard();
-  const uid = await g.resolveUserIdFromServerFn(payloadFallback);
-  if (!uid) {
-    throw new Error('Keine gültige Sitzung — bitte neu anmelden.');
-  }
-  return uid;
+  return g.requireUserIdFromServerFn(payloadFallback);
 }
 
 /**
@@ -201,21 +203,14 @@ Generiere eine verbesserte Version des ${channelLabel}. Behalte das gleiche Form
     // P3 (Owner-Entscheidung 2026-10-22): „Nach den 3 Gratisgenerierungen sind
     // ALLE KI-Funktionen nur mit aktivem Abo nutzbar" — deshalb ist dieser
     // 0-Einheiten-Pfad bei erschöpftem Kontingent fail-closed gesperrt
-    // (assertCanGenerate, verbraucht selbst nichts). Nur der Fall „keine
-    // Sitzung" bleibt wie bisher (kein harter Guard) — der UsageLimitError
-    // wird NIE geschluckt.
-    // Der Guard-Modul-Import liegt AUSSERHALB des try: nur so ist die Klasse
-    // UsageLimitError im catch verfügbar und der Kontingent-Fehler wird
-    // garantiert weitergeworfen (nie still geschluckt).
+    // (assertCanGenerate, verbraucht selbst nichts). FAIL-CLOSED: ein Aufruf
+    // ohne gültige Sitzung ist weder Free- noch Pro-Nutzer und darf die KI
+    // NICHT erreichen — deshalb kein catch mehr, das den Session-Fehler
+    // schluckt (P3-Härtung, Owner 2026-10-22).
     const g = await usageGuard();
-    try {
-      const uid = await guardUserId();
-      await g.assertRateOk(uid);
-      await g.assertCanGenerate(uid);
-    } catch (err) {
-      if (err instanceof g.UsageLimitError) throw err;
-      /* ohne Sitzung: Verbessern läuft wie bisher (kein harter Guard) */
-    }
+    const uid = await guardUserId();
+    await g.assertRateOk(uid);
+    await g.assertCanGenerate(uid);
     const result = await generateContent(improvementRequest);
     console.log('[server.improveContent] Result:', result.title);
     return result;
@@ -253,19 +248,14 @@ export const improveByScoreServer = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<ImproveOutcome> => {
     console.log('[server.improveByScore]', data.contentType, 'old score:', data.score.total);
     // Phase 8.2 — Auto-Verbessern = 0 Generierungen; nur Drossel.
-    // P3 (Owner-Entscheidung 2026-10-22): 0-Einheiten-Pfad, aber bei
-    // erschöpftem Kontingent fail-closed gesperrt (assertCanGenerate verbraucht
-    // selbst nichts). Nur „keine Sitzung" bleibt wie bisher — der
-    // UsageLimitError wird NIE geschluckt.
+    // P3 (Owner-Entscheidung 2026-10-22): 0-Einheiten-Pfad, aber FAIL-CLOSED —
+    // ohne gültige Sitzung (weder Free- noch Pro-Nutzer) und bei erschöpftem
+    // Kontingent wird der KI-Aufruf gar nicht erst erreicht. Kein catch mehr,
+    // das den Session-Fehler schlucken könnte (P3-Härtung 2026-10-22).
     const g = await usageGuard();
-    try {
-      const uid = await guardUserId();
-      await g.assertRateOk(uid);
-      await g.assertCanGenerate(uid);
-    } catch (err) {
-      if (err instanceof g.UsageLimitError) throw err;
-      /* ohne Sitzung unverändert laufen lassen */
-    }
+    const uid = await guardUserId();
+    await g.assertRateOk(uid);
+    await g.assertCanGenerate(uid);
     const { improveByScore } = await import('./improve');
     const outcome = await improveByScore(
       { contentType: data.contentType, productIdea: data.productIdea },
@@ -323,19 +313,14 @@ export const improveToScoreServer = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<ImproveOutcome> => {
     console.log('[server.improveToScore]', data.contentType, 'old:', data.score.total, 'target:', data.target);
     // Phase 8.2 — Auto-Verbessern = 0 Generierungen; nur Drossel.
-    // P3 (Owner-Entscheidung 2026-10-22): 0-Einheiten-Pfad, aber bei
-    // erschöpftem Kontingent fail-closed gesperrt (assertCanGenerate verbraucht
-    // selbst nichts). Nur „keine Sitzung" bleibt wie bisher — der
-    // UsageLimitError wird NIE geschluckt.
+    // P3 (Owner-Entscheidung 2026-10-22): 0-Einheiten-Pfad, aber FAIL-CLOSED —
+    // ohne gültige Sitzung (weder Free- noch Pro-Nutzer) und bei erschöpftem
+    // Kontingent wird der KI-Aufruf gar nicht erst erreicht. Kein catch mehr,
+    // das den Session-Fehler schlucken könnte (P3-Härtung 2026-10-22).
     const g = await usageGuard();
-    try {
-      const uid = await guardUserId();
-      await g.assertRateOk(uid);
-      await g.assertCanGenerate(uid);
-    } catch (err) {
-      if (err instanceof g.UsageLimitError) throw err;
-      /* ohne Sitzung unverändert laufen lassen */
-    }
+    const uid = await guardUserId();
+    await g.assertRateOk(uid);
+    await g.assertCanGenerate(uid);
     const { improveToScore } = await import('./improve');
     const outcome = await improveToScore(
       { contentType: data.contentType, productIdea: data.productIdea },
@@ -400,19 +385,14 @@ export const autoImproveSectionServer = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<AutoImproveSectionOutcome> => {
     console.log('[server.autoImproveSection]', data.contentType, 'field:', data.field);
     // Phase 8.2 — bereichsgenaues Auto-Verbessern = 0 Generierungen; nur Drossel.
-    // P3 (Owner-Entscheidung 2026-10-22): 0-Einheiten-Pfad, aber bei
-    // erschöpftem Kontingent fail-closed gesperrt (assertCanGenerate verbraucht
-    // selbst nichts). Nur „keine Sitzung" bleibt wie bisher — der
-    // UsageLimitError wird NIE geschluckt.
+    // P3 (Owner-Entscheidung 2026-10-22): 0-Einheiten-Pfad, aber FAIL-CLOSED —
+    // ohne gültige Sitzung (weder Free- noch Pro-Nutzer) und bei erschöpftem
+    // Kontingent wird der KI-Aufruf gar nicht erst erreicht. Kein catch mehr,
+    // das den Session-Fehler schlucken könnte (P3-Härtung 2026-10-22).
     const g = await usageGuard();
-    try {
-      const uid = await guardUserId();
-      await g.assertRateOk(uid, { lang: data.lang });
-      await g.assertCanGenerate(uid, data.lang);
-    } catch (err) {
-      if (err instanceof g.UsageLimitError) throw err;
-      /* ohne Sitzung unverändert laufen lassen */
-    }
+    const uid = await guardUserId();
+    await g.assertRateOk(uid, { lang: data.lang });
+    await g.assertCanGenerate(uid, data.lang);
     const { autoImproveSection } = await import('./auto-improve');
     const original: ContentResult = {
       contentType: data.contentType,
@@ -550,19 +530,14 @@ export const prioritizeServer = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<PrioritizeOutcome | null> => {
     console.log('[server.prioritize]', data.assets.length, 'assets, lang:', data.lang);
     // Phase 8.2 — Priorisierung = Analyse = 0 Generierungen; nur Drossel.
-    // P3 (Owner-Entscheidung 2026-10-22): 0-Einheiten-Pfad, aber bei
-    // erschöpftem Kontingent fail-closed gesperrt (assertCanGenerate verbraucht
-    // selbst nichts). Nur „keine Sitzung" bleibt wie bisher — der
-    // UsageLimitError wird NIE geschluckt.
+    // P3 (Owner-Entscheidung 2026-10-22): 0-Einheiten-Pfad, aber FAIL-CLOSED —
+    // ohne gültige Sitzung (weder Free- noch Pro-Nutzer) und bei erschöpftem
+    // Kontingent wird der KI-Aufruf gar nicht erst erreicht. Kein catch mehr,
+    // das den Session-Fehler schlucken könnte (P3-Härtung 2026-10-22).
     const g = await usageGuard();
-    try {
-      const uid = await guardUserId();
-      await g.assertRateOk(uid, { lang: data.lang });
-      await g.assertCanGenerate(uid, data.lang);
-    } catch (err) {
-      if (err instanceof g.UsageLimitError) throw err;
-      /* ohne Sitzung unverändert laufen lassen */
-    }
+    const uid = await guardUserId();
+    await g.assertRateOk(uid, { lang: data.lang });
+    await g.assertCanGenerate(uid, data.lang);
     const { prioritizeChannels } = await import('./prioritize');
     const outcome = await prioritizeChannels(data.assets, {
       productIdea: data.productIdea,

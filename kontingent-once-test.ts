@@ -29,6 +29,8 @@ import {
   limitForPlan,
   recordGeneration,
   releaseGeneration,
+  requireUserIdFromServerFn,
+  resolveUserIdFromServerFn,
   usageLimitMessage,
   usagePeriodForPlan,
   withGenerationGuard,
@@ -310,6 +312,89 @@ async function main() {
   const stillFive = landing5.filter((k) => /5 Generierungen|5 generations|5\/Monat|5\/month/.test(t(de, k) + ' ' + t(en, k)));
   check(stillFive.length === 0, `Landing/Pricing/FAQ ohne "5 Generierungen" (Treffer: ${stillFive.join(',') || 'keine'})`);
   check(!/unbegrenzte|unlimited/i.test(t(de, 'usage_limit_alert') + ' ' + t(en, 'usage_limit_alert')), 'usage_limit_alert ohne falsches "unbegrenzt/unlimited"');
+
+  // ═══ (k) P3-Härtung: 0-Einheiten-Pfade fail-closed ═══════════════════════
+  // Owner-Entscheidung 2026-10-22 (P3): „Nach den 3 Gratisgenerierungen sind
+  // ALLE KI-Funktionen nur mit Abo nutzbar." Die 5 0-Einheiten-Pfade
+  // (Verbessern / Auto-Verbessern / Bereichs-Verbessern / Priorisieren) dürfen
+  // deshalb NICHTS mehr schlucken: kein Gratis-KI-Call ohne gültige Sitzung.
+  console.log('\n[k] P3-Härtung: kein schluckender catch in den 5 0-Einheiten-Pfaden');
+  const serverSrc = readFileSync('src/ai/server.ts', 'utf8');
+  const alteMarker = ['ohne Sitzung: weiter', 'ohne Sitzung unverändert', 'kein harter Guard'];
+  const alteTreffer = alteMarker.filter((m) => serverSrc.includes(m));
+  check(
+    alteTreffer.length === 0,
+    `kein alter Schluck-Marker mehr in server.ts (Treffer: ${alteTreffer.join(' | ') || 'keine'})`,
+  );
+  const failClosedCount = (serverSrc.match(/FAIL-CLOSED/g) ?? []).length;
+  check(failClosedCount >= 5, `Marker "FAIL-CLOSED" mind. 5× vorhanden (${failClosedCount}×)`);
+
+  // Struktur je Pfad: FAIL-CLOSED dokumentiert, guardUserId() direkt awaited,
+  // KEIN catch und kein alter Schluck-Kommentar im Pfad-Block.
+  const nullEinheitenPfade = [
+    'improveContentServer',
+    'improveByScoreServer',
+    'improveToScoreServer',
+    'autoImproveSectionServer',
+    'prioritizeServer',
+  ];
+  const pfadProbleme: string[] = [];
+  for (const name of nullEinheitenPfade) {
+    const start = serverSrc.indexOf(`export const ${name} = createServerFn`);
+    if (start < 0) {
+      pfadProbleme.push(`${name}: nicht gefunden`);
+      continue;
+    }
+    const nextExport = serverSrc.indexOf('\nexport const ', start + 1);
+    const block = serverSrc.slice(start, nextExport > 0 ? nextExport : serverSrc.length);
+    const probleme: string[] = [];
+    if (!block.includes('FAIL-CLOSED')) probleme.push('FAIL-CLOSED fehlt');
+    if (!block.includes('await guardUserId()')) probleme.push('guardUserId() fehlt');
+    if (/catch\s*\(/.test(block)) probleme.push('catch vorhanden');
+    if (block.includes('/* ohne Sitzung')) probleme.push('alter Schluck-Kommentar');
+    if (probleme.length > 0) pfadProbleme.push(`${name}: ${probleme.join(', ')}`);
+  }
+  check(pfadProbleme.length === 0, `5/5 Pfade fail-closed strukturiert (${pfadProbleme.join(' | ') || 'alle ok'})`);
+
+  // Runtime-Beweis auf GUARD-Ebene (ohne Start-Compiler): ohne gültige Sitzung
+  // wirft das Gate, statt still durchzulaufen. `requireUserIdFromServerFn` ist
+  // exakt das, was `guardUserId()` in server.ts aufruft.
+  const ohneSitzung = await resolveUserIdFromServerFn();
+  check(ohneSitzung === null, `resolveUserIdFromServerFn() ohne Request/Session → null (${String(ohneSitzung)})`);
+  const guardErr = await (async () => {
+    try {
+      await requireUserIdFromServerFn();
+      return null;
+    } catch (e) {
+      return e;
+    }
+  })();
+  check(
+    guardErr instanceof Error && /Keine gültige Sitzung/.test(guardErr.message),
+    `requireUserIdFromServerFn() ohne uid → Fehler "Keine gültige Sitzung" (${guardErr instanceof Error ? guardErr.message : 'KEIN Fehler — geschluckt!'})`,
+  );
+  check(
+    !(guardErr instanceof UsageLimitError),
+    'Session-Fehler ist KEIN UsageLimitError (getrennt vom Kontingent-Fehler, wird nicht als Verbrauch verbucht)',
+  );
+  const adminPayload = [...ADMIN_OVERRIDE_USER_IDS][0]!;
+  const adminErr = await (async () => {
+    try {
+      await requireUserIdFromServerFn(adminPayload);
+      return null;
+    } catch (e) {
+      return e;
+    }
+  })();
+  check(
+    adminErr instanceof Error,
+    `Owner-ID aus dem Payload wird verworfen → fail-closed (${adminErr instanceof Error ? 'wirft' : 'KEIN Fehler!'})`,
+  );
+  const normalUid = await requireUserIdFromServerFn(U_FREE);
+  check(
+    normalUid === U_FREE,
+    'Positivkontrolle: normaler Payload-Fallback liefert die uid (Gate wirft nicht pauschal)',
+  );
 
   console.log(`\n=== kontingent-once-test: ${passed} PASS, ${failed} FAIL ===`);
   console.log(`i18n: de=${deKeys.length} Keys, en=${enKeys.length} Keys`);

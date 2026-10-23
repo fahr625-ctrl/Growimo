@@ -408,3 +408,23 @@ export async function resolveUserIdFromServerFn(payloadFallback?: string): Promi
   if (payload && isAdminOverride(payload)) return null;
   return payload;
 }
+
+/**
+ * P3-Härtung (Owner-Entscheidung 2026-10-22) — Identitäts-Gate, FAIL-CLOSED.
+ *
+ * Die 5 0-Einheiten-Pfade (Verbessern/Auto-Verbessern/Priorisieren) laufen
+ * bewusst OHNE try/catch um dieses Gate: wer keine gültige Sitzung hat, ist
+ * weder Free- noch Pro-Nutzer und darf die KI nicht erreichen. Der Fehler
+ * wird deshalb NICHT geschluckt — er bricht den Aufruf ab (kein stiller
+ * Gratis-KI-Call ohne Session).
+ *
+ * Ausgelagert aus `src/ai/server.ts`, damit der Fail-closed-Vertrag ohne
+ * Start-Compiler auf Guard-Ebene testbar ist (kontingent-once-test, Punkt k).
+ */
+export async function requireUserIdFromServerFn(payloadFallback?: string): Promise<string> {
+  const uid = await resolveUserIdFromServerFn(payloadFallback);
+  if (!uid) {
+    throw new Error('Keine gültige Sitzung — bitte neu anmelden.');
+  }
+  return uid;
+}
