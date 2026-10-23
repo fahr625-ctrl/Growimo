@@ -1,0 +1,213 @@
+// ── Rechtstexte (Impressum + Datenschutz) — schlanke Suite ───────────────────
+// Lauf: bun run legal-pages-test.ts
+//
+// Prüft:
+//   1. Legal-Config: Owner-Daten exakt, nichts erfunden (keine USt-Angabe,
+//      keine Telefonnummer), E-Mail-Platzhalter solange CONTACT_EMAIL leer.
+//   2. i18n-Parität de/en inkl. aller neuen `legal_*`-Keys.
+//   3. Beide Routen: head() liefert Titel + index,follow + absolute Canonical.
+//   4. Beide Seiten rendern (SSR) ohne Crash und enthalten die Pflicht-Fakten
+//      („Katharina Fahr", „§ 5 DDG", „Badendorf", „Hauptstr. 38").
+//   5. Datenschutz nennt nur tatsächlich verbaute Verarbeitungen.
+//   6. Footer (Landing + /app) verlinkt die echten Routen, keine toten "#"-Links.
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { readFileSync } from 'node:fs';
+
+import { de } from './src/i18n/de';
+import { en } from './src/i18n/en';
+import { I18nProvider } from './src/i18n';
+import {
+  CONTACT_EMAIL,
+  CONTACT_EMAIL_PLACEHOLDER,
+  LEGAL_LAST_UPDATED,
+  PROVIDER_CITY,
+  PROVIDER_COUNTRY,
+  PROVIDER_NAME,
+  PROVIDER_STREET,
+  VAT_DISCLAIMER,
+  VAT_ID,
+  WEBSITE_URL,
+  contactEmailDisplay,
+  hasContactEmail,
+  hasVatInfo,
+  providerAddressLines,
+} from './src/lib/legal';
+import { Route as ImpressumRoute, ImpressumPage } from './src/routes/impressum';
+import { Route as DatenschutzRoute, DatenschutzPage } from './src/routes/datenschutz';
+
+let failures = 0;
+let checks = 0;
+function check(name: string, cond: boolean, detail = '') {
+  checks++;
+  if (!cond) {
+    failures++;
+    console.log('FAIL:', name, detail ? `— ${detail}` : '');
+  } else {
+    console.log('PASS:', name);
+  }
+}
+
+function render(page: Parameters<typeof createElement>[0]): string {
+  return renderToStaticMarkup(
+    createElement(I18nProvider, null, createElement(page as never, null)),
+  );
+}
+
+// ── 1. Legal-Config: Owner-Daten exakt ───────────────────────────────────────
+check('Name exakt „Katharina Fahr"', PROVIDER_NAME === 'Katharina Fahr', PROVIDER_NAME);
+check('Straße exakt „Hauptstr. 38"', PROVIDER_STREET === 'Hauptstr. 38', PROVIDER_STREET);
+check('Ort exakt „23619 Badendorf"', PROVIDER_CITY === '23619 Badendorf', PROVIDER_CITY);
+check('Land „Deutschland"', PROVIDER_COUNTRY === 'Deutschland', PROVIDER_COUNTRY);
+check(
+  'Anschrift-Zeilen vollständig',
+  providerAddressLines().join('|') ===
+    'Katharina Fahr|Hauptstr. 38|23619 Badendorf|Deutschland',
+  providerAddressLines().join('|'),
+);
+check('Website-URL growimo.app', WEBSITE_URL === 'https://growimo.app', WEBSITE_URL);
+check('Stand gesetzt (2026-10-23)', LEGAL_LAST_UPDATED === '2026-10-23', LEGAL_LAST_UPDATED);
+
+// Keine erfundenen Angaben: USt bleibt leer, bis die Ownerin entscheidet.
+check('keine USt-IdNr. erfunden', VAT_ID === '', VAT_ID);
+check('kein Umsatzsteuer-Hinweis erfunden', VAT_DISCLAIMER === '', VAT_DISCLAIMER);
+check('USt-Abschnitt bleibt aus (hasVatInfo=false)', hasVatInfo() === false);
+
+// E-Mail: entweder echter Wert oder sichtbarer Platzhalter „—".
+if (CONTACT_EMAIL.trim().length === 0) {
+  check('CONTACT_EMAIL leer → Platzhalter „—"', contactEmailDisplay() === CONTACT_EMAIL_PLACEHOLDER);
+  check('Platzhalter ist ein Gedankenstrich', CONTACT_EMAIL_PLACEHOLDER === '—', CONTACT_EMAIL_PLACEHOLDER);
+  check('hasContactEmail() = false bei leerer E-Mail', hasContactEmail() === false);
+} else {
+  check('CONTACT_EMAIL gesetzt → wird angezeigt', contactEmailDisplay() === CONTACT_EMAIL.trim());
+  check('hasContactEmail() = true', hasContactEmail() === true);
+}
+
+// ── 2. i18n-Parität ─────────────────────────────────────────────────────────
+const deKeys = Object.keys(de);
+const enKeys = Object.keys(en);
+check('de/en Key-Anzahl gleich', deKeys.length === enKeys.length, `${deKeys.length} vs ${enKeys.length}`);
+check(
+  'kein de-Key fehlt in en',
+  deKeys.filter((k) => !(k in en)).length === 0,
+  deKeys.filter((k) => !(k in en)).join(','),
+);
+check(
+  'kein en-Key fehlt in de',
+  enKeys.filter((k) => !(k in de)).length === 0,
+  enKeys.filter((k) => !(k in de)).join(','),
+);
+
+const legalDe = deKeys.filter((k) => k.startsWith('legal_'));
+const legalEn = enKeys.filter((k) => k.startsWith('legal_'));
+check('legal_-Keys in de vorhanden', legalDe.length > 80, String(legalDe.length));
+check(
+  'legal_-Keys de/en identisch',
+  legalDe.length === legalEn.length && legalDe.every((k) => k in en),
+  `${legalDe.length} vs ${legalEn.length}`,
+);
+check(
+  'kein legal_-Wert leer (de)',
+  legalDe.every((k) => String((de as Record<string, unknown>)[k]).trim().length > 0),
+);
+check(
+  'kein legal_-Wert leer (en)',
+  legalEn.every((k) => String((en as Record<string, unknown>)[k]).trim().length > 0),
+);
+// Pflicht-Überschriften in beiden Sprachen
+check('de: „§ 5 DDG"', String(de.legal_imprint_ddg_heading).includes('§ 5 DDG'));
+check('en: „§ 5 DDG"', String(en.legal_imprint_ddg_heading).includes('§ 5 DDG'));
+check('de: „§ 18 Abs. 2 MStV"', String(de.legal_imprint_responsible_heading).includes('§ 18 Abs. 2 MStV'));
+check('en: „§ 18 (2) MStV"', String(en.legal_imprint_responsible_heading).includes('§ 18 (2) MStV'));
+check('de: DSGVO in Rechtsgrundlage', String(de.legal_privacy_account_basis).includes('DSGVO'));
+check('en: GDPR in Rechtsgrundlage', String(en.legal_privacy_account_basis).includes('GDPR'));
+
+// ── 3. Routen-Head ──────────────────────────────────────────────────────────
+const impHead = ImpressumRoute.options.head?.() as
+  | { meta?: Array<Record<string, string>>; links?: Array<{ rel: string; href: string }> }
+  | undefined;
+const priHead = DatenschutzRoute.options.head?.() as
+  | { meta?: Array<Record<string, string>>; links?: Array<{ rel: string; href: string }> }
+  | undefined;
+
+const metaOf = (h: typeof impHead, key: string, field = 'name') =>
+  (h?.meta ?? []).find((m) => m[field] === key)?.content ?? '';
+// Der <title> steht als { title: '…' } in den Meta-Objekten (kein name/content).
+const titleOf = (h: typeof impHead) =>
+  (h?.meta ?? []).map((m) => (m as { title?: string }).title).find((x) => typeof x === 'string') ?? '';
+
+check('Impressum: Titel gesetzt', titleOf(impHead).length > 0, titleOf(impHead));
+check('Impressum: index,follow', metaOf(impHead, 'robots') === 'index,follow', metaOf(impHead, 'robots'));
+check(
+  'Impressum: absolute Canonical',
+  (impHead?.links ?? []).some((l) => l.rel === 'canonical' && l.href === 'https://www.growimo.app/impressum'),
+  JSON.stringify(impHead?.links),
+);
+check('Datenschutz: Titel gesetzt', titleOf(priHead).length > 0, titleOf(priHead));
+check('Datenschutz: index,follow', metaOf(priHead, 'robots') === 'index,follow', metaOf(priHead, 'robots'));
+check(
+  'Datenschutz: absolute Canonical',
+  (priHead?.links ?? []).some((l) => l.rel === 'canonical' && l.href === 'https://www.growimo.app/datenschutz'),
+  JSON.stringify(priHead?.links),
+);
+
+// ── 4. Impressum rendert (SSR, de = Default beim ersten Render) ─────────────
+const impHtml = render(ImpressumPage);
+check('Impressum rendert', impHtml.length > 500, String(impHtml.length));
+check('Impressum: „Impressum"', impHtml.includes('Impressum'));
+check('Impressum: „Angaben gemäß § 5 DDG"', impHtml.includes('Angaben gemäß § 5 DDG'));
+check('Impressum: Name „Katharina Fahr"', impHtml.includes('Katharina Fahr'));
+check('Impressum: „Hauptstr. 38"', impHtml.includes('Hauptstr. 38'));
+check('Impressum: „23619 Badendorf"', impHtml.includes('23619 Badendorf'));
+check('Impressum: „Deutschland"', impHtml.includes('Deutschland'));
+check('Impressum: Website-Link growimo.app', impHtml.includes('https://growimo.app'));
+check('Impressum: § 18 Abs. 2 MStV', impHtml.includes('§ 18 Abs. 2 MStV'));
+check('Impressum: § 36 VSBG', impHtml.includes('§ 36 VSBG'));
+check('Impressum: kein „undefined"/„NaN"', !impHtml.includes('undefined') && !impHtml.includes('NaN'));
+// Nichts erfunden:
+check('Impressum: keine Telefonnummer', !/Telefon|Tel\.|phone/i.test(impHtml));
+check('Impressum: kein Handelsregister', !/Handelsregister|Amtsgericht/i.test(impHtml));
+check('Impressum: keine USt-Angabe', !/USt-IdNr|Umsatzsteuer-Identifikationsnummer/i.test(impHtml));
+check(
+  'Impressum: E-Mail = Platzhalter oder echter Wert',
+  impHtml.includes(CONTACT_EMAIL.trim() || CONTACT_EMAIL_PLACEHOLDER),
+);
+
+// ── 5. Datenschutz rendert + nennt nur verbaute Verarbeitungen ──────────────
+const priHtml = render(DatenschutzPage);
+check('Datenschutz rendert', priHtml.length > 2000, String(priHtml.length));
+check('Datenschutz: Verantwortlicher = Katharina Fahr', priHtml.includes('Katharina Fahr'));
+check('Datenschutz: „23619 Badendorf"', priHtml.includes('23619 Badendorf'));
+check('Datenschutz: Clerk', priHtml.includes('Clerk'));
+check('Datenschutz: OpenAI', priHtml.includes('OpenAI'));
+check('Datenschutz: Stripe', priHtml.includes('Stripe'));
+check('Datenschutz: Neon', priHtml.includes('Neon'));
+check('Datenschutz: Vercel', priHtml.includes('Vercel'));
+check('Datenschutz: Sitzungs-Cookie __session', priHtml.includes('__session'));
+check('Datenschutz: Besucher-Cookie growimo_vid', priHtml.includes('growimo_vid'));
+check('Datenschutz: 90 Tage (Analyse/Bilder)', priHtml.includes('90 Tage'));
+check('Datenschutz: Rechtsgrundlage Art. 6 Abs. 1 lit. b', priHtml.includes('Art. 6 Abs. 1 lit. b'));
+check('Datenschutz: Einwilligung Art. 6 Abs. 1 lit. a', priHtml.includes('Art. 6 Abs. 1 lit. a'));
+check('Datenschutz: berechtigtes Interesse lit. f', priHtml.includes('lit. f DSGVO'));
+check('Datenschutz: Auskunft Art. 15', priHtml.includes('Art. 15 DSGVO'));
+check('Datenschutz: Löschung Art. 17', priHtml.includes('Art. 17 DSGVO)'));
+check('Datenschutz: Beschwerderecht Art. 77', priHtml.includes('Art. 77 DSGVO'));
+check('Datenschutz: TLS-Hinweis', /TLS-Verbindung/.test(priHtml));
+check('Datenschutz: kein „undefined"/„NaN"', !priHtml.includes('undefined') && !priHtml.includes('NaN'));
+// Keine erfundenen Prozessoren (bewusst NICHT im Code verbaut):
+for (const bogus of ['Google Analytics', 'Facebook', 'Mailchimp', 'Sentry', 'HubSpot', 'Matomo']) {
+  check(`Datenschutz: kein erfundener Dienst „${bogus}"`, !priHtml.includes(bogus));
+}
+
+// ── 6. Footer-Verdrahtung ───────────────────────────────────────────────────
+const landing = readFileSync('./src/components/LandingPage.tsx', 'utf8');
+const appLayout = readFileSync('./src/routes/app.tsx', 'utf8');
+check('Landing-Footer → /impressum', landing.includes('href: "/impressum"'));
+check('Landing-Footer → /datenschutz', landing.includes('href: "/datenschutz"'));
+check('Landing-Footer: kein toter Rechts-Link mehr', !/label: t\.footer_(privacy|imprint|terms), href: "#"/.test(landing));
+check('/app-Sidebar → /impressum', appLayout.includes('href="/impressum"'));
+check('/app-Sidebar → /datenschutz', appLayout.includes('href="/datenschutz"'));
+
+// ── Ergebnis ────────────────────────────────────────────────────────────────
+console.log(`\n${checks - failures}/${checks} checks passed, ${failures} failed`);
+process.exit(failures === 0 ? 0 : 1);

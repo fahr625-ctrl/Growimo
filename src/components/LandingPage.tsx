@@ -859,11 +859,13 @@ function Footer() {
     { label: t.nav_faq, href: "#faq" },
   ];
 
+  // Rechtstexte (2026-10-23): echte Routen statt toter "#"-Links.
+  // „Kontakt" führt auf das Impressum, weil dort die Kontaktangaben stehen —
+  // solange keine Kontakt-E-Mail hinterlegt ist, wird kein Postfach erfunden.
   const legalLinks = [
-    { label: t.footer_privacy, href: "#" },
-    { label: t.footer_imprint, href: "#" },
-    { label: t.footer_terms, href: "#" },
-    { label: t.footer_contact, href: "mailto:hello@growimo.app" },
+    { label: t.footer_imprint, href: "/impressum" },
+    { label: t.footer_privacy, href: "/datenschutz" },
+    { label: t.footer_contact, href: "/impressum" },
   ];
 
   return (
