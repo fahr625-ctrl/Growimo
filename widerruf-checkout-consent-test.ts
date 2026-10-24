@@ -27,6 +27,10 @@ import {
   buildConsentRecord,
   earlyStartMode,
   evaluateEarlyStartConsent,
+  WIDERRUF_CONSENT_TEXT_DE,
+  WIDERRUF_CONSENT_TEXT_EN,
+  WIDERRUF_CONSENT_HINT_DE,
+  WIDERRUF_CONSENT_HINT_EN,
 } from './src/stripe/checkout-consent';
 import { de } from './src/i18n/de';
 import { en } from './src/i18n/en';
@@ -200,26 +204,58 @@ const enKeys = Object.keys(en).length;
 check(deKeys === enKeys, `i18n-Parität: ${deKeys} de == ${enKeys} en`);
 check(
   de.widerruf_consent_label.includes('ausdrücklich') &&
-    de.widerruf_consent_label.includes('Widerrufsrecht verliere'),
-  'de-Label enthält ausdrückliches Verlangen + Kenntnisnahmebestätigung',
+    de.widerruf_consent_label.includes('nicht schon mit dem Beginn erlischt') &&
+    de.widerruf_consent_label.includes('vollständig erbracht ist') &&
+    de.widerruf_consent_label.includes('§ 356 Abs. 4 und 5') &&
+    de.widerruf_consent_label.includes('§ 357a Abs. 1 BGB'),
+  'de-Label: Verlangen + Kenntnis (Erlöschen erst bei vollständiger Erbringung, Wertersatz)',
 );
 check(
   en.widerruf_consent_label.toLowerCase().includes('expressly') &&
-    en.widerruf_consent_label.toLowerCase().includes('lose my right of withdrawal'),
-  'en-Label enthält express request + acknowledgement',
+    en.widerruf_consent_label.includes('does not end when the service begins') &&
+    en.widerruf_consent_label.includes('fully performed') &&
+    en.widerruf_consent_label.includes('357a(1)'),
+  'en-Label: express request + acknowledgement (erasure only on full performance)',
 );
 check(
-  de.widerruf_consent_hint.includes('§ 356 Abs. 5 BGB') &&
-    de.widerruf_consent_hint.includes('§ 357a Abs. 1 BGB'),
-  'de-Hinweis zitiert § 356 Abs. 5 BGB und § 357a Abs. 1 BGB',
+  de.widerruf_consent_hint.includes('§ 357a Abs. 1 BGB') &&
+    de.widerruf_consent_hint.includes('vollständig erbracht'),
+  'de-Hinweis: Monatsbezug + § 357a Abs. 1 BGB',
 );
 check(
-  !/erlischt automatisch/i.test(de.widerruf_consent_label + de.widerruf_consent_hint),
-  'keine pauschale „erlischt automatisch"-Formel',
+  !/erlischt automatisch/i.test(de.widerruf_consent_label + de.widerruf_consent_hint) &&
+    !/Widerrufsrecht verliere/i.test(de.widerruf_consent_label),
+  'keine pauschale Erlöschens-/Verlust-Formel im Checkbox-Text (de)',
 );
 check(
-  !/sofort|automatisch/i.test(en.widerruf_consent_label),
-  'en-Label ohne automatische Erlöschens-Behauptung',
+  !/sofort|automatisch/i.test(en.widerruf_consent_label) &&
+    !/lose my right of withdrawal/i.test(en.widerruf_consent_label),
+  'en-Label ohne pauschale Erlöschens-Behauptung',
+);
+// EINE Textquelle: der Wortlaut steht kanonisch in checkout-consent.ts und wird
+// hier byte-genau gegen die i18n-Fassungen geprüft. Driftet einer der beiden
+// Texte, schlägt dieser Test fehl — der Owner sähe sonst eine andere Fassung
+// als die, deren Textversion gespeichert wird.
+check(
+  de.widerruf_consent_label === WIDERRUF_CONSENT_TEXT_DE,
+  'de-Label == kanonischer Wortlaut (checkout-consent.ts)',
+);
+check(
+  en.widerruf_consent_label === WIDERRUF_CONSENT_TEXT_EN,
+  'en-Label == kanonischer Wortlaut (checkout-consent.ts)',
+);
+check(
+  de.widerruf_consent_hint === WIDERRUF_CONSENT_HINT_DE,
+  'de-Hinweis == kanonischer Wortlaut',
+);
+check(
+  en.widerruf_consent_hint === WIDERRUF_CONSENT_HINT_EN,
+  'en-Hinweis == kanonischer Wortlaut',
+);
+check(
+  de.widerruf_consent_label.length === en.widerruf_consent_label.length ||
+    Math.abs(de.widerruf_consent_label.length - en.widerruf_consent_label.length) < 200,
+  'de/en-Label in vergleichbarer Länge (Parität)',
 );
 
 console.log('=== (f) Schema: checkout_consents ===');

@@ -49,7 +49,57 @@ export const WIDERRUF_CONSENT_KIND = 'widerruf_early_start' as const;
  * einen Text zeigen, den der Nutzer nie gesehen hat. Der Wert wird zusammen mit
  * der Zustimmung persistiert (Nachweisfunktion, Art. 7 Abs. 1 DSGVO-Analogie).
  */
-export const WIDERRUF_CONSENT_VERSION = '2026-10-24-v1' as const;
+export const WIDERRUF_CONSENT_VERSION = '2026-10-24-v2' as const;
+
+/**
+ * KANONISCHER WORTLAUT DER CHECKBOX (Owner-Entscheidung 2026-10-24, Weg (ii)).
+ *
+ * EINE Textquelle für Code, i18n und Rechtstexte. Die Datei `src/i18n/de.ts`
+ * bzw. `en.ts` spiegelt diesen Wortlaut; `widerruf-checkout-consent-test.ts`
+ * vergleicht beide byte-genau und schlägt fehl, sobald sie auseinanderlaufen.
+ * Lesefassung für den Owner: CHECKOUT-CONSENT-TEXTE.md im Entwurfsordner.
+ *
+ * PFLICHTBESTANDTEILE (sonst ist die Klausel angreifbar):
+ *   (i)   ausdrückliches Verlangen des sofortigen Leistungsbeginns,
+ *   (ii)  Kenntnisnahme, WIE sich das auf das Widerrufsrecht auswirkt:
+ *         Erlöschen erst bei VOLLSTÄNDIGER Erbringung (§ 356 Abs. 4/5 BGB) und
+ *         Wertersatz für bereits Erbrachtes (§ 357a Abs. 1 BGB),
+ *   (iii) KEINE pauschale Behauptung „das Widerrufsrecht erlischt sofort" —
+ *         die wäre nach § 361 Abs. 2 BGB zum Nachteil des Verbrauchers
+ *         unwirksam und würde die Zustimmung entwerten.
+ */
+export const WIDERRUF_CONSENT_TEXT_DE =
+  'Ich verlange ausdrücklich, dass Growimo mit der Erbringung der Leistung ' +
+  '(Zugang zu den KI-Funktionen des Pro-Abos) sofort nach Zahlung beginnt, also ' +
+  'vor Ablauf der 14-tägigen Widerrufsfrist. Mir ist bekannt, dass mein ' +
+  'Widerrufsrecht bei diesem Abonnement nicht schon mit dem Beginn erlischt, ' +
+  'sondern erst, wenn die Leistung vollständig erbracht ist (§ 356 Abs. 4 und 5 ' +
+  'BGB); bei einem Widerruf vorher schulde ich für die bis dahin erbrachten ' +
+  'Leistungen anteiligen Wertersatz (§ 357a Abs. 1 BGB).';
+
+/** Kleingedrucktes unter der Checkbox — erklärt den Monatsbezug (de). */
+export const WIDERRUF_CONSENT_HINT_DE =
+  'Bei einem Monatsabo ist die Leistung nicht mit dem Beginn, sondern erst mit ' +
+  'Ablauf des bezahlten Monats vollständig erbracht. Bis dahin bleibt dein ' +
+  'Widerrufsrecht bestehen; bei einem Widerruf zahlst du für die bis dahin ' +
+  'erbrachten Leistungen anteiligen Wertersatz (§ 357a Abs. 1 BGB). Einzelheiten ' +
+  'regelt die Widerrufsbelehrung.';
+
+export const WIDERRUF_CONSENT_TEXT_EN =
+  'I expressly request that Growimo begins providing the service (access to the ' +
+  "Pro subscription's AI features) immediately after payment, i.e. before the " +
+  '14-day withdrawal period has expired. I am aware that, for this subscription, ' +
+  'my right of withdrawal does not end when the service begins but only once the ' +
+  'service has been fully performed (Sec. 356(4) and (5) German Civil Code, BGB); ' +
+  'if I withdraw before then, I owe proportionate compensation for the services ' +
+  'provided up to that point (Sec. 357a(1) BGB).';
+
+export const WIDERRUF_CONSENT_HINT_EN =
+  'For a monthly subscription the service is fully performed only at the end of ' +
+  'the paid month, not at its start. Until then your right of withdrawal remains ' +
+  'in force; if you withdraw, you pay proportionate compensation for the services ' +
+  'provided up to that point (Sec. 357a(1) BGB). Details are set out in the ' +
+  'withdrawal policy.';
 
 /**
  * Zwei kompatible Wege (Owner-Entscheidung, siehe Entwurfsordner):

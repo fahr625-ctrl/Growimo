@@ -2025,9 +2025,9 @@ export const en: EnShape = {
   // Code: express request + acknowledgement). Do not shorten: a blanket
   // "the right of withdrawal expires" clause without this consent is void.
   widerruf_consent_label:
-    'I expressly request that Growimo begins providing the service before the 14-day withdrawal period has expired, and I confirm that I thereby lose my right of withdrawal.',
+    "I expressly request that Growimo begins providing the service (access to the Pro subscription's AI features) immediately after payment, i.e. before the 14-day withdrawal period has expired. I am aware that, for this subscription, my right of withdrawal does not end when the service begins but only once the service has been fully performed (Sec. 356(4) and (5) German Civil Code, BGB); if I withdraw before then, I owe proportionate compensation for the services provided up to that point (Sec. 357a(1) BGB).",
   widerruf_consent_hint:
-    'The right of withdrawal expires once the service has been fully performed (Sec. 356(5) German Civil Code, BGB). Until then it remains in force; if you withdraw, you pay proportionate compensation for the service already provided (Sec. 357a(1) BGB). Details are set out in the withdrawal policy.',
+    'For a monthly subscription the service is fully performed only at the end of the paid month, not at its start. Until then your right of withdrawal remains in force; if you withdraw, you pay proportionate compensation for the services provided up to that point (Sec. 357a(1) BGB). Details are set out in the withdrawal policy.',
   widerruf_consent_required:
     'Please confirm that the service may begin before the withdrawal period expires in order to complete the subscription.',
   // ── Account deletion (self-service), owner decision 2026-10-24 ────────────

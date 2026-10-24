@@ -2035,9 +2035,9 @@ export const de = {
   // Verlangen + Kenntnisnahmebestätigung). Nicht kürzen: eine pauschale
   // „Widerrufsrecht erlischt"-Klausel ohne diese Zustimmung ist unwirksam.
   widerruf_consent_label:
-    'Ich verlange ausdrücklich, dass Growimo mit der Erbringung der Leistung bereits vor Ablauf der 14-tägigen Widerrufsfrist beginnt, und bestätige, dass ich dadurch mein Widerrufsrecht verliere.',
+    'Ich verlange ausdrücklich, dass Growimo mit der Erbringung der Leistung (Zugang zu den KI-Funktionen des Pro-Abos) sofort nach Zahlung beginnt, also vor Ablauf der 14-tägigen Widerrufsfrist. Mir ist bekannt, dass mein Widerrufsrecht bei diesem Abonnement nicht schon mit dem Beginn erlischt, sondern erst, wenn die Leistung vollständig erbracht ist (§ 356 Abs. 4 und 5 BGB); bei einem Widerruf vorher schulde ich für die bis dahin erbrachten Leistungen anteiligen Wertersatz (§ 357a Abs. 1 BGB).',
   widerruf_consent_hint:
-    'Das Widerrufsrecht erlischt, sobald die Leistung vollständig erbracht ist (§ 356 Abs. 5 BGB). Bis dahin bleibt es bestehen; bei einem Widerruf zahlst du für die bereits erbrachten Leistungen anteiligen Wertersatz (§ 357a Abs. 1 BGB). Einzelheiten regelt die Widerrufsbelehrung.',
+    'Bei einem Monatsabo ist die Leistung nicht mit dem Beginn, sondern erst mit Ablauf des bezahlten Monats vollständig erbracht. Bis dahin bleibt dein Widerrufsrecht bestehen; bei einem Widerruf zahlst du für die bis dahin erbrachten Leistungen anteiligen Wertersatz (§ 357a Abs. 1 BGB). Einzelheiten regelt die Widerrufsbelehrung.',
   widerruf_consent_required:
     'Bitte bestätige den Beginn vor Ablauf der Widerrufsfrist, um das Abo abzuschließen.',
   // ── Kontolöschung (Selbstbedienung), Owner-Entscheidung 2026-10-24 ─────────
