@@ -8,6 +8,7 @@
 // store layer converts them back to `Date`).
 import { getDb } from "./index";
 import type { ContentType } from "~/ai/types";
+import { decideUserEmail, isRealEmail, normalizeEmail } from "./user-email";
 
 // ── Row shapes (already JSON-safe) ────────────────────────────────────────────
 
@@ -62,27 +63,126 @@ function isoString(value: unknown): string {
   return new Date(String(value)).toISOString();
 }
 
+/** Minimaler Typ des Neon-SQL-Executors — Tests injizieren hier einen Fake. */
+export type SqlTag = (
+  strings: TemplateStringsArray,
+  ...values: unknown[]
+) => Promise<Record<string, unknown>[]>;
+
+export interface EnsureUserRowOptions {
+  /** SQL-Executor (Tests). Default: `getDb()`. */
+  sql?: SqlTag;
+  /**
+   * Echte Session-E-Mail. `undefined` = selbst ermitteln
+   * (`src/lib/session-email.ts`), `null` = ausdrücklich keine vorhanden.
+   */
+  sessionEmail?: string | null;
+  /** Unterdrückt die Session-Ermittlung vollständig (Skripte/Backfills). */
+  skipSessionEmail?: boolean;
+}
+
 /**
  * Resolve a clerk_id (or the "anonymous" fallback) to the users table UUID.
  * Creates the user row on first use so the app works even before the app-shell
  * `ensureUser` effect has run.
+ *
+ * FIX 2026-10-24 (Owner-Auftrag „ensureUserRow-E-Mail"): Wird KEINE E-Mail
+ * übergeben, wurde bisher `anon-<clerkId>@growimo.local` geschrieben — auch bei
+ * einem Nutzer mit echter Adresse. Dadurch fand `isBetaUserEmail()` nichts mehr
+ * und der lebenslange Beta-Rabatt (50 %) war still weg. Jetzt gilt:
+ *   · echte E-Mail des Aufrufers  → wird geschrieben (wie bisher),
+ *   · sonst echte Session-E-Mail  → heilt einen Platzhalter bzw. legt die Zeile
+ *     direkt mit echter Adresse an (Regeln in `./user-email.ts`),
+ *   · eine vorhandene ECHTE E-Mail wird NIE durch einen Platzhalter ersetzt.
  */
 export async function ensureUserRow(
   clerkId: string,
   email?: string,
   name?: string,
+  opts: EnsureUserRowOptions = {},
 ): Promise<string> {
-  const sql = getDb();
-  const mail =
-    email && email.trim() ? email.trim() : `anon-${clerkId}@growimo.local`;
+  const sql = (opts.sql ?? getDb()) as SqlTag;
+  const provided = normalizeEmail(email);
   const displayName = name && name.trim() ? name.trim() : null;
+
+  // ── Fall A: der Aufrufer kennt die echte E-Mail (app-shell `ensureUser`) ────
+  // Unverändertes Verhalten: direkt schreiben, kein zusätzlicher Read.
+  if (provided) return upsertUserRow(sql, clerkId, provided, displayName);
+
+  // ── Fall B: kein E-Mail-Argument — das sind ALLE Generierungs-/Speicherpfade
+  //    und damit genau der Pfad, der den Befund ausgelöst hat. ───────────────
+  const existing = await sql`SELECT id, email FROM users WHERE clerk_id = ${clerkId} LIMIT 1`;
+  const row = existing[0] as { id?: unknown; email?: unknown } | undefined;
+  const existingId = row?.id != null ? String(row.id) : null;
+  const existingEmail = row?.email == null ? null : String(row.email);
+
+  // Schnellpfad: Zeile existiert mit ECHTER E-Mail und es ist kein Name zu
+  // setzen → nichts zu tun (kein Clerk-Aufruf, kein Write).
+  if (existingId && isRealEmail(existingEmail) && !displayName) return existingId;
+
+  let sessionEmail: string | null = null;
+  if (!opts.skipSessionEmail) {
+    sessionEmail =
+      opts.sessionEmail !== undefined
+        ? normalizeEmail(opts.sessionEmail)
+        : await resolveSessionEmail(clerkId);
+  }
+
+  const decision = decideUserEmail({
+    clerkId,
+    existingEmail,
+    sessionEmail,
+    rowExists: Boolean(existingId),
+  });
+
+  // Nichts zu ändern (kein Wechsel, kein Name) → nur die ID zurückgeben.
+  if (!decision.changed && existingId) {
+    if (displayName) {
+      await sql`UPDATE users SET name = ${displayName}, updated_at = NOW()
+                 WHERE id = ${existingId}::uuid`;
+    }
+    return existingId;
+  }
+
+  return upsertUserRow(sql, clerkId, decision.email, displayName);
+}
+
+/** Session-E-Mail fail-open ermitteln (nie werfen, nie eine echte löschen). */
+async function resolveSessionEmail(clerkId: string): Promise<string | null> {
+  try {
+    const { getSessionEmailFor } = await import('../lib/session-email');
+    return await getSessionEmailFor(clerkId);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Der eigentliche Upsert. Die E-Mail wird zusätzlich in SQL geschützt
+ * (Race-Absicherung, falls zwischen Read und Write eine parallele Anfrage die
+ * Zeile mit einer echten Adresse angelegt hat):
+ *   · vorhandene echte E-Mail + neuer Platzhalter → vorhandene bleibt,
+ *   · vorhandener Platzhalter + neue echte E-Mail → wird geheilt.
+ */
+async function upsertUserRow(
+  sql: SqlTag,
+  clerkId: string,
+  mail: string,
+  displayName: string | null,
+): Promise<string> {
   try {
     const rows = await sql`
       INSERT INTO users (clerk_id, email, name)
       VALUES (${clerkId}, ${mail}, ${displayName})
       ON CONFLICT (clerk_id) DO UPDATE
-        SET email = EXCLUDED.email,
-            name = EXCLUDED.name,
+        SET email = CASE
+              WHEN users.email IS NULL OR users.email = '' THEN EXCLUDED.email
+              WHEN users.email ILIKE 'anon-%@growimo.local'
+                   AND EXCLUDED.email NOT ILIKE 'anon-%@growimo.local' THEN EXCLUDED.email
+              WHEN EXCLUDED.email ILIKE 'anon-%@growimo.local' THEN users.email
+              ELSE EXCLUDED.email
+            END,
+            name = COALESCE(EXCLUDED.name, users.name),
             updated_at = NOW()
       RETURNING id
     `;

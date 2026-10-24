@@ -26,11 +26,18 @@ function getJWKS() {
   if (!jwks) jwks = createRemoteJWKSet(new URL(`${origin}/.well-known/jwks.json`));
   return jwks;
 }
-/** Returns the Clerk subject (user id) if the __session token verifies, else null. */
-// Exported for reuse by the SSE generate-stream route (same __session-cookie
-// auth, no new auth code — see src/api/generate-stream.ts).
-export async function verifySessionSubject(req: Request): Promise<string | null> {
-  const cookie = req.headers.get("cookie") || "";
+/**
+ * Verifizierte Claims des `__session`-Tokens (oder null).
+ *
+ * FIX 2026-10-24 (ensureUserRow-E-Mail): `verifySessionSubject` brauchte nur den
+ * `sub`; für die E-Mail-Heilung werden die übrigen Claims (`email`) gebraucht.
+ * Beide Funktionen teilen sich deshalb diese eine Verifikation — es gibt
+ * weiterhin genau EINEN JWKS-Prüfpfad.
+ */
+export async function verifySessionPayload(
+  req: Request,
+): Promise<Record<string, unknown> | null> {
+  const cookie = req?.headers?.get?.("cookie") || "";
   const match = cookie.split(";").find((c) => c.trim().startsWith("__session="));
   if (!match) return null;
   const sessionToken = match.split("=").slice(1).join("=");
@@ -40,10 +47,18 @@ export async function verifySessionSubject(req: Request): Promise<string | null>
     const keys = getJWKS();
     if (!origin || !keys) return null;
     const { payload } = await jwtVerify(sessionToken, keys, { issuer: origin });
-    return typeof payload.sub === "string" && payload.sub ? payload.sub : null;
+    return payload as Record<string, unknown>;
   } catch {
     return null;
   }
+}
+
+/** Returns the Clerk subject (user id) if the __session token verifies, else null. */
+// Exported for reuse by the SSE generate-stream route (same __session-cookie
+// auth, no new auth code — see src/api/generate-stream.ts).
+export async function verifySessionSubject(req: Request): Promise<string | null> {
+  const payload = await verifySessionPayload(req);
+  return typeof payload?.sub === "string" && payload.sub ? payload.sub : null;
 }
 
 export async function handleTrackingApi(
