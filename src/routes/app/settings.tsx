@@ -1,5 +1,5 @@
 import { seoHead } from "~/lib/seo";
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useClerk, useUser } from '@clerk/clerk-react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
@@ -302,6 +302,28 @@ function SettingsContent() {
               : '—'}
           </p>
         </div>
+      </section>
+
+      {/* ── Konto löschen (Owner-Entscheidung 2026-10-24) ───────────────────── */}
+      {/* Sichtbar an genau der Stelle, an der man es erwartet (Einstellungen).
+          Bewusst als eigener Block mit Warntext — kein versteckter Link. */}
+      <section
+        className="mb-6 rounded-2xl border border-red-200 bg-white p-6 shadow-sm"
+        data-testid="settings-delete-account"
+      >
+        <div className="mb-3 flex items-center gap-2">
+          <h2 className="text-base font-bold text-red-700">{t.settings_delete_account}</h2>
+          <span className="h-px flex-1 bg-red-50" />
+        </div>
+        <p className="text-sm leading-relaxed text-gray-600">
+          {t.settings_delete_account_desc}
+        </p>
+        <Link
+          to="/app/konto-loeschen"
+          className="mt-4 inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition-all hover:border-red-300 hover:bg-red-100"
+        >
+          {t.settings_delete_account_open}
+        </Link>
       </section>
 
       {/* ── API Key ─────────────────────────────────────────────────────────── */}

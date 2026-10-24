@@ -2030,4 +2030,77 @@ export const en: EnShape = {
     'The right of withdrawal expires once the service has been fully performed (Sec. 356(5) German Civil Code, BGB). Until then it remains in force; if you withdraw, you pay proportionate compensation for the service already provided (Sec. 357a(1) BGB). Details are set out in the withdrawal policy.',
   widerruf_consent_required:
     'Please confirm that the service may begin before the withdrawal period expires in order to complete the subscription.',
+  // ── Account deletion (self-service), owner decision 2026-10-24 ────────────
+  // The warnings are mandatory (owner: "inform clearly about data loss and the
+  // effect on the subscription contract beforehand").
+  // Source of the list is ACCOUNT_DELETE_LOSS_ITEMS in src/account/deletion-plan.ts.
+  account_delete_title: 'Delete account',
+  account_delete_subtitle:
+    'This page permanently deletes your Growimo account. Please read the notes in full before continuing.',
+  account_delete_warning_heading: 'What you will lose',
+  account_delete_warning_intro:
+    'Deletion is permanent and cannot be undone. There is no recovery and no export after deletion.',
+  account_delete_loss_projects_and_content:
+    'All projects and the content generated in them (Pinterest pins, Etsy listings, blog posts, social posts, newsletters)',
+  account_delete_loss_generated_images:
+    'All images created and saved in the image studio (the files are removed from storage as well)',
+  account_delete_loss_saved_preferences:
+    'Saved settings, brand profile and default preferences',
+  account_delete_loss_usage_and_history:
+    'Usage history, generation history and statistics for your account',
+  account_delete_loss_generation_quota:
+    'Your generation quota (the 3 free generations are neither reset nor transferred)',
+  account_delete_loss_account_access:
+    'The access itself — signing in again with the same email creates a new, empty account',
+  account_delete_subscription_heading: 'Effect on your subscription',
+  account_delete_subscription_active:
+    'You have an active paid subscription (Pro) that currently runs until %s. You can choose whether it ends immediately or at the end of that period.',
+  account_delete_no_subscription:
+    'You currently have no active paid subscription. Only the immediate option is available.',
+  account_delete_mode_heading: 'How should your subscription be handled?',
+  account_delete_mode_immediate_label: 'Delete immediately',
+  account_delete_mode_immediate_desc:
+    'The subscription ends immediately and your account is deleted immediately. You will no longer have access to Growimo afterwards.',
+  account_delete_mode_period_end_label: 'Delete at the end of the paid period (%s)',
+  account_delete_mode_period_end_desc:
+    'The subscription ends at the end of the paid period. You keep full access until then; your account is deleted after that.',
+  account_delete_notice_subscription_ends_immediately: 'The subscription ends immediately.',
+  account_delete_notice_subscription_ends_at_period_end:
+    'The subscription ends at the end of the paid period.',
+  account_delete_notice_access_ends_immediately: 'Access ends immediately.',
+  account_delete_notice_access_until_period_end:
+    'Access remains until the end of the paid period.',
+  account_delete_notice_no_prorated_refund:
+    'No pro-rata refund is issued automatically.',
+  account_delete_confirm_heading: 'Confirmation',
+  account_delete_confirm_hint:
+    'To confirm, type the word %s into the field. This confirms that you have read the notes above.',
+  account_delete_confirm_placeholder: 'LOESCHEN',
+  account_delete_submit: 'Delete account permanently',
+  account_delete_submit_period_end: 'Schedule deletion at period end',
+  account_delete_submitting: 'Working …',
+  account_delete_cancel: 'Cancel',
+  account_delete_irreversible: 'This action cannot be undone.',
+  account_delete_error_mismatch:
+    'The confirmation word does not match. Please type it exactly as shown.',
+  account_delete_error_disabled:
+    'Account deletion is currently not enabled. Please contact support.',
+  account_delete_error_generic:
+    'The request could not be completed. Please reload the page and try again.',
+  account_delete_scheduled_title: 'Deletion scheduled',
+  account_delete_scheduled_body:
+    'Your account will be deleted on %s. Until then you can keep using Growimo. The deletion has not been executed yet — after that date it is final.',
+  account_delete_done_title: 'Account deleted',
+  account_delete_done_body:
+    'Your account and the associated data have been deleted. Invoices that we are legally required to retain remain stored with our payment provider.',
+  account_delete_back_settings: 'Back to settings',
+  account_delete_disabled_title: 'Account deletion currently unavailable',
+  account_delete_disabled_body:
+    'Self-service deletion is not enabled in this environment. Please use the contact given in the imprint.',
+  settings_delete_account: 'Delete account',
+  settings_delete_account_desc:
+    'Permanently delete your Growimo account. We inform you about the data loss and the effect on an active subscription first.',
+  settings_delete_account_open: 'Open account deletion',
+
+
 }

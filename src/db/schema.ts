@@ -357,4 +357,24 @@ CREATE INDEX IF NOT EXISTS idx_checkout_consents_user
   ON checkout_consents(user_id, accepted_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_checkout_consents_session
   ON checkout_consents(checkout_session_id);
+
+-- ── Kontolöschung (Selbstbedienung), Owner-Entscheidung 2026-10-24 ───────────
+-- Vormerkungen für die Variante "Löschung zum Ende des bezahlten Zeitraums".
+-- Die Zeile entsteht erst beim ERSTEN Aufruf der Funktion (idempotentes
+-- init.ts), sie wird NICHT rückwirkend befüllt. Ausgeführt wird sie vom
+-- Stripe-Webhook customer.subscription.deleted, zusätzlich vom täglichen
+-- Cron /api/cron/blob-ttl als Sicherheitsnetz.
+CREATE TABLE IF NOT EXISTS account_deletion_requests (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  clerk_user_id TEXT NOT NULL UNIQUE,
+  mode TEXT NOT NULL DEFAULT 'period_end',
+  status TEXT NOT NULL DEFAULT 'pending',
+  stripe_subscription_id TEXT,
+  scheduled_for TIMESTAMPTZ,
+  requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  executed_at TIMESTAMPTZ,
+  cancelled_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_account_deletion_requests_due
+  ON account_deletion_requests(status, scheduled_for);
 `;

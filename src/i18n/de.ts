@@ -2040,5 +2040,77 @@ export const de = {
     'Das Widerrufsrecht erlischt, sobald die Leistung vollständig erbracht ist (§ 356 Abs. 5 BGB). Bis dahin bleibt es bestehen; bei einem Widerruf zahlst du für die bereits erbrachten Leistungen anteiligen Wertersatz (§ 357a Abs. 1 BGB). Einzelheiten regelt die Widerrufsbelehrung.',
   widerruf_consent_required:
     'Bitte bestätige den Beginn vor Ablauf der Widerrufsfrist, um das Abo abzuschließen.',
-} as const;
+  // ── Kontolöschung (Selbstbedienung), Owner-Entscheidung 2026-10-24 ─────────
+  // Die Warnhinweise sind PFLICHT (Owner: „vorher deutlich über Datenverlust
+  // und mögliche Auswirkungen auf den Abonnementvertrag informieren").
+  // Quelle der Liste ist ACCOUNT_DELETE_LOSS_ITEMS in src/account/deletion-plan.ts.
+  account_delete_title: 'Konto löschen',
+  account_delete_subtitle:
+    'Diese Seite löscht dein Growimo-Konto endgültig. Bitte lies die Hinweise vollständig, bevor du fortfährst.',
+  account_delete_warning_heading: 'Was dabei verloren geht',
+  account_delete_warning_intro:
+    'Die Löschung ist endgültig und kann nicht rückgängig gemacht werden. Es gibt keine Wiederherstellung und keinen Export nach dem Löschen.',
+  account_delete_loss_projects_and_content:
+    'Alle Projekte und die darin generierten Inhalte (Pinterest-Pins, Etsy-Listings, Blogposts, Social-Posts, Newsletter)',
+  account_delete_loss_generated_images:
+    'Alle im Bild-Studio erstellten und gespeicherten Bilder (die Dateien werden auch aus dem Speicher gelöscht)',
+  account_delete_loss_saved_preferences:
+    'Gespeicherte Einstellungen, Brand-Profil und Standard-Vorgaben',
+  account_delete_loss_usage_and_history:
+    'Nutzungsverlauf, Generierungs-Historie und Statistik zu deinem Konto',
+  account_delete_loss_generation_quota:
+    'Dein Generierungs-Kontingent (auch die 3 kostenlosen Generierungen werden nicht zurückgesetzt oder übertragen)',
+  account_delete_loss_account_access:
+    'Der Zugang selbst — eine erneute Anmeldung mit derselben E-Mail erzeugt ein neues, leeres Konto',
+  account_delete_subscription_heading: 'Auswirkung auf dein Abonnement',
+  account_delete_subscription_active:
+    'Du hast ein aktives bezahltes Abo (Pro), das aktuell bis zum %s läuft. Du kannst wählen, ob es sofort endet oder erst zum Ende dieses Zeitraums.',
+  account_delete_no_subscription:
+    'Du hast derzeit kein aktives bezahltes Abo. Es gibt deshalb nur den sofortigen Weg.',
+  account_delete_mode_heading: 'Wie soll mit deinem Abo umgegangen werden?',
+  account_delete_mode_immediate_label: 'Sofort löschen',
+  account_delete_mode_immediate_desc:
+    'Das Abo wird sofort beendet und dein Konto wird sofort gelöscht. Du hast danach keinen Zugriff mehr auf Growimo.',
+  account_delete_mode_period_end_label: 'Zum Ende des bezahlten Zeitraums löschen (%s)',
+  account_delete_mode_period_end_desc:
+    'Das Abo wird zum Ende des bezahlten Zeitraums beendet. Bis dahin behältst du den vollen Zugriff; erst danach wird dein Konto gelöscht.',
+  account_delete_notice_subscription_ends_immediately: 'Das Abo endet sofort.',
+  account_delete_notice_subscription_ends_at_period_end:
+    'Das Abo endet zum Ende des bezahlten Zeitraums.',
+  account_delete_notice_access_ends_immediately: 'Der Zugriff endet sofort.',
+  account_delete_notice_access_until_period_end:
+    'Der Zugriff bleibt bis zum Ende des bezahlten Zeitraums bestehen.',
+  account_delete_notice_no_prorated_refund:
+    'Eine anteilige Erstattung erfolgt nicht automatisch.',
+  account_delete_confirm_heading: 'Bestätigung',
+  account_delete_confirm_hint:
+    'Tippe zur Bestätigung das Wort %s in das Feld. Damit bestätigst du, dass du die Hinweise oben gelesen hast.',
+  account_delete_confirm_placeholder: 'LOESCHEN',
+  account_delete_submit: 'Konto endgültig löschen',
+  account_delete_submit_period_end: 'Löschung zum Periodenende vormerken',
+  account_delete_submitting: 'Wird ausgeführt …',
+  account_delete_cancel: 'Abbrechen',
+  account_delete_irreversible: 'Diese Aktion kann nicht rückgängig gemacht werden.',
+  account_delete_error_mismatch:
+    'Das Bestätigungswort stimmt nicht. Bitte tippe es genau wie angegeben.',
+  account_delete_error_disabled:
+    'Die Kontolöschung ist derzeit nicht freigeschaltet. Bitte wende dich an den Support.',
+  account_delete_error_generic:
+    'Die Anfrage konnte nicht ausgeführt werden. Bitte lade die Seite neu und versuche es erneut.',
+  account_delete_scheduled_title: 'Löschung vorgemerkt',
+  account_delete_scheduled_body:
+    'Dein Konto wird zum %s gelöscht. Bis dahin kannst du Growimo wie gewohnt nutzen. Bis dahin ist die Löschung noch nicht ausgeführt — danach ist sie endgültig.',
+  account_delete_done_title: 'Konto gelöscht',
+  account_delete_done_body:
+    'Dein Konto und die zugehörigen Daten wurden gelöscht. Rechnungen, die wir gesetzlich aufbewahren müssen, bleiben bei unserem Zahlungsdienstleister gespeichert.',
+  account_delete_back_settings: 'Zurück zu den Einstellungen',
+  account_delete_disabled_title: 'Kontolöschung derzeit nicht verfügbar',
+  account_delete_disabled_body:
+    'Die Selbstbedienungs-Löschung ist in dieser Umgebung nicht freigeschaltet. Bitte wende dich an den im Impressum genannten Kontakt.',
+  settings_delete_account: 'Konto löschen',
+  settings_delete_account_desc:
+    'Lösche dein Growimo-Konto endgültig. Vorher informieren wir dich über den Datenverlust und die Auswirkung auf ein laufendes Abo.',
+  settings_delete_account_open: 'Kontolöschung öffnen',
 
+
+} as const;

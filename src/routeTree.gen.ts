@@ -20,6 +20,7 @@ import { Route as AppPricingRouteImport } from './routes/app/pricing'
 import { Route as AppPerformanceRouteImport } from './routes/app/performance'
 import { Route as AppPackageRouteImport } from './routes/app/package'
 import { Route as AppNewProjectRouteImport } from './routes/app/new-project'
+import { Route as AppKontoLoeschenRouteImport } from './routes/app/konto-loeschen'
 import { Route as AppImageStudioRouteImport } from './routes/app/image-studio'
 import { Route as AppFeedbackRouteImport } from './routes/app/feedback'
 import { Route as AppContentLibraryRouteImport } from './routes/app/content-library'
@@ -93,6 +94,11 @@ const AppPackageRoute = AppPackageRouteImport.update({
 const AppNewProjectRoute = AppNewProjectRouteImport.update({
   id: '/new-project',
   path: '/new-project',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppKontoLoeschenRoute = AppKontoLoeschenRouteImport.update({
+  id: '/konto-loeschen',
+  path: '/konto-loeschen',
   getParentRoute: () => AppRoute,
 } as any)
 const AppImageStudioRoute = AppImageStudioRouteImport.update({
@@ -207,6 +213,7 @@ export interface FileRoutesByFullPath {
   '/app/content-library': typeof AppContentLibraryRoute
   '/app/feedback': typeof AppFeedbackRoute
   '/app/image-studio': typeof AppImageStudioRoute
+  '/app/konto-loeschen': typeof AppKontoLoeschenRoute
   '/app/new-project': typeof AppNewProjectRoute
   '/app/package': typeof AppPackageRoute
   '/app/performance': typeof AppPerformanceRoute
@@ -238,6 +245,7 @@ export interface FileRoutesByTo {
   '/app/content-library': typeof AppContentLibraryRoute
   '/app/feedback': typeof AppFeedbackRoute
   '/app/image-studio': typeof AppImageStudioRoute
+  '/app/konto-loeschen': typeof AppKontoLoeschenRoute
   '/app/new-project': typeof AppNewProjectRoute
   '/app/package': typeof AppPackageRoute
   '/app/performance': typeof AppPerformanceRoute
@@ -271,6 +279,7 @@ export interface FileRoutesById {
   '/app/content-library': typeof AppContentLibraryRoute
   '/app/feedback': typeof AppFeedbackRoute
   '/app/image-studio': typeof AppImageStudioRoute
+  '/app/konto-loeschen': typeof AppKontoLoeschenRoute
   '/app/new-project': typeof AppNewProjectRoute
   '/app/package': typeof AppPackageRoute
   '/app/performance': typeof AppPerformanceRoute
@@ -305,6 +314,7 @@ export interface FileRouteTypes {
     | '/app/content-library'
     | '/app/feedback'
     | '/app/image-studio'
+    | '/app/konto-loeschen'
     | '/app/new-project'
     | '/app/package'
     | '/app/performance'
@@ -336,6 +346,7 @@ export interface FileRouteTypes {
     | '/app/content-library'
     | '/app/feedback'
     | '/app/image-studio'
+    | '/app/konto-loeschen'
     | '/app/new-project'
     | '/app/package'
     | '/app/performance'
@@ -368,6 +379,7 @@ export interface FileRouteTypes {
     | '/app/content-library'
     | '/app/feedback'
     | '/app/image-studio'
+    | '/app/konto-loeschen'
     | '/app/new-project'
     | '/app/package'
     | '/app/performance'
@@ -469,6 +481,13 @@ declare module '@tanstack/react-router' {
       path: '/new-project'
       fullPath: '/app/new-project'
       preLoaderRoute: typeof AppNewProjectRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/konto-loeschen': {
+      id: '/app/konto-loeschen'
+      path: '/konto-loeschen'
+      fullPath: '/app/konto-loeschen'
+      preLoaderRoute: typeof AppKontoLoeschenRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/image-studio': {
@@ -619,6 +638,7 @@ interface AppRouteChildren {
   AppContentLibraryRoute: typeof AppContentLibraryRoute
   AppFeedbackRoute: typeof AppFeedbackRoute
   AppImageStudioRoute: typeof AppImageStudioRoute
+  AppKontoLoeschenRoute: typeof AppKontoLoeschenRoute
   AppNewProjectRoute: typeof AppNewProjectRoute
   AppPackageRoute: typeof AppPackageRoute
   AppPerformanceRoute: typeof AppPerformanceRoute
@@ -648,6 +668,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppContentLibraryRoute: AppContentLibraryRoute,
   AppFeedbackRoute: AppFeedbackRoute,
   AppImageStudioRoute: AppImageStudioRoute,
+  AppKontoLoeschenRoute: AppKontoLoeschenRoute,
   AppNewProjectRoute: AppNewProjectRoute,
   AppPackageRoute: AppPackageRoute,
   AppPerformanceRoute: AppPerformanceRoute,

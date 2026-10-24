@@ -313,6 +313,25 @@ export async function processStripeEvent(
       // (verhindert ein dauerhaftes „Gekündigt – läuft bis …" nach Ablauf).
       cancelState: { cancelAtPeriodEnd: false, cancelAt: null },
     });
+
+    // ── Kontolöschung zum Periodenende (Owner-Entscheidung 2026-10-24) ────────
+    // PRIMÄRER Trigger: Wer „zum Ende des bezahlten Zeitraums löschen" gewählt
+    // hat, hat eine Vormerkung in `account_deletion_requests` (status 'pending').
+    // Mit dem Ablauf des Abos ist der Zeitraum vorbei → Löschung jetzt ausführen.
+    // Fail-soft: ein Fehler hier darf den Webhook NICHT zu einem 500 machen
+    // (Stripe würde sonst endlos wiederholen) — das Sicherheitsnetz ist der
+    // tägliche Cron /api/cron/blob-ttl (runScheduledAccountDeletions).
+    try {
+      const { maybeExecuteScheduledDeletion, productionDeletionDeps } = await import(
+        "../account/deletion-runner"
+      );
+      await maybeExecuteScheduledDeletion(existing.clerkUserId, productionDeletionDeps());
+    } catch (err) {
+      console.error(
+        "[stripe-webhook] geplante Kontolöschung fehlgeschlagen — Cron übernimmt:",
+        err,
+      );
+    }
     return;
   }
 

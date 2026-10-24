@@ -52,12 +52,36 @@ export async function handleCronBlobTtlApi(
   try {
     const { runDailySweep } = await import('../lib/generated-images-service');
     const result = await runDailySweep(sweepDeps);
+
+    // ── Zusatz-Job (Owner-Entscheidung 2026-10-24) ───────────────────────────
+    // Fällige Kontolöschungen zum Periodenende ausführen
+    // (`account_deletion_requests`, status 'pending', scheduled_for <= jetzt).
+    // Das ist das SICHERHEITSNETZ: der primäre Trigger ist der Stripe-Webhook
+    // `customer.subscription.deleted` (src/api/stripe-webhook.ts). Geht der
+    // Webhook verloren, löscht spätestens dieser Tageslauf.
+    // Fail-soft: ein Fehler hier darf den Blob-Sweep nicht als Fehler melden.
+    let accountDeletions = 0;
+    let accountDeletionFailures = 0;
+    try {
+      const { productionDeletionDeps, runScheduledAccountDeletions } = await import(
+        '../account/deletion-runner'
+      );
+      const deletions = await runScheduledAccountDeletions(productionDeletionDeps());
+      accountDeletions = deletions.executed;
+      accountDeletionFailures = deletions.failed;
+    } catch (err) {
+      // Nur Zähler nach außen, Details ins Server-Log (keine Personendaten).
+      console.error('[cron] Kontolöschungen fehlgeschlagen:', err);
+    }
+
     return new Response(
       JSON.stringify({
         marked: result.marked,
         blobDeleted: result.blobDeleted,
         blobFailed: result.blobFailed,
         rowsDeleted: result.rowsDeleted,
+        accountDeletions,
+        accountDeletionFailures,
       }),
       { status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } },
     );
