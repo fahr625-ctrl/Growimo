@@ -28,7 +28,7 @@ export const PROVIDER_COUNTRY = 'Deutschland';
  * Kontakt-E-Mail für Impressum, Datenschutz und Betroffenenanfragen.
  * LEER = noch nicht von der Ownerin geliefert → die Seiten zeigen „—".
  */
-export const CONTACT_EMAIL = '';
+export const CONTACT_EMAIL = 'kontakt@growimo.app';
 
 /**
  * Platzhalter, der sichtbar wird, solange CONTACT_EMAIL leer ist. Bewusst ein
