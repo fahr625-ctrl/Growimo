@@ -14,7 +14,7 @@ import { OG_IMAGE_URL } from "~/lib/seo";
 import { trackAnalytics } from "~/lib/analytics-client";
 
 import appCss from "~/styles/app.css?url";
-import { Analytics } from "@vercel/analytics/react";
+import { VercelAnalytics } from "~/components/VercelAnalytics";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -108,7 +108,9 @@ function RootDocument({ children }: { children: ReactNode }) {
       <body className="font-sans">
         {children}
         <Scripts />
-        <Analytics />
+        {/* Widerruf (Owner-Vorgabe 2026-10-23): lädt @vercel/analytics nur
+            ohne gesetztes Opt-out (growimo_analytics_optout). */}
+        <VercelAnalytics />
       </body>
     </html>
   );

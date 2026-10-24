@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { ROBOTS_PUBLIC, seoHead } from '~/lib/seo';
 import { useTranslation } from '~/i18n';
 import LegalLayout, { LegalHeading, LegalText } from '~/components/LegalLayout';
+import { AnalyticsOptOut } from '~/components/AnalyticsOptOut';
 import {
   CONTACT_EMAIL_PLACEHOLDER,
   LEGAL_LAST_UPDATED,
@@ -96,6 +97,14 @@ export function DatenschutzPage() {
       basis: t.legal_privacy_analytics_basis,
       retention: t.legal_privacy_analytics_retention,
     },
+    {
+      // Owner-Review 2026-10-23: beta_signups (Vorname + E-Mail) ist real
+      // vorhanden (src/db/schema.ts) und war im Text nicht beschrieben.
+      heading: t.legal_privacy_beta_heading,
+      body: t.legal_privacy_beta_body,
+      basis: t.legal_privacy_beta_basis,
+      retention: t.legal_privacy_beta_retention,
+    },
   ];
 
   const processors: string[] = [
@@ -109,6 +118,7 @@ export function DatenschutzPage() {
   const retentionItems: string[] = [
     t.legal_privacy_retention_account,
     t.legal_privacy_retention_content,
+    t.legal_privacy_retention_beta,
     t.legal_privacy_retention_usage,
     t.legal_privacy_retention_analytics,
     t.legal_privacy_retention_visitor_cookie,
@@ -201,6 +211,9 @@ export function DatenschutzPage() {
         {t.legal_privacy_cookies_visitor_heading}
       </h3>
       <LegalText>{t.legal_privacy_cookies_visitor_body}</LegalText>
+      {/* Owner-Vorgabe 2026-10-23: einfach zugänglicher Widerruf der
+          Analyse-Einwilligung (setzt growimo_analytics_optout). */}
+      <AnalyticsOptOut />
       <h3 className="mt-4 text-base font-semibold text-gray-900">
         {t.legal_privacy_cookies_local_heading}
       </h3>

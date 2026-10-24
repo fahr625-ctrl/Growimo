@@ -199,6 +199,72 @@ for (const bogus of ['Google Analytics', 'Facebook', 'Mailchimp', 'Sentry', 'Hub
   check(`Datenschutz: kein erfundener Dienst „${bogus}"`, !priHtml.includes(bogus));
 }
 
+// ── 5b. Owner-Review 2026-10-23: Widerruf + korrigierte Angaben ─────────────
+// (1) Sichtbarer Opt-out-Schalter in § 4.2 — er muss serverseitig gerendert
+//     werden, damit er ohne JavaScript und in Tests nachweisbar ist.
+check('Datenschutz: Opt-out-Schalter gerendert', priHtml.includes('data-testid="analytics-optout"'));
+check('Datenschutz: Opt-out-Button gerendert', priHtml.includes('data-testid="analytics-optout-button"'));
+check(
+  'Datenschutz: Opt-out nennt den Speicher-Schlüssel',
+  priHtml.includes('growimo_analytics_optout'),
+);
+check(
+  'Datenschutz: Widerruf verweist auf den Schalter (nicht auf Browser-Löschen)',
+  String(de.legal_privacy_cookies_visitor_body).includes('Schalter') &&
+    !String(de.legal_privacy_cookies_visitor_body).includes('indem du diese Speicherung und das Cookie'),
+);
+// (2) Beta-Warteliste (beta_signups) ist jetzt beschrieben.
+check('Datenschutz: Beta-Warteliste genannt', priHtml.includes('Beta-Warteliste'));
+check('Datenschutz: Beta-Warteliste de/en', String(de.legal_privacy_beta_heading).length > 0 && String(en.legal_privacy_beta_heading).length > 0);
+// (3) Bilder: 90 Tage + 200er-Obergrenze (Code: IMAGE_TTL_DAYS_DEFAULT=90,
+//     IMAGE_MAX_PER_USER_DEFAULT=200, delete_reason 'cap_200').
+check(
+  'Datenschutz: Bilder-TTL 90 Tage',
+  String(de.legal_privacy_images_retention).includes('90 Tage'),
+);
+check(
+  'Datenschutz: Bilder-Obergrenze 200 genannt',
+  String(de.legal_privacy_images_retention).includes('200') &&
+    String(en.legal_privacy_images_retention).includes('200'),
+);
+// (4) Drittland: nur belegbare Mechanismen (SCC + DPF-Kategorie), EU-Region
+//     der Datenbank (DATABASE_URL: eu-central-1).
+check(
+  'Datenschutz: Standardvertragsklauseln genannt',
+  String(de.legal_privacy_third_country_body).includes('Standardvertragsklauseln') &&
+    String(en.legal_privacy_third_country_body).includes('standard contractual clauses'),
+);
+check(
+  'Datenschutz: DPF als Kategorie (nicht als Einzelzertifizierung)',
+  String(de.legal_privacy_third_country_body).includes('soweit der jeweilige Anbieter nach dem EU-US Data Privacy Framework zertifiziert ist'),
+);
+check(
+  'Datenschutz: Neon-Datenbank in der EU genannt',
+  String(de.legal_privacy_third_country_body).includes('Europäischen Union'),
+);
+check(
+  'Datenschutz: keine erfundenen Vertragsnummern/Detailangaben',
+  !/SCC-[0-9]|DPF-[0-9]|Vertragsnummer/i.test(priHtml),
+);
+// (5) Keine Monats-Reset-Behauptung mehr (Kontingent ist seit 2026-10-22
+//     einmalig; ein "monatlich zurückgesetzt" wäre falsch).
+check(
+  'Datenschutz: kein „monatlich zurückgesetzt"',
+  !/monatlich zurückgesetzt|jeden Monat zurückgesetzt|reset monthly/i.test(priHtml),
+);
+// (6) localStorage-Claim korrigiert: localStorage überlebt den Tab.
+check(
+  'Datenschutz: localStorage vs. sessionStorage korrekt getrennt',
+  String(de.legal_privacy_cookies_local_body).includes('localStorage bleiben dagegen in deinem Browser gespeichert') &&
+    !String(de.legal_privacy_cookies_local_body).includes('Sitzungsdaten werden nicht auf unseren Servern gespeichert und mit dem Schließen'),
+);
+// (7) Analyse-Löschung präzise (Lazy-TTL bei der Auswertung).
+check(
+  'Datenschutz: Analyse-TTL präzise beschrieben',
+  String(de.legal_privacy_analytics_retention).includes('Löschlauf') &&
+    String(en.legal_privacy_analytics_retention).includes('deletion run'),
+);
+
 // ── 6. Footer-Verdrahtung ───────────────────────────────────────────────────
 const landing = readFileSync('./src/components/LandingPage.tsx', 'utf8');
 const appLayout = readFileSync('./src/routes/app.tsx', 'utf8');

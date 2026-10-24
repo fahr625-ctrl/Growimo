@@ -49,3 +49,42 @@ export function setAnalyticsConsent(value: 'yes' | 'no'): void {
 export function analyticsConsentHeader(): Record<string, string> {
   return getAnalyticsConsent() === 'yes' ? { 'x-analytics-consent': 'granted' } : {};
 }
+
+// ── Widerruf / Opt-out (Owner-Vorgabe 2026-10-23) ────────────────────────────
+// Ein einziger Schalter deaktiviert die Reichweitenmessung vollständig:
+//   1. kein `x-analytics-consent`-Header  → serverseitig kein growimo_vid-Cookie
+//   2. keine Analyse-Ereignisse mehr      → src/lib/analytics-client.ts
+//   3. @vercel/analytics wird nicht geladen → src/components/VercelAnalytics.tsx
+// Der Schlüssel ist DERSELBE wie in src/store/analytics.ts (lokale Statistik),
+// damit ein Widerruf überall greift und nicht zwei Flags auseinanderlaufen.
+export const ANALYTICS_OPTOUT_KEY = 'growimo_analytics_optout';
+
+/** Ist die Reichweitenmessung in diesem Browser deaktiviert? (fail-closed) */
+export function isAnalyticsOptedOut(): boolean {
+  try {
+    if (typeof localStorage === 'undefined') return false;
+    return localStorage.getItem(ANALYTICS_OPTOUT_KEY) === 'true';
+  } catch {
+    // localStorage blockiert (Privatmodus) → keine Kennung wird gesetzt,
+    // Aufrufe bleiben anonym; ein Opt-out ist dann nicht speicherbar.
+    return false;
+  }
+}
+
+/**
+ * Widerruf setzen oder aufheben. Beim Widerruf wird zusätzlich die
+ * Einwilligung auf 'no' gesetzt (kein Header, kein neues Cookie).
+ */
+export function setAnalyticsOptOut(optOut: boolean): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    if (optOut) {
+      localStorage.setItem(ANALYTICS_OPTOUT_KEY, 'true');
+      setAnalyticsConsent('no');
+    } else {
+      localStorage.removeItem(ANALYTICS_OPTOUT_KEY);
+    }
+  } catch {
+    // ignore — siehe isAnalyticsOptedOut()
+  }
+}

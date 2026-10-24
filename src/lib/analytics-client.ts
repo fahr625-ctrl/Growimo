@@ -8,7 +8,7 @@
 // (route/referrer-host/utm/channel/status/duration) is sent. Never throws,
 // never blocks the calling feature.
 import type { AnalyticsChannel, AnalyticsEvent, AnalyticsStatus } from "./analytics";
-import { analyticsConsentHeader } from "./analytics-consent";
+import { analyticsConsentHeader, isAnalyticsOptedOut } from "./analytics-consent";
 import {
   isAnalyticsErrorCategory,
   isAnalyticsErrorCode,
@@ -63,6 +63,9 @@ export function trackAnalytics(
   opts: TrackAnalyticsOptions = {},
 ): void {
   try {
+    // Widerruf (Owner-Vorgabe 2026-10-23): bei gesetztem Opt-out wird KEIN
+    // Ereignis mehr gesendet — der Schalter in /datenschutz wirkt sofort.
+    if (isAnalyticsOptedOut()) return;
     const payload: Record<string, unknown> = { event };
     if (opts.channel) payload.channel = opts.channel;
     if (opts.status) payload.status = opts.status;

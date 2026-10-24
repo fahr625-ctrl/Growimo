@@ -3,6 +3,8 @@
 // data, no cookies beyond localStorage, no IP logging, no fingerprinting.
 // Pure client-side only.
 
+import { ANALYTICS_OPTOUT_KEY } from '../lib/analytics-consent';
+
 export type AnalyticsEvent =
   | 'signup'
   | 'signin'
@@ -33,7 +35,9 @@ export interface AnalyticsStats {
 }
 
 const EVENTS_KEY = 'growimo_analytics_events';
-const OPTOUT_KEY = 'growimo_analytics_optout';
+// EINE Quelle für den Widerruf-Schlüssel: derselbe Flag schaltet auch die
+// serverseitigen Analyse-Ereignisse und @vercel/analytics ab (Owner 2026-10-23).
+const OPTOUT_KEY = ANALYTICS_OPTOUT_KEY;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────────
 
