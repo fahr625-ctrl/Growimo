@@ -1,5 +1,10 @@
 import { createServerFn } from '@tanstack/react-start';
 import { getOrigin } from './origin';
+import {
+  assertEarlyStartConsent,
+  buildConsentRecord,
+  earlyStartMode,
+} from './checkout-consent';
 
 /**
  * Creates a Stripe Checkout Session for upgrading to Pro.
@@ -17,10 +22,26 @@ import { getOrigin } from './origin';
  * (nie ein erfundener Preis/Redirect). Die Nutzer-Identität wird serverseitig
  * aus der Session verifiziert (Fallback auf die mitgeschickte userId nur ohne
  * __session-Cookie, identisch zum Usage-Guard).
+ *
+ * ENTWURF 2026-10-24 — WIDERRUFSRECHT (§§ 355, 356 Abs. 4/5, 357a Abs. 1 BGB):
+ * Ein Pro-Abo ist eine laufzeitgebundene Dienstleistung. Ohne ausdrückliches
+ * Verlangen des vorzeitigen Beginns darf vor Ablauf der 14-tägigen
+ * Widerrufsfrist nicht mit der Leistung begonnen werden, und im Widerrufsfall
+ * gibt es keinen Wertersatz. Deshalb gilt: Im Modus 'required'
+ * (Default, Env WIDERRUF_EARLY_START nicht auf 'off') baut dieser ServerFn
+ * OHNE Zustimmung GAR KEINE Session — der Fehler kommt vor jedem Stripe-Call
+ * (fail-closed, keine Kosten, kein Redirect). Die Zustimmung wird mit
+ * Textversion + Zeitpunkt + Preis persistiert (Nachweis), BEVOR die Session
+ * entsteht; scheitert der Nachweis, entsteht keine Session.
  */
 export const createCheckoutSession = createServerFn({ method: 'POST' })
   .validator((data: unknown) => {
-    const d = data as { userId?: string; priceLookupKey?: string };
+    const d = data as {
+      userId?: string;
+      priceLookupKey?: string;
+      earlyStartConsent?: unknown;
+      consentVersion?: unknown;
+    };
     if (!d.userId || typeof d.userId !== 'string') {
       throw new Error('userId is required');
     }
@@ -31,6 +52,10 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
     return {
       userId: d.userId,
       priceLookupKey: lookupKey,
+      // Bewusst ungeprüft durchgereicht: die Bewertung passiert serverseitig in
+      // assertEarlyStartConsent (nur echtes `true` zählt, kein truthy-Cast).
+      earlyStartConsent: d.earlyStartConsent,
+      consentVersion: d.consentVersion,
     };
   })
   .handler(async ({ data }) => {
@@ -49,6 +74,15 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
         'No valid session — please sign in again before starting the checkout.',
       );
     }
+
+    // Widerrufs-Gate (ENTWURF 2026-10-24): VOR jedem Stripe-Call. Wirft
+    // WiderrufConsentError (code 'widerruf_consent_required'), wenn im Modus
+    // 'required' die Zustimmung fehlt oder die Textversion veraltet ist.
+    const consentMode = earlyStartMode();
+    const consent = assertEarlyStartConsent(
+      { earlyStartConsent: data.earlyStartConsent, consentVersion: data.consentVersion },
+      consentMode,
+    );
 
     // Dynamic import so the stripe package is only loaded server-side
     const { default: Stripe } = await import('stripe');
@@ -98,6 +132,28 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
     // kommt aus PUBLIC_SITE_URL → Origin/Forwarded-Host/Host des Requests →
     // https://www.growimo.app. Nie localhost in Production (src/stripe/origin.ts).
     const origin = await getOrigin();
+
+    // ── Widerrufs-Nachweis (ENTWURF 2026-10-24) ─────────────────────────────
+    // BEVOR die Session entsteht: Zustimmung mit Textversion + Zeitpunkt +
+    // gewähltem Preis persistieren. Scheitert der Nachweis, wird KEINE Session
+    // gebaut (fail-closed: eine Zahlung ohne dokumentierte Zustimmung wäre im
+    // Widerrufsfall nicht belegbar). Modus 'off' (Variante i) schreibt nichts.
+    let consentId: string | null = null;
+    if (consent.required) {
+      const { qInsertCheckoutConsent } = await import('../db/queries');
+      consentId = await qInsertCheckoutConsent(
+        buildConsentRecord({
+          clerkUserId: userId,
+          priceLookupKey: data.priceLookupKey,
+        }),
+      );
+      if (!consentId) {
+        throw new Error(
+          'Die Zustimmung zum vorzeitigen Beginn konnte nicht dokumentiert werden — der Checkout wurde abgebrochen. Bitte versuche es erneut.',
+        );
+      }
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       line_items: [
@@ -118,8 +174,29 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
         : {}),
       metadata: {
         userId,
+        // ENTWURF 2026-10-24: Zustand der Widerrufs-Zustimmung auch im
+        // Stripe-Objekt dokumentieren (der Nachweis selbst liegt in der DB,
+        // Tabelle checkout_consents).
+        widerrufConsent: consent.required ? 'early_start_express' : 'none',
+        widerrufConsentVersion: consent.version,
       },
     });
 
-    return { url: session.url, isBeta };
+    // Session-ID an den Nachweis hängen (fail-soft: der Nachweis existiert
+    // bereits; ein Fehler hier darf einen bezahlten Checkout nicht verhindern).
+    if (consentId) {
+      try {
+        const { qSetCheckoutConsentSession } = await import('../db/queries');
+        await qSetCheckoutConsentSession(consentId, session.id);
+      } catch (err) {
+        console.error('[checkout] Widerrufs-Nachweis ohne Session-ID:', err);
+      }
+    }
+
+    return {
+      url: session.url,
+      isBeta,
+      consentRecorded: Boolean(consentId),
+      consentVersion: consent.version,
+    };
   });

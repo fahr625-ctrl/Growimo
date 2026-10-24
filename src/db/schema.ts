@@ -331,4 +331,30 @@ CREATE INDEX IF NOT EXISTS idx_generated_images_deleted_pending
 ALTER TABLE generated_images DROP CONSTRAINT IF EXISTS generated_images_delete_reason_check;
 ALTER TABLE generated_images ADD CONSTRAINT generated_images_delete_reason_check
   CHECK (delete_reason IS NULL OR delete_reason IN ('cap_200', 'ttl_90d', 'account_deleted', 'manual'));
+
+-- ── ENTWURF 2026-10-24: Nachweis der Widerrufs-Zustimmung im Checkout ────────
+-- Ein Pro-Abo ist eine laufzeitgebundene Dienstleistung. Der Beginn vor Ablauf
+-- der Widerrufsfrist ist nur mit ausdruecklichem Verlangen und
+-- Kenntnisnahmebestaetigung des Verbrauchers zulaessig (Paragraphen 356 Abs. 4
+-- und Abs. 5 sowie 357a Abs. 1 BGB). Diese Tabelle haelt den Nachweis fest:
+-- WELCHE Textversion hat der Nutzer WANN und fuer WELCHEN Preis bestaetigt.
+-- user_id ist die Clerk-ID als TEXT (wie usage_events) - bewusst OHNE FK, damit
+-- der Nachweis ein Loeschen des users-Datensatzes ueberlebt (Nachweisfunktion).
+-- Bewusst KEINE IP-Adresse und KEIN User-Agent: Konto, Zeitpunkt, Textversion
+-- und Preis genuegen fuer den Nachweis (Datenminimierung).
+-- Idempotent und additiv - keine Aenderung an bestehenden Tabellen.
+CREATE TABLE IF NOT EXISTS checkout_consents (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  text_version TEXT NOT NULL,
+  price_lookup_key TEXT,
+  checkout_session_id TEXT,
+  accepted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_checkout_consents_user
+  ON checkout_consents(user_id, accepted_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_checkout_consents_session
+  ON checkout_consents(checkout_session_id);
 `;

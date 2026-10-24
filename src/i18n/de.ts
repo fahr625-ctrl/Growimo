@@ -2030,5 +2030,15 @@ export const de = {
   legal_privacy_changes_body: 'Wir passen diese Erklärung an, wenn sich die Verarbeitungen oder die rechtlichen Rahmenbedingungen ändern. Es gilt die jeweils unter www.growimo.app veröffentlichte Fassung mit dem oben genannten Stand.',
   legal_privacy_contact_heading: '13. Kontakt',
   legal_privacy_contact_body: 'Fragen zum Datenschutz richtest du an:',
+  // ── ENTWURF 2026-10-24: Widerruf / vorzeitiger Beginn im Checkout ──────────
+  // Wortlaut = gesetzliche Voraussetzung aus § 356 Abs. 4/5 BGB (ausdrückliches
+  // Verlangen + Kenntnisnahmebestätigung). Nicht kürzen: eine pauschale
+  // „Widerrufsrecht erlischt"-Klausel ohne diese Zustimmung ist unwirksam.
+  widerruf_consent_label:
+    'Ich verlange ausdrücklich, dass Growimo mit der Erbringung der Leistung bereits vor Ablauf der 14-tägigen Widerrufsfrist beginnt, und bestätige, dass ich dadurch mein Widerrufsrecht verliere.',
+  widerruf_consent_hint:
+    'Das Widerrufsrecht erlischt, sobald die Leistung vollständig erbracht ist (§ 356 Abs. 5 BGB). Bis dahin bleibt es bestehen; bei einem Widerruf zahlst du für die bereits erbrachten Leistungen anteiligen Wertersatz (§ 357a Abs. 1 BGB). Einzelheiten regelt die Widerrufsbelehrung.',
+  widerruf_consent_required:
+    'Bitte bestätige den Beginn vor Ablauf der Widerrufsfrist, um das Abo abzuschließen.',
 } as const;
 

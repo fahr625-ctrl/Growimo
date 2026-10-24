@@ -8,6 +8,7 @@ import {
   isStripeConfigured,
 } from '~/store/subscriptions';
 import { createCheckoutSession } from '~/stripe/checkout';
+import { WIDERRUF_CONSENT_VERSION } from '~/stripe/checkout-consent';
 import { getSubscriptionStatus } from '~/stripe/subscription';
 import { useTranslation } from '~/i18n';
 import { track } from '~/lib/tracking-client';
@@ -48,6 +49,12 @@ function PricingPage() {
   const [userTier, setUserTier] = useState<'free' | 'pro'>(initialSub.tier);
   const [isBeta, setIsBeta] = useState(false);
   const [stripeConfigured, setStripeConfigured] = useState<boolean | null>(null);
+  // ENTWURF 2026-10-24: Zustimmung zum vorzeitigen Beginn der Leistung
+  // (§§ 356 Abs. 4/5, 357a Abs. 1 BGB). Startwert false = nicht zugestimmt.
+  const [consentChecked, setConsentChecked] = useState(false);
+  // Fail-closed-Default true: solange der Server den Modus nicht gemeldet hat,
+  // wird die Zustimmung verlangt (nicht stillschweigend weggelassen).
+  const [consentRequired, setConsentRequired] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,6 +75,9 @@ function PricingPage() {
           setUserTier(status.tier);
         }
         setIsBeta(status.isBeta);
+        if (status.earlyStartConsentRequired !== undefined) {
+          setConsentRequired(status.earlyStartConsentRequired);
+        }
         if (status.stripeConfigured !== undefined) setStripeConfigured(status.stripeConfigured);
       })
       .catch(() => {
@@ -90,6 +100,13 @@ function PricingPage() {
   const handleUpgrade = async () => {
     track('upgrade_clicked', userId === 'anonymous' ? undefined : userId, { source: 'pricing' });
     if (!stripeReady) return;
+    // ENTWURF 2026-10-24: Ohne Zustimmung wird gar nicht erst angefragt.
+    // Der Server prüft dasselbe noch einmal (fail-closed) — die Vorprüfung
+    // hier ist nur die bessere Fehlermeldung, nie die einzige Prüfung.
+    if (consentRequired && !consentChecked) {
+      setError(t.widerruf_consent_required);
+      return;
+    }
     setIsLoading(true);
     setError(null);
 
@@ -98,21 +115,53 @@ function PricingPage() {
         data: {
           userId,
           priceLookupKey: isAnnual ? 'pro_yearly' : 'pro_monthly',
+          earlyStartConsent: consentRequired ? consentChecked : false,
+          consentVersion: WIDERRUF_CONSENT_VERSION,
         },
       });
       if (result.url) {
         window.location.href = result.url;
       }
     } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      // Serverseitige Ablehnung der Zustimmung → übersetzte, klare Meldung
+      // statt der englischen Server-Meldung.
       setError(
-        err instanceof Error
-          ? err.message
-          : t.pricing_error_generic,
+        /widerruf_consent|Widerruf/i.test(message)
+          ? t.widerruf_consent_required
+          : err instanceof Error
+            ? err.message
+            : t.pricing_error_generic,
       );
     } finally {
       setIsLoading(false);
     }
   };
+
+  // ENTWURF 2026-10-24: Checkbox „vorzeitiger Beginn" — steht bewusst VOR dem
+  // Kauf-Button, damit die Zustimmung vor der Zahlung sichtbar und abwählbar
+  // ist (Art. 246a § 1 Abs. 2 EGBGB / § 312j BGB: Informationen vor der
+  // Bestellung). Der Text ist vollständig inline (kein Link auf eine noch
+  // nicht geroutete Widerrufsseite → kein 404).
+  const consentBlock =
+    userTier === 'pro' || !consentRequired ? null : (
+      <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-3 text-left">
+        <label className="flex items-start gap-2">
+          <input
+            type="checkbox"
+            checked={consentChecked}
+            onChange={(e) => setConsentChecked(e.target.checked)}
+            className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <span className="text-xs font-medium leading-relaxed text-gray-800">
+            {t.widerruf_consent_label}
+          </span>
+        </label>
+        <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
+          {t.widerruf_consent_hint}
+        </p>
+      </div>
+    );
 
   return (
     <div>
@@ -193,7 +242,9 @@ function PricingPage() {
           }
           betaBadge={isBeta ? t.pricing_beta_badge : undefined}
           cta={
-            userTier === 'pro' ? (
+            <div>
+              {consentBlock}
+              {userTier === 'pro' ? (
               <Link
                 to="/app/billing"
                 className="inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition-all hover:from-blue-700 hover:to-purple-700 hover:shadow-xl"
@@ -238,7 +289,8 @@ function PricingPage() {
                   t.pricing_pro_upgrade
                 )}
               </button>
-            )
+              )}
+            </div>
           }
           highlighted={true}
           badge={t.pricing_popular}

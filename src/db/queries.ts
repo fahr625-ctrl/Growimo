@@ -1450,3 +1450,77 @@ export async function qGetUserEmailByClerkId(clerkUserId: string): Promise<strin
   const rows = await sql`SELECT email FROM users WHERE clerk_id = ${clerkUserId} LIMIT 1`;
   return rows.length > 0 && rows[0].email ? String(rows[0].email) : null;
 }
+
+// ── ENTWURF 2026-10-24: Widerrufs-Zustimmung im Checkout ─────────────────────
+// Nachweis der ausdrücklichen Zustimmung zum vorzeitigen Beginn
+// (§§ 356 Abs. 4/5, 357a Abs. 1 BGB). user_id = Clerk-ID als TEXT (kein FK),
+// damit der Nachweis eine Konto-Löschung überlebt. Fail-closed im Aufrufer:
+// `null` bedeutet „nicht dokumentiert" → dort wird der Checkout abgebrochen.
+
+export interface CheckoutConsentInput {
+  kind: string;
+  textVersion: string;
+  clerkUserId: string;
+  priceLookupKey: string | null;
+  /** ISO-Zeitpunkt der Zustimmung. */
+  acceptedAt: string;
+}
+
+/** Schreibt den Zustimmungs-Nachweis und liefert seine ID (null = nicht geschrieben). */
+export async function qInsertCheckoutConsent(
+  c: CheckoutConsentInput,
+): Promise<string | null> {
+  const sql = getDb();
+  const rows = await sql`
+    INSERT INTO checkout_consents (user_id, kind, text_version, price_lookup_key, accepted_at)
+    VALUES (${c.clerkUserId}, ${c.kind}, ${c.textVersion}, ${c.priceLookupKey},
+            ${c.acceptedAt}::timestamptz)
+    RETURNING id
+  `;
+  return rows.length > 0 ? String(rows[0].id) : null;
+}
+
+/** Hängt die Stripe-Checkout-Session an den Nachweis (fail-soft im Aufrufer). */
+export async function qSetCheckoutConsentSession(
+  consentId: string,
+  sessionId: string,
+): Promise<boolean> {
+  const sql = getDb();
+  const rows = await sql`
+    UPDATE checkout_consents
+       SET checkout_session_id = ${sessionId}
+     WHERE id = ${consentId}::uuid
+    RETURNING id
+  `;
+  return rows.length > 0;
+}
+
+/** Jüngster Zustimmungs-Nachweis eines Nutzers (für Support/Prüfung). */
+export async function qGetLatestCheckoutConsent(clerkUserId: string): Promise<{
+  id: string;
+  kind: string;
+  textVersion: string;
+  priceLookupKey: string | null;
+  checkoutSessionId: string | null;
+  acceptedAt: string;
+} | null> {
+  const sql = getDb();
+  const rows = await sql`
+    SELECT id, kind, text_version, price_lookup_key, checkout_session_id, accepted_at
+      FROM checkout_consents
+     WHERE user_id = ${clerkUserId}
+     ORDER BY accepted_at DESC
+     LIMIT 1
+  `;
+  if (rows.length === 0) return null;
+  const r = rows[0] as Record<string, unknown>;
+  return {
+    id: String(r.id),
+    kind: String(r.kind),
+    textVersion: String(r.text_version),
+    priceLookupKey: r.price_lookup_key ? String(r.price_lookup_key) : null,
+    checkoutSessionId: r.checkout_session_id ? String(r.checkout_session_id) : null,
+    acceptedAt: new Date(r.accepted_at as string).toISOString(),
+  };
+}
+

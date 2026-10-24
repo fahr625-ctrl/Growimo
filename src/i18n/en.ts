@@ -2020,4 +2020,14 @@ export const en: EnShape = {
   legal_privacy_changes_body: 'We update this policy when the processing activities or the legal framework change. The version published at www.growimo.app with the date stated above applies.',
   legal_privacy_contact_heading: '13. Contact',
   legal_privacy_contact_body: 'Questions about data protection can be directed to:',
+  // ── DRAFT 2026-10-24: right of withdrawal / early start in checkout ────────
+  // Wording mirrors the statutory requirement (Sec. 356(4)/(5) German Civil
+  // Code: express request + acknowledgement). Do not shorten: a blanket
+  // "the right of withdrawal expires" clause without this consent is void.
+  widerruf_consent_label:
+    'I expressly request that Growimo begins providing the service before the 14-day withdrawal period has expired, and I confirm that I thereby lose my right of withdrawal.',
+  widerruf_consent_hint:
+    'The right of withdrawal expires once the service has been fully performed (Sec. 356(5) German Civil Code, BGB). Until then it remains in force; if you withdraw, you pay proportionate compensation for the service already provided (Sec. 357a(1) BGB). Details are set out in the withdrawal policy.',
+  widerruf_consent_required:
+    'Please confirm that the service may begin before the withdrawal period expires in order to complete the subscription.',
 }

@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start';
+import { earlyStartMode } from './checkout-consent';
 
 /**
  * Phase 8.3 — Abo-Status vom Server (DB) für die Billing-/Pricing-UI.
@@ -28,6 +29,13 @@ export interface SubscriptionStatus {
   /** P2: von Stripe terminierter Kündigungszeitpunkt (ISO) oder null. */
   cancelAt: string | null;
   isBeta: boolean;
+  /**
+   * ENTWURF 2026-10-24: Muss im Checkout die ausdrückliche Zustimmung zum
+   * vorzeitigen Beginn der Leistung abgefragt werden? Kommt aus derselben
+   * Quelle wie das ServerFn-Gate (`earlyStartMode()`), damit UI und Server
+   * nie auseinanderlaufen. Default true (fail-closed).
+   */
+  earlyStartConsentRequired: boolean;
   usage: {
     used: number;
     remaining: number;
@@ -48,6 +56,7 @@ export const getSubscriptionStatus = createServerFn({ method: 'GET' }).handler(
       tier: 'free' as const,
       status: 'active' as const,
       isBeta: false,
+      earlyStartConsentRequired: earlyStartMode() === 'required',
       usage: null as SubscriptionStatus['usage'],
       currentPeriodEnd: null as string | null,
       cancelAtPeriodEnd: false,
