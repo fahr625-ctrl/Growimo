@@ -141,8 +141,8 @@ function PricingPage() {
   // ENTWURF 2026-10-24: Checkbox „vorzeitiger Beginn" — steht bewusst VOR dem
   // Kauf-Button, damit die Zustimmung vor der Zahlung sichtbar und abwählbar
   // ist (Art. 246a § 1 Abs. 2 EGBGB / § 312j BGB: Informationen vor der
-  // Bestellung). Der Text ist vollständig inline (kein Link auf eine noch
-  // nicht geroutete Widerrufsseite → kein 404).
+  // Bestellung). Der Text ist vollständig inline; die Widerrufsbelehrung ist
+  // seit 2026-10-25 eine echte Route (/widerruf) und wird darunter verlinkt.
   const consentBlock =
     userTier === 'pro' || !consentRequired ? null : (
       <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-3 text-left">
@@ -160,6 +160,24 @@ function PricingPage() {
         <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
           {t.widerruf_consent_hint}
         </p>
+        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
+          <a
+            href="/widerruf"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 underline hover:text-blue-700"
+          >
+            {t.legal_widerruf_title}
+          </a>
+          <a
+            href="/agb"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 underline hover:text-blue-700"
+          >
+            {t.legal_agb_title}
+          </a>
+        </div>
       </div>
     );
 

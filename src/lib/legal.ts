@@ -1,11 +1,16 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // LEGAL-CONFIG — EINZIGE STELLE FÜR DIE RECHTSANGABEN DES BETREIBERS
 // ─────────────────────────────────────────────────────────────────────────────
-// ⚠️  HIER TRÄGT DIE OWNERIN IHRE ANGABEN EIN. Die Seiten /impressum und
-//     /datenschutz lesen ausschließlich aus dieser Datei — es gibt keine
-//     zweiten Kopien der Personalien im Code.
+// ⚠️  HIER TRÄGT DIE OWNERIN IHRE ANGABEN EIN. Die Seiten /impressum,
+//     /datenschutz, /agb und /widerruf lesen die Personalien ausschließlich aus
+//     dieser Datei — es gibt keine zweiten Kopien im Code.
 //
-// Stand der Angaben: 2026-10-23 (von der Ownerin geliefert).
+//     OFFEN (Owner-Frage 2026-10-25): AGB und Widerrufsbelehrung liegen nur auf
+//     DEUTSCH vor. Für /agb und /widerruf existiert daher keine englische
+//     Fassung; die englische Oberfläche zeigt einen Hinweis + den deutschen
+//     Text. Es wird KEINE Übersetzung erfunden.
+//
+// Stand der Angaben: 2026-10-25 (von der Ownerin geliefert).
 //
 // NACHFÜLLEN VOR DEM PUBLIC LAUNCH:
 //   1. CONTACT_EMAIL setzen  → Impressum + Datenschutz zeigen bis dahin „—".
@@ -54,7 +59,23 @@ export const VAT_DISCLAIMER = '';
 export const WEBSITE_URL = 'https://growimo.app';
 
 /** Stand der Rechtstexte (Anzeige „Stand: …"). */
-export const LEGAL_LAST_UPDATED = '2026-10-23';
+export const LEGAL_LAST_UPDATED = '2026-10-25';
+
+/**
+ * Öffentliche Rechts-Routen. EINE Quelle für Footer, /app-Sidebar und Tests —
+ * damit keine Referenz auf eine nicht existierende Route zeigt.
+ *
+ * Hinweis: Die AGB (`/agb`) und die Widerrufsbelehrung (`/widerruf`) sind am
+ * 2026-10-25 aufgenommen worden (Owner-Freigabe). Ihre langen Texte stehen
+ * NICHT hier, sondern in `src/lib/legal-docs.ts`; diese Datei bleibt die
+ * einzige Quelle für die Betreiber-Angaben (Name, Anschrift, E-Mail, USt).
+ */
+export const LEGAL_ROUTES = {
+  imprint: '/impressum',
+  privacy: '/datenschutz',
+  terms: '/agb',
+  withdrawal: '/widerruf',
+} as const;
 
 /** Anzeigewert für die Kontakt-E-Mail (CONTACT_EMAIL oder sichtbarer Platzhalter). */
 export function contactEmailDisplay(): string {

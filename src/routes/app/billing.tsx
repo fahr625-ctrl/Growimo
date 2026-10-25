@@ -325,6 +325,25 @@ function BillingContent() {
         <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
           {t.widerruf_consent_hint}
         </p>
+        {/* 2026-10-25: die Widerrufsbelehrung ist eine echte Route. */}
+        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
+          <a
+            href="/widerruf"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 underline hover:text-blue-700"
+          >
+            {t.legal_widerruf_title}
+          </a>
+          <a
+            href="/agb"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 underline hover:text-blue-700"
+          >
+            {t.legal_agb_title}
+          </a>
+        </div>
       </div>
     );
 

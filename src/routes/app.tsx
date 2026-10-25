@@ -471,13 +471,20 @@ function AppSidebar() {
               {t.auth_sign_in}
             </Link>
           )}
-          {/* Rechtstexte (2026-10-23): aus jedem Bereich der App erreichbar. */}
+          {/* Rechtstexte (2026-10-23): aus jedem Bereich der App erreichbar.
+              2026-10-25 (Owner-Freigabe): AGB + Widerrufsbelehrung ergänzt. */}
           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-400">
             <a href="/impressum" className="transition-colors hover:text-gray-600">
               {t.footer_imprint}
             </a>
             <a href="/datenschutz" className="transition-colors hover:text-gray-600">
               {t.footer_privacy}
+            </a>
+            <a href="/agb" className="transition-colors hover:text-gray-600">
+              {t.footer_agb}
+            </a>
+            <a href="/widerruf" className="transition-colors hover:text-gray-600">
+              {t.footer_widerruf}
             </a>
           </div>
         </div>

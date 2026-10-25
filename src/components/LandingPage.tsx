@@ -862,9 +862,13 @@ function Footer() {
   // Rechtstexte (2026-10-23): echte Routen statt toter "#"-Links.
   // „Kontakt" führt auf das Impressum, weil dort die Kontaktangaben stehen —
   // solange keine Kontakt-E-Mail hinterlegt ist, wird kein Postfach erfunden.
+  // 2026-10-25 (Owner-Freigabe): AGB und Widerrufsbelehrung sind eigene Seiten
+  // und werden hier vollständig verlinkt.
   const legalLinks = [
     { label: t.footer_imprint, href: "/impressum" },
     { label: t.footer_privacy, href: "/datenschutz" },
+    { label: t.footer_agb, href: "/agb" },
+    { label: t.footer_widerruf, href: "/widerruf" },
     { label: t.footer_contact, href: "/impressum" },
   ];
 

@@ -12,7 +12,7 @@
 //   6. Footer (Landing + /app) verlinkt die echten Routen, keine toten "#"-Links.
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 
 import { de } from './src/i18n/de';
 import { en } from './src/i18n/en';
@@ -21,6 +21,7 @@ import {
   CONTACT_EMAIL,
   CONTACT_EMAIL_PLACEHOLDER,
   LEGAL_LAST_UPDATED,
+  LEGAL_ROUTES,
   PROVIDER_CITY,
   PROVIDER_COUNTRY,
   PROVIDER_NAME,
@@ -33,8 +34,11 @@ import {
   hasVatInfo,
   providerAddressLines,
 } from './src/lib/legal';
+import { AGB_SECTIONS, WIDERRUF_SECTIONS } from './src/lib/legal-docs';
 import { Route as ImpressumRoute, ImpressumPage } from './src/routes/impressum';
 import { Route as DatenschutzRoute, DatenschutzPage } from './src/routes/datenschutz';
+import { Route as AgbRoute, AgbPage } from './src/routes/agb';
+import { Route as WiderrufRoute, WiderrufPage } from './src/routes/widerruf';
 
 let failures = 0;
 let checks = 0;
@@ -66,7 +70,7 @@ check(
   providerAddressLines().join('|'),
 );
 check('Website-URL growimo.app', WEBSITE_URL === 'https://growimo.app', WEBSITE_URL);
-check('Stand gesetzt (2026-10-23)', LEGAL_LAST_UPDATED === '2026-10-23', LEGAL_LAST_UPDATED);
+check('Stand gesetzt (2026-10-25)', LEGAL_LAST_UPDATED === '2026-10-25', LEGAL_LAST_UPDATED);
 
 // Keine erfundenen Angaben: USt bleibt leer, bis die Ownerin entscheidet.
 check('keine USt-IdNr. erfunden', VAT_ID === '', VAT_ID);
@@ -268,11 +272,159 @@ check(
 // ── 6. Footer-Verdrahtung ───────────────────────────────────────────────────
 const landing = readFileSync('./src/components/LandingPage.tsx', 'utf8');
 const appLayout = readFileSync('./src/routes/app.tsx', 'utf8');
+const legalLayout = readFileSync('./src/components/LegalLayout.tsx', 'utf8');
 check('Landing-Footer → /impressum', landing.includes('href: "/impressum"'));
 check('Landing-Footer → /datenschutz', landing.includes('href: "/datenschutz"'));
+check('Landing-Footer → /agb', landing.includes('href: "/agb"'));
+check('Landing-Footer → /widerruf', landing.includes('href: "/widerruf"'));
 check('Landing-Footer: kein toter Rechts-Link mehr', !/label: t\.footer_(privacy|imprint|terms), href: "#"/.test(landing));
 check('/app-Sidebar → /impressum', appLayout.includes('href="/impressum"'));
 check('/app-Sidebar → /datenschutz', appLayout.includes('href="/datenschutz"'));
+check('/app-Sidebar → /agb', appLayout.includes('href="/agb"'));
+check('/app-Sidebar → /widerruf', appLayout.includes('href="/widerruf"'));
+check('LegalLayout-Footer → /agb', legalLayout.includes('href="/agb"'));
+check('LegalLayout-Footer → /widerruf', legalLayout.includes('href="/widerruf"'));
+
+// ── 7. AGB + Widerrufsbelehrung (Owner-Freigabe 2026-10-25) ─────────────────
+// (1) Inhalt kommt aus src/lib/legal-docs.ts (maschinell aus den Freigabe-
+//     Dokumenten) — kein zweiter, abweichender Wortlaut im Code.
+check('AGB: 16 Abschnitte (§ 1 – § 16)', AGB_SECTIONS.length === 16, String(AGB_SECTIONS.length));
+check(
+  'AGB: § 1 Geltungsbereich zuerst',
+  AGB_SECTIONS[0]?.title.includes('Geltungsbereich') === true,
+  AGB_SECTIONS[0]?.title,
+);
+check(
+  'AGB: § 11 Widerrufsrecht enthalten',
+  AGB_SECTIONS.some((s) => s.title.includes('Widerrufsrecht')),
+);
+check(
+  'Widerruf: Muster-Widerrufsformular enthalten',
+  WIDERRUF_SECTIONS.some((s) => s.title.includes('Muster-Widerrufsformular')),
+);
+check(
+  'Widerruf: Widerrufsfolgen enthalten',
+  WIDERRUF_SECTIONS.some((s) => s.title.includes('Widerrufsfolgen')),
+);
+
+const docText = JSON.stringify([AGB_SECTIONS, WIDERRUF_SECTIONS]);
+// Redaktions-Artefakte dürfen NICHT auf einer öffentlichen Seite landen.
+check('Rechtstexte: keine ⟨…⟩-Änderungsvermerke', !/[⟨⟩]/.test(docText));
+check('Rechtstexte: keine „[OFFEN"-Kästen', !docText.includes('[OFFEN'));
+check('Rechtstexte: keine „Bisherige Fassung"-Notizen', !docText.includes('Bisherige Fassung'));
+check('Rechtstexte: keine Statuskästen (STATUS 2026)', !docText.includes('STATUS 2026'));
+check('Rechtstexte: kein „KORRIGIERT"/„ERGÄNZT"', !/KORRIGIERT|ERGÄNZT|PRÄZISIERT/.test(docText));
+// Pflicht-Fakten aus der Freigabe-Fassung
+check('AGB: Free = 3 Generierungen einmalig', docText.includes('3 KI-Generierungen — einmalig pro Nutzerkonto'));
+check('AGB: Pro 19 € / 200 Generierungen', docText.includes('19 € pro Monat') && docText.includes('200 Generierungen'));
+check('AGB: Vertragssprache Deutsch (§ 16 Abs. 6)', docText.includes('Vertragssprache ist Deutsch'));
+check('AGB: kein „unbegrenzt"-Tarif behauptet', docText.includes('Ein Tarif mit unbegrenzten Generierungen wird nicht angeboten'));
+check('Widerruf: vierzehn Tage', docText.includes('vierzehn Tagen'));
+check('Widerruf: § 356 Abs. 5 BGB', docText.includes('§ 356 Abs. 5 BGB'));
+check('Widerruf: Wertersatz § 357a', docText.includes('§ 357a Abs. 1 BGB'));
+check('Widerruf: Rechenbeispiel 3,80 €', docText.includes('3,80 €'));
+// Betreiber-Angaben müssen mit src/lib/legal.ts übereinstimmen (keine
+// zweite, abweichende Anschrift in den langen Texten).
+for (const [label, value] of [
+  ['Name', PROVIDER_NAME],
+  ['Straße', PROVIDER_STREET],
+  ['Ort', PROVIDER_CITY],
+  ['Land', PROVIDER_COUNTRY],
+] as const) {
+  check(`Rechtstexte: ${label} identisch mit legal.ts`, docText.includes(value), value);
+}
+if (CONTACT_EMAIL.trim().length > 0) {
+  check('Rechtstexte: Kontakt-E-Mail identisch mit legal.ts', docText.includes(CONTACT_EMAIL));
+}
+
+// (2) Routen-Head von /agb und /widerruf
+const agbHead = AgbRoute.options.head?.() as typeof impHead;
+const widHead = WiderrufRoute.options.head?.() as typeof impHead;
+check('AGB: Titel gesetzt', titleOf(agbHead).length > 0, titleOf(agbHead));
+check('AGB: index,follow', metaOf(agbHead, 'robots') === 'index,follow', metaOf(agbHead, 'robots'));
+check(
+  'AGB: absolute Canonical',
+  (agbHead?.links ?? []).some((l) => l.rel === 'canonical' && l.href === 'https://www.growimo.app/agb'),
+  JSON.stringify(agbHead?.links),
+);
+check('Widerruf: Titel gesetzt', titleOf(widHead).length > 0, titleOf(widHead));
+check('Widerruf: index,follow', metaOf(widHead, 'robots') === 'index,follow', metaOf(widHead, 'robots'));
+check(
+  'Widerruf: absolute Canonical',
+  (widHead?.links ?? []).some((l) => l.rel === 'canonical' && l.href === 'https://www.growimo.app/widerruf'),
+  JSON.stringify(widHead?.links),
+);
+
+// (3) Seiten rendern (SSR) und enthalten die Pflicht-Inhalte
+const agbHtml = render(AgbPage);
+check('AGB rendert', agbHtml.length > 5000, String(agbHtml.length));
+check('AGB: Überschrift', agbHtml.includes('Allgemeine Geschäftsbedingungen'));
+check('AGB: Stand 2026-10-25', agbHtml.includes('2026-10-25'));
+check('AGB: § 1', agbHtml.includes('§ 1 Geltungsbereich'));
+check('AGB: § 16', agbHtml.includes('§ 16 Kontakt'));
+check('AGB: Tarif-Tabelle', agbHtml.includes('<table') && agbHtml.includes('Beta-Rabatt'));
+check('AGB: Querverweis auf /widerruf', agbHtml.includes('href="/widerruf"'));
+check('AGB: Querverweis auf /datenschutz', agbHtml.includes('href="/datenschutz"'));
+check('AGB: kein „undefined"/„NaN"', !agbHtml.includes('undefined') && !agbHtml.includes('NaN'));
+check('AGB: kein Änderungsvermerk sichtbar', !/[⟨⟩]/.test(agbHtml));
+check('AGB: keine „[OFFEN"-Box sichtbar', !agbHtml.includes('[OFFEN'));
+
+const widHtml = render(WiderrufPage);
+check('Widerruf rendert', widHtml.length > 4000, String(widHtml.length));
+check('Widerruf: Überschrift', widHtml.includes('Widerrufsbelehrung'));
+check('Widerruf: Stand 2026-10-25', widHtml.includes('2026-10-25'));
+check('Widerruf: Muster-Widerrufsformular', widHtml.includes('Muster-Widerrufsformular'));
+check('Widerruf: Ausfülllinien', widHtml.includes('border-b border-gray-300'));
+check('Widerruf: Querverweis auf /agb', widHtml.includes('href="/agb"'));
+check('Widerruf: E-Mail als mailto', widHtml.includes('href="mailto:kontakt@growimo.app"'));
+check('Widerruf: kein „undefined"/„NaN"', !widHtml.includes('undefined') && !widHtml.includes('NaN'));
+
+// (4) Englische Fassung fehlt (offene Owner-Frage) — der Hinweis muss in beiden
+//     Sprachen existieren, damit die EN-Oberfläche nicht ins Leere läuft.
+check(
+  'EN-Hinweis de/en vorhanden',
+  String(de.legal_en_notice_heading).length > 0 &&
+    String(en.legal_en_notice_heading).length > 0 &&
+    String(de.legal_en_notice_body).length > 0 &&
+    String(en.legal_en_notice_body).length > 0,
+);
+check(
+  'EN-Hinweis nennt die deutsche Fassung als maßgeblich',
+  String(en.legal_en_notice_body).includes('German version is authoritative') &&
+    String(de.legal_en_notice_body).includes('maßgeblich ist die deutsche Fassung'),
+);
+
+// (5) Kein toter Rechts-Link: jede im Code referenzierte Rechts-Route muss als
+//     Routendatei existieren (und umgekehrt jede Route erreichbar sein).
+const routeFiles = new Set(
+  readdirSync('./src/routes')
+    .filter((f) => f.endsWith('.tsx') && !f.startsWith('__') && !f.startsWith('app'))
+    .map((f) => '/' + f.replace(/\.tsx$/, '')),
+);
+for (const route of Object.values(LEGAL_ROUTES)) {
+  check(`Route existiert: ${route}`, routeFiles.has(route), [...routeFiles].join(','));
+}
+const referenced = new Set<string>();
+for (const file of [
+  './src/components/LandingPage.tsx',
+  './src/components/LegalLayout.tsx',
+  './src/routes/app.tsx',
+  './src/routes/agb.tsx',
+  './src/routes/widerruf.tsx',
+  './src/routes/app/pricing.tsx',
+  './src/routes/app/billing.tsx',
+]) {
+  const src = readFileSync(file, 'utf8');
+  for (const match of src.matchAll(/href[:=]\s*\{?"(\/[a-z-]+)"/g)) {
+    referenced.add(match[1]);
+  }
+}
+for (const href of referenced) {
+  const isLegal = href === '/agb' || href === '/widerruf' || href === '/impressum' || href === '/datenschutz';
+  if (!isLegal) continue;
+  check(`Rechts-Link ${href} hat eine Route`, routeFiles.has(href));
+}
+check('mind. 4 Rechts-Links im Code gefunden', referenced.size >= 4, [...referenced].join(','));
 
 // ── Ergebnis ────────────────────────────────────────────────────────────────
 console.log(`\n${checks - failures}/${checks} checks passed, ${failures} failed`);

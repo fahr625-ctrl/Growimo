@@ -2112,5 +2112,23 @@ export const de = {
     'Lösche dein Growimo-Konto endgültig. Vorher informieren wir dich über den Datenverlust und die Auswirkung auf ein laufendes Abo.',
   settings_delete_account_open: 'Kontolöschung öffnen',
 
+  // ── AGB + Widerrufsbelehrung (Owner-Freigabe 2026-10-25) ────────────────────
+  // Die langen Texte selbst stehen in `src/lib/legal-docs.ts` (maschinell aus
+  // den Freigabe-Dokumenten). Hier stehen nur Titel, Untertitel und Hinweise.
+  // OFFEN: AGB/Widerruf gibt es nur auf Deutsch — deshalb zeigt die englische
+  // Oberfläche einen Hinweis (`legal_en_notice_*`) und den deutschen Text.
+  footer_agb: 'AGB',
+  footer_widerruf: 'Widerruf',
+  legal_related_heading: 'Siehe auch',
+  legal_agb_meta_title: 'Allgemeine Geschäftsbedingungen – Growimo',
+  legal_agb_title: 'Allgemeine Geschäftsbedingungen',
+  legal_agb_subtitle: 'für die Nutzung von Growimo unter www.growimo.app',
+  legal_widerruf_meta_title: 'Widerrufsbelehrung – Growimo',
+  legal_widerruf_title: 'Widerrufsbelehrung',
+  legal_widerruf_subtitle:
+    'für Verbraucherinnen und Verbraucher beim Angebot Growimo unter www.growimo.app — einschließlich Muster-Widerrufsformular',
+  legal_en_notice_heading: 'Hinweis zur Sprache dieses Dokuments',
+  legal_en_notice_body:
+    'Allgemeine Geschäftsbedingungen und Widerrufsbelehrung liegen derzeit nur auf Deutsch vor. Eine englische Fassung ist noch nicht erstellt; maßgeblich ist die deutsche Fassung (AGB § 16 Abs. 6). Der folgende Text ist deshalb deutsch.',
 
 } as const;

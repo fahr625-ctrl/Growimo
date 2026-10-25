@@ -2102,5 +2102,22 @@ export const en: EnShape = {
     'Permanently delete your Growimo account. We inform you about the data loss and the effect on an active subscription first.',
   settings_delete_account_open: 'Open account deletion',
 
+  // ── Terms + withdrawal notice (owner approval 2026-10-25) ───────────────────
+  // The long texts live in `src/lib/legal-docs.ts`. These are only titles,
+  // subtitles and notices. OPEN: German only — the English UI therefore shows
+  // a notice (`legal_en_notice_*`) plus the German text.
+  footer_agb: 'Terms and Conditions',
+  footer_widerruf: 'Right of withdrawal',
+  legal_related_heading: 'See also',
+  legal_agb_meta_title: 'Terms and Conditions – Growimo',
+  legal_agb_title: 'Terms and Conditions',
+  legal_agb_subtitle: 'for the use of Growimo at www.growimo.app',
+  legal_widerruf_meta_title: 'Right of withdrawal – Growimo',
+  legal_widerruf_title: 'Right of withdrawal',
+  legal_widerruf_subtitle:
+    'for consumers of Growimo at www.growimo.app — including the model withdrawal form',
+  legal_en_notice_heading: 'Note on the language of this document',
+  legal_en_notice_body:
+    'The Terms and Conditions and the withdrawal notice are currently available in German only. An English version has not been prepared yet; the German version is authoritative (Terms § 16 (6)). The text below is therefore in German.',
 
 }
