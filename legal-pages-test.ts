@@ -241,8 +241,15 @@ check(
     String(en.legal_privacy_third_country_body).includes('standard contractual clauses'),
 );
 check(
-  'Datenschutz: DPF als Kategorie (nicht als Einzelzertifizierung)',
-  String(de.legal_privacy_third_country_body).includes('soweit der jeweilige Anbieter nach dem EU-US Data Privacy Framework zertifiziert ist'),
+  'Datenschutz: DPF anbieterkonkret (zertifiziert / nicht zertifiziert)',
+  // Textkorrektur 2026-10-25 (DRITTLAND-BEFUND): Der Absatz nennt jetzt die
+  // DPF-Teilnehmer (Clerk, Stripe, Vercel) und die nicht zertifizierten
+  // Anbieter (OpenAI, Neon) ausdrücklich.
+  String(de.legal_privacy_third_country_body).includes(
+    'nach dem EU-US Data Privacy Framework (DPF) zertifiziert ist',
+  ) &&
+    String(de.legal_privacy_third_country_body).includes('nicht DPF-zertifiziert') &&
+    String(en.legal_privacy_third_country_body).includes('not DPF-certified'),
 );
 check(
   'Datenschutz: Neon-Datenbank in der EU genannt',

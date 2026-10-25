@@ -122,6 +122,7 @@ export function DatenschutzPage() {
     t.legal_privacy_retention_usage,
     t.legal_privacy_retention_analytics,
     t.legal_privacy_retention_visitor_cookie,
+    t.legal_privacy_retention_proof,
     t.legal_privacy_retention_images,
     t.legal_privacy_retention_invoices,
     t.legal_privacy_retention_logs,
@@ -210,7 +211,23 @@ export function DatenschutzPage() {
       <h3 className="mt-4 text-base font-semibold text-gray-900">
         {t.legal_privacy_cookies_visitor_heading}
       </h3>
+      {/* Struktur nach Textkorrektur-Spezifikation 2026-10-25 (A3/A4/B1/B2):
+          (a) Seitenaufrufe/pseudonyme Kennung = berechtigtes Interesse, ohne
+          Cookies; (b) Vercel Web Analytics = berechtigtes Interesse, cookielos;
+          (c) eindeutige Besuchermessung = nur mit Einwilligung; (d) Schalter
+          (AnalyticsOptOut). */}
+      <h4 className="mt-3 text-sm font-semibold text-gray-800">
+        {t.legal_privacy_reach_interest_heading}
+      </h4>
       <LegalText>{t.legal_privacy_cookies_visitor_body}</LegalText>
+      <h4 className="mt-3 text-sm font-semibold text-gray-800">
+        {t.legal_privacy_reach_vercel_heading}
+      </h4>
+      <LegalText>{t.legal_privacy_reach_vercel_body}</LegalText>
+      <h4 className="mt-3 text-sm font-semibold text-gray-800">
+        {t.legal_privacy_reach_visitor_heading}
+      </h4>
+      <LegalText>{t.legal_privacy_reach_visitor_body}</LegalText>
       {/* Owner-Vorgabe 2026-10-23: einfach zugänglicher Widerruf der
           Analyse-Einwilligung (setzt growimo_analytics_optout). */}
       <AnalyticsOptOut />
