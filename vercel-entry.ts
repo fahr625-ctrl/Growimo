@@ -22,6 +22,9 @@ import { handleStripeWebhookApi } from "./src/api/stripe-webhook";
 // K4-B (Owner-Freigabe 2026-10-19): dauerhafte Bildspeicherung + TTL-Tageslauf.
 import { handleImagesApi } from "./src/api/images";
 import { handleCronBlobTtlApi } from "./src/api/cron-blob-ttl";
+// Zugriffsschutz der geschützten Klick-Demo (preview.growimo.app): env-gesteuert
+// (PREVIEW_AUTH_USER + PREVIEW_AUTH_PASS), in Production wirkungslos.
+import { applyPreviewBasicAuth } from "./src/lib/preview-basic-auth";
 
 // Initialise the database once at cold start.
 // Fail-LOUD (Incident 2026-10-20): a failed schema init means migrations did NOT
@@ -79,6 +82,17 @@ export default async function vercelHandler(
 ): Promise<void> {
   try {
     const webReq = toWebRequest(req);
+
+    // Geschützte Klick-Demo (preview.growimo.app): HTTP-Basic-Auth, NUR aktiv wenn
+    // PREVIEW_AUTH_USER und PREVIEW_AUTH_PASS gesetzt sind (in Production nie der
+    // Fall → Rückgabe false, kein 401, keine Header, keine Verzögerung).
+    // Steht bewusst VOR jedem Handler: /api/*, SSE-Streams, ServerFns und SSR
+    // laufen alle durch diesen einen Einstieg. Ausgenommen sind nur der
+    // Stripe-Webhook (Signaturprüfung) und der Cron-Lauf (CRON_SECRET).
+    if (applyPreviewBasicAuth({ headers: req.headers, url: req.url }, res)) {
+      return;
+    }
+
     const url = new URL(webReq.url);
     
     // Stripe-Webhook (Phase 8.3): Signaturprüfung mit rohem Body, 200/400/500.
