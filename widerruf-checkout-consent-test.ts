@@ -185,6 +185,62 @@ check(
   'UI liest die Env NICHT direkt (kein Vite-Env-Leak, kein Auseinanderlaufen)',
 );
 
+// ── (d2) DRIFT-SCHUTZ: /app/billing hat DENSELBEN Upgrade-Pfad ───────────────
+// Der zweite Checkout-Einstieg (Billing-Seite) muss identisch abgesichert sein.
+// Ohne diese Checks könnte die Checkbox in pricing.tsx gepflegt werden, während
+// /app/billing im Modus 'required' (Default, fail-closed) am ServerFn scheitert —
+// der Nutzer sähe einen Fehler statt der Checkbox.
+const billingSrc = read('./src/routes/app/billing.tsx');
+const consentCallExpr = 'earlyStartConsent: consentRequired ? consentChecked : false';
+check(
+  billingSrc.includes("from '~/stripe/checkout-consent'") &&
+    billingSrc.includes('WIDERRUF_CONSENT_VERSION'),
+  'billing.tsx nutzt die kanonische Textversion (checkout-consent.ts)',
+);
+check(
+  billingSrc.includes(consentCallExpr) &&
+    billingSrc.includes('consentVersion: WIDERRUF_CONSENT_VERSION'),
+  'billing.tsx schickt Zustimmung + Textversion an den ServerFn',
+);
+check(
+  pricingSrc.includes(consentCallExpr),
+  'beide Checkout-Einstiege nutzen DENSELBEN Ausdruck (Drift = rot)',
+);
+check(
+  billingSrc.includes('consentRequired && !consentChecked') &&
+    billingSrc.includes('setError(t.widerruf_consent_required)'),
+  'billing.tsx blockt ohne Zustimmung mit sauberer Fehlermeldung',
+);
+check(
+  billingSrc.includes('type="checkbox"') && billingSrc.includes('setConsentChecked'),
+  'Checkbox existiert auch im Billing-Formular',
+);
+check(
+  billingSrc.includes('t.widerruf_consent_label') &&
+    billingSrc.includes('t.widerruf_consent_hint') &&
+    pricingSrc.includes('t.widerruf_consent_label') &&
+    pricingSrc.includes('t.widerruf_consent_hint'),
+  'beide Einstiege rendern denselben kanonischen i18n-Wortlaut',
+);
+const billingConsentIdx = billingSrc.indexOf('{consentBlock}');
+const billingUpgradeIdx = billingSrc.indexOf('onClick={handleUpgrade}');
+check(
+  billingConsentIdx > 0 && billingUpgradeIdx > 0 && billingConsentIdx < billingUpgradeIdx,
+  'billing.tsx: Checkbox steht VOR dem Upgrade-Button',
+);
+check(
+  billingSrc.includes('setConsentRequired(status.earlyStartConsentRequired)'),
+  'billing.tsx holt den Modus vom Server (keine hartkodierte Annahme)',
+);
+check(
+  !billingSrc.includes('WIDERRUF_EARLY_START'),
+  'billing.tsx liest die Env NICHT direkt',
+);
+check(
+  billingSrc.includes('widerruf_consent|Widerruf'),
+  'billing.tsx übersetzt eine serverseitige Ablehnung in die Consent-Meldung',
+);
+
 console.log('=== (e) i18n-Parität + Wortlaut-Guards ===');
 check(
   typeof de.widerruf_consent_label === 'string' && de.widerruf_consent_label.length > 40,

@@ -17,6 +17,7 @@ import { getSubscriptionStatus } from '~/stripe/subscription';
 import { getBillingOverview, type InvoiceSummary } from '~/stripe/invoices';
 import { createPortalSession } from '~/stripe/portal';
 import { createCheckoutSession } from '~/stripe/checkout';
+import { WIDERRUF_CONSENT_VERSION } from '~/stripe/checkout-consent';
 
 export const Route = createFileRoute('/app/billing')({
   head: () => seoHead({ titleKey: 'meta_app_billing_title' }),
@@ -76,6 +77,15 @@ function BillingContent() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stripeConfigured, setStripeConfigured] = useState<boolean | null>(null);
+  // ENTWURF 2026-10-24: Zustimmung zum vorzeitigen Beginn der Leistung
+  // (§§ 356 Abs. 4/5, 357a Abs. 1 BGB) — IDENTISCH zu /app/pricing.
+  // Startwert false = nicht zugestimmt. Die Checkbox steht auch hier VOR dem
+  // Upgrade-Button, weil der ServerFn bei Modus 'required' (Default,
+  // fail-closed) ohne Zustimmung KEINE Checkout-Session baut.
+  const [consentChecked, setConsentChecked] = useState(false);
+  // Fail-closed-Default true: solange der Server den Modus nicht gemeldet hat,
+  // wird die Zustimmung verlangt (nicht stillschweigend weggelassen).
+  const [consentRequired, setConsentRequired] = useState(true);
 
   // Server-Status laden (Phase 8.3): initial + wenn ein session_id zurückkommt
   // (Checkout abgeschlossen → Webhook ggf. noch unterwegs → manuell refreshen).
@@ -114,6 +124,11 @@ function BillingContent() {
           : null,
       );
       if (status.stripeConfigured !== undefined) setStripeConfigured(status.stripeConfigured);
+      // Checkbox-Modus kommt aus derselben Server-Quelle wie in /app/pricing
+      // (getSubscriptionStatus → earlyStartMode()); die UI liest die Env nie direkt.
+      if (status.earlyStartConsentRequired !== undefined) {
+        setConsentRequired(status.earlyStartConsentRequired);
+      }
       if (overview.signedIn) {
         setInvoices(overview.invoices);
         setInvoicesError(overview.error);
@@ -165,6 +180,13 @@ function BillingContent() {
 
   const handleUpgrade = async () => {
     track('upgrade_clicked', user?.id, { source: 'billing' });
+    // ENTWURF 2026-10-24: Ohne Zustimmung wird gar nicht erst angefragt.
+    // Der Server prüft dasselbe noch einmal (fail-closed) — die Vorprüfung
+    // hier ist nur die bessere Fehlermeldung, nie die einzige Prüfung.
+    if (consentRequired && !consentChecked) {
+      setError(t.widerruf_consent_required);
+      return;
+    }
     setCheckoutLoading(true);
     setError(null);
     try {
@@ -172,14 +194,23 @@ function BillingContent() {
         data: {
           userId,
           priceLookupKey: 'pro_monthly',
+          earlyStartConsent: consentRequired ? consentChecked : false,
+          consentVersion: WIDERRUF_CONSENT_VERSION,
         },
       });
       if (result.url) {
         window.location.href = result.url;
       }
     } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      // Serverseitige Ablehnung der Zustimmung → übersetzte, klare Meldung
+      // statt der englischen Server-Meldung.
       setError(
-        err instanceof Error ? err.message : t.billing_checkout_error,
+        /widerruf_consent|Widerruf/i.test(message)
+          ? t.widerruf_consent_required
+          : err instanceof Error
+            ? err.message
+            : t.billing_checkout_error,
       );
     } finally {
       setCheckoutLoading(false);
@@ -271,6 +302,31 @@ function BillingContent() {
     if (s === 'void' || s === 'uncollectible') return 'bg-gray-100 text-gray-500';
     return 'bg-gray-100 text-gray-600';
   };
+
+  // ENTWURF 2026-10-24: Checkbox „vorzeitiger Beginn" — identisches Muster und
+  // identischer Wortlaut wie /app/pricing (eine Textquelle:
+  // src/stripe/checkout-consent.ts → i18n `widerruf_consent_label/_hint`).
+  // Steht bewusst VOR dem Kauf-Button, damit die Zustimmung vor der Zahlung
+  // sichtbar und abwählbar ist (Art. 246a § 1 Abs. 2 EGBGB / § 312j BGB).
+  const consentBlock =
+    isPro || isOwner || !consentRequired ? null : (
+      <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-3 text-left">
+        <label className="flex items-start gap-2">
+          <input
+            type="checkbox"
+            checked={consentChecked}
+            onChange={(e) => setConsentChecked(e.target.checked)}
+            className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <span className="text-xs font-medium leading-relaxed text-gray-800">
+            {t.widerruf_consent_label}
+          </span>
+        </label>
+        <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
+          {t.widerruf_consent_hint}
+        </p>
+      </div>
+    );
 
   return (
     <div>
@@ -426,56 +482,59 @@ function BillingContent() {
               </button>
             ) : !isPro && !isOwner ? (
               // Owner-Override (8.4b-Vorgabe): KEIN Druck-Upgrade-CTA für den Owner.
-              <button
-                type="button"
-                onClick={handleUpgrade}
-                disabled={checkoutLoading}
-                className={`inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition-all hover:from-blue-700 hover:to-purple-700 hover:shadow-xl ${
-                  checkoutLoading ? 'cursor-wait opacity-60' : ''
-                }`}
-              >
-                {checkoutLoading ? (
-                  <>
-                    <svg
-                      className="h-4 w-4 animate-spin"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
+              <div>
+                {consentBlock}
+                <button
+                  type="button"
+                  onClick={handleUpgrade}
+                  disabled={checkoutLoading}
+                  className={`inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition-all hover:from-blue-700 hover:to-purple-700 hover:shadow-xl ${
+                    checkoutLoading ? 'cursor-wait opacity-60' : ''
+                  }`}
+                >
+                  {checkoutLoading ? (
+                    <>
+                      <svg
+                        className="h-4 w-4 animate-spin"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                        />
+                      </svg>
+                      {t.billing_redirecting}
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
                         stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
-                    </svg>
-                    {t.billing_redirecting}
-                  </>
-                ) : (
-                  <>
-                    <svg
-                      className="h-4 w-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M13 10V3L4 14h7v7l9-11h-7z"
-                      />
-                    </svg>
-                    {t.billing_upgrade_pro}
-                  </>
-                )}
-              </button>
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M13 10V3L4 14h7v7l9-11h-7z"
+                        />
+                      </svg>
+                      {t.billing_upgrade_pro}
+                    </>
+                  )}
+                </button>
+              </div>
             ) : null}
 
             <Link
