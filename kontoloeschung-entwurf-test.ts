@@ -16,12 +16,14 @@
 // Exit-Code 0 nur, wenn alle Checks grün.
 // ─────────────────────────────────────────────────────────────────────────────
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { createHmac } from 'node:crypto';
 import { join } from 'node:path';
 import {
   ACCOUNT_DELETE_CONFIRMATION_WORD,
   ACCOUNT_DELETE_FLAG,
   ACCOUNT_DELETE_LOSS_ITEMS,
   AccountDeletionError,
+  BETA_SIGNUP_POLICY_DEFAULT,
   assertAccountDeletionAllowed,
   availableDeletionOptions,
   blockingStepsBeforeDbDelete,
@@ -34,11 +36,13 @@ import {
 } from './src/account/deletion-plan';
 import {
   maybeExecuteScheduledDeletion,
+  productionDeletionDeps,
   runAccountDeletion,
   runScheduledAccountDeletions,
   type DeleteAccountDeps,
   type SqlTag,
 } from './src/account/deletion-runner';
+import { analyticsPseudonymFor } from './src/lib/analytics-pseudonym';
 
 let passed = 0;
 let failed = 0;
@@ -65,14 +69,30 @@ const codeOf = (fn: () => unknown): string => {
 
 // ── Fake-SQL: zeichnet jede Anweisung in `order` auf ────────────────────────
 function makeFakeSql(
-  opts: { hasSubscription?: boolean; blobCount?: number; dueRows?: number[]; pending?: boolean } = {},
+  opts: {
+    hasSubscription?: boolean;
+    blobCount?: number;
+    dueRows?: number[];
+    pending?: boolean;
+    /** beta_signups-Zeile vorhanden? (Fix A2: muss mitgelöscht werden) */
+    betaSignup?: boolean;
+    /** E-Mail in der users-Zeile; `null` = kein Wert (Platzhalter-/Anonymkonto) */
+    userEmail?: string | null;
+  } = {},
 ) {
   const order: string[] = [];
+  const calls: { text: string; values: unknown[] }[] = [];
   const sql = (async (strings: TemplateStringsArray, ...values: unknown[]) => {
     const text = strings.join('?').replace(/\s+/g, ' ').trim();
+    calls.push({ text, values });
     if (/SELECT id, email FROM users/i.test(text)) {
       order.push('db:select_users');
-      return [{ id: 'uuid-user', email: 'kunde@example.com' }];
+      return [
+        {
+          id: 'uuid-user',
+          email: opts.userEmail === undefined ? 'kunde@example.com' : opts.userEmail,
+        },
+      ];
     }
     if (/SELECT stripe_subscription_id FROM subscriptions/i.test(text)) {
       order.push('db:select_subs');
@@ -85,7 +105,7 @@ function makeFakeSql(
     }
     if (/SELECT id FROM beta_signups/i.test(text)) {
       order.push('db:select_beta');
-      return [];
+      return opts.betaSignup ? [{ id: 'beta-1' }] : [];
     }
     if (/SELECT clerk_user_id FROM account_deletion_requests/i.test(text)) {
       order.push('db:select_requests');
@@ -108,7 +128,7 @@ function makeFakeSql(
     order.push('db:other');
     return [];
   }) as SqlTag;
-  return { sql, order, valuesOf: () => order.slice() };
+  return { sql, order, calls, valuesOf: () => order.slice() };
 }
 
 function makeDeps(
@@ -130,7 +150,7 @@ function makeDeps(
     deleteClerkUser: async () => {
       order.push('clerk:delete');
     },
-    pseudonymFor: async () => null,
+    pseudonymFor: async () => 'pseudonym-test-fix1',
     sql,
     now: () => new Date('2026-10-24T12:00:00.000Z'),
     ...overrides,
@@ -313,15 +333,19 @@ for (const t of [
   'delete_tracking_events',
   'delete_generation_throttle',
   'delete_analytics_events',
-  'beta_signup_policy',
+  'delete_beta_signup',
   'delete_user_row',
   'clerk_delete_user',
 ]) {
   check(idsNow.includes(t), `Schritt vorhanden: ${t}`);
 }
 check(
-  planNow.find((s) => s.id === 'beta_signup_policy')?.ownerDecision === true,
-  'beta_signups ist als OFFENE Owner-Entscheidung markiert',
+  BETA_SIGNUP_POLICY_DEFAULT === 'delete',
+  'beta_signups: Default ist LÖSCHEN (Owner-Entscheidung 2026-10-25)',
+);
+check(
+  planNow.find((s) => s.id === 'delete_beta_signup')?.blocking === true,
+  'beta_signups-Löschung ist blockierend (kein stiller Skip)',
 );
 check(
   planNow.find((s) => s.id === 'delete_usage_events')?.reason.includes('TEXT') === true,
@@ -358,10 +382,18 @@ check(
   planNoSub.find((s) => s.id === 'stripe_cancel_subscription')?.blocking === false,
   'ohne Abo ist die Stripe-Kündigung nicht blockierend',
 );
+const blockingNow = blockingStepsBeforeDbDelete(planNow);
 check(
-  blockingStepsBeforeDbDelete(planNow).length === 1 &&
-    blockingStepsBeforeDbDelete(planNow)[0].id === 'stripe_cancel_subscription',
-  'genau ein blockierender externer Schritt vor der DB-Löschung',
+  blockingNow.length === 2 &&
+    blockingNow[0].id === 'stripe_cancel_subscription' &&
+    blockingNow[1].id === 'blob_delete_images',
+  'zwei blockierende externe Schritte vor der DB-Löschung (Stripe + Blobs, Fix C2)',
+);
+check(
+  buildDeletionPlan({ hasSubscription: true, liveImageCount: 0, hasBetaSignup: false }).find(
+    (s) => s.id === 'blob_delete_images',
+  )?.blocking === false,
+  'ohne Bilder ist die Blob-Löschung nicht blockierend',
 );
 
 console.log('=== (g) Ausführung: Stripe VOR DB VOR Clerk (Fakes) ===');
@@ -459,6 +491,199 @@ console.log('=== (i) Trigger: Webhook und Cron führen die Vormerkung aus ===');
   check(res.failed === 0, 'Cron-Trigger: keine Fehler');
 }
 
+console.log('=== (i2) FIX 1 / C1: analytics_events werden wirklich gelöscht ===');
+{
+  const SALT = 'test-salt-fix1';
+  const prevSalt = process.env.ANALYTICS_SALT;
+  process.env.ANALYTICS_SALT = SALT;
+  const clerkId = 'user_FIX1abc';
+  // Unabhängig nachgerechnet (nicht über die getestete Funktion):
+  const expected = createHmac('sha256', SALT).update(clerkId).digest('hex');
+
+  check(
+    analyticsPseudonymFor(clerkId) === expected,
+    'kanonische Funktion = HMAC-SHA256(Salt, Clerk-ID) hex (unabhängig nachgerechnet)',
+  );
+  check(
+    analyticsPseudonymFor(clerkId)?.length === 64 &&
+      analyticsPseudonymFor(clerkId) === analyticsPseudonymFor(clerkId),
+    'Pseudonym ist deterministisch und 64 Hex-Zeichen lang',
+  );
+  check(
+    analyticsPseudonymFor('user_other') !== analyticsPseudonymFor(clerkId),
+    'andere Clerk-ID → anderes Pseudonym',
+  );
+  check(analyticsPseudonymFor(null) === null, 'ohne Clerk-ID → null');
+
+  // Produktiv-Deps MÜSSEN exakt dieses Pseudonym liefern (Kern des Fixes:
+  // vorher lieferte der dynamische Lookup immer null).
+  const prodPseudo = await productionDeletionDeps().pseudonymFor(clerkId);
+  check(
+    prodPseudo === expected,
+    'productionDeletionDeps().pseudonymFor liefert dasselbe Pseudonym wie die Schreibseite',
+  );
+
+  const fake = makeFakeSql({ hasSubscription: false, blobCount: 0 });
+  const deps = makeDeps(fake.order, fake.sql, {
+    pseudonymFor: async (id) => analyticsPseudonymFor(id),
+  });
+  const result = await runAccountDeletion(clerkId, deps, { mode: 'immediate' });
+  const delCall = fake.calls.find((c) => /DELETE FROM analytics_events/i.test(c.text));
+  check(Boolean(delCall), 'DELETE FROM analytics_events wird tatsächlich abgesetzt');
+  check(
+    delCall?.values?.[0] === expected,
+    'DELETE nutzt exakt das Pseudonym, das die Schreibseite berechnet',
+  );
+  check(
+    result.steps.includes('delete_analytics_events'),
+    'Schritt delete_analytics_events erscheint im Ergebnis',
+  );
+
+  // Ohne Salt: kein stiller Skip — und kein Abbruch der Kontolöschung.
+  delete process.env.ANALYTICS_SALT;
+  const fake2 = makeFakeSql({ hasSubscription: false, blobCount: 0 });
+  const deps2 = makeDeps(fake2.order, fake2.sql, {
+    pseudonymFor: async (id) => analyticsPseudonymFor(id),
+  });
+  const result2 = await runAccountDeletion('user_nosalt', deps2, { mode: 'immediate' });
+  check(
+    !fake2.calls.some((c) => /DELETE FROM analytics_events/i.test(c.text)),
+    'ohne Salt: kein DELETE (es wird nichts Falsches gelöscht)',
+  );
+  check(
+    result2.steps.includes('delete_analytics_events_skipped_no_pseudonym'),
+    'ohne Salt: Schritt wird ausdrücklich als übersprungen ausgewiesen (kein stiller Skip)',
+  );
+  check(
+    result2.steps.includes('clerk_delete_user'),
+    'ohne Salt: Löschung läuft trotzdem durch (Konto bleibt löschbar)',
+  );
+
+  if (prevSalt === undefined) delete process.env.ANALYTICS_SALT;
+  else process.env.ANALYTICS_SALT = prevSalt;
+}
+
+console.log('=== (i3) FIX 2 / C2: Blob-Löschung blockierend, VOR der DB-Kaskade ===');
+{
+  const fake = makeFakeSql({ hasSubscription: false, blobCount: 2 });
+  const deps = makeDeps(fake.order, fake.sql, {
+    deleteBlobs: async () => {
+      throw new Error('blob store 500');
+    },
+  });
+  let err = '';
+  try {
+    await runAccountDeletion('user_blobfail', deps, { mode: 'immediate' });
+  } catch (e) {
+    err = e instanceof Error ? e.message : String(e);
+  }
+  check(
+    err.includes('blob store 500'),
+    'fehlgeschlagenes del() bricht den Lauf ab (kein stilles Weiterlaufen)',
+  );
+  check(!fake.order.includes('db:delete_users'), 'users-Zeile bleibt erhalten (Kaskade nicht gelaufen)');
+  check(
+    !fake.order.some((o) => o.startsWith('db:delete_')),
+    'keine einzige Tabellen-Löschung nach dem Blob-Fehler (Wiederholung möglich)',
+  );
+  check(!fake.order.includes('clerk:delete'), 'Clerk-Nutzer bleibt erhalten (Lauf wiederholbar)');
+}
+{
+  const fake = makeFakeSql({ hasSubscription: false, blobCount: 2 });
+  const deps = makeDeps(fake.order, fake.sql);
+  await runAccountDeletion('user_blobok', deps, { mode: 'immediate' });
+  const firstDbDelete = fake.order.findIndex((o) => o.startsWith('db:delete_'));
+  check(
+    fake.order.indexOf('blob:delete(2)') > -1 &&
+      firstDbDelete > -1 &&
+      fake.order.indexOf('blob:delete(2)') < firstDbDelete,
+    'Blobs sind VOR der ersten Tabellen-Löschung physisch entfernt',
+  );
+}
+
+console.log('=== (i4) FIX 3 / A2: beta_signups-Zeile wird mitgelöscht ===');
+{
+  const fake = makeFakeSql({ hasSubscription: false, blobCount: 0, betaSignup: true });
+  const deps = makeDeps(fake.order, fake.sql);
+  const result = await runAccountDeletion('user_beta', deps, { mode: 'immediate' });
+  const call = fake.calls.find((c) => /DELETE FROM beta_signups/i.test(c.text));
+  check(Boolean(call), 'DELETE FROM beta_signups wird abgesetzt (Default-Policy)');
+  check(
+    call?.values?.[0] === 'kunde@example.com',
+    'Löschung nutzt die VOR dem users-Delete gemerkte E-Mail',
+  );
+  check(result.steps.includes('beta_signup_deleted'), 'Schritt beta_signup_deleted im Ergebnis');
+  check(
+    fake.order.indexOf('db:delete_beta_signups') < fake.order.indexOf('db:delete_users'),
+    'beta_signups wird VOR der users-Zeile gelöscht (E-Mail noch ermittelbar)',
+  );
+}
+{
+  const fake = makeFakeSql({
+    hasSubscription: false,
+    blobCount: 0,
+    betaSignup: true,
+    userEmail: 'Kunde@Example.COM',
+  });
+  const deps = makeDeps(fake.order, fake.sql);
+  await runAccountDeletion('user_beta2', deps, { mode: 'immediate' });
+  const call = fake.calls.find((c) => /DELETE FROM beta_signups/i.test(c.text));
+  check(
+    call?.values?.[0] === 'kunde@example.com',
+    'E-Mail wird case-insensitiv gematcht (LOWER), passend zum SELECT',
+  );
+}
+{
+  const fake = makeFakeSql({ hasSubscription: false, blobCount: 0, betaSignup: false });
+  const deps = makeDeps(fake.order, fake.sql);
+  const result = await runAccountDeletion('user_beta3', deps, { mode: 'immediate' });
+  check(
+    result.steps.includes('beta_signup_none_found'),
+    'ohne Treffer: kein Fehler, sichtbarer Schritt beta_signup_none_found',
+  );
+}
+{
+  // Testkonto mit Platzhalter-Adresse: matcht nichts — harmlos, kein Fehler.
+  const fake = makeFakeSql({
+    hasSubscription: false,
+    blobCount: 0,
+    betaSignup: false,
+    userEmail: 'anon-user_x@growimo.local',
+  });
+  const deps = makeDeps(fake.order, fake.sql);
+  const result = await runAccountDeletion('user_beta4', deps, { mode: 'immediate' });
+  check(
+    result.steps.includes('clerk_delete_user') && result.steps.includes('delete_user_row'),
+    'Platzhalter-Adresse (anon-…@growimo.local): Löschung läuft vollständig durch',
+  );
+}
+{
+  const fake = makeFakeSql({ hasSubscription: false, blobCount: 0, userEmail: null });
+  const deps = makeDeps(fake.order, fake.sql);
+  const result = await runAccountDeletion('user_beta5', deps, { mode: 'immediate' });
+  check(
+    result.steps.includes('beta_signup_skipped_no_email'),
+    'ohne E-Mail in users: sichtbarer Schritt beta_signup_skipped_no_email (kein stiller Skip)',
+  );
+  check(
+    !fake.calls.some((c) => /DELETE FROM beta_signups/i.test(c.text)),
+    'ohne E-Mail: kein ungefiltertes DELETE',
+  );
+}
+{
+  const fake = makeFakeSql({ hasSubscription: false, blobCount: 0, betaSignup: true });
+  const deps = makeDeps(fake.order, fake.sql);
+  const result = await runAccountDeletion('user_beta6', deps, {
+    mode: 'immediate',
+    policy: 'keep',
+  });
+  check(
+    !fake.calls.some((c) => /DELETE FROM beta_signups/i.test(c.text)),
+    "policy 'keep' (nur noch ausdrücklich): beta_signups bleibt",
+  );
+  check(result.steps.includes('beta_signup_kept'), "policy 'keep': Schritt beta_signup_kept im Ergebnis");
+}
+
 console.log('=== (j) Quelltext: Route, Link, ServerFn nur aus der Session ===');
 const src = read('./src/account/delete-account.ts');
 check(src.includes('resolveUserIdFromServerFn(undefined)'), 'UserId kommt aus der Session');
@@ -479,6 +704,25 @@ for (const dep of ['cancelSubscriptionNow', 'cancelSubscriptionAtPeriodEnd', 'de
 check(runner.includes('CLERK_SECRET_KEY'), 'Clerk-Löschung braucht CLERK_SECRET_KEY');
 check(runner.includes("'@vercel/blob'"), 'Blob-Löschung nutzt @vercel/blob del()');
 check(runner.includes('betaSignupPolicy'), 'Rückgabe dokumentiert die beta_signups-Policy');
+// Fix C1 (2026-10-25): EINE Pseudonym-Implementierung für beide Seiten.
+const pseudonymMod = read('./src/lib/analytics-pseudonym.ts');
+check(
+  pseudonymMod.includes("createHmac('sha256', salt)") &&
+    pseudonymMod.includes("digest('hex')"),
+  'kanonische HMAC-Implementierung liegt in src/lib/analytics-pseudonym.ts',
+);
+const writeSide = read('./src/api/analytics.ts');
+check(writeSide.includes('analyticsPseudonymFor'), 'Analytics-Schreibseite nutzt dieselbe Funktion');
+check(!/createHmac\(/.test(writeSide), 'Schreibseite hat KEINE eigene HMAC-Kopie mehr (keine Drift)');
+check(runner.includes('analyticsPseudonymFor'), 'Runner nutzt die echte Pseudonym-Funktion');
+check(
+  !/import\s*\(?\s*['"]\.\.\/lib\/tracking['"]/.test(runner),
+  'kein dynamischer Lookup in lib/tracking mehr (C1)',
+);
+check(
+  !/Blob-Löschung fehlgeschlagen/.test(runner),
+  'Blob-Fehler werden NICHT mehr geschluckt (C2)',
+);
 check(
   runner.includes('cancel_at_period_end: true'),
   'Periodenende nutzt Stripe cancel_at_period_end',

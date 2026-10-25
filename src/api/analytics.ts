@@ -19,8 +19,10 @@
 //    keine IP, kein User-Agent, keine PII.
 //  - error_category/error_code: Fehleranalyse (Whitelist + strikter Code).
 //    Nur bei status='error'; nie Meldung/Stacktrace/Prompt.
-import { createHmac, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { qInsertAnalyticsEvent } from "../db/analytics";
+// Fix C1 (2026-10-25): EINE Pseudonym-Berechnung für Schreib- und Löschseite.
+import { analyticsPseudonymFor } from "../lib/analytics-pseudonym";
 import {
   isAnalyticsChannel,
   isAnalyticsEvent,
@@ -161,13 +163,13 @@ function sanitizeRoute(raw: unknown): string | null {
   return v;
 }
 
-/** Compute the pseudonym server-side. Never salt-less, never raw. */
-function pseudonymFor(clerkId: string | null): string | null {
-  if (!clerkId) return null;
-  const salt = process.env.ANALYTICS_SALT || "";
-  if (!salt) return null;
-  return createHmac("sha256", salt).update(clerkId).digest("hex");
-}
+/**
+ * Compute the pseudonym server-side. Never salt-less, never raw.
+ * Fix C1 (2026-10-25): delegiert an `analyticsPseudonymFor` — dieselbe
+ * Funktion nutzt die Kontolöschung (`src/account/deletion-runner.ts`), damit
+ * der `DELETE … WHERE user_pseudonym = …` die geschriebenen Zeilen trifft.
+ */
+const pseudonymFor = (clerkId: string | null): string | null => analyticsPseudonymFor(clerkId);
 
 export async function handleAnalyticsApi(
   req: Request,

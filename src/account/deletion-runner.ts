@@ -30,6 +30,12 @@ import {
   type AccountDeletionMode,
   type BetaSignupPolicy,
 } from './deletion-plan';
+// Fix C1 (2026-10-25): DIESELBE Pseudonym-Funktion wie die Analytics-Schreibseite
+// (`src/api/analytics.ts`). Vorher stand hier ein dynamischer Lookup auf
+// `pseudonymForUser`/`userPseudonym` in `src/lib/tracking.ts` — beide Exporte
+// existieren nicht, das Pseudonym war immer null und der
+// `DELETE FROM analytics_events …` lief still gar nicht.
+import { analyticsPseudonymFor } from '../lib/analytics-pseudonym';
 
 /** Minimaler SQL-Executor (Neon-Tag-Funktion); Tests injizieren einen Fake. */
 export type SqlTag = (
@@ -50,7 +56,11 @@ export interface DeleteAccountDeps {
   ) => Promise<{ periodEnd: string | null }>;
   deleteBlobs: (blobPaths: string[]) => Promise<void>;
   deleteClerkUser: (clerkUserId: string) => Promise<void>;
-  /** HMAC-Pseudonym der Clerk-ID (für analytics_events); null = nicht ableitbar. */
+  /**
+   * HMAC-Pseudonym der Clerk-ID (für analytics_events); null = nicht ableitbar.
+   * MUSS exakt dasselbe Pseudonym liefern wie die Analytics-Schreibseite —
+   * produktiv `analyticsPseudonymFor` aus `src/lib/analytics-pseudonym.ts`.
+   */
   pseudonymFor: (clerkUserId: string) => Promise<string | null>;
   /** DB-Executor (Tests). Default: `getDb()`. */
   sql?: SqlTag;
@@ -187,6 +197,17 @@ export async function runAccountDeletion(
     steps.push('stripe_cancel_subscription');
   }
 
+  // 2. Blobs physisch löschen — BLOCKIEREND (Fix C2, 2026-10-25).
+  //    Muss VOR dem CASCADE auf `generated_images` passieren: danach ist der
+  //    Blob-Pfad nirgends mehr gespeichert, eine übrig gebliebene Datei wäre
+  //    auch für den TTL-Sweeper unauffindbar. Schlägt del() fehl, wird der
+  //    Fehler NICHT geschluckt: der Lauf bricht ab, die Vormerkung bleibt
+  //    'pending' und der nächste Lauf versucht es erneut.
+  if (blobPaths.length > 0) {
+    await deps.deleteBlobs(blobPaths);
+    steps.push('blob_delete_images');
+  }
+
   // Kontrolle aus dem Plan: Jeder blockierende externe Schritt VOR der
   // DB-Löschung muss tatsächlich gelaufen sein — sonst wird nichts gelöscht.
   const mustRun = blockingStepsBeforeDbDelete(plan);
@@ -197,18 +218,6 @@ export async function runAccountDeletion(
     );
   }
 
-  // 2. Blobs physisch löschen (nicht blockierend).
-  if (blobPaths.length > 0) {
-    try {
-      await deps.deleteBlobs(blobPaths);
-      steps.push('blob_delete_images');
-    } catch (err) {
-      // Nicht blockierend: die DB-Zeilen verschwinden trotzdem, der
-      // TTL-Sweeper (delete_reason 'account_deleted') räumt den Rest.
-      console.error('[account-delete] Blob-Löschung fehlgeschlagen:', err);
-    }
-  }
-
   // 3. Tabellen ohne Fremdschlüssel (TEXT-Clerk-ID).
   await sql`DELETE FROM usage_events WHERE user_id = ${clerkUserId}`;
   steps.push('delete_usage_events');
@@ -217,34 +226,66 @@ export async function runAccountDeletion(
   await sql`DELETE FROM generation_throttle WHERE user_id = ${clerkUserId}`;
   steps.push('delete_generation_throttle');
 
-  const pseudonym = await deps.pseudonymFor(clerkUserId).catch(() => null);
+  // 4. Reichweiten-Events: Löschung über DASSELBE Pseudonym, das die
+  //    Schreibseite berechnet (Fix C1, 2026-10-25). Ohne ableitbares Pseudonym
+  //    wird NICHT still weitergelaufen: Warnung ins Log + eigener Schritt in
+  //    der Ergebnisliste. Ein fehlender ANALYTICS_SALT darf die Kontolöschung
+  //    aber nicht blockieren (sonst wäre das Konto unlöschbar).
+  const pseudonym = await deps.pseudonymFor(clerkUserId).catch((err: unknown) => {
+    console.error('[account-delete] Pseudonym-Berechnung fehlgeschlagen:', err);
+    return null;
+  });
   if (pseudonym) {
     await sql`DELETE FROM analytics_events WHERE user_pseudonym = ${pseudonym}`;
     steps.push('delete_analytics_events');
+  } else {
+    console.warn(
+      '[account-delete] analytics_events NICHT gelöscht: kein Pseudonym ableitbar ' +
+        '(ANALYTICS_SALT fehlt oder Pseudonym-Funktion fehlgeschlagen) — Clerk-ID:',
+      clerkUserId,
+    );
+    steps.push('delete_analytics_events_skipped_no_pseudonym');
   }
 
-  // 4. beta_signups — offene Owner-Entscheidung.
-  if (policy === 'delete' && userEmail) {
-    await sql`DELETE FROM beta_signups WHERE LOWER(email) = ${userEmail.toLowerCase()}`;
-    steps.push('beta_signup_deleted');
+  // 5. beta_signups — Owner-Entscheidung 2026-10-25: wird mitgelöscht.
+  //    Gematcht wird die in collectState() VOR jeder Löschung gemerkte
+  //    E-Mail-Adresse (die users-Zeile existiert zu diesem Zeitpunkt noch).
+  if (policy === 'delete') {
+    if (userEmail) {
+      await sql`DELETE FROM beta_signups WHERE LOWER(email) = ${userEmail.toLowerCase()}`;
+      steps.push(betaRows.length > 0 ? 'beta_signup_deleted' : 'beta_signup_none_found');
+    } else {
+      // Kein E-Mail-Wert in users (z. B. Platzhalter-/anonymes Konto):
+      // nichts zu matchen — bewusst KEIN Fehler, aber sichtbar.
+      console.warn(
+        '[account-delete] beta_signups nicht zuordenbar (keine E-Mail in users) — Clerk-ID:',
+        clerkUserId,
+      );
+      steps.push('beta_signup_skipped_no_email');
+    }
   } else if (betaRows.length > 0) {
+    // Nur noch ausdrücklich ('keep') möglich — sichtbar, nicht still.
+    console.warn(
+      '[account-delete] beta_signups bleibt bestehen (policy=keep, ausdrücklich gewählt) — Clerk-ID:',
+      clerkUserId,
+    );
     steps.push('beta_signup_kept');
   }
 
-  // 5. users → CASCADE (projects, content, subscriptions, usage_monthly,
+  // 6. users → CASCADE (projects, content, subscriptions, usage_monthly,
   //    generated_images, publish_plan, performance_entries, preferences).
   if (userUuid) {
     await sql`DELETE FROM users WHERE id = ${userUuid}::uuid`;
     steps.push('delete_user_row');
   }
 
-  // 6. Offene Vormerkung schließen (falls es eine gab).
+  // 7. Offene Vormerkung schließen (falls es eine gab).
   await sql`UPDATE account_deletion_requests
                 SET status = 'executed', executed_at = ${now.toISOString()}::timestamptz
               WHERE clerk_user_id = ${clerkUserId} AND status = 'pending'`;
   steps.push('close_deletion_request');
 
-  // 7. Clerk-Nutzer löschen — ZULETZT und BLOCKIEREND.
+  // 8. Clerk-Nutzer löschen — ZULETZT und BLOCKIEREND.
   //    Bliebe er bestehen, würde der nächste Login über ensureUserRow() sofort
   //    ein neues Konto anlegen (inkl. 3 frischer Free-Generierungen).
   await deps.deleteClerkUser(clerkUserId);
@@ -386,18 +427,9 @@ export function productionDeletionDeps(): DeleteAccountDeps {
         throw new Error(`Clerk user deletion failed (${res.status})`);
       }
     },
-    pseudonymFor: async (id) => {
-      try {
-        const mod = (await import('../lib/tracking')) as Record<string, unknown>;
-        const fn = mod.pseudonymForUser ?? mod.userPseudonym;
-        if (typeof fn === 'function') {
-          const value = await (fn as (x: string) => unknown)(id);
-          return typeof value === 'string' && value ? value : null;
-        }
-        return null;
-      } catch {
-        return null;
-      }
-    },
+    // Fix C1 (2026-10-25): ECHTE Pseudonym-Funktion der Schreibseite
+    // (HMAC-SHA256(ANALYTICS_SALT, clerk_id), hex) — kein dynamischer Lookup
+    // auf nicht existierende Exporte mehr.
+    pseudonymFor: async (id) => analyticsPseudonymFor(id),
   };
 }

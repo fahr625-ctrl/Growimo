@@ -161,16 +161,19 @@ export function resolveDeletionMode(input: {
 }
 
 /**
- * Was mit `beta_signups` passiert, ist eine OFFENE Owner-Entscheidung:
- *  - 'keep'   : Rabatt-Nachweis bleibt (der Nutzer behält seinen Anspruch auch
- *               nach Konto-Neuanlage mit derselben E-Mail). Datenschutzrechtlich
- *               ist die Zeile dann zu löschen, wenn kein Vertrag mehr besteht —
- *               juristisch zu klären.
- *  - 'delete' : Zeile wird mitgelöscht → Rabatt endet mit dem Konto.
- * Bis zur Entscheidung gilt 'keep' (nichts wird stillschweigend gelöscht).
+ * Was mit `beta_signups` passiert — ENTSCHEIDEN (Owner-Auftrag 2026-10-25:
+ * „Löschung muss technisch vollständig funktionieren, soweit keine
+ * gesetzlichen Aufbewahrungspflichten entgegenstehen").
+ *  - 'delete' (NEUER DEFAULT): die Wartelistenzeile (Vorname, E-Mail) wird mit
+ *               dem Konto gelöscht. Für die Zeile besteht keine gesetzliche
+ *               Aufbewahrungspflicht — sie ist reine Marketing-/Rabatt-Historie.
+ *  - 'keep'   : Altverhalten (Rabatt-Nachweis bleibt). Nur noch ausdrücklich
+ *               wählbar, nicht mehr der Default.
+ * Vorher war 'keep' der Default; die Wartelistenzeile überlebte damit jede
+ * Kontolöschung (Befund A2 der Datenschutz-Verifikation 2026-10-25).
  */
 export type BetaSignupPolicy = 'keep' | 'delete';
-export const BETA_SIGNUP_POLICY_DEFAULT: BetaSignupPolicy = 'keep';
+export const BETA_SIGNUP_POLICY_DEFAULT: BetaSignupPolicy = 'delete';
 
 export interface DeletionPlanInput {
   /** Existiert eine (auch gekündigte) Stripe-Subscription? */
@@ -260,8 +263,8 @@ export function buildDeletionPlan(input: DeletionPlanInput): DeletionStep[] {
     kind: 'external',
     target: `Vercel Blob (${input.liveImageCount} Bild(er))`,
     reason:
-      'Objektspeicher-Dateien verschwinden nicht durch das Löschen der DB-Zeilen — sie müssen physisch entfernt werden.',
-    blocking: false,
+      'Objektspeicher-Dateien verschwinden nicht durch das Löschen der DB-Zeilen — sie müssen physisch entfernt werden. BLOCKIEREND (Fix C2, 2026-10-25): nach dem CASCADE auf generated_images ist der Blob-Pfad nicht mehr auffindbar, ein fehlgeschlagenes del() würde also eine Datei ohne DB-Zeile hinterlassen, die auch der TTL-Sweeper nicht mehr findet.',
+    blocking: input.liveImageCount > 0,
   });
   steps.push({
     id: 'delete_usage_events',
@@ -290,17 +293,16 @@ export function buildDeletionPlan(input: DeletionPlanInput): DeletionStep[] {
     kind: 'db',
     target: 'analytics_events',
     reason:
-      'Reichweiten-Events tragen nur ein Pseudonym (HMAC der Clerk-ID). Löschbar nur, wenn das Pseudonym serverseitig neu berechnet wird.',
+      'Reichweiten-Events tragen nur ein Pseudonym (HMAC der Clerk-ID). Gelöscht wird mit demselben Pseudonym, das die Schreibseite berechnet (src/lib/analytics-pseudonym.ts). Fehlt ANALYTICS_SALT, ist kein Pseudonym ableitbar — dann wird das im Lauf ausdrücklich protokolliert und als eigener Schritt ausgewiesen (kein stiller Skip); der Lauf bricht NICHT ab, weil ein fehlender Salt keine Kontolöschung verhindern darf.',
     blocking: false,
   });
   steps.push({
-    id: 'beta_signup_policy',
+    id: 'delete_beta_signup',
     kind: 'db',
     target: 'beta_signups',
     reason:
-      'Die Rabatt-Berechtigung hängt an der E-Mail-Adresse, nicht am Konto. Ob die Zeile mitgelöscht wird, ist eine offene Entscheidung.',
-    blocking: false,
-    ownerDecision: true,
+      'Die Wartelistenzeile (Vorname, E-Mail) hängt an der E-Mail-Adresse, nicht am Konto — die Kaskade erfasst sie nicht. Owner-Entscheidung 2026-10-25: sie wird mitgelöscht (keine gesetzliche Aufbewahrungspflicht). Gematcht wird die VOR dem Löschen der users-Zeile gemerkte E-Mail; passt sie nicht (z. B. Platzhalter-Adresse), wird das protokolliert und ist kein Fehler.',
+    blocking: true,
   });
   steps.push({
     id: 'delete_user_row',
