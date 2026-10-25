@@ -1,6 +1,7 @@
 import { getDb } from "./index";
 import { schemaSQL } from "./schema";
 import { splitSqlStatements } from "./sql-split";
+import { logTestDbPolicy, testDbPolicy } from "./test-guard";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Schema-Initialisierung (Einmal-Lauf pro Instanz)
@@ -23,7 +24,7 @@ import { splitSqlStatements } from "./sql-split";
 
 export type DbInitState =
   | { status: "pending" }
-  | { status: "skipped"; reason: "no_database" }
+  | { status: "skipped"; reason: "no_database" | "prod_readonly_test" }
   | { status: "ok"; statements: number; at: string }
   | {
       status: "failed";
@@ -62,6 +63,20 @@ export async function initDb(): Promise<DbInitState> {
   if (!process.env.DATABASE_URL) {
     state = { status: "skipped", reason: "no_database" };
     console.log("[db] Skipping init — DATABASE_URL not configured.");
+    return state;
+  }
+
+  // TEST-SUITE-PROD-GUARD (Owner-Auftrag 2026-10-25): Migrationen sind
+  // Schreibzugriffe. Läuft eine Repo-Test-Suite auf der PROD-DB (ohne
+  // ALLOW_PROD_TESTS=write), wird die Migration hier NICHT ausgeführt — die
+  // Suite läuft im Lesemodus weiter und ein echtes Schreib-Statement bricht
+  // später fail-closed ab (src/db/test-guard.ts).
+  if (testDbPolicy() === "readonly") {
+    state = { status: "skipped", reason: "prod_readonly_test" };
+    logTestDbPolicy();
+    console.warn(
+      "[db] Test-Suite auf der PROD-DB: Migrationen werden NICHT ausgeführt (Lesemodus).",
+    );
     return state;
   }
 
