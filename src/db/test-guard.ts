@@ -144,10 +144,13 @@ type NeonLike = (...args: unknown[]) => unknown;
  * `assertTestStatementAllowed` geht. Ausserhalb von Test-Prozessen (oder bei
  * 'allow') wird der Client unverändert zurückgegeben.
  */
-export function guardTestClient<T extends NeonLike>(client: T, url?: string): T {
+export function guardTestClient<T>(client: T, url?: string): T {
   if (testDbPolicy(url) === 'allow') return client;
   logTestDbPolicy(url);
-  return new Proxy(client, {
+  // Bewusst unconstrained generisch: der Aufrufer bekommt EXAKT seinen Client-
+  // Typ zurück (NeonQueryFunction bleibt NeonQueryFunction), sonst verliert
+  // getDb() seine Typinformation (.transaction/.unsafe in init.ts).
+  return new Proxy(client as unknown as NeonLike, {
     apply(target, thisArg, args) {
       const first = args[0];
       // Tagged template: TemplateStringsArray → SQL-Text rekonstruieren.
@@ -155,5 +158,5 @@ export function guardTestClient<T extends NeonLike>(client: T, url?: string): T 
       assertTestStatementAllowed(statement);
       return Reflect.apply(target as NeonLike, thisArg, args);
     },
-  }) as T;
+  }) as unknown as T;
 }

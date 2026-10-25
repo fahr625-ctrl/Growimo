@@ -127,10 +127,12 @@ check('de: DSGVO in Rechtsgrundlage', String(de.legal_privacy_account_basis).inc
 check('en: GDPR in Rechtsgrundlage', String(en.legal_privacy_account_basis).includes('GDPR'));
 
 // ── 3. Routen-Head ──────────────────────────────────────────────────────────
-const impHead = ImpressumRoute.options.head?.() as
+// Cast: TanStack verlangt beim head()-Aufruf formal einen Kontext; für den Test
+// genügt der Rückgabetyp (die head()-Implementierungen lesen keinen Kontext).
+const impHead = (ImpressumRoute.options.head as unknown as () => unknown)?.() as
   | { meta?: Array<Record<string, string>>; links?: Array<{ rel: string; href: string }> }
   | undefined;
-const priHead = DatenschutzRoute.options.head?.() as
+const priHead = (DatenschutzRoute.options.head as unknown as () => unknown)?.() as
   | { meta?: Array<Record<string, string>>; links?: Array<{ rel: string; href: string }> }
   | undefined;
 
@@ -338,8 +340,8 @@ if (CONTACT_EMAIL.trim().length > 0) {
 }
 
 // (2) Routen-Head von /agb und /widerruf
-const agbHead = AgbRoute.options.head?.() as typeof impHead;
-const widHead = WiderrufRoute.options.head?.() as typeof impHead;
+const agbHead = (AgbRoute.options.head as unknown as () => unknown)?.() as typeof impHead;
+const widHead = (WiderrufRoute.options.head as unknown as () => unknown)?.() as typeof impHead;
 check('AGB: Titel gesetzt', titleOf(agbHead).length > 0, titleOf(agbHead));
 check('AGB: index,follow', metaOf(agbHead, 'robots') === 'index,follow', metaOf(agbHead, 'robots'));
 check(
