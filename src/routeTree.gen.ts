@@ -9,9 +9,11 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WiderrufRouteImport } from './routes/widerruf'
 import { Route as ImpressumRouteImport } from './routes/impressum'
 import { Route as DatenschutzRouteImport } from './routes/datenschutz'
 import { Route as AppRouteImport } from './routes/app'
+import { Route as AgbRouteImport } from './routes/agb'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppTiktokRouteImport } from './routes/app/tiktok'
@@ -41,6 +43,11 @@ import { Route as AppGeneratePinterestRouteImport } from './routes/app/generate/
 import { Route as AppGenerateEtsyRouteImport } from './routes/app/generate/etsy'
 import { Route as AppGenerateBlogRouteImport } from './routes/app/generate/blog'
 
+const WiderrufRoute = WiderrufRouteImport.update({
+  id: '/widerruf',
+  path: '/widerruf',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ImpressumRoute = ImpressumRouteImport.update({
   id: '/impressum',
   path: '/impressum',
@@ -54,6 +61,11 @@ const DatenschutzRoute = DatenschutzRouteImport.update({
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgbRoute = AgbRouteImport.update({
+  id: '/agb',
+  path: '/agb',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -199,9 +211,11 @@ const AppGenerateBlogRoute = AppGenerateBlogRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/agb': typeof AgbRoute
   '/app': typeof AppRouteWithChildren
   '/datenschutz': typeof DatenschutzRoute
   '/impressum': typeof ImpressumRoute
+  '/widerruf': typeof WiderrufRoute
   '/app/admin-analytics': typeof AppAdminAnalyticsRoute
   '/app/admin-tracking': typeof AppAdminTrackingRoute
   '/app/analytics': typeof AppAnalyticsRoute
@@ -232,8 +246,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/agb': typeof AgbRoute
   '/datenschutz': typeof DatenschutzRoute
   '/impressum': typeof ImpressumRoute
+  '/widerruf': typeof WiderrufRoute
   '/app/admin-analytics': typeof AppAdminAnalyticsRoute
   '/app/admin-tracking': typeof AppAdminTrackingRoute
   '/app/analytics': typeof AppAnalyticsRoute
@@ -265,9 +281,11 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/agb': typeof AgbRoute
   '/app': typeof AppRouteWithChildren
   '/datenschutz': typeof DatenschutzRoute
   '/impressum': typeof ImpressumRoute
+  '/widerruf': typeof WiderrufRoute
   '/app/admin-analytics': typeof AppAdminAnalyticsRoute
   '/app/admin-tracking': typeof AppAdminTrackingRoute
   '/app/analytics': typeof AppAnalyticsRoute
@@ -300,9 +318,11 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/agb'
     | '/app'
     | '/datenschutz'
     | '/impressum'
+    | '/widerruf'
     | '/app/admin-analytics'
     | '/app/admin-tracking'
     | '/app/analytics'
@@ -333,8 +353,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/agb'
     | '/datenschutz'
     | '/impressum'
+    | '/widerruf'
     | '/app/admin-analytics'
     | '/app/admin-tracking'
     | '/app/analytics'
@@ -365,9 +387,11 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/agb'
     | '/app'
     | '/datenschutz'
     | '/impressum'
+    | '/widerruf'
     | '/app/admin-analytics'
     | '/app/admin-tracking'
     | '/app/analytics'
@@ -399,13 +423,22 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AgbRoute: typeof AgbRoute
   AppRoute: typeof AppRouteWithChildren
   DatenschutzRoute: typeof DatenschutzRoute
   ImpressumRoute: typeof ImpressumRoute
+  WiderrufRoute: typeof WiderrufRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/widerruf': {
+      id: '/widerruf'
+      path: '/widerruf'
+      fullPath: '/widerruf'
+      preLoaderRoute: typeof WiderrufRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/impressum': {
       id: '/impressum'
       path: '/impressum'
@@ -425,6 +458,13 @@ declare module '@tanstack/react-router' {
       path: '/app'
       fullPath: '/app'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agb': {
+      id: '/agb'
+      path: '/agb'
+      fullPath: '/agb'
+      preLoaderRoute: typeof AgbRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -690,9 +730,11 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AgbRoute: AgbRoute,
   AppRoute: AppRouteWithChildren,
   DatenschutzRoute: DatenschutzRoute,
   ImpressumRoute: ImpressumRoute,
+  WiderrufRoute: WiderrufRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

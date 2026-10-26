@@ -25,6 +25,10 @@
 // STUBS (kein Neon, kein Clerk, kein Schreibzugriff irgendwo) — der Zähler ist
 // ein In-Memory-Objekt mit derselben konditionalen Increment-Semantik wie
 // qIncrementUsage (INSERT … WHERE count < limit → null am Limit).
+// `mock` kommt aus Bun. Das Repo hat kein `@types/bun` — dieselbe Situation wie in
+// image-streaming-test.ts / saved-images-api-local-test.ts. Deshalb hier bewusst
+// stillgelegt, damit diese Datei den tsc-Stand (Baseline) NICHT verändert.
+// @ts-ignore — bun:test ist zur Laufzeit (bun) vorhanden
 import { mock } from 'bun:test';
 import { readFileSync } from 'node:fs';
 
@@ -32,7 +36,6 @@ const BASE = new URL('./', import.meta.url).pathname;
 
 // ── Fake-Zustand (nur im Prozessspeicher) ────────────────────────────────────
 const LEGACY_OWNER_ID = 'user_3H2trJXHwzXmJF2XTGQ2PMEwjkD';
-const NEW_OWNER_ID = 'user_3KQScMnVPi30zj12OTNSJluvNvK';
 const FREE_USER_ID = 'guard-fake-free-user';
 
 type Counters = Map<string, number>; // key = `${userId}|${period}`
