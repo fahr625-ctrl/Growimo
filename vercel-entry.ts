@@ -25,6 +25,10 @@ import { handleCronBlobTtlApi } from "./src/api/cron-blob-ttl";
 // Zugriffsschutz der geschützten Klick-Demo (preview.growimo.app): env-gesteuert
 // (PREVIEW_AUTH_USER + PREVIEW_AUTH_PASS), in Production wirkungslos.
 import { applyPreviewBasicAuth } from "./src/lib/preview-basic-auth";
+// Route-Gate der Rechtstexte (Owner-Freigabe 2026-10-26): in Production liefern
+// /impressum, /agb und /widerruf 404, /datenschutz bleibt öffentlich 200.
+// In Preview/lokal ändert das Gate nichts (alle vier Routen 200).
+import { applyLegalRouteGate } from "./src/lib/legal-route-gate";
 
 // Initialise the database once at cold start.
 // Fail-LOUD (Incident 2026-10-20): a failed schema init means migrations did NOT
@@ -90,6 +94,14 @@ export default async function vercelHandler(
     // laufen alle durch diesen einen Einstieg. Ausgenommen sind nur der
     // Stripe-Webhook (Signaturprüfung) und der Cron-Lauf (CRON_SECRET).
     if (applyPreviewBasicAuth({ headers: req.headers, url: req.url }, res)) {
+      return;
+    }
+
+    // Rechtstexte-Route-Gate (Owner-Freigabe 2026-10-26): NUR in Production
+    // (VERCEL_ENV=production) und NUR für /impressum, /agb, /widerruf → echter
+    // 404-Status. /datenschutz und alle anderen Pfade laufen unverändert durch;
+    // in Preview/lokal gibt die Funktion immer `false` zurück.
+    if (applyLegalRouteGate({ headers: req.headers, url: req.url }, res)) {
       return;
     }
 
