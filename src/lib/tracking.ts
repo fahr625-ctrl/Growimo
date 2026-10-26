@@ -10,7 +10,7 @@
 //    page, source). No content payloads.
 // Clerk-Migration (Plan §3.5 Punkt 1): zentrale, per Env (OWNER_CLERK_ID)
 // übersteuerbare Owner-ID — nach dem Instanzwechsel nur ein Env-Wert.
-import { OWNER_CLERK_ID } from "./owner-id";
+import { LEGACY_OWNER_CLERK_IDS, OWNER_CLERK_ID } from "./owner-id";
 
 // Clerk-Migration (Plan §3.5 Punkt 1): zentrale, per Env (OWNER_CLERK_ID)
 // übersteuerbare Owner-ID — nach dem Instanzwechsel nur ein Env-Wert.
@@ -21,7 +21,14 @@ export const OWNER_USER_ID = OWNER_CLERK_ID;
 // toggle. Hiding is implemented as an exclusion FILTER on the aggregate queries,
 // which is the cleanest approach the owner approved ("separat gekennzeichnet
 // oder ausgeschlossen — Ausschließen (Filter) ist am saubersten").
-export const TEST_USER_IDS: string[] = [OWNER_USER_ID];
+// Owner-Entscheidung 2026-10-26 (Maßnahme (a) aus der Zugriffs-Forensik):
+// zusätzlich zum aktuellen Owner-Konto werden die ALT-Konten des Owners aus der
+// Development-Instanz als „eigene Tests" gefiltert. Grund: der Admin-Bericht
+// zeigt sonst das Alt-Konto (24 der 65 Generierungen) weiter als echten Nutzer.
+// WICHTIG: Diese Liste ist ein reiner ANALYTIK-FILTER. Sie ist bewusst NICHT
+// dieselbe Liste wie ADMIN_OVERRIDE_USER_IDS (Quota-Override, nur aktuelle
+// Owner-ID) — das Alt-Konto bleibt Free mit kontingent 3.
+export const TEST_USER_IDS: string[] = [OWNER_USER_ID, ...LEGACY_OWNER_CLERK_IDS];
 
 // The exact, owner-specified event vocabulary. Keep names stable — they are the
 // contract for the admin report and funnel.

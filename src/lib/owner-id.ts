@@ -32,3 +32,22 @@ export const OWNER_CLERK_ID_DEFAULT = "user_3KQScMnVPi30zj12OTNSJluvNvK"; // NEU
 export const OWNER_CLERK_ID: string =
   (typeof process !== "undefined" && process.env?.OWNER_CLERK_ID?.trim()) ||
   OWNER_CLERK_ID_DEFAULT;
+
+// ── Alt-IDs des Owners (NUR für Analytik-Filter, NIE für Override) ────────────
+// Owner-Entscheidung 2026-10-26 nach der Zugriffs-Forensik: das ALT-Konto des
+// Owners aus der Development-Instanz (fahr625@gmail.com, Dev-Ära bis 2026-10-09)
+// hat 24 der 65 Analytics-Generierungen erzeugt und taucht im Admin-Bericht
+// weiter als echter Nutzer auf, weil der Filter „eigene Tests ausblenden" nur
+// die AKTUELLE Owner-ID kennt. Diese Liste schließt die Alt-Konten mit ein.
+//
+// ⚠ ABGRENZUNG (bewusst getrennt, bitte nicht zusammenlegen):
+//   * TEST_USER_IDS (src/lib/tracking.ts) nutzt diese Liste ausschließlich als
+//     EXKLUSIONSFILTER in Analytics-Aggregaten.
+//   * ADMIN_OVERRIDE_USER_IDS (src/lib/usage-guard.ts) enthält NUR
+//     OWNER_CLERK_ID — das Alt-Konto bleibt Free mit Limit 3, es darf über
+//     diesen Umweg KEINEN unbegrenzten Override bekommen (Owner-Entscheidung
+//     Maßnahme (b), 2026-10-26). Wer die Listen zusammenlegt, hebelt genau
+//     diese Entscheidung aus.
+export const LEGACY_OWNER_CLERK_IDS: readonly string[] = [
+  "user_3H2trJXHwzXmJF2XTGQ2PMEwjkD", // ALT: Owner in der Dev-Instanz (bis 2026-10-09)
+];
