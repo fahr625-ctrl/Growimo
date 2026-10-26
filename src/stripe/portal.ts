@@ -35,9 +35,11 @@ export const createPortalSession = createServerFn({ method: 'POST' })
     let customerId = data.customerId;
     if (!customerId && data.userId) {
       // Bevorzugt: serverseitig aufgelöste Identität + DB-Lookup (fail-closed).
+      // Owner-Entscheidung 2026-10-26 (Maßnahme (c)): NUR aus dem verifizierten
+      // Session-Cookie — der frühere Payload-Fallback ist entfernt.
       const { resolveUserIdFromServerFn } = await import('../lib/usage-guard');
       const { qGetCustomerIdForUser } = await import('../db/queries');
-      const userId = (await resolveUserIdFromServerFn(data.userId)) ?? data.userId;
+      const userId = await resolveUserIdFromServerFn();
       if (userId && userId !== 'anonymous') {
         customerId = (await qGetCustomerIdForUser(userId)) ?? undefined;
       }

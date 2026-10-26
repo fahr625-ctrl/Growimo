@@ -378,9 +378,15 @@ async function main() {
     'Session-Fehler ist KEIN UsageLimitError (getrennt vom Kontingent-Fehler, wird nicht als Verbrauch verbucht)',
   );
   const adminPayload = [...ADMIN_OVERRIDE_USER_IDS][0]!;
+  // Seit 2026-10-26 (Owner-Maßnahme (c)) nimmt das Gate GAR KEINEN Payload mehr
+  // an — der Aufruf mit Argument ist bewusst gecastet, damit der Test beweist,
+  // dass auch eine mitgeschickte ID nichts bewirkt (fail-closed).
+  const requireWithPayload = requireUserIdFromServerFn as unknown as (
+    p?: string,
+  ) => Promise<string>;
   const adminErr = await (async () => {
     try {
-      await requireUserIdFromServerFn(adminPayload);
+      await requireWithPayload(adminPayload);
       return null;
     } catch (e) {
       return e;
@@ -390,10 +396,17 @@ async function main() {
     adminErr instanceof Error,
     `Owner-ID aus dem Payload wird verworfen → fail-closed (${adminErr instanceof Error ? 'wirft' : 'KEIN Fehler!'})`,
   );
-  const normalUid = await requireUserIdFromServerFn(U_FREE);
+  const normalErr = await (async () => {
+    try {
+      await requireWithPayload(U_FREE);
+      return null;
+    } catch (e) {
+      return e;
+    }
+  })();
   check(
-    normalUid === U_FREE,
-    'Positivkontrolle: normaler Payload-Fallback liefert die uid (Gate wirft nicht pauschal)',
+    normalErr instanceof Error && /Keine gültige Sitzung/.test(normalErr.message),
+    'Payload-Fallback ist ENTFERNT: auch eine normale Payload-uid liefert keine Identität (fail-closed)',
   );
 
   console.log(`\n=== kontingent-once-test: ${passed} PASS, ${failed} FAIL ===`);

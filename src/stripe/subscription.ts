@@ -48,7 +48,7 @@ export interface SubscriptionStatus {
 export const getSubscriptionStatus = createServerFn({ method: 'GET' }).handler(
   async (): Promise<SubscriptionStatus> => {
     const { resolveUserIdFromServerFn } = await import('../lib/usage-guard');
-    const userId = await resolveUserIdFromServerFn(undefined);
+    const userId = await resolveUserIdFromServerFn();
 
     const base = {
       signedIn: Boolean(userId),

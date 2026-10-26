@@ -369,13 +369,19 @@ export async function assertRateOk(
 }
 
 /**
- * Nutzer-Identität aus einer ServerFn-Anfrage auflösen:
- *   1. __session-Cookie (JWKS-verifiziert — autoritativ, verhindert
- *      Quota-Diebstahl über gefälschte payload-userId),
- *   2. Fallback: vom Aufrufer mitgeschickte payload-userId (bestehende
- *      Aufrufer wie fetchPackageKernelServer schicken userId mit) — nur wenn
- *      kein Cookie verifiziert werden konnte,
- *   3. null → Aufrufer entscheidet (fail-closed bei Generierung).
+ * Nutzer-Identität aus einer ServerFn-Anfrage auflösen.
+ *
+ * Owner-Entscheidung 2026-10-26 (Maßnahme (c) aus der Zugriffs-Forensik):
+ * ES GIBT NUR NOCH EINEN WEG — das serverseitig JWKS-verifizierte
+ * `__session`-Cookie. Der frühere Payload-Fallback (`data.userId` aus dem
+ * Request-Body) ist vollständig entfernt: er erlaubte theoretisch, fremdes
+ * Kontingent zu verbrauchen oder ein fremdes Konto zu adressieren, ohne je
+ * benötigt zu werden — jeder echte Aufruf kommt aus der eingeloggten App und
+ * schickt das Cookie mit.
+ *
+ * Rückgabe `null` = keine verifizierte Identität (Aufrufer entscheidet
+ * fail-closed; die Generierungspfade tun das über `requireUserIdFromServerFn`).
+ *
  * getRequest wird LAZY importiert, damit dieses Modul auch in Nicht-h3-Kontexten
  * (Unit-Tests, Bun-Skripte) importierbar bleibt.
  *
@@ -387,7 +393,7 @@ export async function assertRateOk(
  * TanStack-Vite-Plugin auflöst — rohes `bun build` scheitert daran. Das Submodul
  * importiert nur node:async_hooks + h3-v2 und exportiert dieselbe getRequest-Funktion.
  */
-export async function resolveUserIdFromServerFn(payloadFallback?: string): Promise<string | null> {
+export async function resolveUserIdFromServerFn(): Promise<string | null> {
   try {
     const { getRequest } = await import('@tanstack/start-server-core/request-response');
     const req = getRequest() as unknown as Request;
@@ -397,16 +403,9 @@ export async function resolveUserIdFromServerFn(payloadFallback?: string): Promi
       if (sub) return sub;
     }
   } catch {
-    // kein h3-Kontext (Tests/Skripte) → Fallback unten
+    // kein h3-Kontext (Tests/Skripte) oder ungültige Session → keine Identität
   }
-  // Sicherheit (Admin-/Owner-Override): Die Owner-ID darf NIE aus dem
-  // Request-Body stammen — nur aus der serverseitig JWKS-verifizierten
-  // Session (__session-Cookie). Eine im Payload mitgeschickte Admin-ID wird
-  // verworfen (→ null, fail-closed): damit ist der Override für normale
-  // Nutzer unerreichbar (keine Client-Zugriffsmöglichkeit auf die Ausnahme).
-  const payload = payloadFallback && payloadFallback.trim() ? payloadFallback.trim() : null;
-  if (payload && isAdminOverride(payload)) return null;
-  return payload;
+  return null;
 }
 
 /**
@@ -421,8 +420,8 @@ export async function resolveUserIdFromServerFn(payloadFallback?: string): Promi
  * Ausgelagert aus `src/ai/server.ts`, damit der Fail-closed-Vertrag ohne
  * Start-Compiler auf Guard-Ebene testbar ist (kontingent-once-test, Punkt k).
  */
-export async function requireUserIdFromServerFn(payloadFallback?: string): Promise<string> {
-  const uid = await resolveUserIdFromServerFn(payloadFallback);
+export async function requireUserIdFromServerFn(): Promise<string> {
+  const uid = await resolveUserIdFromServerFn();
   if (!uid) {
     throw new Error('Keine gültige Sitzung — bitte neu anmelden.');
   }

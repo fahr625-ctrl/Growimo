@@ -217,12 +217,20 @@ async function main() {
     check(val === 'owner-ok', 'Owner withGenerationGuard läuft durch');
   }
 
-  // ── 7. Payload-Sicherheit: Owner-ID aus dem Request-Body wird verworfen ─────
-  console.log('\n[7] Payload-Sicherheit (Owner-ID nie aus Request-Body)');
-  const forged = await resolveUserIdFromServerFn(OWNER_ID);
+  // ── 7. Payload-Sicherheit: JEDE Payload-ID wird ignoriert (nur Session zählt)
+  console.log('\n[7] Payload-Sicherheit (Identität NUR aus der Session)');
+  // Die Signatur nimmt seit 2026-10-26 (Maßnahme (c)) KEINEN Payload mehr an.
+  // Der Cast ruft sie absichtlich trotzdem mit Argument auf: auch dann darf
+  // nichts durchgereicht werden (Beweis, dass der Fallback wirklich weg ist).
+  const resolveWithPayload = resolveUserIdFromServerFn as unknown as (
+    p?: string,
+  ) => Promise<string | null>;
+  const forged = await resolveWithPayload(OWNER_ID);
   check(forged === null, 'resolveUserIdFromServerFn(ownerId als payload) → null (fail-closed)');
-  const normal = await resolveUserIdFromServerFn(TEST_USER);
-  check(normal === TEST_USER, 'resolveUserIdFromServerFn(normaler payload) → Fallback ok (nur ohne Session)');
+  // Owner-Entscheidung 2026-10-26 (Maßnahme (c)): auch eine NORMALE Payload-ID
+  // wird nicht mehr durchgereicht — der Fallback existiert nicht mehr.
+  const normal = await resolveWithPayload(TEST_USER);
+  check(normal === null, 'resolveUserIdFromServerFn(normaler payload) → null (Fallback entfernt)');
 
   // ── 8. Cleanup aller Testdaten ──────────────────────────────────────────────
   console.log('\n[8] Cleanup');

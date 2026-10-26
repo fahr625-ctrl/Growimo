@@ -686,7 +686,7 @@ console.log('=== (i4) FIX 3 / A2: beta_signups-Zeile wird mitgelöscht ===');
 
 console.log('=== (j) Quelltext: Route, Link, ServerFn nur aus der Session ===');
 const src = read('./src/account/delete-account.ts');
-check(src.includes('resolveUserIdFromServerFn(undefined)'), 'UserId kommt aus der Session');
+check(src.includes('resolveUserIdFromServerFn()'), 'UserId kommt aus der Session');
 check(!/data\.userId/.test(src), 'ServerFn liest KEINE userId aus dem Payload');
 check(src.includes('isAccountDeletionEnabled()'), 'ServerFn prüft das Flag selbst');
 check(src.includes('assertAccountDeletionAllowed('), 'ServerFn nutzt die gemeinsame Gate-Funktion');

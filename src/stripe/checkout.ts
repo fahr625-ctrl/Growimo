@@ -66,9 +66,11 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
       );
     }
 
-    // Identität serverseitig auflösen (Session-Cookie bevorzugt, Payload-Fallback).
+    // Identität serverseitig auflösen — NUR aus dem verifizierten Session-Cookie.
+    // Owner-Entscheidung 2026-10-26 (Maßnahme (c)): der frühere Payload-Fallback
+    // (`?? data.userId`) ist entfernt; ohne gültige Sitzung fail-closed.
     const { resolveUserIdFromServerFn } = await import('../lib/usage-guard');
-    const userId = (await resolveUserIdFromServerFn(data.userId)) ?? data.userId;
+    const userId = await resolveUserIdFromServerFn();
     if (!userId || userId === 'anonymous') {
       throw new Error(
         'No valid session — please sign in again before starting the checkout.',

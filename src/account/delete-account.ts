@@ -79,7 +79,7 @@ export const getAccountDeletionInfo = createServerFn({ method: 'GET' }).handler(
     let clerkUserId: string | null = null;
     try {
       const { resolveUserIdFromServerFn } = await import('../lib/usage-guard');
-      clerkUserId = await resolveUserIdFromServerFn(undefined);
+      clerkUserId = await resolveUserIdFromServerFn();
     } catch {
       clerkUserId = null;
     }
@@ -124,7 +124,7 @@ export const deleteAccount = createServerFn({ method: 'POST' })
     // Identität NUR aus der Session (kein Payload-Fallback — sonst könnte
     // jeder fremde Konten löschen).
     const { resolveUserIdFromServerFn } = await import('../lib/usage-guard');
-    const sessionUserId = await resolveUserIdFromServerFn(undefined);
+    const sessionUserId = await resolveUserIdFromServerFn();
 
     const clerkUserId = assertAccountDeletionAllowed({
       clerkUserId: sessionUserId,

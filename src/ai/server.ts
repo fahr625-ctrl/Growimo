@@ -35,10 +35,12 @@ class VariantGenerationUnavailable extends Error {
  * (`requireUserIdFromServerFn`), damit der Fail-closed-Vertrag auf
  * Guard-Ebene testbar ist. Die 5 0-Einheiten-Pfade rufen es OHNE try/catch —
  * ohne gültige Sitzung kein KI-Aufruf (FAIL-CLOSED).
+ * Owner-Entscheidung 2026-10-26 (Maßnahme (c)): OHNE Parameter — die Identität
+ * kommt ausschließlich aus der verifizierten Session, nie aus dem Request-Body.
  */
-async function guardUserId(payloadFallback?: string): Promise<string> {
+async function guardUserId(): Promise<string> {
   const g = await usageGuard();
-  return g.requireUserIdFromServerFn(payloadFallback);
+  return g.requireUserIdFromServerFn();
 }
 
 /**
@@ -881,19 +883,18 @@ export const generatePackageServer = createServerFn({ method: 'POST' })
       productIdea: d.productIdea.trim(),
       lang: (d.lang === 'en' ? 'en' : 'de') as 'de' | 'en',
       brief,
-      userId: typeof d.userId === 'string' && d.userId ? d.userId : undefined,
+      // Owner-Entscheidung 2026-10-26 (Maßnahme (c)): keine userId mehr aus dem
+      // Request-Body — Identität kommt ausschließlich aus der Session.
     };
   })
   .handler(async ({ data }): Promise<MarketingPackage> => {
     console.log('[server.generatePackage] idea:', data.productIdea.slice(0, 80), 'lang:', data.lang);
-    // Phase 8.2 — Paket zählt pro Kanal (1/Kanal, nur erfolgreiche). Cookie-
-    // Identität gewinnt vor payload-userId (Quota-Diebstahl-Schutz). Drossel +
+    // Phase 8.2 — Paket zählt pro Kanal (1/Kanal, nur erfolgreiche). Drossel +
     // Early-Fail, wenn das Kontingent komplett leer ist (kein Kernel-Verbrauch).
     const g = await usageGuard();
-    // guardUserId: Session-Cookie gewinnt; Payload-Fallback für Normalnutzer.
-    // Admin-/Owner-IDs werden NIE aus dem Request-Body akzeptiert (fail-closed,
-    // Override nur über serverseitig verifizierte Session erreichbar).
-    const userId = await guardUserId(data.userId);
+    // Identität NUR aus dem serverseitig verifizierten Session-Cookie
+    // (fail-closed; der frühere payload-Fallback ist entfernt).
+    const userId = await guardUserId();
     await g.assertRateOk(userId, { lang: data.lang });
     await g.assertCanGenerate(userId, data.lang);
     const { generateMarketingPackage } = await import('./package/package');
@@ -934,7 +935,6 @@ export const fetchPackageKernelServer = createServerFn({ method: 'POST' })
       productIdea: d.productIdea.trim(),
       lang: (d.lang === 'en' ? 'en' : 'de') as 'de' | 'en',
       brief,
-      userId: typeof d.userId === 'string' && d.userId ? d.userId : undefined,
       // Phase 4.2 — Markenrahmen (client-seitig gebaut; leer = kein Profil/AUS).
       brandContext:
         typeof d.brandContext === 'string' && d.brandContext.trim()
@@ -947,9 +947,9 @@ export const fetchPackageKernelServer = createServerFn({ method: 'POST' })
     // Phase 8.2 — Kernel verbraucht KEINE Einheit (kein fertiges Ergebnis),
     // aber Drossel + Early-Fail bei leerem Kontingent (kein verbranntes LLM).
     const g = await usageGuard();
-    // guardUserId: Session-Cookie gewinnt; Payload-Fallback für Normalnutzer.
-    // Admin-/Owner-IDs werden NIE aus dem Request-Body akzeptiert (fail-closed).
-    const userId = await guardUserId(data.userId);
+    // Identität NUR aus dem serverseitig verifizierten Session-Cookie
+    // (fail-closed; der frühere payload-Fallback ist entfernt).
+    const userId = await guardUserId();
     await g.assertRateOk(userId, { lang: data.lang });
     await g.assertCanGenerate(userId, data.lang);
     const { preparePackageContext } = await import('./package/package');

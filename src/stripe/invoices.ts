@@ -468,7 +468,7 @@ export const getBillingOverview = createServerFn({ method: 'GET' }).handler(
     };
 
     const { resolveUserIdFromServerFn } = await import('../lib/usage-guard');
-    const userId = await resolveUserIdFromServerFn(undefined);
+    const userId = await resolveUserIdFromServerFn();
     if (!userId) return base;
 
     try {
