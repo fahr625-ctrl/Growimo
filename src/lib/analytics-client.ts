@@ -55,6 +55,29 @@ function currentRoute(): string | undefined {
 }
 
 /**
+ * Pageview-Entdopplung (Owner-Auftrag 2026-10-26, „Pageview-Doppelzählung").
+ *
+ * Befund: PageviewTracker hing in `useEffect(..., [pathname])`. Bei einem
+ * Seitenaufruf konnte derselbe Effekt zweimal laufen (Doppel-Mount/Hydration),
+ * was zwei analytics_events-Zeilen für EINEN Seitenaufruf erzeugte (in der DB
+ * belegt: Paare 5–1500 ms auseinander, route „/"). Der Server-Pfad schreibt
+ * nachweislich genau eine Zeile pro Request (src/api/analytics.ts), der
+ * Doppelfeuer entsteht also im Client.
+ *
+ * Fix: genau EINE pageview-Zeile pro Seitenaufruf — derselbe Route-Wert wird
+ * pro Seiten-Lebenszyklus nur einmal gesendet. Ein echter Wechsel A→B→A zählt
+ * weiterhin zweimal (nur DIREKT aufeinanderfolgende Duplikate fallen weg).
+ * Opt-out/Consent-Verhalten bleibt unverändert (der Guard greift erst nach der
+ * Opt-out-Prüfung und ändert weder Header noch Cookie-Verhalten).
+ */
+let lastPageviewRoute: string | null = null;
+
+/** Nur für Tests: Dedup-Zustand zurücksetzen (neuer Seiten-Lebenszyklus). */
+export function resetPageviewDedup(): void {
+  lastPageviewRoute = null;
+}
+
+/**
  * Record an analytics event. Fire-and-forget: never throws, never blocks.
  * Missing/empty optional context is simply omitted (the server validates).
  */
@@ -66,6 +89,16 @@ export function trackAnalytics(
     // Widerruf (Owner-Vorgabe 2026-10-23): bei gesetztem Opt-out wird KEIN
     // Ereignis mehr gesendet — der Schalter in /datenschutz wirkt sofort.
     if (isAnalyticsOptedOut()) return;
+    // Genau EIN pageview pro Seitenaufruf: ist der Route-Wert derselbe wie beim
+    // letzten gesendeten pageview, wird der Aufruf verworfen (Doppel-Mount/
+    // Hydration). Ohne bekannten Route-Wert (Node/SSR) keine Dedup.
+    if (event === "pageview") {
+      const dedupRoute = opts.route ?? currentRoute();
+      if (dedupRoute) {
+        if (lastPageviewRoute === dedupRoute) return;
+        lastPageviewRoute = dedupRoute;
+      }
+    }
     const payload: Record<string, unknown> = { event };
     if (opts.channel) payload.channel = opts.channel;
     if (opts.status) payload.status = opts.status;

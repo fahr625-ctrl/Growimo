@@ -32,11 +32,11 @@
  * Pfade, die in Production 404 liefern. `/datenschutz` fehlt hier ABSICHTLICH —
  * diese Seite ist freigegeben und muss öffentlich erreichbar bleiben.
  */
-export const PROD_404_LEGAL_PATHS: readonly string[] = [
-  "/impressum",
-  "/agb",
-  "/widerruf",
-];
+// Owner-Freigabe 2026-10-26 (Launch-Vorlauf Teil 1): Das Gate ist AUS.
+// /impressum, /agb und /widerruf sind (wie /datenschutz) in JEDER Umgebung
+// öffentlich erreichbar — 200 in Production, Preview, lokal und Tests. Es wird
+// auch kein `x-robots-tag: noindex` mehr gesetzt, weil der 404-Zweig nie läuft.
+export const PROD_404_LEGAL_PATHS: readonly string[] = [];
 
 /**
  * Pfade, die unabhängig von der Umgebung NIE gegatet werden. Redundant zur
