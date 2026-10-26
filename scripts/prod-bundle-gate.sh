@@ -40,7 +40,8 @@
 #
 # EXIT CODES
 #   0  PASS  — production bundle clean, deploy allowed
-#   1  FAIL  — dev key / dev marker / missing prod key, deploy refused
+#   1  FAIL  — dev key / dev marker / missing prod key / missing legacy-owner
+#               filter (criterion d), deploy refused
 #   2  ERROR — nothing to scan (no dist/, no .vercel/output/)
 #
 # DELIBERATELY NO BYPASS. There is no flag that lets a red gate through. Removing or
@@ -48,6 +49,25 @@
 # the owner-id criterion (e), which can be downgraded to a warning with
 #   GATE_OWNER_ID=warn bash scripts/prod-bundle-gate.sh
 # should a future refactor legitimately move the owner id out of the client bundle.
+#
+# ── CRITERION (d) WAS INVERTED ON 2026-10-26 (OWNER-APPROVED) ────────────────
+# Until 2026-10-26 (d) read "VERBOTEN: the old dev owner id must NOT be in the
+# bundle". That was correct while the id was pure dev-era material. Since the
+# access forensics (2026-10-26) the owner approved measure (a): the old owner
+# account (dev instance, 24 of the 65 analytics generations) is filtered out of
+# the admin/analytics aggregates as "own test activity". That list is code —
+# LEGACY_OWNER_CLERK_IDS in src/lib/owner-id.ts, consumed via TEST_USER_IDS in
+# src/lib/tracking.ts → src/api/tracking.ts (hideOwnerTest) and
+# src/db/admin-analytics.ts (excludedPseudonyms + EXCL/EXCLP). It is therefore
+# *supposed* to be in the bundle now, and a bundle WITHOUT it is the broken one.
+# So (d) is now a POSITIVE check: >= 1 occurrence = PASS, 0 = FAIL (the measure
+# did not make it into the build).
+# ⚠ What (d) can NOT do: it cannot see *membership semantics*. A grep hit says
+#   "this string is in the bundle", not "this id is excluded from the quota
+#   override". Measure (b) — the old owner account stays Free at limit 3 — is
+#   guarded by code structure (ADMIN_OVERRIDE_USER_IDS holds only
+#   OWNER_CLERK_ID) and by the unit suite `legacy-owner-quota-test.ts`, never by
+#   this grep. Do not merge the two lists (see the warning in src/lib/owner-id.ts).
 # =============================================================================
 set -uo pipefail
 
@@ -63,7 +83,7 @@ PROD_KEY_DOMAIN='clerk.growimo.app'                   # decoded payload must con
 DEV_KEY_VALUE="pk_test_dG91Y2hpbmct"                  # value prefix of OUR dev key (repo .env)
 DEV_INSTANCE_EXACT="touching-catfish-43"              # dev Clerk instance
 DEV_INSTANCE_ANY="touching-catfish"                   # any dev instance marker (superset guard)
-OLD_OWNER_ID="user_3H2trJXHwzXmJF2XTGQ2PMEwjkD"       # dev-instance owner id — must be gone
+OLD_OWNER_ID="user_3H2trJXHwzXmJF2XTGQ2PMEwjkD"       # dev-instance owner id — REQUIRED since 2026-10-26 (measure a), see header
 NEW_OWNER_ID="user_3KQScMnVPi30zj12OTNSJluvNvK"       # production-instance owner id — required
 GATE_OWNER_ID="${GATE_OWNER_ID:-require}"             # require | warn (see header)
 
@@ -200,13 +220,18 @@ else
   fail "(c2) '${DEV_INSTANCE_ANY}' im Bundle: ${c2} Treffer ${c2_detail}"
 fi
 
-# --- (d) VERBOTEN: alte Dev-Owner-ID ----------------------------------------
-echo "(d) VERBOTEN: alte Dev-Owner-ID ${OLD_OWNER_ID}"
+# --- (d) PFLICHT: Alt-Owner-ID im Bundle (seit 2026-10-26 POSITIV) ----------
+# UMGEDREHT (vorher VERBOTEN): die Alt-Owner-ID der Dev-Instanz ist seit der
+# Owner-Freigabe 2026-10-26 bewusst Bestandteil von TEST_USER_IDS
+# (src/lib/tracking.ts ← LEGACY_OWNER_CLERK_IDS, src/lib/owner-id.ts) und damit
+# Teil des Admin-/Tracking-Filters — sie MUSS im Bundle sein. 0 Treffer heißt:
+# Maßnahme (a) ist nicht im Build. Zur Quota-Semantik (Maßnahme b) siehe Kopf.
+echo "(d) PFLICHT: Alt-Owner-ID (Maßnahme (a), Analytics-Filter) im Bundle — ${OLD_OWNER_ID}"
 scan_hits "$OLD_OWNER_ID"; d_hits="$HITS"; d_detail="$HITS_DETAIL"
-if [ "$d_hits" -eq 0 ]; then
-  pass "(d) Dev-Owner-ID nicht im Bundle: 0 Treffer"
+if [ "$d_hits" -gt 0 ]; then
+  pass "(d) Alt-Owner-ID im Bundle: ${d_hits} Treffer ${d_detail} (TEST_USER_IDS aktiv)"
 else
-  fail "(d) DEV-OWNER-ID im Bundle: ${d_hits} Treffer ${d_detail}"
+  fail "(d) Alt-Owner-ID FEHLT im Bundle: 0 Treffer — Maßnahme (a) (TEST_USER_IDS/Admin-Filter) steckt NICHT im Build"
 fi
 
 # --- (e) PFLICHT: neue Production-Owner-ID ---------------------------------
@@ -228,11 +253,14 @@ if [ "$FAILS" -eq 0 ]; then
   exit 0
 fi
 echo ""
-echo "ABBRUCH: Development-Key im Production-Bundle — Deploy verweigert"
+echo "ABBRUCH: Production-Bundle verletzt Gate-Kriterien — Deploy verweigert"
 echo "GATE: ROT — ${FAILS} Kriterium/Kriterien verletzt."
 echo ""
 echo "Behebung: Production-Build mit expliziter Build-Env erzeugen,"
 echo "  export VITE_CLERK_PUBLISHABLE_KEY=${PROD_KEY_LITERAL}"
 echo "  bash build-vercel.sh   # (baut neu und laesst diesen Gate erneut laufen)"
+echo "Hinweis (d): 0 Treffer der Alt-Owner-ID heißt NICHT 'Dev-Marker weg', sondern"
+echo "  'Admin-/Tracking-Filter (TEST_USER_IDS) fehlt im Build' — Ursache in"
+echo "  src/lib/tracking.ts / src/lib/owner-id.ts suchen, Gate NICHT abschalten."
 echo "=============================================================="
 exit 1

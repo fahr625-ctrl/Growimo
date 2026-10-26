@@ -12,9 +12,10 @@
 #
 # ── FAIL-CLOSED PRE-DEPLOY GATE (since 2026-10-11) ───────────────────────────
 # Step [4/4] runs scripts/prod-bundle-gate.sh on the freshly built bundle. If the
-# production Clerk publishable key is missing, or any dev key material / dev
-# instance marker / old dev owner id is present, the gate exits non-zero and this
-# script aborts BEFORE the deploy. So the standard command
+# production Clerk publishable key is missing, any dev key material / dev instance
+# marker is present, or the owner-approved legacy-owner filter (criterion d, since
+# 2026-10-26 a POSITIVE check) is missing from the bundle, the gate exits non-zero
+# and this script aborts BEFORE the deploy. So the standard command
 #     bash build-vercel.sh && bunx vercel deploy --prebuilt --prod --yes
 # can never ship a dev-wired client bundle again (Krise 2026-10-11: deployment
 # site-ky4hj981r baked the dev key from the repo .env into the client bundle —
