@@ -138,7 +138,7 @@ export function paymentIntentIdFromSession(
   return null;
 }
 
-/** Kunden-E-Mail der Session (für invoice_settings.email / Rechnungsmail). */
+/** Kunden-E-Mail der Session (für customer.email / Rechnungsmail). */
 export function customerEmailFromSession(
   session: Record<string, unknown> | null | undefined,
 ): string | null {
@@ -312,20 +312,20 @@ export function productionDeGateDeps(): DeGateDeps {
 }
 
 /**
- * Rechnungsmail-Sicherheit: `invoice_settings.email` des Stripe-Kunden auf die
- * Kunden-E-Mail setzen (Rechnungen/Rechnungsmails gehen dann garantiert dorthin,
- * unabhängig von der Payment-Method-Adresse). Best effort — ein Fehler hier darf
- * eine bezahlte, erlaubte (DE) Zahlung nicht zu einem 500 machen.
+ * Rechnungsmail-Sicherheit: die Kunden-E-Mail (`customer.email`, Top-Level-Feld)
+ * setzen — Stripe adressiert Rechnungen und Rechnungsmails an dieses Feld
+ * (Invoice → `customer_email`). `invoice_settings` selbst kennt KEIN `email`
+ * (nur `custom_fields`/`default_payment_method`/`footer`/`rendering_options`;
+ * belegt in den SDK-Typen `CustomerUpdateParams.InvoiceSettings`), deshalb
+ * läuft die Absicherung über `customers.update({ email })`.
+ * Best effort — ein Fehler hier darf eine bezahlte, erlaubte (DE) Zahlung nicht
+ * zu einem 500 machen.
  */
-export async function syncInvoiceSettingsEmail(
+export async function syncCustomerInvoiceEmail(
   customerId: string,
   email: string,
   idempotencyKey: string,
 ): Promise<void> {
   const stripe = await stripeClient();
-  await stripe.customers.update(
-    customerId,
-    { invoice_settings: { email } },
-    { idempotencyKey },
-  );
+  await stripe.customers.update(customerId, { email }, { idempotencyKey });
 }

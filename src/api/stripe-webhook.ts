@@ -42,7 +42,7 @@ import {
   evaluateBillingCountryPolicy,
   paymentIntentIdFromSession,
   productionDeGateDeps,
-  syncInvoiceSettingsEmail,
+  syncCustomerInvoiceEmail,
   type DeGateDeps,
 } from "../stripe/de-billing";
 
@@ -102,7 +102,7 @@ export interface StripeWebhookDeps {
    */
   deGate?: DeGateDeps;
   /**
-   * Rechnungsmail-Sicherheit: `invoice_settings.email` des Kunden setzen.
+   * Rechnungsmail-Sicherheit: Kunden-E-Mail (`customer.email`) setzen.
    * Best effort (Fehler werden geloggt, nie 500). Default: echter Stripe-Call.
    */
   setInvoiceEmail?: (
@@ -293,7 +293,7 @@ export async function processStripeEvent(
     const invoiceEmail = customerEmailFromSession(session);
     if (customerId && invoiceEmail) {
       try {
-        const setEmail = deps.setInvoiceEmail ?? syncInvoiceSettingsEmail;
+        const setEmail = deps.setInvoiceEmail ?? syncCustomerInvoiceEmail;
         await setEmail(
           customerId,
           invoiceEmail,
@@ -301,7 +301,7 @@ export async function processStripeEvent(
         );
       } catch (err) {
         console.error(
-          "[stripe-webhook] invoice_settings.email nicht gesetzt (best effort):",
+          "[stripe-webhook] customer.email nicht gesetzt (best effort):",
           err,
         );
       }

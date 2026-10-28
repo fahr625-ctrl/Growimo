@@ -244,6 +244,19 @@ async function main() {
     webhookSrc.indexOf('evaluateBillingCountryPolicy') < webhookSrc.indexOf('status: "expired",'),
     'Webhook setzt den DB-Endzustand (expired) auf dem Sperr-Pfad',
   );
+  // Rechnungsmail: `invoice_settings` kennt KEIN `email` (nur custom_fields/
+  // default_payment_method/footer/rendering_options) → Absicherung MUSS über das
+  // Top-Level-Kundenfeld `customers.update({ email })` laufen, sonst TS2353 bzw.
+  // eine wirkungslose Rechnungsmail-Absicherung.
+  const deBillingSrc = readFileSync('./src/stripe/de-billing.ts', 'utf8');
+  check(
+    !deBillingSrc.includes('invoice_settings: { email'),
+    'de-billing.ts nutzt KEIN (nicht existierendes) invoice_settings.email',
+  );
+  check(
+    /customers\.update\(customerId, \{ email \}/.test(deBillingSrc),
+    'Rechnungsmail-Absicherung setzt customer.email (Top-Level-Feld), nicht invoice_settings',
+  );
 
   console.log('\n────────────────────────────────────────────');
   console.log(`ERGEBNIS: ${passed} passed, ${failed} failed`);
