@@ -94,6 +94,14 @@ export function evaluateBillingCountryPolicy(
  * `billing_address_collection: 'required'` — die Rechnungsadresse (und damit das
  * Land) wird IMMER erhoben; genau dieses Feld wertet der Webhook aus.
  *
+ * `adaptive_pricing: { enabled: false }` — `currency: 'eur'` allein genügt NICHT:
+ * bei account-weit aktiviertem Adaptive Pricing zeigt Checkout die Preise in der
+ * erkannten Landeswährung (im Test belegt: „22,00 $ (USD) — 1 EUR = 1,1580 USD
+ * (4 % Umrechnungsgebühr)"), erst die manuelle Umschaltung auf EUR brachte Euro.
+ * Owner-Vorgabe „alle Preise in Euro" → Adaptive Pricing wird pro Session
+ * abgeschaltet. Der account-weite Schalter bleibt unangetastet (kein
+ * Dashboard-Write); der Param gilt nur für diese Session.
+ *
  * `customer_update` wird bewusst NICHT gesetzt: Stripe erlaubt es nur zusammen
  * mit einem übergebenen `customer` (Doku: „Can only be provided when `customer`
  * is provided"), und wir legen den Kunden erst im Checkout an.
@@ -101,10 +109,12 @@ export function evaluateBillingCountryPolicy(
 export function deCheckoutSessionParams(): {
   currency: 'eur';
   billing_address_collection: 'required';
+  adaptive_pricing: { enabled: false };
 } {
   return {
     currency: 'eur',
     billing_address_collection: 'required',
+    adaptive_pricing: { enabled: false },
   };
 }
 

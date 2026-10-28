@@ -70,8 +70,13 @@ async function main() {
     'billing_address_collection = required (Land wird immer erhoben)',
   );
   check(
-    Object.keys(params).sort().join(',') === 'billing_address_collection,currency',
+    Object.keys(params).sort().join(',') ===
+      'adaptive_pricing,billing_address_collection,currency',
     'keine weiteren (nicht dokumentierten) Parameter gesetzt',
+  );
+  check(
+    params.adaptive_pricing.enabled === false,
+    'adaptive_pricing.enabled = false (Euro deterministisch, keine USD-Umrechnung)',
   );
 
   // ── B. Rechnungsland-Prüfung ───────────────────────────────────────────────
