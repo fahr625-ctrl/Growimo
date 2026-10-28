@@ -10,7 +10,10 @@
 // abgelehnt (Stripe retried) — nie ein stilles Ignorieren.
 //
 // Verarbeitete Events:
-//   checkout.session.completed        → Subscription aktivieren (paid) + Customer
+//   checkout.session.completed        → DE-Gate (Rechnungsland) + Subscription
+//                                       aktivieren (paid) + Customer
+//                                       (Land ≠ 'DE'/fehlend → cancel + volle
+//                                       Erstattung, Status 'expired'; 2026-10-26)
 //   invoice.paid                      → current_period_end verlängern
 //   customer.subscription.updated     → Status-Sync (active/cancelled/expired)
 //                                       + Kündigungszustand (P2: cancel_at_period_end/cancel_at)
@@ -32,6 +35,16 @@ import {
   qUpsertSubscription,
 } from "../db/queries";
 import { periodEndOfSubscription, subscriptionCancelState } from "../stripe/invoices";
+import {
+  billingCountryFromSession,
+  customerEmailFromSession,
+  enforceDeBillingPolicy,
+  evaluateBillingCountryPolicy,
+  paymentIntentIdFromSession,
+  productionDeGateDeps,
+  syncInvoiceSettingsEmail,
+  type DeGateDeps,
+} from "../stripe/de-billing";
 
 export const STRIPE_WEBHOOK_PATH = "/api/stripe-webhook";
 
@@ -82,6 +95,21 @@ export interface StripeWebhookDeps {
       >;
     };
   }>;
+  /**
+   * DE-Launch-Gate (2026-10-26): Cancel + vollständige Erstattung, wenn das
+   * Rechnungsland nicht 'DE' ist. Default: productionDeGateDeps() (echte
+   * Stripe-Writes mit Idempotency-Keys); Tests: Recorder-Fakes.
+   */
+  deGate?: DeGateDeps;
+  /**
+   * Rechnungsmail-Sicherheit: `invoice_settings.email` des Kunden setzen.
+   * Best effort (Fehler werden geloggt, nie 500). Default: echter Stripe-Call.
+   */
+  setInvoiceEmail?: (
+    customerId: string,
+    email: string,
+    idempotencyKey: string,
+  ) => Promise<void>;
 }
 
 /**
@@ -163,6 +191,7 @@ function subscriptionIdOf(id: unknown): string | null {
  */
 export async function processStripeEvent(
   event: {
+    id?: string;
     type: string;
     data: { object: Record<string, unknown> };
   },
@@ -218,6 +247,66 @@ export async function processStripeEvent(
       planTierForLookupKey(lookupKey) ??
       (await existingTierBySubscription(subscriptionId)) ??
       "free";
+
+    // ── DE-Launch-Gate (Owner-Auftrag 2026-10-26) — Defense in depth ─────────
+    // Stripe Checkout hat KEINEN Länderfilter für die Rechnungsadresse
+    // (`allowed_countries` existiert nur an `shipping_address_collection`),
+    // deshalb ist der Webhook die verbindliche Sperre: Rechnungsland ≠ 'DE'
+    // ODER fehlt → Subscription sofort canceln + Zahlung vollständig erstatten,
+    // und KEINE Pro-Freischaltung (DB-Status 'expired' = Free).
+    // Reihenfolge: erst der DB-Endzustand (fail-closed, auch wenn der
+    // Stripe-Aufruf scheitert bleibt der Kunde Free), dann cancel+refund.
+    // Wirft der Stripe-Aufruf, antwortet der Endpoint 500 → Stripe liefert das
+    // Event erneut; der Idempotency-Key verhindert Doppel-Cancel/-Refund.
+    const billingPolicy = evaluateBillingCountryPolicy(
+      billingCountryFromSession(session),
+    );
+    if (!billingPolicy.allowed) {
+      await qUpsertSubscription({
+        clerkUserId: resolvedClerkUserId,
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: subscriptionId,
+        planTier: tier,
+        status: "expired",
+        currentPeriodEnd: null,
+        cancelState: { cancelAtPeriodEnd: false, cancelAt: null },
+      });
+      const enforcement = await enforceDeBillingPolicy(
+        {
+          country: billingCountryFromSession(session),
+          subscriptionId,
+          paymentIntentId: paymentIntentIdFromSession(session),
+          eventId: event.id ?? null,
+        },
+        deps.deGate ?? productionDeGateDeps(),
+      );
+      console.error(
+        `[stripe-webhook] DE-Gate (${billingPolicy.reason}): ${enforcement.action} ` +
+          `für ${subscriptionId} (Event ${event.id ?? "ohne id"}) — kein Pro-Zugriff.`,
+      );
+      return;
+    }
+
+    // Rechnungsmail-Sicherheit (best effort): Rechnungen/Rechnungsmails gehen an
+    // die bei uns bekannte Adresse. Fehler dürfen den DE-Normalfall nicht
+    // brechen (kein 500 → kein Retry-Sturm für einen bezahlten Kunden).
+    const invoiceEmail = customerEmailFromSession(session);
+    if (customerId && invoiceEmail) {
+      try {
+        const setEmail = deps.setInvoiceEmail ?? syncInvoiceSettingsEmail;
+        await setEmail(
+          customerId,
+          invoiceEmail,
+          `invoice-email:${event.id ?? session.id ?? subscriptionId}`,
+        );
+      } catch (err) {
+        console.error(
+          "[stripe-webhook] invoice_settings.email nicht gesetzt (best effort):",
+          err,
+        );
+      }
+    }
+
     await qUpsertSubscription({
       clerkUserId: resolvedClerkUserId,
       stripeCustomerId: customerId,
@@ -449,7 +538,7 @@ export async function handleStripeWebhookApi(
   const rawBody = await req.text();
   if (!rawBody) return json({ error: "Empty request body" }, 400);
 
-  let event: { type: string; data: { object: Record<string, unknown> } };
+  let event: { id?: string; type: string; data: { object: Record<string, unknown> } };
   try {
     const { default: Stripe } = await import("stripe");
     // constructEventAsync statt constructEvent: das subtile Standard-Crypto-
@@ -459,7 +548,11 @@ export async function handleStripeWebhookApi(
       rawBody,
       signature,
       secret,
-    )) as unknown as { type: string; data: { object: Record<string, unknown> } };
+    )) as unknown as {
+      id?: string;
+      type: string;
+      data: { object: Record<string, unknown> };
+    };
     if (!constructed || typeof constructed.type !== "string") {
       return json({ error: "Invalid event payload" }, 400);
     }

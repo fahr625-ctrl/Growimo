@@ -5,6 +5,12 @@ import {
   buildConsentRecord,
   earlyStartMode,
 } from './checkout-consent';
+import {
+  assertDeBillingCountry,
+  DE_BILLING_COUNTRY,
+  DE_BILLING_METADATA_KEY,
+  deCheckoutSessionParams,
+} from './de-billing';
 
 /**
  * Creates a Stripe Checkout Session for upgrading to Pro.
@@ -41,6 +47,7 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
       priceLookupKey?: string;
       earlyStartConsent?: unknown;
       consentVersion?: unknown;
+      billingCountry?: unknown;
     };
     if (!d.userId || typeof d.userId !== 'string') {
       throw new Error('userId is required');
@@ -56,9 +63,20 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
       // assertEarlyStartConsent (nur echtes `true` zählt, kein truthy-Cast).
       earlyStartConsent: d.earlyStartConsent,
       consentVersion: d.consentVersion,
+      // DE-Launch-Gate (2026-10-26): Rechnungsland wird ebenso ungeprüft
+      // durchgereicht — die Prüfung ist fail-closed im Handler (assertDeBillingCountry),
+      // damit sie VOR dem ersten Stripe-Call greift.
+      billingCountry: d.billingCountry,
     };
   })
   .handler(async ({ data }) => {
+    // ── DE-Launch-Gate (Owner-Auftrag 2026-10-26) ───────────────────────────
+    // ALLERERSTER Schritt: ohne Rechnungsland 'DE' entsteht keine Session und
+    // kein Stripe-Call (fail-closed, siehe src/stripe/de-billing.ts). Die
+    // zweite Sperre sitzt im Webhook (Cancel + volle Erstattung), weil Stripe
+    // Checkout für die Rechnungsadresse keinen Länderfilter kennt.
+    assertDeBillingCountry(data.billingCountry);
+
     const secretKey = process.env.STRIPE_SECRET_KEY;
     if (!secretKey) {
       throw new Error(
@@ -164,6 +182,17 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
           quantity: 1,
         },
       ],
+      // ── DE-Launch (2026-10-26) ────────────────────────────────────────────
+      // currency: 'eur' → Preisdarstellung im Checkout ist immer Euro, auch
+      // wenn Adaptive Pricing im Account aktiv ist (Session-Level-Override,
+      // KEIN Dashboard-Toggle — Stripe-Doku manual-currency-prices).
+      // billing_address_collection: 'required' → Rechnungsadresse+Land werden
+      // immer erhoben; der Webhook wertet genau dieses Land aus.
+      ...deCheckoutSessionParams(),
+      // Rechnungsmail-Sicherheit: E-Mail vorbelegen, damit der Kunde (und die
+      // Rechnung) an die bei uns bekannte Adresse geht. `invoice_settings.email`
+      // wird im Webhook nachgezogen (syncInvoiceSettingsEmail).
+      ...(email ? { customer_email: email } : {}),
       client_reference_id: userId,
       success_url: `${origin}/app/billing?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/app/pricing`,
@@ -181,6 +210,9 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
         // Tabelle checkout_consents).
         widerrufConsent: consent.required ? 'early_start_express' : 'none',
         widerrufConsentVersion: consent.version,
+        // DE-Launch-Gate: welches Land der Kunde in der App angegeben hat
+        // (der Webhook prüft zusätzlich das echte Checkout-Land).
+        [DE_BILLING_METADATA_KEY]: DE_BILLING_COUNTRY,
       },
     });
 

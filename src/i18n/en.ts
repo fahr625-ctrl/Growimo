@@ -567,6 +567,14 @@ export const en: EnShape = {
   pricing_stripe_pending:
     'Stripe integration pending — set VITE_STRIPE_PUBLISHABLE_KEY and STRIPE_SECRET_KEY to enable payments.',
   pricing_error_generic: 'Something went wrong. Please try again.',
+  // ── DE launch gate (2026-10-26): billing-country selection before checkout ──
+  pricing_billing_country_label: 'Billing country',
+  pricing_billing_country_de: 'Germany',
+  pricing_billing_country_other: 'Another country',
+  pricing_billing_country_blocked:
+    'For now, a subscription can only be completed with a billing address in Germany.',
+  pricing_billing_country_hint:
+    'Billed in euro (EUR). You receive your invoices by email and in your customer account.',
   // ── Billing ───────────────────────────────────────────────────────────────────
   billing_title: 'Billing & Plan', billing_subtitle: 'Manage your subscription and monitor your usage.',
   billing_current_plan: 'Current Plan', billing_status_active: 'Active', billing_status_cancelled: 'Cancelled', billing_status_expired: 'Expired',

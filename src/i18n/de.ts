@@ -564,6 +564,14 @@ export const de = {
   pricing_stripe_pending:
     'Stripe-Integration ausstehend — setze VITE_STRIPE_PUBLISHABLE_KEY und STRIPE_SECRET_KEY um Zahlungen zu aktivieren.',
   pricing_error_generic: 'Etwas ist schiefgelaufen. Bitte versuche es erneut.',
+  // ── DE-Launch-Gate (2026-10-26): Rechnungsland-Auswahl vor dem Checkout ─────
+  pricing_billing_country_label: 'Rechnungsland',
+  pricing_billing_country_de: 'Deutschland',
+  pricing_billing_country_other: 'Anderes Land',
+  pricing_billing_country_blocked:
+    'Vorerst ist ein Abschluss nur mit Rechnungsadresse in Deutschland möglich.',
+  pricing_billing_country_hint:
+    'Abrechnung in Euro (EUR). Rechnungen erhältst du per E-Mail und in deinem Kundenkonto.',
   // ── Billing ───────────────────────────────────────────────────────────────────
   billing_title: 'Abrechnung & Plan', billing_subtitle: 'Verwalte dein Abonnement und überwache deine Nutzung.',
   billing_current_plan: 'Aktueller Plan', billing_status_active: 'Aktiv', billing_status_cancelled: 'Gekündigt', billing_status_expired: 'Abgelaufen',

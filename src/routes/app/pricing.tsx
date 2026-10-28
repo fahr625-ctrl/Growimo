@@ -9,6 +9,11 @@ import {
 } from '~/store/subscriptions';
 import { createCheckoutSession } from '~/stripe/checkout';
 import { WIDERRUF_CONSENT_VERSION } from '~/stripe/checkout-consent';
+import {
+  BILLING_COUNTRY_DE,
+  BillingCountryField,
+  isBlockedBillingCountry,
+} from '~/components/BillingCountryField';
 import { getSubscriptionStatus } from '~/stripe/subscription';
 import { useTranslation } from '~/i18n';
 import { track } from '~/lib/tracking-client';
@@ -55,6 +60,9 @@ function PricingPage() {
   // Fail-closed-Default true: solange der Server den Modus nicht gemeldet hat,
   // wird die Zustimmung verlangt (nicht stillschweigend weggelassen).
   const [consentRequired, setConsentRequired] = useState(true);
+  // DE-Launch-Gate (2026-10-26): Rechnungsland, Default Deutschland. Alles
+  // andere blockiert den Kauf-Button (keine Session, kein Stripe-Call).
+  const [billingCountry, setBillingCountry] = useState(BILLING_COUNTRY_DE);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,6 +108,13 @@ function PricingPage() {
   const handleUpgrade = async () => {
     track('upgrade_clicked', userId === 'anonymous' ? undefined : userId, { source: 'pricing' });
     if (!stripeReady) return;
+    // DE-Launch-Gate (2026-10-26): kein Kauf ohne Rechnungsadresse in DE.
+    // Der Server prüft dasselbe noch einmal (assertDeBillingCountry) und der
+    // Webhook ein drittes Mal (cancel + Erstattung) — hier nur die Meldung.
+    if (isBlockedBillingCountry(billingCountry)) {
+      setError(t.pricing_billing_country_blocked);
+      return;
+    }
     // ENTWURF 2026-10-24: Ohne Zustimmung wird gar nicht erst angefragt.
     // Der Server prüft dasselbe noch einmal (fail-closed) — die Vorprüfung
     // hier ist nur die bessere Fehlermeldung, nie die einzige Prüfung.
@@ -117,6 +132,7 @@ function PricingPage() {
           priceLookupKey: isAnnual ? 'pro_yearly' : 'pro_monthly',
           earlyStartConsent: consentRequired ? consentChecked : false,
           consentVersion: WIDERRUF_CONSENT_VERSION,
+          billingCountry,
         },
       });
       if (result.url) {
@@ -129,9 +145,11 @@ function PricingPage() {
       setError(
         /widerruf_consent|Widerruf/i.test(message)
           ? t.widerruf_consent_required
-          : err instanceof Error
-            ? err.message
-            : t.pricing_error_generic,
+          : /billing_country_not_de/i.test(message)
+            ? t.pricing_billing_country_blocked
+            : err instanceof Error
+              ? err.message
+              : t.pricing_error_generic,
       );
     } finally {
       setIsLoading(false);
@@ -261,6 +279,12 @@ function PricingPage() {
           betaBadge={isBeta ? t.pricing_beta_badge : undefined}
           cta={
             <div>
+              {userTier === 'pro' ? null : (
+                <BillingCountryField
+                  value={billingCountry}
+                  onChange={setBillingCountry}
+                />
+              )}
               {consentBlock}
               {userTier === 'pro' ? (
               <Link
@@ -273,11 +297,13 @@ function PricingPage() {
               <button
                 type="button"
                 onClick={handleUpgrade}
-                disabled={isLoading}
+                disabled={isLoading || isBlockedBillingCountry(billingCountry)}
                 className={`inline-flex w-full items-center justify-center rounded-xl px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all ${
                   isLoading
                     ? 'cursor-wait bg-blue-400'
-                    : 'bg-gradient-to-r from-blue-600 to-purple-600 shadow-blue-200 hover:from-blue-700 hover:to-purple-700 hover:shadow-xl'
+                    : isBlockedBillingCountry(billingCountry)
+                      ? 'cursor-not-allowed bg-gray-400 shadow-none'
+                      : 'bg-gradient-to-r from-blue-600 to-purple-600 shadow-blue-200 hover:from-blue-700 hover:to-purple-700 hover:shadow-xl'
                 }`}
               >
                 {isLoading ? (

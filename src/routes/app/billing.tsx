@@ -18,6 +18,11 @@ import { getBillingOverview, type InvoiceSummary } from '~/stripe/invoices';
 import { createPortalSession } from '~/stripe/portal';
 import { createCheckoutSession } from '~/stripe/checkout';
 import { WIDERRUF_CONSENT_VERSION } from '~/stripe/checkout-consent';
+import {
+  BILLING_COUNTRY_DE,
+  BillingCountryField,
+  isBlockedBillingCountry,
+} from '~/components/BillingCountryField';
 
 export const Route = createFileRoute('/app/billing')({
   head: () => seoHead({ titleKey: 'meta_app_billing_title' }),
@@ -86,6 +91,9 @@ function BillingContent() {
   // Fail-closed-Default true: solange der Server den Modus nicht gemeldet hat,
   // wird die Zustimmung verlangt (nicht stillschweigend weggelassen).
   const [consentRequired, setConsentRequired] = useState(true);
+  // DE-Launch-Gate (2026-10-26): Rechnungsland-Auswahl, Default Deutschland —
+  // identisch zu /app/pricing. Nicht-DE blockiert den Upgrade-Button.
+  const [billingCountry, setBillingCountry] = useState(BILLING_COUNTRY_DE);
 
   // Server-Status laden (Phase 8.3): initial + wenn ein session_id zurückkommt
   // (Checkout abgeschlossen → Webhook ggf. noch unterwegs → manuell refreshen).
@@ -180,6 +188,12 @@ function BillingContent() {
 
   const handleUpgrade = async () => {
     track('upgrade_clicked', user?.id, { source: 'billing' });
+    // DE-Launch-Gate (2026-10-26): kein Kauf ohne Rechnungsadresse in DE
+    // (Server prüft erneut, Webhook cancelt+erstattet als letzte Sperre).
+    if (isBlockedBillingCountry(billingCountry)) {
+      setError(t.pricing_billing_country_blocked);
+      return;
+    }
     // ENTWURF 2026-10-24: Ohne Zustimmung wird gar nicht erst angefragt.
     // Der Server prüft dasselbe noch einmal (fail-closed) — die Vorprüfung
     // hier ist nur die bessere Fehlermeldung, nie die einzige Prüfung.
@@ -196,6 +210,7 @@ function BillingContent() {
           priceLookupKey: 'pro_monthly',
           earlyStartConsent: consentRequired ? consentChecked : false,
           consentVersion: WIDERRUF_CONSENT_VERSION,
+          billingCountry,
         },
       });
       if (result.url) {
@@ -208,9 +223,11 @@ function BillingContent() {
       setError(
         /widerruf_consent|Widerruf/i.test(message)
           ? t.widerruf_consent_required
-          : err instanceof Error
-            ? err.message
-            : t.billing_checkout_error,
+          : /billing_country_not_de/i.test(message)
+            ? t.pricing_billing_country_blocked
+            : err instanceof Error
+              ? err.message
+              : t.billing_checkout_error,
       );
     } finally {
       setCheckoutLoading(false);
@@ -502,11 +519,15 @@ function BillingContent() {
             ) : !isPro && !isOwner ? (
               // Owner-Override (8.4b-Vorgabe): KEIN Druck-Upgrade-CTA für den Owner.
               <div>
+                <BillingCountryField
+                  value={billingCountry}
+                  onChange={setBillingCountry}
+                />
                 {consentBlock}
                 <button
                   type="button"
                   onClick={handleUpgrade}
-                  disabled={checkoutLoading}
+                  disabled={checkoutLoading || isBlockedBillingCountry(billingCountry)}
                   className={`inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition-all hover:from-blue-700 hover:to-purple-700 hover:shadow-xl ${
                     checkoutLoading ? 'cursor-wait opacity-60' : ''
                   }`}
