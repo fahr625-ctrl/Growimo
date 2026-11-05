@@ -11,6 +11,10 @@ import {
   DE_BILLING_METADATA_KEY,
   deCheckoutSessionParams,
 } from './de-billing';
+import {
+  footerCustomerSessionParams,
+  resolveInvoiceFooterCustomer,
+} from './invoice-footer';
 
 /**
  * Creates a Stripe Checkout Session for upgrading to Pro.
@@ -174,6 +178,18 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
       }
     }
 
+    // ── § 19 UStG: Rechnungs-Fußzeile ab Rechnung #1 (2026-11-04) ───────────
+    // Der Kunde wird VOR der Session angelegt/wiederverwendet und trägt
+    // `invoice_settings.footer` = „Steuerbefreit für Kleinunternehmer gemäß
+    // § 19 UStG." (siehe src/stripe/invoice-footer.ts für die Begründung, warum
+    // genau dieser Weg und warum `customer_update` hier Pflicht ist).
+    // Fail-closed: scheitert das, entsteht keine Session (kein Beleg ohne
+    // Hinweis) — Stripe-Fehler hier hätten auch sessions.create verhindert.
+    const footerCustomer = await resolveInvoiceFooterCustomer(
+      stripe.customers,
+      email,
+    );
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       line_items: [
@@ -189,10 +205,12 @@ export const createCheckoutSession = createServerFn({ method: 'POST' })
       // billing_address_collection: 'required' → Rechnungsadresse+Land werden
       // immer erhoben; der Webhook wertet genau dieses Land aus.
       ...deCheckoutSessionParams(),
-      // Rechnungsmail-Sicherheit: E-Mail vorbelegen, damit der Kunde (und die
-      // Rechnung) an die bei uns bekannte Adresse geht. `invoice_settings.email`
-      // wird im Webhook nachgezogen (syncInvoiceSettingsEmail).
-      ...(email ? { customer_email: email } : {}),
+      // ── § 19 UStG (2026-11-04): vorab angelegter Kunde + customer_update ───
+      // Ersetzt `customer_email`: beides zusammen ist bei Stripe NICHT erlaubt.
+      // `customer_update` { address: 'auto', name: 'auto' } ist Pflicht, damit
+      // die im Checkout erhobene Rechnungsadresse am Kunden landet (das
+      // DE-Gate liest das Land weiterhin aus der Session/customer_details).
+      ...footerCustomerSessionParams(footerCustomer.customerId),
       client_reference_id: userId,
       success_url: `${origin}/app/billing?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/app/pricing`,

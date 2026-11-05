@@ -17,6 +17,12 @@
 //    Widerrufsbelehrung liegen nur auf Deutsch vor. Es wird KEINE Übersetzung
 //    erfunden. Die englische Oberfläche zeigt deshalb einen Hinweis und den
 //    deutschen Text (AGB § 16 Abs. 6: Vertragssprache ist Deutsch).
+//
+// § 19 UStG (Owner-Entscheidung 2026-11-04): AGB § 7 hat einen NEUEN Abs. 7 mit
+//    dem Kleinunternehmer-Hinweis erhalten (Wortlaut = `VAT_DISCLAIMER` in
+//    `src/lib/legal.ts`). Kein bestehender Absatz wurde umnummeriert oder
+//    umformuliert; die englische Ansicht zeigt diesen Absatz im deutschen
+//    Originaltext (siehe Hinweis oben).
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Ein Inhaltsblock eines Rechtstexts. */
@@ -266,6 +272,10 @@ export const AGB_SECTIONS: LegalSection[] = [
       {
         "kind": "p",
         "text": "(6) Gerätst du mit einer Zahlung in Verzug, sind wir berechtigt, den Dienst nach vorheriger Ankündigung vorübergehend zu sperren, bis die Zahlung eingeht. Gesetzliche Rechte bleiben unberührt."
+      },
+      {
+        "kind": "p",
+        "text": "(7) Steuerbefreit für Kleinunternehmer gemäß § 19 UStG. Es wird keine Umsatzsteuer berechnet oder ausgewiesen."
       }
     ]
   },

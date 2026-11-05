@@ -70,12 +70,17 @@ check(
   providerAddressLines().join('|'),
 );
 check('Website-URL growimo.app', WEBSITE_URL === 'https://growimo.app', WEBSITE_URL);
-check('Stand gesetzt (2026-10-25)', LEGAL_LAST_UPDATED === '2026-10-25', LEGAL_LAST_UPDATED);
+check('Stand gesetzt (2026-11-04)', LEGAL_LAST_UPDATED === '2026-11-04', LEGAL_LAST_UPDATED);
 
-// Keine erfundenen Angaben: USt bleibt leer, bis die Ownerin entscheidet.
+// § 19 UStG (Owner-Entscheidung 2026-11-04): Kleinunternehmer-Hinweis ist jetzt
+// GESETZT — mit dem vom Owner vorgegebenen Wortlaut. Keine USt-IdNr. erfunden.
 check('keine USt-IdNr. erfunden', VAT_ID === '', VAT_ID);
-check('kein Umsatzsteuer-Hinweis erfunden', VAT_DISCLAIMER === '', VAT_DISCLAIMER);
-check('USt-Abschnitt bleibt aus (hasVatInfo=false)', hasVatInfo() === false);
+check(
+  'Umsatzsteuer-Hinweis = Owner-Wortlaut § 19 UStG',
+  VAT_DISCLAIMER === 'Steuerbefreit für Kleinunternehmer gemäß § 19 UStG.',
+  VAT_DISCLAIMER,
+);
+check('USt-Abschnitt erscheint (hasVatInfo=true)', hasVatInfo() === true);
 
 // E-Mail: entweder echter Wert oder sichtbarer Platzhalter „—".
 if (CONTACT_EMAIL.trim().length === 0) {
@@ -173,7 +178,13 @@ check('Impressum: kein „undefined"/„NaN"', !impHtml.includes('undefined') &&
 // Nichts erfunden:
 check('Impressum: keine Telefonnummer', !/Telefon|Tel\.|phone/i.test(impHtml));
 check('Impressum: kein Handelsregister', !/Handelsregister|Amtsgericht/i.test(impHtml));
-check('Impressum: keine USt-Angabe', !/USt-IdNr|Umsatzsteuer-Identifikationsnummer/i.test(impHtml));
+check('Impressum: keine USt-IdNr. (nicht erfunden)', !/USt-IdNr|Umsatzsteuer-Identifikationsnummer/i.test(impHtml));
+// § 19 UStG (2026-11-04): der Abschnitt „Umsatzsteuer" MUSS jetzt rendern.
+check('Impressum: Abschnitt „Umsatzsteuer" vorhanden', impHtml.includes(de.legal_imprint_vat_heading));
+check(
+  'Impressum: § 19-Hinweis im Text',
+  impHtml.includes('Steuerbefreit für Kleinunternehmer gemäß § 19 UStG'),
+);
 check(
   'Impressum: E-Mail = Platzhalter oder echter Wert',
   impHtml.includes(CONTACT_EMAIL.trim() || CONTACT_EMAIL_PLACEHOLDER),
@@ -315,6 +326,14 @@ check(
   'Widerruf: Widerrufsfolgen enthalten',
   WIDERRUF_SECTIONS.some((s) => s.title.includes('Widerrufsfolgen')),
 );
+// § 19 UStG (Owner-Entscheidung 2026-11-04): AGB § 7 trägt den Hinweis.
+const agbPreise = AGB_SECTIONS.find((s) => s.title.startsWith('§ 7'));
+const agbPreiseText = JSON.stringify(agbPreise ?? {});
+check(
+  'AGB § 7: § 19-Hinweis vorhanden',
+  agbPreiseText.includes('Steuerbefreit für Kleinunternehmer gemäß § 19 UStG'),
+  agbPreiseText.slice(0, 120),
+);
 
 const docText = JSON.stringify([AGB_SECTIONS, WIDERRUF_SECTIONS]);
 // Redaktions-Artefakte dürfen NICHT auf einer öffentlichen Seite landen.
@@ -368,7 +387,7 @@ check(
 const agbHtml = render(AgbPage);
 check('AGB rendert', agbHtml.length > 5000, String(agbHtml.length));
 check('AGB: Überschrift', agbHtml.includes('Allgemeine Geschäftsbedingungen'));
-check('AGB: Stand 2026-10-25', agbHtml.includes('2026-10-25'));
+check('AGB: Stand 2026-11-04 (§ 19 UStG ergänzt)', agbHtml.includes('2026-11-04'));
 check('AGB: § 1', agbHtml.includes('§ 1 Geltungsbereich'));
 check('AGB: § 16', agbHtml.includes('§ 16 Kontakt'));
 check('AGB: Tarif-Tabelle', agbHtml.includes('<table') && agbHtml.includes('Beta-Rabatt'));
@@ -381,7 +400,7 @@ check('AGB: keine „[OFFEN"-Box sichtbar', !agbHtml.includes('[OFFEN'));
 const widHtml = render(WiderrufPage);
 check('Widerruf rendert', widHtml.length > 4000, String(widHtml.length));
 check('Widerruf: Überschrift', widHtml.includes('Widerrufsbelehrung'));
-check('Widerruf: Stand 2026-10-25', widHtml.includes('2026-10-25'));
+check('Widerruf: Stand 2026-11-04 (gemeinsamer Stand der Rechtstexte)', widHtml.includes('2026-11-04'));
 check('Widerruf: Muster-Widerrufsformular', widHtml.includes('Muster-Widerrufsformular'));
 check('Widerruf: Ausfülllinien', widHtml.includes('border-b border-gray-300'));
 check('Widerruf: Querverweis auf /agb', widHtml.includes('href="/agb"'));

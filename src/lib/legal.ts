@@ -14,10 +14,11 @@
 //
 // NACHFÜLLEN VOR DEM PUBLIC LAUNCH:
 //   1. CONTACT_EMAIL setzen  → Impressum + Datenschutz zeigen bis dahin „—".
-//   2. VAT_ID / VAT_DISCLAIMER erst setzen, wenn die Kleinunternehmer-
-//      Entscheidung (§ 19 UStG) gefallen ist. Solange beide leer sind,
-//      erscheint im Impressum KEIN Abschnitt zur Umsatzsteuer (nichts wird
-//      erfunden, keine feste Umsatzsteuer-Aussage).
+//   2. ERLEDIGT 2026-11-04: Kleinunternehmerregelung § 19 UStG ist entschieden.
+//      VAT_DISCLAIMER trägt den Owner-Wortlaut, VAT_ID bleibt leer (keine
+//      USt-IdNr. vorhanden). Der Abschnitt „Umsatzsteuer" erscheint damit im
+//      Impressum; AGB § 7 Abs. 7 und die Stripe-Rechnungsfußzeile tragen
+//      denselben Satz.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Name des Anbieters / Verantwortlicher i. S. d. § 18 Abs. 2 MStV. */
@@ -49,17 +50,28 @@ export const CONTACT_EMAIL_PLACEHOLDER = '—';
 export const VAT_ID = '';
 
 /**
- * Umsatzsteuer-Hinweis (z. B. „Gemäß § 19 UStG wird keine Umsatzsteuer
- * berechnet."). LEER, solange die Kleinunternehmer-Entscheidung aussteht —
- * es wird KEINE feste Umsatzsteuer-Aussage eingebaut.
+ * Umsatzsteuer-Hinweis.
+ *
+ * Owner-Entscheidung 2026-11-04: Kleinunternehmerregelung nach § 19 UStG.
+ * Wortlaut vom Owner vorgegeben — er steht deshalb WÖRTLICH hier und wird
+ * unverändert an drei Stellen benutzt:
+ *   1. Impressum, Abschnitt „Umsatzsteuer" (via `hasVatInfo()`),
+ *   2. AGB § 7 (Abs. 7, `src/lib/legal-docs.ts`),
+ *   3. Rechnungs-Fußzeile bei Stripe (`INVOICE_FOOTER` in
+ *      `src/stripe/invoice-footer.ts` — dieselbe Konstante, keine zweite Kopie).
+ * Es wird KEINE Umsatzsteuer berechnet oder ausgewiesen (kein Stripe Tax).
+ *
+ * Hinweis: Die übliche Standardformulierung lautet „Gemäß § 19 UStG wird keine
+ * Umsatzsteuer berechnet." — der Owner hat bewusst den Wortlaut unten gewählt.
  */
-export const VAT_DISCLAIMER = '';
+export const VAT_DISCLAIMER =
+  'Steuerbefreit für Kleinunternehmer gemäß § 19 UStG.';
 
 /** Öffentliche Website des Angebots (Impressum-Pflichtangabe, § 5 DDG). */
 export const WEBSITE_URL = 'https://growimo.app';
 
 /** Stand der Rechtstexte (Anzeige „Stand: …"). */
-export const LEGAL_LAST_UPDATED = '2026-10-25';
+export const LEGAL_LAST_UPDATED = '2026-11-04';
 
 /**
  * Öffentliche Rechts-Routen. EINE Quelle für Footer, /app-Sidebar und Tests —
