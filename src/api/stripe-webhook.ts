@@ -31,9 +31,13 @@
 // Event-Zustellung still falsch bliebe. Stripe ist die Autorität.
 import {
   qGetClerkIdByStripeCustomer,
+  qGetOrFreezeBetaEntitlement,
   qGetSubscriptionByStripeId,
+  qSetSubscriptionDiscountCoupon,
   qUpsertSubscription,
 } from "../db/queries";
+import { isProPriceLookupKey, planTierForLookupKey, type PlanTier } from "../stripe/plan-tier";
+import { reconcileBetaDiscount, type SubscriptionLike } from "../stripe/beta-entitlement";
 import { periodEndOfSubscription, subscriptionCancelState } from "../stripe/invoices";
 import {
   billingCountryFromSession,
@@ -55,13 +59,20 @@ export const PRO_YEARLY_LOOKUP_KEY = "pro_yearly";
 /** Promo-Code für den Beta-50 %-Rabatt (konfigurierbar per Env; kein Secret). */
 export const BETA_PROMO_CODE = "BETA50";
 
-/** plan_tier aus einem Stripe-Preis-lookup_key; null = nicht ableitbar (fail-closed). */
-export function planTierForLookupKey(
-  lookupKey: string | null | undefined,
-): "free" | "pro" | null {
-  if (!lookupKey) return null;
-  return lookupKey.startsWith("pro_") ? "pro" : "free";
-}
+// ── Tarif-Zuordnung (Owner-Auftrag 2026-11-05, §17.2) ────────────────────────
+// Die Funktion lebt jetzt in `src/stripe/plan-tier.ts` (eine Quelle für Webhook,
+// Checkout-Freigabeliste und Tests). Hier nur re-exportiert, damit bestehende
+// Importe (`stripe-webhook-test.ts`) unverändert weiterlaufen.
+// VERHALTEN GEÄNDERT: ein UNBEKANNTER lookup_key wirft jetzt
+// `UnknownPriceLookupKeyError` statt still `'free'` zu liefern (fail-closed).
+export {
+  planTierForLookupKey,
+  isProPriceLookupKey,
+  isSellableLookupKey,
+  isProEquivalentTier,
+  UnknownPriceLookupKeyError,
+  type PlanTier,
+} from "../stripe/plan-tier";
 
 /**
  * Stripe-Subscription-Status → DB-Status (CHECK: active/cancelled/expired).
@@ -101,6 +112,15 @@ export interface StripeWebhookDeps {
    * Stripe-Writes mit Idempotency-Keys); Tests: Recorder-Fakes.
    */
   deGate?: DeGateDeps;
+  /**
+   * Beta-Rabatt-Reparatur (§17.4.4, Owner-Auftrag 2026-11-05). Wird NACH dem
+   * Tarif-Upsert bei `customer.subscription.updated` aufgerufen.
+   * Default: echte Stripe-Writes + DB-Lookup; Tests: Fake ohne Netz.
+   */
+  reconcileBetaDiscount?: (input: {
+    subscriptionId: string;
+    clerkUserId: string;
+  }) => Promise<string>;
   /**
    * Rechnungsmail-Sicherheit: Kunden-E-Mail (`customer.email`) setzen.
    * Best effort (Fehler werden geloggt, nie 500). Default: echter Stripe-Call.
@@ -243,10 +263,18 @@ export async function processStripeEvent(
     if (!sub) throw new Error(`Subscription ${subscriptionId} not retrievable`);
     const lookupKey =
       sub.items?.data?.[0]?.price?.lookup_key ?? null;
-    const tier =
-      planTierForLookupKey(lookupKey) ??
-      (await existingTierBySubscription(subscriptionId)) ??
-      "free";
+    // §17.2.4 S2 (Owner-Auftrag 2026-11-05): KEIN stiller Fallback auf "free" mehr.
+    // Vorher: unbekannter Preis → Funktion lieferte 'free' → Zeile schrieb
+    // still 'free'. Jetzt: fehlt der Schlüssel UND kennt die DB kein Abo,
+    // ist der Zustand „bezahlt, aber nicht zuordenbar" → Wurf → 500 → Stripe
+    // wiederholt (Selbstheilung nach einem Fix). 'free' entsteht nur noch aus
+    // einem ausdrücklichen Ereignis (customer.subscription.deleted → expired).
+    const tier = await resolveTierOrThrow({
+      lookupKey,
+      subscriptionId,
+      eventId: event.id,
+      eventType: event.type,
+    });
 
     // ── DE-Launch-Gate (Owner-Auftrag 2026-10-26) — Defense in depth ─────────
     // Stripe Checkout hat KEINEN Länderfilter für die Rechnungsadresse
@@ -340,7 +368,13 @@ export async function processStripeEvent(
         (typeof invoice.customer === "string" ? invoice.customer : null) ??
         existing.stripeCustomerId,
       stripeSubscriptionId: subscriptionId,
-      planTier: planTierForLookupKey(lookupKey) ?? existing.planTier,
+      planTier: tierForWrite({
+        lookupKey,
+        existingTier: existing.planTier,
+        subscriptionId,
+        eventId: event.id,
+        eventType: event.type,
+      }),
       status: "active",
       // Posten-Periodenende (dahlia: lines[].period.end = echte Subscription-
       // Periode) zuerst, invoice.period_end als Fallback für ältere Formen.
@@ -371,7 +405,13 @@ export async function processStripeEvent(
         (typeof sub.customer === "string" ? sub.customer : null) ??
         existing.stripeCustomerId,
       stripeSubscriptionId: subscriptionId,
-      planTier: planTierForLookupKey(lookupKey) ?? existing.planTier,
+      planTier: tierForWrite({
+        lookupKey,
+        existingTier: existing.planTier,
+        subscriptionId,
+        eventId: event.id,
+        eventType: event.type,
+      }),
       status: mapSubscriptionStatus(sub.status as string | null | undefined),
       // Item-Pfad zuerst (dahlia: current_period_end am Subscription-ITEM),
       // Top-Level-Fallback für ältere API-Versionen (dokumentierter 8.3d-Befund).
@@ -380,6 +420,15 @@ export async function processStripeEvent(
       ),
       cancelState,
     });
+
+    // ── Beta-Rabatt reparieren (§17.4.4) ────────────────────────────────────
+    // REIHENFOLGE IST PFLICHT: erst der Tarif-Upsert, dann der Rabatt. Der
+    // Zugang des Kunden darf nie an einer Rabatt-Reparatur scheitern. Der
+    // Upsert ist idempotent (unique index stripe_subscription_id), ein zweiter
+    // Lauf nach einem 500 ist also gefahrlos.
+    // Wirft die Reparatur, antwortet der Webhook 500 → Stripe wiederholt.
+    const reconcile = deps.reconcileBetaDiscount ?? defaultReconcileBetaDiscount;
+    await reconcile({ subscriptionId, clerkUserId: existing.clerkUserId });
     return;
   }
 
@@ -446,9 +495,137 @@ export async function processStripeEvent(
 /** Fallback-Tier, wenn das Event den Preis nicht enthält (fail-closed: vorhandene Zeile). */
 async function existingTierBySubscription(
   subscriptionId: string,
-): Promise<"free" | "pro" | null> {
+): Promise<PlanTier | null> {
   const existing = await qGetSubscriptionByStripeId(subscriptionId);
-  return existing ? existing.planTier : null;
+  return existing ? asPlanTier(existing.planTier) : null;
+}
+
+/**
+ * Ein gespeicherter Tarif, der von außen kommt, wird auf die bekannten Werte
+ * geprüft. Ein unbekannter DB-Wert (z. B. von Hand eingetragen) wird NICHT
+ * stillschweigend zu 'free' — er wird geloggt und als nicht verwertbar
+ * behandelt, damit der Aufrufer fail-closed entscheiden kann.
+ */
+function asPlanTier(value: string | null | undefined): PlanTier | null {
+  if (value === "free" || value === "pro" || value === "video" || value === "video_plus") {
+    return value;
+  }
+  if (value) {
+    console.error(`[stripe-webhook] UNBEKANNTER_DB_TARIF plan_tier=${String(value)}`);
+  }
+  return null;
+}
+
+/**
+ * Zustand „bezahlt, aber Tarif nicht bestimmbar" ist ein FEHLER, kein Free.
+ * §17.2.3: Der 500 ist hier kein Defekt, sondern die einzige Möglichkeit,
+ * einen bezahlten, nicht zuordenbaren Zustand LAUT zu machen. Das Event wird
+ * nach einem Fix von Stripe erneut zugestellt (idempotente Upserts).
+ */
+export class UnresolvablePlanTierError extends Error {
+  constructor(readonly detail: { subscriptionId: string; eventId?: string; eventType?: string }) {
+    super(
+      `UNRESOLVABLE_PLAN_TIER sub=${detail.subscriptionId} event=${detail.eventId ?? "?"} type=${detail.eventType ?? "?"}`,
+    );
+    this.name = "UnresolvablePlanTierError";
+  }
+}
+
+/**
+ * Tarif für ein Abo bestimmen — fail-closed.
+ *   1. Preis-Schlüssel am Objekt → exakte Zuordnung (wirft bei unbekanntem Key)
+ *   2. sonst der bereits gespeicherte Tarif des Abos
+ *   3. sonst Wurf (NIE 'free')
+ */
+async function resolveTierOrThrow(input: {
+  lookupKey: string | null | undefined;
+  subscriptionId: string;
+  eventId?: string;
+  eventType?: string;
+}): Promise<PlanTier> {
+  const fromPrice = planTierForLookupKey(input.lookupKey);
+  if (fromPrice) return fromPrice;
+  const fromDb = await existingTierBySubscription(input.subscriptionId);
+  if (fromDb) return fromDb;
+  console.error(
+    `[stripe-webhook] UNRESOLVABLE_PLAN_TIER sub=${input.subscriptionId} ` +
+      `event=${input.eventId ?? "?"} type=${input.eventType ?? "?"} — kein lookup_key und kein DB-Tarif`,
+  );
+  throw new UnresolvablePlanTierError({
+    subscriptionId: input.subscriptionId,
+    eventId: input.eventId,
+    eventType: input.eventType,
+  });
+}
+
+/**
+ * Tarif für ein SCHREIBENDES Update (invoice.paid / subscription.updated).
+ * Reihenfolge: Preis-Schlüssel → gespeicherter Tarif → Wurf. Kein Fallback auf "free".
+ */
+function tierForWrite(input: {
+  lookupKey: string | null | undefined;
+  existingTier: string | null | undefined;
+  subscriptionId: string;
+  eventId?: string;
+  eventType?: string;
+}): PlanTier {
+  const tier =
+    planTierForLookupKey(input.lookupKey) ?? asPlanTier(input.existingTier);
+  if (tier) return tier;
+  console.error(
+    `[stripe-webhook] UNRESOLVABLE_PLAN_TIER sub=${input.subscriptionId} ` +
+      `event=${input.eventId ?? "?"} type=${input.eventType ?? "?"} — weder Preis noch DB-Tarif verwertbar`,
+  );
+  throw new UnresolvablePlanTierError({
+    subscriptionId: input.subscriptionId,
+    eventId: input.eventId,
+    eventType: input.eventType,
+  });
+}
+
+/**
+ * Standard-Reparatur (§17.4.4): Berechtigung aus der DB, Anwendung am Preis.
+ * Stripe ist die Wahrheit über den Zustand, `beta_entitlements` die Wahrheit
+ * über den Anspruch. Die Funktion schreibt nur, wenn der Zustand abweicht
+ * (`noop` bei Gleichheit) — sonst würde sie sich selbst triggern.
+ */
+async function defaultReconcileBetaDiscount(input: {
+  subscriptionId: string;
+  clerkUserId: string;
+}): Promise<string> {
+  const secret = process.env.STRIPE_SECRET_KEY;
+  if (!secret) {
+    // Ohne Schlüssel ist keine Reparatur möglich — das ist ein Konfigurations-
+    // fehler und muss LAUT sein (500 → Stripe wiederholt), nicht still bleiben.
+    throw new Error("reconcileBetaDiscount requires STRIPE_SECRET_KEY");
+  }
+  const { default: Stripe } = await import("stripe");
+  const stripe = new Stripe(secret);
+  const entitlement = await qGetOrFreezeBetaEntitlement(input.clerkUserId);
+  return reconcileBetaDiscount({
+    subscriptionId: input.subscriptionId,
+    entitled: entitlement.entitled,
+    deps: {
+      retrieveSubscription: async (id) => {
+        const sub = await stripe.subscriptions.retrieve(id, {
+          expand: ["items.data.price"],
+        });
+        return sub as unknown as SubscriptionLike;
+      },
+      setSubscriptionDiscounts: async (id, couponIds) => {
+        // ERSETZEN, nicht ergänzen: zwei Rabatte wären 75 % statt 50 %.
+        // `discounts: []` entfernt alle Rabatte (Stripe-Semantik).
+        await stripe.subscriptions.update(id, {
+          discounts: couponIds.map((coupon) => ({ coupon })),
+        });
+      },
+      isProLookupKey: isProPriceLookupKey,
+      persist: async (couponIds) =>
+        qSetSubscriptionDiscountCoupon(input.subscriptionId, couponIds[0] ?? null),
+      log: (event, detail) =>
+        console.log(`[stripe-webhook] ${event} ${JSON.stringify(detail)}`),
+    },
+  });
 }
 
 /** Produktions-Retrieve: echte Subscription inkl. Preis (per expand). */

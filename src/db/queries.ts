@@ -9,6 +9,8 @@
 import { getDb } from "./index";
 import type { ContentType } from "~/ai/types";
 import { decideUserEmail, isRealEmail, normalizeEmail } from "./user-email";
+// Tarif-Namen + Pro-Äquivalenz: EINE Quelle (src/stripe/plan-tier.ts).
+import { isProEquivalentTier, type PlanTier } from "../stripe/plan-tier";
 
 // ── Row shapes (already JSON-safe) ────────────────────────────────────────────
 
@@ -1246,7 +1248,11 @@ export async function qGetPlanTier(userId: string): Promise<'free' | 'pro'> {
     WHERE user_id = ${uid} AND status = 'active'
     ORDER BY created_at DESC LIMIT 1
   `;
-  return rows.length > 0 && rows[0].plan_tier === 'pro' ? 'pro' : 'free';
+  // Video und Video Plus sind „Pro + n Videos" (§17.5.3): wer dafür zahlt, darf
+  // nicht auf Free fallen. isProEquivalentTier bildet alle drei auf 'pro' ab.
+  return rows.length > 0 && isProEquivalentTier(rows[0].plan_tier as string)
+    ? 'pro'
+    : 'free';
 }
 
 /**
@@ -1396,7 +1402,7 @@ export interface SubscriptionRow {
   clerkUserId: string | null;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
-  planTier: 'free' | 'pro';
+  planTier: PlanTier;
   status: 'active' | 'cancelled' | 'expired';
   currentPeriodEnd: Date | null;
   /** P2: Kündigung zum Periodenende (Stripe `cancel_at_period_end`) — Zugriff bis currentPeriodEnd. */
@@ -1409,7 +1415,7 @@ export interface UpsertSubscriptionInput {
   clerkUserId: string;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
-  planTier: 'free' | 'pro';
+  planTier: PlanTier;
   status: 'active' | 'cancelled' | 'expired';
   /** Unix-Sekunden (Stripe-Zeitstempel) — wird zu TIMESTAMPTZ konvertiert. */
   currentPeriodEnd: number | null;
@@ -1431,7 +1437,16 @@ function mapSubscriptionRow(row: Record<string, unknown>): SubscriptionRow {
     clerkUserId: row.clerk_id == null ? null : String(row.clerk_id),
     stripeCustomerId: row.stripe_customer_id == null ? null : String(row.stripe_customer_id),
     stripeSubscriptionId: row.stripe_subscription_id == null ? null : String(row.stripe_subscription_id),
-    planTier: row.plan_tier === 'pro' ? 'pro' : 'free',
+    // §17.2 (2026-11-05): vorher `row.plan_tier === 'pro' ? 'pro' : 'free'` —
+    // ein Video-Kunde wäre beim Lesen still zu 'free' geworden. Die CHECK-
+    // Constraint lässt seit der Migration nur noch die vier Werte zu, deshalb
+    // ist der Fallback 'free' hier nur ein Sicherheitsnetz (fail-closed).
+    planTier:
+      row.plan_tier === 'pro' ||
+      row.plan_tier === 'video' ||
+      row.plan_tier === 'video_plus'
+        ? (row.plan_tier as PlanTier)
+        : 'free',
     status:
       row.status === 'cancelled' || row.status === 'expired'
         ? row.status
@@ -1624,3 +1639,105 @@ export async function qGetLatestCheckoutConsent(clerkUserId: string): Promise<{
   };
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BETA-BERECHTIGUNG (Owner-Auftrag 2026-11-05, §17.1.3 / §17.4.2)
+// ─────────────────────────────────────────────────────────────────────────────
+// „Berechtigung am Menschen, Anwendung am Preis": Der Anspruch auf 50 % auf Pro
+// liegt in `beta_entitlements` und hängt an der users-UUID — NICHT an der
+// E-Mail (die ändert sich in Clerk) und NICHT am Abo (das wechselt, endet und
+// entsteht neu). Der Anspruch wird beim ERSTEN Gebrauch eingefroren
+// (ON CONFLICT DO NOTHING), damit kein Migrations-Backfill den falschen Nutzer
+// berechtigen kann.
+export interface BetaEntitlement {
+  entitled: boolean;
+  couponId: string | null;
+  source: string;
+  /** true = Zeile existierte bereits (eingefroren), false = gerade entstanden. */
+  frozen: boolean;
+  revoked: boolean;
+}
+
+/**
+ * Berechtigung lesen — und beim ersten Aufruf aus `beta_signups.approved`
+ * einfrieren. Idempotent: ein zweiter Aufruf ändert nichts.
+ *
+ * @param opts.sql  Nur für Tests (lokale Postgres-Instanz). Produktion: getDb().
+ */
+export async function qGetOrFreezeBetaEntitlement(
+  clerkUserId: string,
+  opts: { sql?: SqlTag } = {},
+): Promise<BetaEntitlement> {
+  const sql = (opts.sql ?? getDb()) as SqlTag;
+  if (!opts.sql) {
+    // Der Webhook kann vor dem App-Besuch des Nutzers laufen → users-Zeile sichern.
+    await ensureUserRow(clerkUserId);
+  }
+
+  const read = async () =>
+    (await sql`
+      SELECT be.entitled, be.coupon_id, be.source, be.revoked_at
+      FROM beta_entitlements be
+      JOIN users u ON u.id = be.user_id
+      WHERE u.clerk_id = ${clerkUserId}
+      LIMIT 1
+    `)[0] as
+      | { entitled?: unknown; coupon_id?: unknown; source?: unknown; revoked_at?: unknown }
+      | undefined;
+
+  let row = await read();
+  const frozen = Boolean(row);
+
+  if (!row) {
+    // „Freeze beim ersten Gebrauch": entitled kommt AUSSCHLIESSLICH aus
+    // beta_signups.approved — nie aus einer Client-Angabe, nie aus einem Default.
+    await sql`
+      INSERT INTO beta_entitlements (user_id, email, entitled, source)
+      SELECT u.id, u.email,
+             EXISTS (
+               SELECT 1 FROM beta_signups b
+               WHERE LOWER(b.email) = LOWER(u.email) AND b.approved = TRUE
+             ),
+             'beta_signup'
+      FROM users u
+      WHERE u.clerk_id = ${clerkUserId}
+      ON CONFLICT (user_id) DO NOTHING
+    `;
+    row = await read();
+  }
+
+  if (!row) {
+    // Kein users-Eintrag (z. B. Webhook für einen noch unbekannten Clerk-User).
+    return { entitled: false, couponId: null, source: 'none', frozen: false, revoked: false };
+  }
+
+  const revoked = row.revoked_at != null;
+  return {
+    entitled: row.entitled === true && !revoked,
+    couponId: row.coupon_id == null ? null : String(row.coupon_id),
+    source: row.source == null ? 'beta_signup' : String(row.source),
+    frozen,
+    revoked,
+  };
+}
+
+/**
+ * Diagnose-Anker (§17.1.2): welcher Coupon hängt tatsächlich am Abo?
+ * Kein Steuerpfad — nur der Vergleichswert des Reparatur-Laufs. Fehler werden
+ * geschluckt: eine Diagnose darf nie einen bezahlten Vorgang scheitern lassen.
+ */
+export async function qSetSubscriptionDiscountCoupon(
+  stripeSubscriptionId: string,
+  couponId: string | null,
+  opts: { sql?: SqlTag } = {},
+): Promise<void> {
+  const sql = (opts.sql ?? getDb()) as SqlTag;
+  try {
+    await sql`
+      UPDATE subscriptions SET discount_coupon_id = ${couponId}
+      WHERE stripe_subscription_id = ${stripeSubscriptionId}
+    `;
+  } catch (err) {
+    console.error('[queries] discount_coupon_id konnte nicht gespiegelt werden:', err);
+  }
+}

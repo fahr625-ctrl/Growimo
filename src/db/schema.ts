@@ -46,6 +46,31 @@ CREATE TABLE IF NOT EXISTS beta_signups (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- ─── Beta-Berechtigung (Owner-Auftrag 2026-11-05, §17.1.3) ───────────────────
+-- Der Anker der Rückkehr-Regel Pro → Video → Pro. Die Berechtigung hängt am
+-- NUTZER, nicht am Abo: nur so überlebt sie einen Tarifwechsel, das Kundenportal
+-- und eine Kündigung mit Neubuchung (dort entsteht eine NEUE Zeile mit neuer
+-- stripe_subscription_id — alles, was am alten Abo hing, ist weg).
+-- Der Grund für eine eigene Tabelle: isBetaUserEmail() findet den Anspruch
+-- über die E-MAIL. Ändert der Nutzer seine Adresse in Clerk, wäre ein
+-- lebenslanger Rabatt weg, ohne dass jemand etwas entschieden hat.
+-- KEIN Backfill in der Migration: eine Zuordnung E-Mail → Nutzer ist nicht
+-- eindeutig (CASCADE-Löschung + Neuregistrierung ist ein belegter Fall), ein
+-- automatischer Lauf könnte den FALSCHEN Nutzer berechtigen. Die Zeile entsteht
+-- beim ersten Checkout bzw. ersten Reparatur-Lauf ("Freeze beim ersten
+-- Gebrauch", ON CONFLICT DO NOTHING) — idempotent, ohne Migrationsschritt.
+CREATE TABLE IF NOT EXISTS beta_entitlements (
+  user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  entitled BOOLEAN NOT NULL DEFAULT FALSE,
+  source TEXT NOT NULL DEFAULT 'beta_signup',
+  coupon_id TEXT,
+  granted_at TIMESTAMPTZ DEFAULT NOW(),
+  revoked_at TIMESTAMPTZ,
+  note TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_beta_entitlements_entitled ON beta_entitlements(entitled);
+
 CREATE TABLE IF NOT EXISTS subscriptions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -68,6 +93,28 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_stripe_customer_id ON subscriptions
 -- keine Stripe-Subscription) kollidieren in Postgres nie (Distinct) — bestehende
 -- Zeilen mit NULL (z. B. aus Phase 8.2-Tests) bleiben unberührt.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_stripe_subscription_id ON subscriptions(stripe_subscription_id);
+
+-- ─── Tarife (Owner-Auftrag 2026-11-05, §17.1.1) ──────────────────────────────
+-- SPERRE 1: plan_tier erlaubte nur 'free' und 'pro'. Der erste Video-Kauf
+-- hätte plan_tier = 'video' geschrieben, Postgres hätte mit 23514 abgelehnt,
+-- der Webhook hätte 500 geantwortet — der Kunde hätte bezahlt und nichts
+-- bekommen. Die Erweiterung ist ADDITIV: alles, was vorher gültig war, bleibt
+-- gültig, es wird KEINE Zeile geschrieben und KEIN Backfill gefahren.
+-- Idempotent: DROP IF EXISTS + ADD ist bei jedem Lauf dasselbe Ergebnis.
+-- Rücknehmbar: scripts/tarife-rollback.ts — nur solange keine Zeile 'video'
+-- oder 'video_plus' enthält (danach schlägt das ADD zu Recht fehl).
+-- Constraint-Name ist der von Postgres deterministisch vergebene Inline-Name
+-- (am 2026-11-05 read-only gegen die Prod-DB belegt: subscriptions_plan_tier_check).
+ALTER TABLE subscriptions DROP CONSTRAINT IF EXISTS subscriptions_plan_tier_check;
+ALTER TABLE subscriptions ADD CONSTRAINT subscriptions_plan_tier_check
+  CHECK (plan_tier IN ('free', 'pro', 'video', 'video_plus'));
+
+-- §17.1.2: Diagnose-Anker der Rückkehr-Regel (§17.4.4). Welcher Coupon hängt
+-- TATSÄCHLICH am Abo (BETA50PRO, BETA50 oder NULL)? Stripe bleibt die Wahrheit,
+-- aber der Reparatur-Lauf soll ohne Stripe-Call erkennen, ob etwas zu tun ist.
+-- Nullable ohne Default: rein Katalog-Änderung, keine Zeile wird geschrieben,
+-- die alte Code-Version läuft unverändert weiter. Rücknahme: DROP COLUMN.
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS discount_coupon_id TEXT;
 -- F8 Veröffentlichungs-Kalender: automatischer Publish-Plan je Nutzer/Asset
 CREATE TABLE IF NOT EXISTS publish_plan (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
