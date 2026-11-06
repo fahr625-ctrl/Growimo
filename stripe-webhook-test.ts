@@ -21,6 +21,8 @@ import {
   invoiceSubscriptionId,
   invoicePeriodEnd,
   invoicePriceLookupKey,
+  UnknownPriceLookupKeyError,
+  UnresolvablePlanTierError,
   STRIPE_WEBHOOK_PATH,
   PRO_MONTHLY_LOOKUP_KEY,
   PRO_YEARLY_LOOKUP_KEY,
@@ -60,6 +62,17 @@ const expectThrow = async (fn: () => Promise<unknown>, label: string) => {
     check(false, `${label} (kein Fehler geworfen)`);
   } catch (err) {
     check(err instanceof Error, `${label} → ${(err as Error).message.slice(0, 60)}`);
+  }
+};
+/** Wie expectThrow, aber für SYNCHRONE Würfe (planTierForLookupKey). */
+const expectThrowSync = (fn: () => unknown, label: string): unknown => {
+  try {
+    fn();
+    check(false, `${label} (kein Fehler geworfen)`);
+    return null;
+  } catch (err) {
+    check(err instanceof Error, `${label} → ${(err as Error).message.slice(0, 60)}`);
+    return err;
   }
 };
 
@@ -176,9 +189,28 @@ async function main() {
     console.log('\n[0] Helper: lookup_key / Status-Mapping / Preis-Keys');
     check(planTierForLookupKey(PRO_MONTHLY_LOOKUP_KEY) === 'pro', `planTier('${PRO_MONTHLY_LOOKUP_KEY}') → pro`);
     check(planTierForLookupKey(PRO_YEARLY_LOOKUP_KEY) === 'pro', `planTier('${PRO_YEARLY_LOOKUP_KEY}') → pro`);
-    check(planTierForLookupKey('other_price') === 'free', 'planTier(anderer Key) → free (fail-closed)');
+    // B2 (Owner-Auftrag 2026-11-05): Der alte Test schrieb hier
+    // `planTier('other_price') === 'free'` fest und hielt damit das fail-OPEN-
+    // Verhalten fest. Richtig ist: ein bezahlter, nicht zuordenbarer Preis ist
+    // ein FEHLER (Wurf → Webhook 500 → Stripe wiederholt), niemals 'free'.
+    const unknownErr = expectThrowSync(
+      () => planTierForLookupKey('other_price'),
+      "planTier('other_price') → WIRFT (fail-closed, kein 'free')",
+    );
+    check(
+      unknownErr instanceof UnknownPriceLookupKeyError,
+      'unbekannter Key → UnknownPriceLookupKeyError (Typ)',
+    );
+    check(
+      unknownErr instanceof Error && unknownErr.message.includes('other_price'),
+      'Fehlertext nennt den unbekannten Schlüssel',
+    );
     check(planTierForLookupKey(null) === null, 'planTier(null) → null (nicht ableitbar)');
     check(planTierForLookupKey(undefined) === null, 'planTier(undefined) → null');
+    check(planTierForLookupKey('') === null, "planTier('') → null (wie 'kein Preis')");
+    // Detail-Unit-Tests der Zuordnung (auch ohne DB lauffähig):
+    //   bun test src/stripe/plan-tier.test.ts
+    //   bun test src/api/stripe-webhook.tier-fail-closed.test.ts
     check(mapSubscriptionStatus('active') === 'active', "status 'active' → active");
     check(mapSubscriptionStatus('trialing') === 'active', "status 'trialing' → active");
     check(mapSubscriptionStatus('canceled') === 'cancelled', "status 'canceled' → cancelled");
@@ -243,6 +275,63 @@ async function main() {
     });
     const rows = await sql`SELECT count(*)::int AS n FROM subscriptions WHERE stripe_subscription_id = ${SUB_A}`;
     check(Number(rows[0].n) === 1, 'Retry/Doppel-Event → weiterhin GENAU 1 Zeile (idempotent via UNIQUE-Index)');
+
+    // ── [2b] B2 (Owner-Auftrag 2026-11-05): fail-closed an ALLEN Aufrufstellen ─
+    // Ein unbekannter lookup_key darf NIE still als 'free' gespeichert werden.
+    // Erwartet: Wurf → der Endpoint antwortet 500 → Stripe wiederholt das Event
+    // (Selbstheilung nach einem Fix). Beweis hier über die drei Aufrufstellen.
+    console.log('\n[2b] B2 fail-closed: unbekannter lookup_key an allen drei Aufrufstellen');
+    const tierBefore = (await qGetSubscriptionByStripeId(SUB_A))?.planTier;
+    const unknownKey = 'pro_monthly_typo';
+    const badRetrieve = async () => ({
+      current_period_end: 1_893_456_000,
+      items: { data: [{ price: { lookup_key: unknownKey } }] },
+    });
+    await expectThrow(
+      () =>
+        processStripeEvent(
+          sessionCompletedEvent(TEST_USERS[0], `sub_b2ck_${RUN}`, `cus_b2ck_${RUN}`),
+          { retrieveSubscription: badRetrieve },
+        ),
+      'checkout.session.completed: unbekannter lookup_key → Wurf (kein free)',
+    );
+    check(
+      (await qGetSubscriptionByStripeId(`sub_b2ck_${RUN}`)) === null,
+      'checkout: bei unbekanntem Preis wird KEINE subscriptions-Zeile angelegt',
+    );
+    await expectThrow(
+      () => processStripeEvent(invoicePaidEvent(SUB_A, CUS_A, 1_894_051_200, unknownKey)),
+      'invoice.paid: unbekannter lookup_key → Wurf (kein free)',
+    );
+    await expectThrow(
+      () => processStripeEvent(subscriptionUpdatedEvent(SUB_A, CUS_A, 'active', 1_894_051_200, unknownKey)),
+      'customer.subscription.updated: unbekannter lookup_key → Wurf (kein free)',
+    );
+    row = await qGetSubscriptionByStripeId(SUB_A);
+    check(
+      row?.planTier === 'pro' && row?.planTier === tierBefore,
+      'kein Schreibvorgang: plan_tier bleibt pro (NICHT free)',
+    );
+    // Kein lookup_key UND kein DB-Tarif ⇒ eigener Fehlertyp (Retry-Semantik).
+    const unresolvable = await (async () => {
+      try {
+        await processStripeEvent(
+          sessionCompletedEvent(TEST_USERS[1], `sub_b2nr_${RUN}`, `cus_b2nr_${RUN}`),
+          { retrieveSubscription: async () => ({ current_period_end: 1_893_456_000, items: { data: [{}] } }) },
+        );
+        return null;
+      } catch (err) {
+        return err;
+      }
+    })();
+    check(
+      unresolvable instanceof UnresolvablePlanTierError,
+      'checkout: kein lookup_key + kein DB-Tarif → UnresolvablePlanTierError (Typ)',
+    );
+    check(
+      (await qGetSubscriptionByStripeId(`sub_b2nr_${RUN}`)) === null,
+      'checkout: nicht bestimmbarer Tarif → KEINE Zeile (nichts geschrieben)',
+    );
 
     // invoice.paid verlängert current_period_end
     const nextPeriod = 1_894_051_200;
