@@ -8,6 +8,7 @@
 // Wächter ersetzt, der JEDEN Zugriff zählt (und wirft). Am Ende muss der Zähler
 // für den Fake-Pfad exakt 0 sein — „kein Netz" ist damit gemessen, nicht behauptet.
 // ─────────────────────────────────────────────────────────────────────────────
+import { createHash } from "node:crypto";
 import { FakeVideoProvider, buildFakeMp4 } from "./src/ai/video/fake-provider";
 import { createKlingFalProvider, klingFalEnabled, klingFalDisabledReason } from "./src/ai/video/kling-fal";
 import { KNOWN_VIDEO_PROVIDER_IDS, resolveVideoProvider, validateClipRequest } from "./src/ai/video/registry";
@@ -87,9 +88,7 @@ function request(overrides: Partial<VideoClipRequest> = {}): VideoClipRequest {
 }
 
 function sha256(bytes: Uint8Array): string {
-  const hasher = new Bun.CryptoHasher("sha256");
-  hasher.update(bytes);
-  return hasher.digest("hex");
+  return createHash("sha256").update(Buffer.from(bytes)).digest("hex");
 }
 
 console.log("— video-provider-test (UMSETZUNGSPLAN §2) —\n");
