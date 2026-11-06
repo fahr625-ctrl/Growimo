@@ -35,6 +35,7 @@ import {
   qUpsertSubscription,
 } from "../db/queries";
 import { periodEndOfSubscription, subscriptionCancelState } from "../stripe/invoices";
+import { planTierForLookupKey } from "../stripe/plan-tier";
 import {
   billingCountryFromSession,
   customerEmailFromSession,
@@ -55,13 +56,23 @@ export const PRO_YEARLY_LOOKUP_KEY = "pro_yearly";
 /** Promo-Code für den Beta-50 %-Rabatt (konfigurierbar per Env; kein Secret). */
 export const BETA_PROMO_CODE = "BETA50";
 
-/** plan_tier aus einem Stripe-Preis-lookup_key; null = nicht ableitbar (fail-closed). */
-export function planTierForLookupKey(
-  lookupKey: string | null | undefined,
-): "free" | "pro" | null {
-  if (!lookupKey) return null;
-  return lookupKey.startsWith("pro_") ? "pro" : "free";
-}
+// ── Tarif-Zuordnung (fail-closed) ────────────────────────────────────────────
+// Die Funktion lebt jetzt in `src/stripe/plan-tier.ts` (eine Quelle für Webhook
+// und Tests). Hier nur re-exportiert, damit bestehende Importe
+// (`stripe-webhook-test.ts`) unverändert weiterlaufen.
+// VERHALTEN GEÄNDERT: ein UNBEKANNTER lookup_key wirft jetzt
+// `UnknownPriceLookupKeyError` statt still `'free'` zu liefern (fail-closed).
+export {
+  planTierForLookupKey,
+  UnknownPriceLookupKeyError,
+} from "../stripe/plan-tier";
+
+/**
+ * Werte, die in `subscriptions.plan_tier` stehen dürfen (DB-CHECK: free|pro).
+ * Bewusst HIER definiert und nicht in `plan-tier.ts`: dort gibt es keinen
+ * Free-Wert, damit kein Preis je auf 'free' abgebildet werden kann.
+ */
+export type PlanTier = "free" | "pro";
 
 /**
  * Stripe-Subscription-Status → DB-Status (CHECK: active/cancelled/expired).
@@ -243,10 +254,12 @@ export async function processStripeEvent(
     if (!sub) throw new Error(`Subscription ${subscriptionId} not retrievable`);
     const lookupKey =
       sub.items?.data?.[0]?.price?.lookup_key ?? null;
-    const tier =
-      planTierForLookupKey(lookupKey) ??
-      (await existingTierBySubscription(subscriptionId)) ??
-      "free";
+    const tier = await resolveTierOrThrow({
+      lookupKey,
+      subscriptionId,
+      eventId: event.id,
+      eventType: event.type,
+    });
 
     // ── DE-Launch-Gate (Owner-Auftrag 2026-10-26) — Defense in depth ─────────
     // Stripe Checkout hat KEINEN Länderfilter für die Rechnungsadresse
@@ -340,7 +353,13 @@ export async function processStripeEvent(
         (typeof invoice.customer === "string" ? invoice.customer : null) ??
         existing.stripeCustomerId,
       stripeSubscriptionId: subscriptionId,
-      planTier: planTierForLookupKey(lookupKey) ?? existing.planTier,
+      planTier: tierForWrite({
+        lookupKey,
+        existingTier: existing.planTier,
+        subscriptionId,
+        eventId: event.id,
+        eventType: event.type,
+      }),
       status: "active",
       // Posten-Periodenende (dahlia: lines[].period.end = echte Subscription-
       // Periode) zuerst, invoice.period_end als Fallback für ältere Formen.
@@ -371,7 +390,13 @@ export async function processStripeEvent(
         (typeof sub.customer === "string" ? sub.customer : null) ??
         existing.stripeCustomerId,
       stripeSubscriptionId: subscriptionId,
-      planTier: planTierForLookupKey(lookupKey) ?? existing.planTier,
+      planTier: tierForWrite({
+        lookupKey,
+        existingTier: existing.planTier,
+        subscriptionId,
+        eventId: event.id,
+        eventType: event.type,
+      }),
       status: mapSubscriptionStatus(sub.status as string | null | undefined),
       // Item-Pfad zuerst (dahlia: current_period_end am Subscription-ITEM),
       // Top-Level-Fallback für ältere API-Versionen (dokumentierter 8.3d-Befund).
@@ -446,9 +471,93 @@ export async function processStripeEvent(
 /** Fallback-Tier, wenn das Event den Preis nicht enthält (fail-closed: vorhandene Zeile). */
 async function existingTierBySubscription(
   subscriptionId: string,
-): Promise<"free" | "pro" | null> {
+): Promise<PlanTier | null> {
   const existing = await qGetSubscriptionByStripeId(subscriptionId);
-  return existing ? existing.planTier : null;
+  return existing ? asPlanTier(existing.planTier) : null;
+}
+
+/**
+ * Ein gespeicherter Tarif, der von außen kommt, wird auf die bekannten Werte
+ * geprüft. Ein unbekannter DB-Wert (z. B. von Hand eingetragen) wird NICHT
+ * stillschweigend zu 'free' — er wird geloggt und als nicht verwertbar
+ * behandelt, damit der Aufrufer fail-closed entscheiden kann.
+ */
+function asPlanTier(value: string | null | undefined): PlanTier | null {
+  if (value === "free" || value === "pro") {
+    return value;
+  }
+  if (value) {
+    console.error(`[stripe-webhook] UNBEKANNTER_DB_TARIF plan_tier=${String(value)}`);
+  }
+  return null;
+}
+
+/**
+ * Zustand „bezahlt, aber Tarif nicht bestimmbar" ist ein FEHLER, kein Free.
+ * Der 500 ist hier kein Defekt, sondern die einzige Möglichkeit, einen
+ * bezahlten, nicht zuordenbaren Zustand LAUT zu machen. Das Event wird nach
+ * einem Fix von Stripe erneut zugestellt (idempotente Upserts).
+ */
+export class UnresolvablePlanTierError extends Error {
+  constructor(
+    readonly detail: { subscriptionId: string; eventId?: string; eventType?: string },
+  ) {
+    super(
+      `UNRESOLVABLE_PLAN_TIER sub=${detail.subscriptionId} event=${detail.eventId ?? "?"} type=${detail.eventType ?? "?"}`,
+    );
+    this.name = "UnresolvablePlanTierError";
+  }
+}
+
+/**
+ * Tarif für ein Abo bestimmen — fail-closed.
+ *   1. Preis-Schlüssel am Objekt → exakte Zuordnung (wirft bei unbekanntem Key)
+ *   2. sonst der bereits gespeicherte Tarif des Abos
+ *   3. sonst Wurf (NIE 'free')
+ */
+async function resolveTierOrThrow(input: {
+  lookupKey: string | null | undefined;
+  subscriptionId: string;
+  eventId?: string;
+  eventType?: string;
+}): Promise<PlanTier> {
+  const fromPrice = planTierForLookupKey(input.lookupKey);
+  if (fromPrice) return fromPrice;
+  const fromDb = await existingTierBySubscription(input.subscriptionId);
+  if (fromDb) return fromDb;
+  console.error(
+    `[stripe-webhook] UNRESOLVABLE_PLAN_TIER sub=${input.subscriptionId} ` +
+      `event=${input.eventId ?? "?"} type=${input.eventType ?? "?"} — kein lookup_key und kein DB-Tarif`,
+  );
+  throw new UnresolvablePlanTierError({
+    subscriptionId: input.subscriptionId,
+    eventId: input.eventId,
+    eventType: input.eventType,
+  });
+}
+
+/**
+ * Tarif für ein SCHREIBENDES Update (invoice.paid / subscription.updated).
+ * Reihenfolge: Preis-Schlüssel → gespeicherter Tarif → Wurf. Kein Fallback auf "free".
+ */
+function tierForWrite(input: {
+  lookupKey: string | null | undefined;
+  existingTier: string | null | undefined;
+  subscriptionId: string;
+  eventId?: string;
+  eventType?: string;
+}): PlanTier {
+  const tier = planTierForLookupKey(input.lookupKey) ?? asPlanTier(input.existingTier);
+  if (tier) return tier;
+  console.error(
+    `[stripe-webhook] UNRESOLVABLE_PLAN_TIER sub=${input.subscriptionId} ` +
+      `event=${input.eventId ?? "?"} type=${input.eventType ?? "?"} — weder Preis noch DB-Tarif verwertbar`,
+  );
+  throw new UnresolvablePlanTierError({
+    subscriptionId: input.subscriptionId,
+    eventId: input.eventId,
+    eventType: input.eventType,
+  });
 }
 
 /** Produktions-Retrieve: echte Subscription inkl. Preis (per expand). */
@@ -569,7 +678,13 @@ export async function handleStripeWebhookApi(
     return json({ received: true }, 200);
   } catch (err) {
     // DB-/Netzfehler → 500 → Stripe retried das Event (idempotente Upserts).
-    console.error(`[stripe-webhook] processing ${event.type} failed — will retry:`, err);
+    // Owner-Vorgabe 2026-11-06: JEDER Verarbeitungsfehler wird protokolliert —
+    // mit Event-ID, Event-Typ und Fehlerursache. Bewusst nur Name + Message des
+    // Fehlers (kein Event-Objekt, keine Kopfzeilen): keine Secrets, keine PII.
+    console.error(
+      `[stripe-webhook] processing failed — will retry: event_id=${event.id ?? "?"} ` +
+        `type=${event.type} reason=${err instanceof Error ? `${err.name}: ${err.message}` : String(err)}`,
+    );
     return json({ error: "Failed to process event" }, 500);
   }
 }

@@ -10,6 +10,15 @@
 // Secret-String); Ereignis-Verarbeitung über processStripeEvent mit Fixture-
 // Events + Fake-retrieveSubscription gegen die echte Neon-DB (synthetische
 // Testnutzer, Cleanup im finally). Exit-Code 0 nur, wenn alle Checks grün.
+//
+// B2-DB-Suite (2026-11-06): processStripeEvent ruft im DEFAULT echte Stripe-
+// Endpunkte (DE-Gate: subscriptions.cancel/refunds.create; Rechnungsmail:
+// customers.update). Der erste Lauf gegen die Demo-DB brach deshalb mit 404
+// "No such subscription" ab. Alle Aufrufe laufen jetzt über `processOffline(...)`,
+// das die vorhandenen Seams (deps.deGate, deps.setInvoiceEmail) mit Recordern
+// füllt — dieselben Codepfade, aber ohne Netz. Ziel-DB MUSS die Demo-DB sein
+// (`growimo_demo`); gegen die Prod-DB blockiert der Test-Guard jeden Write.
+//   bun --env-file=/tmp/b2/demo.env stripe-webhook-test.ts
 // ─────────────────────────────────────────────────────────────────────────────
 import { createHmac } from 'node:crypto';
 import { getDb } from './src/db/index';
@@ -21,7 +30,10 @@ import {
   invoiceSubscriptionId,
   invoicePeriodEnd,
   invoicePriceLookupKey,
+  UnknownPriceLookupKeyError,
+  UnresolvablePlanTierError,
   STRIPE_WEBHOOK_PATH,
+  type StripeWebhookDeps,
   PRO_MONTHLY_LOOKUP_KEY,
   PRO_YEARLY_LOOKUP_KEY,
 } from './src/api/stripe-webhook';
@@ -62,6 +74,17 @@ const expectThrow = async (fn: () => Promise<unknown>, label: string) => {
     check(err instanceof Error, `${label} → ${(err as Error).message.slice(0, 60)}`);
   }
 };
+/** Wie expectThrow, aber für SYNCHRONE Würfe (planTierForLookupKey). */
+const expectThrowSync = (fn: () => unknown, label: string): unknown => {
+  try {
+    fn();
+    check(false, `${label} (kein Fehler geworfen)`);
+    return null;
+  } catch (err) {
+    check(err instanceof Error, `${label} → ${(err as Error).message.slice(0, 60)}`);
+    return err;
+  }
+};
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 const retrieveFixture = async (_subscriptionId: string, lookupKey = PRO_MONTHLY_LOOKUP_KEY) => ({
@@ -74,11 +97,22 @@ const retrieveFixture = async (_subscriptionId: string, lookupKey = PRO_MONTHLY_
 const dahliaRetrieveFixture = async (_subscriptionId: string, lookupKey = PRO_MONTHLY_LOOKUP_KEY) => ({
   items: { data: [{ price: { lookup_key: lookupKey }, current_period_end: 1_893_999_600 }] },
 });
+// B2-DB-Suite (2026-11-06): Die Session traegt jetzt das Rechnungsland.
+// Ohne Adresse greift das DE-Launch-Gate (fail-closed: "Land fehlt = nicht DE")
+// und der Checkout landet NICHT auf pro — genau das ist im ersten Demo-Lauf
+// passiert. Default 'DE' = der Normalfall, den die restliche Suite annimmt;
+// country: null bildet die fehlende Adresse ab, 'US' den Auslandskauf.
 const sessionCompletedEvent = (
   clerkId: string,
   sub: string,
   cust: string,
-  opts: { lookupKey?: string; paymentStatus?: string } = {},
+  opts: {
+    lookupKey?: string;
+    paymentStatus?: string;
+    country?: string | null;
+    paymentIntent?: string;
+    email?: string;
+  } = {},
 ) => ({
   type: 'checkout.session.completed',
   data: {
@@ -90,6 +124,11 @@ const sessionCompletedEvent = (
       metadata: { userId: clerkId },
       customer: cust,
       subscription: sub,
+      customer_details: {
+        address: { country: opts.country === null ? null : (opts.country ?? 'DE') },
+        ...(opts.email ? { email: opts.email } : {}),
+      },
+      ...(opts.paymentIntent ? { payment_intent: opts.paymentIntent } : {}),
     },
   },
 });
@@ -167,6 +206,41 @@ function stripeSignature(payload: string, secret: string, timestamp?: number): s
   return `t=${t},v1=${v1}`;
 }
 
+// ── Offline-Dependencies (B2-DB-Suite, 2026-11-06) ───────────────────────────
+// Befund des ersten Demo-DB-Laufs: der Suite-Kopf sagt "KEINE echten Stripe-
+// Keys/-API-Calls", aber seit dem DE-Launch-Gate (2026-10-26) ruft
+// processStripeEvent im DEFAULT echte Endpunkte:
+//   subscriptions.cancel / refunds.create / customers.update.
+// Der Lauf brach deshalb in [2] mit 404 "No such subscription" ab. Die Seams
+// (deps.deGate, deps.setInvoiceEmail) sind im Produktionscode bereits
+// vorhanden — hier werden sie mit Recordern gefuellt.
+// Damit laufen DIESELBEN Codepfade, aber ohne Netz.
+const deGateCalls: Array<{ kind: "cancel" | "refund"; id: string; key?: string }> = [];
+const invoiceEmailCalls: Array<{ customerId: string; email: string }> = [];
+const resetOfflineRecorders = () => {
+  deGateCalls.length = 0;
+  invoiceEmailCalls.length = 0;
+};
+const offlineDeps = (extra: StripeWebhookDeps = {}): StripeWebhookDeps => ({
+  deGate: {
+    async cancelSubscription(id, key) {
+      deGateCalls.push({ kind: "cancel", id, key });
+    },
+    async refundPaymentIntent(id, key) {
+      deGateCalls.push({ kind: "refund", id, key });
+    },
+  },
+  setInvoiceEmail: async (customerId, email) => {
+    invoiceEmailCalls.push({ customerId, email });
+  },
+  ...extra,
+});
+/** processStripeEvent mit vollstaendig offline Dependencies. */
+const processOffline = (
+  event: Parameters<typeof processStripeEvent>[0],
+  extra: StripeWebhookDeps = {},
+) => processStripeEvent(event, offlineDeps(extra));
+
 async function main() {
   try {
     console.log('— stripe-webhook-test (Phase 8.3) —\n');
@@ -176,9 +250,28 @@ async function main() {
     console.log('\n[0] Helper: lookup_key / Status-Mapping / Preis-Keys');
     check(planTierForLookupKey(PRO_MONTHLY_LOOKUP_KEY) === 'pro', `planTier('${PRO_MONTHLY_LOOKUP_KEY}') → pro`);
     check(planTierForLookupKey(PRO_YEARLY_LOOKUP_KEY) === 'pro', `planTier('${PRO_YEARLY_LOOKUP_KEY}') → pro`);
-    check(planTierForLookupKey('other_price') === 'free', 'planTier(anderer Key) → free (fail-closed)');
+    // B2 (Owner-Auftrag 2026-11-05): Der alte Test schrieb hier
+    // `planTier('other_price') === 'free'` fest und hielt damit das fail-OPEN-
+    // Verhalten fest. Richtig ist: ein bezahlter, nicht zuordenbarer Preis ist
+    // ein FEHLER (Wurf → Webhook 500 → Stripe wiederholt), niemals 'free'.
+    const unknownErr = expectThrowSync(
+      () => planTierForLookupKey('other_price'),
+      "planTier('other_price') → WIRFT (fail-closed, kein 'free')",
+    );
+    check(
+      unknownErr instanceof UnknownPriceLookupKeyError,
+      'unbekannter Key → UnknownPriceLookupKeyError (Typ)',
+    );
+    check(
+      unknownErr instanceof Error && unknownErr.message.includes('other_price'),
+      'Fehlertext nennt den unbekannten Schlüssel',
+    );
     check(planTierForLookupKey(null) === null, 'planTier(null) → null (nicht ableitbar)');
     check(planTierForLookupKey(undefined) === null, 'planTier(undefined) → null');
+    check(planTierForLookupKey('') === null, "planTier('') → null (wie 'kein Preis')");
+    // Detail-Unit-Tests der Zuordnung (auch ohne DB lauffähig):
+    //   bun test src/stripe/plan-tier.test.ts
+    //   bun test src/api/stripe-webhook.tier-fail-closed.test.ts
     check(mapSubscriptionStatus('active') === 'active', "status 'active' → active");
     check(mapSubscriptionStatus('trialing') === 'active', "status 'trialing' → active");
     check(mapSubscriptionStatus('canceled') === 'cancelled', "status 'canceled' → cancelled");
@@ -223,7 +316,7 @@ async function main() {
 
     // ── [2] Event-Verarbeitung → subscriptions-Writes (echte DB) ─────────────
     console.log('\n[2] Event-Verarbeitung (upsert-Semantik, DB)');
-    await processStripeEvent(sessionCompletedEvent(TEST_USERS[0], SUB_A, CUS_A), {
+    await processOffline(sessionCompletedEvent(TEST_USERS[0], SUB_A, CUS_A), {
       retrieveSubscription: retrieveFixture,
     });
     let row = await qGetSubscriptionByStripeId(SUB_A);
@@ -238,15 +331,156 @@ async function main() {
     check(row !== null && row.stripeSubscriptionId === SUB_A, 'qGetSubscriptionForUser findet die Zeile');
 
     // Idempotenz: dasselbe Event erneut → keine zweite Zeile
-    await processStripeEvent(sessionCompletedEvent(TEST_USERS[0], SUB_A, CUS_A), {
+    await processOffline(sessionCompletedEvent(TEST_USERS[0], SUB_A, CUS_A), {
       retrieveSubscription: retrieveFixture,
     });
     const rows = await sql`SELECT count(*)::int AS n FROM subscriptions WHERE stripe_subscription_id = ${SUB_A}`;
     check(Number(rows[0].n) === 1, 'Retry/Doppel-Event → weiterhin GENAU 1 Zeile (idempotent via UNIQUE-Index)');
 
+    // ── [2b] B2 (Owner-Auftrag 2026-11-05): fail-closed an ALLEN Aufrufstellen ─
+    // Ein unbekannter lookup_key darf NIE still als 'free' gespeichert werden.
+    // Erwartet: Wurf → der Endpoint antwortet 500 → Stripe wiederholt das Event
+    // (Selbstheilung nach einem Fix). Beweis hier über die drei Aufrufstellen.
+    console.log('\n[2b] B2 fail-closed: unbekannter lookup_key an allen drei Aufrufstellen');
+    const tierBefore = (await qGetSubscriptionByStripeId(SUB_A))?.planTier;
+    const unknownKey = 'pro_monthly_typo';
+    const badRetrieve = async () => ({
+      current_period_end: 1_893_456_000,
+      items: { data: [{ price: { lookup_key: unknownKey } }] },
+    });
+    await expectThrow(
+      () =>
+        processOffline(
+          sessionCompletedEvent(TEST_USERS[0], `sub_b2ck_${RUN}`, `cus_b2ck_${RUN}`),
+          { retrieveSubscription: badRetrieve },
+        ),
+      'checkout.session.completed: unbekannter lookup_key → Wurf (kein free)',
+    );
+    check(
+      (await qGetSubscriptionByStripeId(`sub_b2ck_${RUN}`)) === null,
+      'checkout: bei unbekanntem Preis wird KEINE subscriptions-Zeile angelegt',
+    );
+    await expectThrow(
+      () => processOffline(invoicePaidEvent(SUB_A, CUS_A, 1_894_051_200, unknownKey)),
+      'invoice.paid: unbekannter lookup_key → Wurf (kein free)',
+    );
+    await expectThrow(
+      () => processOffline(subscriptionUpdatedEvent(SUB_A, CUS_A, 'active', 1_894_051_200, unknownKey)),
+      'customer.subscription.updated: unbekannter lookup_key → Wurf (kein free)',
+    );
+    row = await qGetSubscriptionByStripeId(SUB_A);
+    check(
+      row?.planTier === 'pro' && row?.planTier === tierBefore,
+      'kein Schreibvorgang: plan_tier bleibt pro (NICHT free)',
+    );
+    // Kein lookup_key UND kein DB-Tarif ⇒ eigener Fehlertyp (Retry-Semantik).
+    const unresolvable = await (async () => {
+      try {
+        await processOffline(
+          sessionCompletedEvent(TEST_USERS[1], `sub_b2nr_${RUN}`, `cus_b2nr_${RUN}`),
+          { retrieveSubscription: async () => ({ current_period_end: 1_893_456_000, items: { data: [{}] } }) },
+        );
+        return null;
+      } catch (err) {
+        return err;
+      }
+    })();
+    check(
+      unresolvable instanceof UnresolvablePlanTierError,
+      'checkout: kein lookup_key + kein DB-Tarif → UnresolvablePlanTierError (Typ)',
+    );
+    check(
+      (await qGetSubscriptionByStripeId(`sub_b2nr_${RUN}`)) === null,
+      'checkout: nicht bestimmbarer Tarif → KEINE Zeile (nichts geschrieben)',
+    );
+
+    // ── [2c] DE-Launch-Gate (2026-10-26) — offline, mit Recordern ───────────
+    // Das Gate ist eine Sperre, die im Fehlerfall Geld bewegt (cancel + refund).
+    // Deshalb hier explizit: Ausland → kein Pro + cancel(+refund); DE → kein Call.
+    console.log('\n[2c] DE-Launch-Gate: Ausland wird gesperrt, DE nicht angefasst');
+    resetOfflineRecorders();
+    const usSub = `sub_${RUN}_us`;
+    const usUser = TEST_USERS[1];
+    await processOffline(sessionCompletedEvent(usUser, usSub, `cus_${RUN}_us`, { country: 'US' }), {
+      retrieveSubscription: retrieveFixture,
+    });
+    const usRow = await qGetSubscriptionByStripeId(usSub);
+    check(usRow !== null, 'Ausland (US): subscriptions-Zeile wird angelegt (Nachvollziehbarkeit)');
+    check(usRow?.status === 'expired', 'Ausland (US): status = expired (KEIN Pro)');
+    check((await qGetPlanTier(usUser)) === 'free', 'Ausland (US): qGetPlanTier = free (kein Pro-Zugriff)');
+    check(
+      deGateCalls.length === 1 && deGateCalls[0].kind === 'cancel' && deGateCalls[0].id === usSub,
+      'Ausland (US): GENAU EIN cancel für die Subscription',
+    );
+    check(
+      deGateCalls.some((c) => c.kind === 'cancel' && c.key?.startsWith('degate:sub:')),
+      'cancel bekommt einen Idempotency-Key (degate:sub:…)',
+    );
+    check(!deGateCalls.some((c) => c.kind === 'refund'), 'ohne payment_intent: KEIN refund');
+
+    // Ausland MIT PaymentIntent → cancel UND volle Erstattung
+    resetOfflineRecorders();
+    const usPiSub = `sub_${RUN}_uspi`;
+    const usPi = `pi_${RUN}_us`;
+    await processOffline(
+      sessionCompletedEvent(usUser, usPiSub, `cus_${RUN}_uspi`, { country: 'US', paymentIntent: usPi }),
+      { retrieveSubscription: retrieveFixture },
+    );
+    check(
+      deGateCalls.length === 2 &&
+        deGateCalls[0].kind === 'cancel' &&
+        deGateCalls[1].kind === 'refund' &&
+        deGateCalls[1].id === usPi,
+      'Ausland + PaymentIntent: erst cancel, dann refund des PaymentIntent',
+    );
+    check(
+      (await qGetSubscriptionByStripeId(usPiSub))?.status === 'expired',
+      'Ausland + PaymentIntent: status bleibt expired',
+    );
+
+    // Fehlende Rechnungsadresse → wie Ausland (fail-closed)
+    resetOfflineRecorders();
+    const noAddrSub = `sub_${RUN}_noaddr`;
+    await processOffline(sessionCompletedEvent(usUser, noAddrSub, `cus_${RUN}_noaddr`, { country: null }), {
+      retrieveSubscription: retrieveFixture,
+    });
+    check(
+      (await qGetSubscriptionByStripeId(noAddrSub))?.status === 'expired' &&
+        deGateCalls.filter((c) => c.kind === 'cancel').length === 1,
+      'fehlende Adresse → wie Ausland: expired + cancel (fail-closed)',
+    );
+
+    // DE-Normalfall: kein Gate-Call, Rechnungsmail wird gesetzt (best effort)
+    resetOfflineRecorders();
+    const deSub = `sub_${RUN}_de`;
+    const deUser = TEST_USERS[1];
+    await processOffline(
+      sessionCompletedEvent(deUser, deSub, `cus_${RUN}_de`, { email: `wh-${RUN}-de@example.com` }),
+      { retrieveSubscription: retrieveFixture },
+    );
+    const deRow = await qGetSubscriptionByStripeId(deSub);
+    check(deRow?.status === 'active' && deRow?.planTier === 'pro', 'DE: Checkout aktiviert pro (Normalfall)');
+    check(deGateCalls.length === 0, 'DE: KEIN cancel/refund (Gate greift nicht)');
+    check(
+      invoiceEmailCalls.length === 1 && invoiceEmailCalls[0].email === `wh-${RUN}-de@example.com`,
+      'DE: Rechnungsmail wird gesetzt (setInvoiceEmail-Seam)',
+    );
+    await processOffline(subscriptionDeletedEvent(deSub, `cus_${RUN}_de`));
+    check((await qGetPlanTier(deUser)) === 'free', 'DE: nach deleted wieder free (Ausgangslage für [3])');
+
+    // subscription.updated mit ANDEREM period_end als im folgenden
+    // invoice.paid-Test, damit dessen Verlängerungs-Assertion nicht trivial
+    // erfüllt ist.
+    resetOfflineRecorders();
+    await processOffline(subscriptionUpdatedEvent(SUB_A, CUS_A, 'active', 1_893_000_000));
+    check(
+      deGateCalls.length === 0,
+      'subscription.updated: kein DE-Gate-Call (Land bleibt DE)',
+    );
+
     // invoice.paid verlängert current_period_end
     const nextPeriod = 1_894_051_200;
-    await processStripeEvent(invoicePaidEvent(SUB_A, CUS_A, nextPeriod));
+    await processOffline(invoicePaidEvent(SUB_A, CUS_A, nextPeriod));
     row = await qGetSubscriptionByStripeId(SUB_A);
     check(row !== null && row.currentPeriodEnd?.getTime() === nextPeriod * 1000, 'invoice.paid verlängert current_period_end');
 
@@ -281,7 +515,7 @@ async function main() {
       status: 'active',
       currentPeriodEnd: realLineEnd - 30 * 86400,
     });
-    await processStripeEvent(
+    await processOffline(
       {
         type: 'invoice.paid',
         data: {
@@ -302,47 +536,47 @@ async function main() {
     // dahlia (8.3d-Befund): subscription.updated mit period_end NUR am Item →
     // Item-Pfad lesen (periodEndOfSubscription), DB-Zeile bekommt den Wert.
     const dahliaPeriod = 1_893_700_000;
-    await processStripeEvent(subscriptionUpdatedDahliaEvent(SUB_A, CUS_A, 'active', dahliaPeriod));
+    await processOffline(subscriptionUpdatedDahliaEvent(SUB_A, CUS_A, 'active', dahliaPeriod));
     row = await qGetSubscriptionByStripeId(SUB_A);
     check(row !== null && row.currentPeriodEnd?.getTime() === dahliaPeriod * 1000, 'subscription.updated (dahlia, period_end am Item) → current_period_end gespeichert');
     // dahlia-checkout: retrieve liefert period_end NUR am Item → gleicher Effekt
-    await processStripeEvent(sessionCompletedEvent(TEST_USERS[1], `sub_dahlia_${RUN}`, CUS_A), {
+    await processOffline(sessionCompletedEvent(TEST_USERS[1], `sub_dahlia_${RUN}`, CUS_A), {
       retrieveSubscription: dahliaRetrieveFixture,
     });
     const dahliaRow = await qGetSubscriptionByStripeId(`sub_dahlia_${RUN}`);
     check(dahliaRow !== null && dahliaRow.currentPeriodEnd?.getTime() === 1_893_999_600 * 1000, 'checkout mit retrieve (period_end am Item) → current_period_end gespeichert');
     // dahlia-Testabonnements beenden, damit die Guard-Prüfungen in [3] wieder
     // von „kein aktives Abo → free" ausgehen können.
-    await processStripeEvent(subscriptionDeletedEvent(`sub_dahlia_${RUN}`, CUS_A));
+    await processOffline(subscriptionDeletedEvent(`sub_dahlia_${RUN}`, CUS_A));
     const dahliaGone = await qGetSubscriptionByStripeId(`sub_dahlia_${RUN}`);
     check(dahliaGone?.status === 'expired', 'dahlia-Testabo nach deleted → expired (Guard-Unabhängigkeit)');
 
     // subscription.updated canceled → cancelled
-    await processStripeEvent(subscriptionUpdatedEvent(SUB_A, CUS_A, 'canceled'));
+    await processOffline(subscriptionUpdatedEvent(SUB_A, CUS_A, 'canceled'));
     row = await qGetSubscriptionByStripeId(SUB_A);
     check(row?.status === 'cancelled', "subscription.updated 'canceled' → status cancelled");
 
     // subscription.updated past_due → expired (Zugriff aus)
-    await processStripeEvent(subscriptionUpdatedEvent(SUB_A, CUS_A, 'past_due'));
+    await processOffline(subscriptionUpdatedEvent(SUB_A, CUS_A, 'past_due'));
     row = await qGetSubscriptionByStripeId(SUB_A);
     check(row?.status === 'expired', "subscription.updated 'past_due' → status expired");
 
     // wieder aktiv (z. B. Zahlung kam doch)
-    await processStripeEvent(subscriptionUpdatedEvent(SUB_A, CUS_A, 'active'));
+    await processOffline(subscriptionUpdatedEvent(SUB_A, CUS_A, 'active'));
     row = await qGetSubscriptionByStripeId(SUB_A);
     check(row?.status === 'active' && row.planTier === 'pro', "subscription.updated 'active' → wieder active + pro");
 
     // subscription.deleted → expired
-    await processStripeEvent(subscriptionDeletedEvent(SUB_A, CUS_A));
+    await processOffline(subscriptionDeletedEvent(SUB_A, CUS_A));
     row = await qGetSubscriptionByStripeId(SUB_A);
     check(row?.status === 'expired', 'subscription.deleted → status expired');
 
     // unbekanntes Event → No-Op, kein Crash, keine Zeile
-    await processStripeEvent({ type: 'charge.succeeded', data: { object: { id: 'ch_1' } } });
+    await processOffline({ type: 'charge.succeeded', data: { object: { id: 'ch_1' } } });
     check(true, 'unbekanntes Event → No-Op (200-ignorieren)');
 
     // checkout unbezahlt → NICHT aktivieren
-    await processStripeEvent(sessionCompletedEvent(TEST_USERS[1], `sub_unpaid_${RUN}`, 'cus_unpaid', { paymentStatus: 'unpaid' }), {
+    await processOffline(sessionCompletedEvent(TEST_USERS[1], `sub_unpaid_${RUN}`, 'cus_unpaid', { paymentStatus: 'unpaid' }), {
       retrieveSubscription: retrieveFixture,
     });
     const unpaidRow = await qGetSubscriptionByStripeId(`sub_unpaid_${RUN}`);
@@ -350,25 +584,29 @@ async function main() {
 
     // invoice für unbekannte Subscription → wirft (500 → Stripe retried)
     await expectThrow(
-      () => processStripeEvent(invoicePaidEvent(`sub_ghost_${RUN}`, 'cus_ghost')),
+      () => processOffline(invoicePaidEvent(`sub_ghost_${RUN}`, 'cus_ghost')),
       'invoice.paid für unbekannte Subscription → wirft (Retry-Semantik)',
     );
 
-    // ── [3] Guard↔Tier: Free 5 / Pro 200 ─────────────────────────────────────
+    // ── [3] Guard↔Tier: Free 3 (einmalig) / Pro 200 ─────────────────────────
     console.log('\n[3] Usage-Guard ↔ subscriptions-Tabelle');
     check((await qGetPlanTier(TEST_USERS[1])) === 'free', 'Ohne Abo → plan_tier free (Default)');
-    check(limitForPlan('free') === FREE_LIMIT && FREE_LIMIT === 5, 'Free-Limit = 5 (Owner-Festlegung)');
+    // Owner-Entscheid 2026-10-22 (Commit 6b5beef): Free = 3 Generierungen,
+    // EINMALIG (kein Monats-Reset). Die alte Erwartung 5 war ueberholt.
+    check(limitForPlan('free') === FREE_LIMIT && FREE_LIMIT === 3, 'Free-Limit = 3 einmalig (Owner-Festlegung 2026-10-22)');
     check(limitForPlan('pro') === PRO_LIMIT && PRO_LIMIT === 200, 'Pro-Limit = 200 (Owner-Festlegung)');
-    const freeRemaining = await qGetRemaining(TEST_USERS[1], 'free', '2099-01');
-    check(freeRemaining === 5, 'Free: 5 von 5 verbleibend');
+    // Signatur ist qGetRemaining(userId, period, limit) — vorher waren Periode
+    // und Limit vertauscht (limit='2099-01' → NaN).
+    const freeRemaining = await qGetRemaining(TEST_USERS[1], '2099-01', FREE_LIMIT);
+    check(freeRemaining === FREE_LIMIT && freeRemaining === 3, 'Free: 3 von 3 verbleibend');
     check((await qGetPlanTier(TEST_USERS[0])) === 'free', 'nach deleted → plan_tier wieder free (kein aktives Abo)');
 
     // Neues aktives Pro-Abo → Guard schaltet 200 frei
-    await processStripeEvent(sessionCompletedEvent(TEST_USERS[0], `sub_pro2_${RUN}`, `cus_pro2_${RUN}`), {
+    await processOffline(sessionCompletedEvent(TEST_USERS[0], `sub_pro2_${RUN}`, `cus_pro2_${RUN}`), {
       retrieveSubscription: retrieveFixture,
     });
     check((await qGetPlanTier(TEST_USERS[0])) === 'pro', 'aktiver Pro-Eintrag → qGetPlanTier = pro');
-    const proRemaining = await qGetRemaining(TEST_USERS[0], 'pro', '2099-01');
+    const proRemaining = await qGetRemaining(TEST_USERS[0], '2099-01', PRO_LIMIT);
     check(proRemaining === PRO_LIMIT, `Pro: ${PRO_LIMIT} von ${PRO_LIMIT} verbleibend (Guard-Verzahnung)`);
     check(limitForPlan(await qGetPlanTier(TEST_USERS[0])) === 200, 'limitForPlan(qGetPlanTier) = 200');
 
@@ -388,7 +626,7 @@ async function main() {
     // ── [5] Upsert-Guards ─────────────────────────────────────────────────────
     console.log('\n[5] Upsert-Datenintegrität');
     await expectThrow(
-      () => processStripeEvent(sessionCompletedEvent(TEST_USERS[0], `sub_nofetch_${RUN}`, 'cus_x')),
+      () => processOffline(sessionCompletedEvent(TEST_USERS[0], `sub_nofetch_${RUN}`, 'cus_x')),
       'checkout ohne retrieveSubscription-Dependency → wirft (fail-closed)',
     );
 
