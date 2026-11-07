@@ -107,9 +107,20 @@ const strategyPayload = {
 
 const ideaResult = {
   mode: 'todayIdea' as const,
+  // Härtung 2026-11-06: Fixture ist ein VOLLSTÄNDIGES Ergebnis (Render-Vertrag
+  // der Route). Vorher fehlten idea/length/scenes/overlays/spokenText/cta/why —
+  // ein solches Objekt würde die Anzeige zum Absturz bringen und wird vom
+  // Ergebnis-Guard zu Recht ignoriert (`src/lib/tiktok-result-guard.ts`).
+  idea: 'Idee',
   hook: 'Hook',
+  length: '20 Sekunden',
+  scenes: ['Szene 1', 'Szene 2'],
+  overlays: ['Overlay 1'],
+  spokenText: 'Sprechtext',
   caption: 'Caption',
   hashtags: ['#a'],
+  cta: 'CTA',
+  why: 'Warum',
   imageIdeas: [{ description: 'd', studioPrompt: 'p' }],
 } as unknown as Parameters<typeof saveTikTokResult>[1];
 
@@ -242,7 +253,17 @@ async function main(): Promise<void> {
     check('3.3b leerer/null-Eintrag → null', parseTikTokResult(null, 1_000) === null && parseTikTokResult('null', 1_000) === null);
     check('3.3b Ergebnis ohne mode → null (kein Fremd-Objekt im State)', parseTikTokResult(JSON.stringify({ version: 1, mode: 'todayIdea', result: { hook: 'x' }, savedAt: 1_000 }), 1_000) === null);
 
-    const diag = { mode: 'diagnose', newHook: 'x' } as unknown as Parameters<typeof saveTikTokResult>[1];
+    // Härtung 2026-11-06: vollständige Diagnose-Fixture (Render-Vertrag), damit
+    // der Ergebnis-Guard sie als gültig durchlässt (vorher nur { mode, newHook }).
+    const diag = {
+      mode: 'diagnose',
+      biggestProblem: 'Problem',
+      whatWorks: ['funktioniert'],
+      whatToImprove: ['verbessern'],
+      newHook: 'x',
+      optimized: 'optimiert',
+      nextTest: 'Test',
+    } as unknown as Parameters<typeof saveTikTokResult>[1];
     saveTikTokResult('diagnose', diag, 7_000);
     check('3.3b Diagnose-Ergebnis wird pro Modus wiederhergestellt', readTikTokResult(7_000)?.mode === 'diagnose');
     clearTikTokResult();

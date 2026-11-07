@@ -15,6 +15,9 @@
  * Reine, testbare Funktionen (sessionStorage-Zugriffe gekapselt).
  */
 import type { TikTokMode, TikTokResult } from '~/ai/tiktok';
+// Relativer Import (statt `~/…`): dieses Modul wird auch in den Bun-Testharnessen
+// direkt importiert — ein Wert-Import über den Vite-Alias wäre dort nicht auflösbar.
+import { isRenderableTikTokResult } from './tiktok-result-guard';
 
 /** sessionStorage-Schlüssel des zuletzt erzeugten TikTok-Ergebnisses. */
 export const TIKTOK_RESULT_KEY = 'growimo_tiktok_last_result';
@@ -48,6 +51,14 @@ export function serializeTikTokResult(
  * fehlendem/defektem Eintrag, falscher Version, unbekanntem Modus, leerem
  * Ergebnis oder abgelaufener TTL — der Aufrufer fällt dann auf den
  * normalen (leeren) Startzustand zurück, nie auf einen Crash.
+ *
+ * Härtung 2026-11-06: `result.mode` allein reichte nicht — die Anzeige liest
+ * mehr Felder (`r.scenes.map`, `r.overlays.length`, `r.spokenText.trim()` …).
+ * Ein gespeichertes Ergebnis, dem eines davon fehlt, sprengte die ganze Route
+ * (Error-Boundary). Jetzt entscheidet `isRenderableTikTokResult()`
+ * (`~/lib/tiktok-result-guard`) anhand des Render-Vertrags: unvollständige
+ * Ergebnisse werden ignoriert (= „kein Ergebnis"), gültige unverändert
+ * zurückgegeben. Der gespeicherte Eintrag selbst bleibt unangetastet.
  */
 export function parseTikTokResult(
   raw: string | null,
@@ -68,9 +79,11 @@ export function parseTikTokResult(
   if (typeof parsed.savedAt !== 'number' || !Number.isFinite(parsed.savedAt)) return null;
   if (Number.isFinite(ttlMs) && ttlMs > 0 && now - parsed.savedAt > ttlMs) return null;
   const result = parsed.result;
-  if (!result || typeof result !== 'object') return null;
-  if (typeof (result as { mode?: unknown }).mode !== 'string') return null;
-  return { mode: mode as TikTokMode, result };
+  // Härtung 2026-11-06 — vollständige Prüfung gegen den Render-Vertrag statt
+  // nur `result.mode`: ein unvollständiges Ergebnis wird wie „kein Ergebnis"
+  // behandelt (kein Crash der Route), der sessionStorage-Eintrag bleibt liegen.
+  if (!isRenderableTikTokResult(result)) return null;
+  return { mode: mode as TikTokMode, result: result as TikTokResult };
 }
 
 /** Schreibt das Ergebnis in den sessionStorage (nie blockierend). */

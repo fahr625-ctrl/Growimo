@@ -53,6 +53,7 @@ import type { Translations } from '~/i18n';
 // Bun-Testharnessen direkt importiert — ein Wert-Import über den Vite-Alias
 // wäre dort nicht auflösbar.
 import { TIKTOK_RESULT_TTL_MS, readTikTokResult } from './last-result';
+import { isRenderableTikTokResult } from './tiktok-result-guard';
 
 /** sessionStorage-Schlüssel der „Zuletzt erstellt"-Liste. */
 export const TIKTOK_RECENT_KEY = 'growimo_tiktok_recent_results';
@@ -204,9 +205,17 @@ export function parseRecentList(
     if (typeof e.mode !== 'string' || !MODES.includes(e.mode as TikTokMode)) continue;
     if (typeof e.savedAt !== 'number' || !Number.isFinite(e.savedAt)) continue;
     if (Number.isFinite(ttlMs) && ttlMs > 0 && now - e.savedAt > ttlMs) continue;
-    const result = e.result as TikTokResult | undefined;
-    if (!result || typeof result !== 'object') continue;
-    if (typeof (result as { mode?: unknown }).mode !== 'string') continue;
+    // (`e.result` ist zur Laufzeit beliebig; die Prüfung direkt darunter
+    // entscheidet, ob es ein gültiges TikTokResult ist.)
+    const result = e.result as TikTokResult;
+    // Härtung 2026-11-06 — dieselbe Vollprüfung wie im Einzelergebnis: ein
+    // unvollständiges/falsch typisiertes Ergebnis würde die ganze Route
+    // (Error-Boundary) sprengen. Es wird EINZELN übersprungen; die übrigen
+    // gültigen Einträge bleiben sichtbar und öffenbar. Der Eintrag bleibt im
+    // sessionStorage unangetastet (nichts wird gelöscht oder umgeschrieben).
+    // Die Prüfung steht VOR der Beschriftungs-Ableitung (`recentEntryLabel`
+    // liest `idea`/`note`/`biggestProblem`) — so kann auch die nicht werfen.
+    if (!isRenderableTikTokResult(result)) continue;
     const label = typeof e.label === 'string' && e.label.trim() !== ''
       ? e.label
       : recentEntryLabel(e.mode as TikTokMode, result);
