@@ -2162,4 +2162,128 @@ export const de = {
   legal_en_notice_body:
     'Allgemeine Geschäftsbedingungen und Widerrufsbelehrung liegen derzeit nur auf Deutsch vor. Eine englische Fassung ist noch nicht erstellt; maßgeblich ist die deutsche Fassung (AGB § 16 Abs. 6). Der folgende Text ist deshalb deutsch.',
 
+  // ── Öffentliche Startseite (Teil B, 2026-11-12) ───────────────────────────────
+  // Nur was gebaut ist: Pinterest-Texte, Etsy-Texte, TikTok-Skript.
+  // Pin-Bild und Etsy-Mockup sind ausdrücklich „in Entwicklung".
+  lp_nav_features: 'Die drei Inhalte',
+  lp_nav_examples: 'Beispiele',
+  lp_nav_how: "So funktioniert's",
+  lp_nav_faq: 'Fragen',
+
+  lp_hero_badge: 'Built for Growth',
+  lp_hero_headline: 'Deine Idee. Dein fertiger Content. In wenigen Klicks.',
+  lp_hero_sub:
+    'Growimo macht aus einer Produktidee drei fertige Inhalte: Pin-Texte für Pinterest, ein Etsy-Listing und ein TikTok-Skript. Keine Beratung, keine Strategiepapiere — Text zum direkten Verwenden.',
+  lp_hero_point1: 'Pinterest: Titel, Beschreibung und Keywords',
+  lp_hero_point2: 'Etsy: Titel, Beschreibung und genau 13 Tags',
+  lp_hero_point3: 'TikTok: Skript mit Hook, Szenen, Titel und 5 Hashtags',
+  lp_hero_cta_primary: 'Kostenlos starten',
+  lp_hero_cta_secondary: 'Beispiele ansehen',
+  lp_hero_note: 'Kostenlose Registrierung, keine Kreditkarte nötig.',
+  lp_hero_card_label: 'Beispiel-Ergebnis · Pinterest',
+  lp_hero_card_title: 'Sojawachs-Kerzen im Glas – drei Düfte für ruhige Herbstabende',
+  lp_hero_card_desc:
+    'Handgegossene Kerzen aus Sojawachs, drei Düfte zur Auswahl. Für alle, die es zu Hause gemütlich mögen.',
+  lp_hero_card_meta: 'Beschreibung und Keywords kommen mit dazu.',
+  lp_hero_card_image_note: 'Pin-Bild: in Entwicklung',
+
+  lp_features_headline: 'Drei Funktionen. Drei fertige Ergebnisse.',
+  lp_features_sub:
+    'Jede Funktion liefert Text zum Kopieren. Was noch nicht fertig ist, steht ausdrücklich dabei.',
+  lp_feature_pinterest_title: 'Pinterest',
+  lp_feature_pinterest_desc:
+    'SEO-Titel, Beschreibung und Keywords für einen Pin — fertig formuliert, direkt zum Kopieren.',
+  lp_feature_pinterest_status: 'Texte fertig · Pin-Bild in Entwicklung',
+  lp_feature_etsy_title: 'Etsy',
+  lp_feature_etsy_desc: 'Listing-Titel, verkaufsorientierte Beschreibung und genau 13 gültige Tags.',
+  lp_feature_etsy_status: 'Texte fertig · Mockup in Entwicklung',
+  lp_feature_tiktok_title: 'TikTok',
+  lp_feature_tiktok_desc:
+    'Videoskript mit Hook, Szenen mit Zeitangaben, Sprechtext, Titel, Beschreibung und genau 5 Hashtags.',
+  lp_feature_tiktok_status: 'Vollständig verfügbar',
+
+  lp_examples_headline: 'Drei echte Beispiel-Ergebnisse',
+  lp_examples_sub:
+    'Beispiel-Produkt: „Sojawachs-Kerzen im Glas". So sieht die Ausgabe aus, die du kopierst.',
+  lp_examples_input:
+    'Dein Input: „Ich verkaufe handgegossene Sojawachs-Kerzen im Glas in drei Düften."',
+
+  lp_ex_pin_label: 'Pinterest · Pin-Texte',
+  lp_ex_pin_title_label: 'Titel (max. 100 Zeichen)',
+  lp_ex_pin_title: 'Sojawachs-Kerzen im Glas – 3 Düfte für gemütliche Herbstabende',
+  lp_ex_pin_desc_label: 'Beschreibung',
+  lp_ex_pin_desc:
+    'Handgegossene Sojawachs-Kerzen im Glas, drei Düfte zur Auswahl. Gemütlich für Herbst- und Winterabende, auch als Geschenk. Jetzt im Shop entdecken.',
+  lp_ex_pin_kw_label: 'Keywords',
+  lp_ex_pin_kw: 'sojawachs kerzen·kerzen im glas·herbstduft·geschenkidee·handgemachte kerzen',
+  lp_ex_pin_soon: 'Pin-Bild folgt — die Texte bekommst du schon jetzt.',
+
+  lp_ex_etsy_label: 'Etsy · Listing-Texte',
+  lp_ex_etsy_title_label: 'Titel',
+  lp_ex_etsy_title: 'Sojawachs-Kerze im Glas | handgegossen | 3 Düfte | Geschenk',
+  lp_ex_etsy_desc_label: 'Beschreibung (Auszug)',
+  lp_ex_etsy_desc:
+    'Handgegossene Kerze aus Sojawachs im Glas, drei Düfte zur Auswahl: Zimt, Vanille, Tanne. Eine schöne Geschenkidee für Herbst- und Winterabende.',
+  lp_ex_etsy_tags_label: 'Genau 13 Tags',
+  lp_ex_etsy_tags:
+    'sojawachs kerze·kerze im glas·herbstduft·geschenk kerze·handgemacht·duftkerze·zimt kerze·vanille kerze·tanne kerze·kerzen geschenk·herbstdeko·sojawachs·kerze',
+  lp_ex_etsy_soon:
+    'Mockup folgt — bei handgefertigten Produkten verlangt Etsy ohnehin ein echtes Foto.',
+
+  lp_ex_tt_label: 'TikTok · Videoskript (15 s)',
+  lp_ex_tt_title_label: 'Titel',
+  lp_ex_tt_title: 'Kerzen, die nach Herbst riechen 🕯️',
+  lp_ex_tt_scenes_label: 'Szenen mit Zeitangaben',
+  lp_ex_tt_scenes:
+    '0–3 s · Hook: „Drei Kerzen, drei Herbstabende — welche ist deine?"·3–8 s · Szene 1: Wachs wird in ein Glas gegossen, Einblendung „Sojawachs"·8–13 s · Szene 2: drei Gläser im Regal, Einblendung „Zimt · Vanille · Tanne"·13–15 s · CTA: „Schreib mir, welchen Duft du zuerst testest."',
+  lp_ex_tt_caption_label: 'Beschreibung',
+  lp_ex_tt_caption: 'Handgegossene Sojawachs-Kerzen in drei Düften. Welcher darf bei dir einziehen?',
+  lp_ex_tt_hashtags_label: 'Genau 5 Hashtags',
+  lp_ex_tt_hashtags: '#sojawachskerzen·#duftkerzen·#handgemacht·#herbstabende·#kerzenliebe',
+  lp_ex_tt_ready: 'Vollständig verfügbar — Skript, kein Video.',
+
+  lp_how_headline: "So funktioniert's",
+  lp_how_step1_title: 'Beschreiben',
+  lp_how_step1_text: 'Ein Satz zu deinem Produkt oder Thema — kein Marketing-Wissen nötig.',
+  lp_how_step2_title: 'Funktion wählen',
+  lp_how_step2_text: 'Pinterest, Etsy oder TikTok. Jede Funktion hat ihr eigenes Format.',
+  lp_how_step3_title: 'Ergebnis kopieren',
+  lp_how_step3_text: 'Du bekommst Text zum direkten Verwenden — keine To-do-Liste.',
+
+  lp_soon_headline: 'Was noch in Entwicklung ist',
+  lp_soon_pinterest:
+    'Das Pin-Bild zu den Pinterest-Texten. Bis es fertig ist, bekommst du die Texte — kein Bild.',
+  lp_soon_etsy:
+    'Das Mockup zum Etsy-Listing. Ein Mockup ist kein echtes Produktfoto und ersetzt es nicht.',
+  lp_soon_note:
+    'Wir versprechen hier nichts, was noch nicht funktioniert. Sobald Bild und Mockup fertig sind, steht es hier.',
+
+  lp_faq_headline: 'Häufige Fragen',
+  lp_faq_q1: 'Was genau bekomme ich bei Growimo?',
+  lp_faq_a1:
+    'Drei fertige Inhalte: Pin-Texte für Pinterest, ein Etsy-Listing mit 13 Tags und ein TikTok-Skript. Jeweils Text zum Kopieren, kein Beratungstext.',
+  lp_faq_q2: 'Bekomme ich ein fertiges Pin-Bild?',
+  lp_faq_a2:
+    'Noch nicht — das Bild ist in Entwicklung. Aktuell bekommst du Titel, Beschreibung und Keywords für deinen Pin.',
+  lp_faq_q3: 'Ist das Etsy-Mockup fertig?',
+  lp_faq_a3:
+    'Noch nicht, es ist in Entwicklung. Bei handgefertigten Produkten verlangt Etsy ein echtes Produktfoto — ein Mockup ist eine Ergänzung, kein Ersatz.',
+  lp_faq_q4: 'Erstellt Growimo TikToks oder Videos?',
+  lp_faq_a4:
+    'Nein. Du bekommst ein umsetzbares Skript mit Zeitangaben, Sprechtext, Einblendungen und Hashtags. Das Video drehst du selbst.',
+  lp_faq_q5: 'Brauche ich Vorkenntnisse?',
+  lp_faq_a5: 'Nein. Du beschreibst dein Produkt in einem Satz und wählst eine Funktion.',
+  lp_faq_q6: 'Kann ich Growimo kostenlos testen?',
+  lp_faq_a6:
+    'Ja. Die Registrierung ist kostenlos und du bekommst ein Gratis-Kontingent an Generierungen, mit dem du alle drei Funktionen ausprobieren kannst.',
+
+  lp_cta_headline: 'Ein Satz reicht für den Anfang.',
+  lp_cta_text: 'Beschreib dein Produkt und hol dir den ersten fertigen Inhalt.',
+  lp_cta_button: 'Kostenlos starten',
+
+  lp_footer_description:
+    'Growimo macht aus einer Produktidee drei fertige Inhalte: Pin-Texte für Pinterest, ein Etsy-Listing und ein TikTok-Skript.',
+  lp_footer_disclaimer:
+    'KI-generierte Texte können Fehler enthalten. Prüfe sie vor der Veröffentlichung.',
+
 } as const;

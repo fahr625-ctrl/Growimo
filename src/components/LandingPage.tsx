@@ -1,24 +1,19 @@
 import { useState } from "react";
 import { useTranslation } from "~/i18n";
 import LanguageSwitcher from "~/components/LanguageSwitcher";
-// Beta-Ende (Owner 2026-10-08): Das Beta-Anmelde-Modal ist entfernt. Alle
-// Landing-CTAs führen jetzt direkt zur öffentlichen Registrierung /app/sign-up
-// — Growimo ist offen, es gibt keine Warteliste und keinen Beta-Zugang mehr.
+// ── Teil B der Neuausrichtung (Owner-Vorgabe 2026-11-12) ───────────────────────
+// Die Startseite verspricht nur, was gebaut ist: Pinterest-Texte, Etsy-Texte und
+// TikTok-Skript sind fertig; Pin-Bild und Etsy-Mockup sind ausdrücklich als
+// „in Entwicklung" gekennzeichnet. Keine erfundenen Zahlen, keine erfundene
+// Social Proof. Die alten Landing-Keys bleiben in de.ts/en.ts erhalten
+// (ausblenden statt löschen) — diese Seite nutzt die lp_*-Familie.
 
-// ── Icons (kept minimal, reused) ────────────────────────────────────────────────
+// ── Icons ───────────────────────────────────────────────────────────────────────
 
 function CheckIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-    </svg>
-  );
-}
-
-function CrossIcon({ className = "h-5 w-5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
     </svg>
   );
 }
@@ -31,43 +26,40 @@ function ChevronDownIcon({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
+function ClockIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
 // ── Shared UI primitives ────────────────────────────────────────────────────────
 
 function SectionContainer({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 ${className}`}>
-      {children}
-    </div>
-  );
+  return <div className={`mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 ${className}`}>{children}</div>;
 }
 
 function SectionHeading({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <h2 className={`text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl lg:text-6xl ${className}`}>
+    <h2 className={`text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl lg:text-5xl ${className}`}>
       {children}
     </h2>
   );
 }
 
-function PrimaryButton({ href, children }: { href: string; children: React.ReactNode }) {
+function StatusBadge({ tone, children }: { tone: "ready" | "partial" | "soon"; children: React.ReactNode }) {
+  const styles =
+    tone === "ready"
+      ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+      : tone === "partial"
+        ? "bg-amber-50 text-amber-700 ring-amber-200"
+        : "bg-gray-100 text-gray-600 ring-gray-200";
   return (
-    <a
-      href={href}
-      className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-blue-200 transition-all hover:from-blue-700 hover:to-purple-700 hover:shadow-xl hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-    >
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${styles}`}>
+      {tone === "soon" && <ClockIcon className="h-3.5 w-3.5" />}
       {children}
-    </a>
-  );
-}
-
-function SecondaryButton({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <a
-      href={href}
-      className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-6 py-3.5 text-base font-semibold text-gray-700 shadow-sm transition-all hover:border-gray-200 hover:bg-gray-50 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400"
-    >
-      {children}
-    </a>
+    </span>
   );
 }
 
@@ -78,27 +70,22 @@ function NavBar() {
   const { t } = useTranslation();
 
   const navLinks = [
-    { label: t.nav_features, href: "#features" },
-    { label: t.nav_how_it_works, href: "#how-it-works" },
-    { label: t.nav_examples, href: "#examples" },
-    { label: t.nav_audience, href: "#audience" },
-    { label: t.nav_faq, href: "#faq" },
+    { label: t.lp_nav_features, href: "#funktionen" },
+    { label: t.lp_nav_examples, href: "#beispiele" },
+    { label: t.lp_nav_how, href: "#so-gehts" },
+    { label: t.lp_nav_faq, href: "#fragen" },
   ];
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-gray-100 bg-white/90 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl items-center justify-between pl-6 pr-3 sm:pl-8 sm:pr-6 lg:px-8"
-           style={{ minHeight: '72px' }}>
-        {/* Logo */}
-        <a href="#" className="flex items-center flex-shrink-0">
-          <img
-            src="/logo.png"
-            alt="Growimo"
-            className="h-11 sm:h-14 w-auto"
-          />
+      <div
+        className="mx-auto flex max-w-6xl items-center justify-between pl-4 pr-3 sm:pl-6 sm:pr-6 lg:px-8"
+        style={{ minHeight: "72px" }}
+      >
+        <a href="#" className="flex flex-shrink-0 items-center">
+          <img src="/logo.png" alt="Growimo" className="h-11 w-auto sm:h-14" />
         </a>
 
-        {/* Desktop nav links */}
         <div className="hidden items-center gap-1 lg:flex">
           {navLinks.map((link) => (
             <a
@@ -111,7 +98,6 @@ function NavBar() {
           ))}
         </div>
 
-        {/* Desktop right side */}
         <div className="hidden items-center gap-3 lg:flex">
           <LanguageSwitcher />
           <a href="/app/sign-in" className="text-sm font-medium text-gray-600 transition-colors hover:text-blue-600">
@@ -119,13 +105,12 @@ function NavBar() {
           </a>
           <a
             href="/app/sign-up"
-            className="inline-flex items-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-blue-200 transition-all hover:from-blue-700 hover:to-purple-700 hover:shadow-lg"
+            className="inline-flex items-center rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-md transition-all hover:bg-gray-800"
           >
             {t.header_cta}
           </a>
         </div>
 
-        {/* Mobile: hamburger only — LanguageSwitcher moved into menu */}
         <div className="flex items-center lg:hidden">
           <button
             className="rounded-xl p-2.5 text-gray-600 hover:bg-gray-100"
@@ -143,7 +128,6 @@ function NavBar() {
         </div>
       </div>
 
-      {/* Mobile menu panel — includes LanguageSwitcher */}
       {menuOpen && (
         <div className="border-t border-gray-100 bg-white px-4 pb-4 pt-2 lg:hidden">
           <div className="mb-3 flex justify-center">
@@ -171,7 +155,7 @@ function NavBar() {
             <a
               href="/app/sign-up"
               onClick={() => setMenuOpen(false)}
-              className="mt-1 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-3 text-center text-sm font-semibold text-white shadow-md"
+              className="mt-1 rounded-xl bg-gray-900 px-5 py-3 text-center text-sm font-semibold text-white shadow-md"
             >
               {t.header_cta}
             </a>
@@ -184,204 +168,76 @@ function NavBar() {
 
 // ── HERO ────────────────────────────────────────────────────────────────────────
 
-function PlayIcon({ className = "h-4 w-4" }: { className?: string }) {
-  return (
-    <svg className={className} fill="currentColor" viewBox="0 0 24 24">
-      <path d="M8 5.14v14l11-7-11-7z" />
-    </svg>
-  );
-}
-
 function HeroSection() {
   const { t } = useTranslation();
 
+  const points = [t.lp_hero_point1, t.lp_hero_point2, t.lp_hero_point3];
+
   return (
-    <section id="hero" className="relative overflow-hidden pt-20 pb-24 sm:pt-44 sm:pb-32">
-      {/* Background glow */}
+    <section id="hero" className="relative overflow-hidden pt-28 pb-20 sm:pt-36 sm:pb-28">
       <div className="absolute inset-0 -z-10">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[800px] rounded-full bg-gradient-to-b from-blue-50 via-purple-50/40 to-transparent opacity-60 blur-3xl" />
-        <div className="absolute top-20 right-0 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-purple-100/60 to-blue-50/40 opacity-40 blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full bg-gradient-to-tr from-blue-50 to-transparent opacity-30 blur-3xl" />
+        <div className="absolute top-0 left-1/2 h-[700px] w-[900px] -translate-x-1/2 rounded-full bg-gradient-to-b from-blue-50 via-purple-50/40 to-transparent opacity-60 blur-3xl" />
       </div>
 
       <SectionContainer>
-        <div className="grid items-center gap-16 lg:grid-cols-2 lg:gap-24">
-          {/* Left: text */}
+        <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
           <div className="max-w-xl">
-            {/* Badge */}
-            <div className="mb-10 inline-flex items-center rounded-full border border-blue-200/60 bg-white/80 px-5 py-2 text-sm font-semibold text-blue-600 backdrop-blur-sm">
-              {t.hero_badge}
+            <div className="mb-8 inline-flex items-center rounded-full border border-blue-200/60 bg-white/80 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-blue-600 backdrop-blur-sm">
+              {t.lp_hero_badge}
             </div>
 
-            <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl lg:text-6xl lg:leading-[1.1]">
-              {t.hero_headline}
+            <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl lg:leading-[1.1]">
+              {t.lp_hero_headline}
             </h1>
 
-            <p className="mt-8 text-xl leading-relaxed text-gray-500 sm:text-2xl max-w-lg">
-              {t.hero_subtitle_new}
-            </p>
+            <p className="mt-6 text-lg leading-relaxed text-gray-500 sm:text-xl">{t.lp_hero_sub}</p>
 
-            {/* Benefit bullets */}
             <ul className="mt-8 space-y-3">
-              <li className="flex items-start gap-3">
-                <CheckIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-500" />
-                <span className="text-base text-gray-700 sm:text-lg">{t.hero_benefit1}</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <CheckIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-500" />
-                <span className="text-base text-gray-700 sm:text-lg">{t.hero_benefit2}</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <CheckIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-500" />
-                <span className="text-base text-gray-700 sm:text-lg">{t.hero_benefit3}</span>
-              </li>
+              {points.map((point) => (
+                <li key={point} className="flex items-start gap-3">
+                  <CheckIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-500" />
+                  <span className="text-base text-gray-700">{point}</span>
+                </li>
+              ))}
             </ul>
 
-            <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <a
                 href="/app/sign-up"
-                className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-8 py-4 text-lg font-semibold text-white sm:text-base shadow-lg shadow-gray-900/10 transition-all hover:bg-gray-800 hover:shadow-xl hover:shadow-gray-900/15 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
+                className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-8 py-4 text-base font-semibold text-white shadow-lg shadow-gray-900/10 transition-all hover:bg-gray-800 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
               >
-                {t.hero_cta_primary}
+                {t.lp_hero_cta_primary}
               </a>
               <a
-                href="#how-it-works"
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-8 py-4 text-lg font-semibold text-gray-700 sm:text-base shadow-sm transition-all hover:border-gray-300 hover:bg-gray-50 hover:shadow-md hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400"
+                href="#beispiele"
+                className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-8 py-4 text-base font-semibold text-gray-700 shadow-sm transition-all hover:border-gray-300 hover:bg-gray-50 hover:-translate-y-0.5"
               >
-                <PlayIcon className="h-4 w-4" />
-                {t.hero_cta_secondary}
+                {t.lp_hero_cta_secondary}
               </a>
             </div>
 
-            <p className="mt-8 text-sm text-gray-400">
-              {t.hero_trust}
-            </p>
+            <p className="mt-6 text-sm text-gray-400">{t.lp_hero_note}</p>
           </div>
 
-          {/* Right: Premium dashboard mockup */}
-          <div className="relative hidden lg:block">
-            <div className="relative">
-              {/* Glow behind mockup */}
-              <div className="absolute inset-0 -m-8 rounded-3xl bg-gradient-to-br from-blue-400/10 via-purple-400/5 to-transparent blur-2xl" />
+          {/* Beispiel-Karte: echte Ausgabeform, ohne erfundene Kennzahlen */}
+          <div className="relative">
+            <div className="absolute inset-0 -m-6 rounded-3xl bg-gradient-to-br from-blue-400/10 via-purple-400/5 to-transparent blur-2xl" />
+            <div className="relative rounded-2xl border border-gray-200/80 bg-white p-6 shadow-xl shadow-gray-900/5 sm:p-7">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                {t.lp_hero_card_label}
+              </p>
+              <h2 className="mt-3 text-lg font-bold leading-snug text-gray-900 sm:text-xl">
+                {t.lp_hero_card_title}
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-gray-500">{t.lp_hero_card_desc}</p>
+              <p className="mt-3 text-xs text-gray-400">{t.lp_hero_card_meta}</p>
 
-              {/* Main dashboard card */}
-              <div className="relative rounded-2xl border border-gray-200/80 bg-white shadow-2xl shadow-gray-900/5 overflow-hidden">
-                {/* Mock header bar */}
-                <div className="flex items-center gap-3 border-b border-gray-100 px-5 py-3">
-                  <div className="flex gap-1.5">
-                    <div className="h-2.5 w-2.5 rounded-full bg-red-400" />
-                    <div className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-                    <div className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                  </div>
-                  <div className="ml-2 h-4 w-32 rounded-md bg-gray-100" />
-                  <div className="ml-auto flex gap-2">
-                    <div className="h-6 w-6 rounded-md bg-gray-100" />
-                    <div className="h-6 w-6 rounded-md bg-gray-100" />
-                  </div>
-                </div>
-
-                {/* Mock sidebar + content layout */}
-                <div className="flex">
-                  {/* Sidebar */}
-                  <div className="w-40 border-r border-gray-100 px-3 py-4 space-y-2">
-                    <div className="h-3 w-16 rounded-full bg-blue-100" />
-                    <div className="h-2 w-20 rounded-full bg-gray-100" />
-                    <div className="h-2 w-24 rounded-full bg-gray-100" />
-                    <div className="h-2 w-14 rounded-full bg-gray-100" />
-                    <div className="mt-4 h-3 w-12 rounded-full bg-gray-200" />
-                    <div className="h-2 w-20 rounded-full bg-gray-100" />
-                    <div className="h-2 w-16 rounded-full bg-gray-100" />
-                  </div>
-
-                  {/* Main content */}
-                  <div className="flex-1 p-5 space-y-4">
-                    {/* KPI cards row */}
-                    <div className="grid grid-cols-3 gap-3">
-                      {[
-                        { growth: '+24%', label: t.landing_mock_kpi_content, color: 'bg-blue-50 text-blue-600' },
-                        { growth: '+18%', label: t.landing_mock_kpi_seo, color: 'bg-purple-50 text-purple-600' },
-                        { growth: '+32%', label: t.landing_mock_kpi_traffic, color: 'bg-emerald-50 text-emerald-600' },
-                      ].map((stat) => (
-                        <div key={stat.label} className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
-                          <div className={`inline-flex items-center rounded-lg px-2 py-0.5 text-xs font-semibold ${stat.color}`}>
-                            {stat.growth}
-                          </div>
-                          <div className="mt-2 text-[11px] font-medium text-gray-400">{stat.label}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Chart area */}
-                    <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="h-3 w-24 rounded-full bg-gray-100" />
-                        <div className="flex gap-1.5">
-                          <div className="h-5 w-12 rounded-md bg-blue-100" />
-                          <div className="h-5 w-12 rounded-md bg-gray-100" />
-                        </div>
-                      </div>
-                      {/* Bar chart */}
-                      <div className="flex items-end gap-2 h-24">
-                        {[35, 55, 42, 78, 60, 90, 72, 85, 48, 65, 80, 95].map((h, i) => (
-                          <div
-                            key={i}
-                            className="flex-1 rounded-t-md bg-gradient-to-t from-blue-500 to-blue-400 transition-all"
-                            style={{ height: `${h}%` }}
-                          />
-                        ))}
-                      </div>
-                      <div className="mt-2 flex justify-between">
-                        {t.landing_mock_chart_months.split(',').map((m) => (
-                          <span key={m} className="text-[10px] text-gray-300">{m}</span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Bottom cards */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm space-y-2">
-                        <div className="h-2 w-16 rounded-full bg-gray-100" />
-                        <div className="flex items-center gap-2">
-                          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500" />
-                          <div className="space-y-1 flex-1">
-                            <div className="h-2 w-3/4 rounded-full bg-gray-100" />
-                            <div className="h-2 w-1/2 rounded-full bg-gray-100" />
-                          </div>
-                        </div>
-                      </div>
-                      <div className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm space-y-2">
-                        <div className="h-2 w-20 rounded-full bg-gray-100" />
-                        <div className="flex gap-1">
-                          <div className="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-600">P</div>
-                          <div className="h-6 w-6 rounded-full bg-purple-100 flex items-center justify-center text-[10px] font-bold text-purple-600">E</div>
-                          <div className="h-6 w-6 rounded-full bg-emerald-100 flex items-center justify-center text-[10px] font-bold text-emerald-600">S</div>
-                          <div className="h-6 w-6 rounded-full bg-amber-100 flex items-center justify-center text-[10px] font-bold text-amber-600">I</div>
-                          <div className="h-6 w-6 rounded-full bg-red-100 flex items-center justify-center text-[10px] font-bold text-red-600">T</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              {/* Ehrlicher Platzhalter statt eines erfundenen Pin-Bildes */}
+              <div className="mt-5 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/70 px-4 py-6 text-xs font-medium text-gray-400">
+                <ClockIcon className="h-4 w-4" />
+                {t.lp_hero_card_image_note}
               </div>
             </div>
-          </div>
-
-          {/* Mobile: simplified KPI cards */}
-          <div className="grid grid-cols-2 gap-3 lg:hidden">
-            {[
-              { value: '24%', label: t.landing_mock_kpi_content_growth, color: 'border-l-blue-400 bg-blue-50/50 text-blue-700' },
-              { value: '18%', label: t.landing_mock_kpi_seo, color: 'border-l-purple-400 bg-purple-50/50 text-purple-700' },
-              { value: '32%', label: t.landing_mock_kpi_traffic_inc, color: 'border-l-emerald-400 bg-emerald-50/50 text-emerald-700' },
-              { value: '5min', label: t.landing_mock_kpi_time_launch, color: 'border-l-amber-400 bg-amber-50/50 text-amber-700' },
-            ].map((stat) => (
-              <div
-                key={stat.label}
-                className={`rounded-xl border border-gray-200 bg-white p-5 shadow-sm border-l-4 ${stat.color.split(' ')[0]} ${stat.color.split(' ')[1]}`}
-              >
-                <div className="text-3xl font-bold text-gray-900">{stat.value}</div>
-                <div className="mt-1 text-sm font-medium text-gray-400">{stat.label}</div>
-              </div>
-            ))}
           </div>
         </div>
       </SectionContainer>
@@ -389,94 +245,61 @@ function HeroSection() {
   );
 }
 
-// ── PROBLEM ─────────────────────────────────────────────────────────────────────
+// ── DIE DREI INHALTE ────────────────────────────────────────────────────────────
 
-function ProblemSection() {
-  const { t } = useTranslation();
-
-  const cards = [
-    { emoji: "🧩", title: t.problem_card1_title, text: t.problem_card1_text },
-    { emoji: "🤯", title: t.problem_card2_title, text: t.problem_card2_text },
-    { emoji: "🧭", title: t.problem_card3_title, text: t.problem_card3_text },
-  ];
-
-  return (
-    <section id="problem" className="bg-gray-50 py-24 sm:py-32">
-      <SectionContainer>
-        <div className="mx-auto max-w-2xl text-center">
-          <SectionHeading>{t.problem_headline}</SectionHeading>
-          <p className="mt-4 text-lg text-gray-500">{t.problem_text}</p>
-        </div>
-        <div className="mt-14 grid gap-6 sm:grid-cols-3">
-          {cards.map((card) => (
-            <div
-              key={card.title}
-              className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5"
-            >
-              <div className="text-3xl">{card.emoji}</div>
-              <h3 className="mt-4 text-lg font-bold text-gray-900">{card.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-gray-500">{card.text}</p>
-            </div>
-          ))}
-        </div>
-      </SectionContainer>
-    </section>
-  );
-}
-
-// ── SOLUTION / FEATURES ─────────────────────────────────────────────────────────
-
-function SolutionSection() {
+function FeaturesSection() {
   const { t } = useTranslation();
 
   const features = [
     {
-      icon: "🎨",
-      title: t.feature_image_studio_title,
-      desc: t.feature_image_studio_desc,
-      tile: "from-blue-500 to-purple-500",
+      icon: "📌",
+      title: t.lp_feature_pinterest_title,
+      desc: t.lp_feature_pinterest_desc,
+      status: t.lp_feature_pinterest_status,
+      tone: "partial" as const,
+      tile: "from-rose-500 to-red-500",
     },
     {
       icon: "🛍️",
-      title: t.feature_etsy_seo_title,
-      desc: t.feature_etsy_seo_desc,
+      title: t.lp_feature_etsy_title,
+      desc: t.lp_feature_etsy_desc,
+      status: t.lp_feature_etsy_status,
+      tone: "partial" as const,
       tile: "from-amber-500 to-orange-500",
     },
     {
-      icon: "📝",
-      title: t.feature_blog_title,
-      desc: t.feature_blog_desc,
+      icon: "🎬",
+      title: t.lp_feature_tiktok_title,
+      desc: t.lp_feature_tiktok_desc,
+      status: t.lp_feature_tiktok_status,
+      tone: "ready" as const,
       tile: "from-emerald-500 to-teal-500",
-    },
-    {
-      icon: "📊",
-      title: t.feature_strategy_title,
-      desc: t.feature_strategy_desc,
-      tile: "from-blue-600 to-purple-600",
     },
   ];
 
   return (
-    <section id="features" className="py-24 sm:py-32">
+    <section id="funktionen" className="bg-gray-50 py-20 sm:py-28">
       <SectionContainer>
         <div className="mx-auto max-w-2xl text-center">
-          <SectionHeading>{t.solution_headline}</SectionHeading>
-          <p className="mt-4 text-lg text-gray-500">{t.solution_subtitle}</p>
+          <SectionHeading>{t.lp_features_headline}</SectionHeading>
+          <p className="mt-4 text-base text-gray-500 sm:text-lg">{t.lp_features_sub}</p>
         </div>
-        <div className="mt-14 grid gap-6 sm:grid-cols-2">
+
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f) => (
             <div
               key={f.title}
-              className="group flex flex-col gap-5 rounded-2xl border border-gray-100 bg-white p-8 shadow-sm transition-all hover:border-blue-200 hover:shadow-md hover:-translate-y-0.5 sm:flex-row"
+              className="flex flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:border-blue-200 hover:shadow-md"
             >
               <div
-                className={`flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-2xl text-white shadow-lg transition-transform group-hover:scale-110 ${f.tile}`}
+                className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br text-2xl shadow-sm ${f.tile}`}
               >
                 {f.icon}
               </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-xl font-bold text-gray-900">{f.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-gray-500">{f.desc}</p>
+              <h3 className="mt-4 text-lg font-bold text-gray-900">{f.title}</h3>
+              <p className="mt-2 flex-1 text-sm leading-relaxed text-gray-500">{f.desc}</p>
+              <div className="mt-5">
+                <StatusBadge tone={f.tone}>{f.status}</StatusBadge>
               </div>
             </div>
           ))}
@@ -486,143 +309,170 @@ function SolutionSection() {
   );
 }
 
-// ── EXAMPLES ────────────────────────────────────────────────────────────────────
+// ── BEISPIELE ───────────────────────────────────────────────────────────────────
+
+function ExampleCard({
+  label,
+  children,
+  footer,
+  footerTone = "soon",
+}: {
+  label: string;
+  children: React.ReactNode;
+  footer: string;
+  footerTone?: "ready" | "soon";
+}) {
+  return (
+    <div className="flex flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">{label}</p>
+      <div className="mt-4 flex-1 space-y-4">{children}</div>
+      <div className="mt-5 border-t border-gray-100 pt-4">
+        <StatusBadge tone={footerTone}>{footer}</StatusBadge>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div>
+      <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">{label}</p>
+      <p className={`mt-1 text-sm leading-relaxed text-gray-700 ${mono ? "font-mono text-xs" : ""}`}>{value}</p>
+    </div>
+  );
+}
 
 function ExamplesSection() {
   const { t } = useTranslation();
 
-  const etsyTags = t.example_etsy_tags.split("·").map((tag) => tag.trim()).filter(Boolean);
+  const split = (value: string) =>
+    value
+      .split("·")
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+  const pinKeywords = split(t.lp_ex_pin_kw);
+  const etsyTags = split(t.lp_ex_etsy_tags);
+  const ttScenes = split(t.lp_ex_tt_scenes);
+  const ttHashtags = split(t.lp_ex_tt_hashtags);
 
   return (
-    <section id="examples" className="bg-gray-50 py-24 sm:py-32">
+    <section id="beispiele" className="py-20 sm:py-28">
       <SectionContainer>
         <div className="mx-auto max-w-2xl text-center">
-          <SectionHeading>{t.example_headline}</SectionHeading>
-          <p className="mt-4 text-lg text-gray-500">{t.example_subtitle}</p>
+          <SectionHeading>{t.lp_examples_headline}</SectionHeading>
+          <p className="mt-4 text-base text-gray-500 sm:text-lg">{t.lp_examples_sub}</p>
         </div>
 
-        {/* Input box */}
-        <div className="mx-auto mt-12 max-w-2xl">
-          <div className="rounded-2xl border border-blue-200 bg-white p-5 shadow-sm border-l-4 border-l-blue-500">
-            <p className="text-sm leading-relaxed text-gray-700 italic">
-              {t.example_input}
-            </p>
+        <div className="mx-auto mt-10 max-w-2xl">
+          <div className="rounded-2xl border border-blue-200 border-l-4 border-l-blue-500 bg-white p-5 shadow-sm">
+            <p className="text-sm italic leading-relaxed text-gray-700">{t.lp_examples_input}</p>
           </div>
         </div>
 
-        {/* Mockups */}
-        <div className="mt-10 grid gap-6 lg:grid-cols-3">
-          {/* Pinterest pin mockup */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:shadow-md">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                {t.example_pinterest_title}
-              </span>
-              <span className="text-[10px] font-medium text-gray-300">2:3</span>
-            </div>
-            <div className="relative flex aspect-[2/3] flex-col justify-between overflow-hidden rounded-xl bg-gradient-to-br from-red-500 via-rose-400 to-orange-300 p-6">
-              <div className="flex gap-1.5">
-                <div className="h-2 w-2 rounded-full bg-white/40" />
-                <div className="h-2 w-2 rounded-full bg-white/40" />
-                <div className="h-2 w-2 rounded-full bg-white/40" />
-              </div>
-              <div>
-                <p className="text-xl font-extrabold leading-tight text-white">{t.example_pin_headline}</p>
-                <p className="mt-3 text-xs leading-relaxed text-white/90">{t.example_pin_desc}</p>
-              </div>
-              <div className="rounded-lg bg-white/95 px-3 py-2 text-center text-xs font-extrabold tracking-wide text-red-600">
-                SAVE
+        <div className="mt-8 grid gap-5 lg:grid-cols-3">
+          {/* Pinterest */}
+          <ExampleCard label={t.lp_ex_pin_label} footer={t.lp_ex_pin_soon}>
+            <Field label={t.lp_ex_pin_title_label} value={t.lp_ex_pin_title} />
+            <Field label={t.lp_ex_pin_desc_label} value={t.lp_ex_pin_desc} />
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">{t.lp_ex_pin_kw_label}</p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {pinKeywords.map((kw) => (
+                  <span
+                    key={kw}
+                    className="rounded-md bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 ring-1 ring-inset ring-rose-200/60"
+                  >
+                    {kw}
+                  </span>
+                ))}
               </div>
             </div>
-          </div>
+          </ExampleCard>
 
-          {/* Etsy listing mockup */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:shadow-md">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                {t.example_etsy_title}
-              </span>
-              <span className="text-[10px] font-medium text-gray-300">4:3</span>
-            </div>
-            <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-amber-100 via-orange-100 to-yellow-50">
-              <div className="absolute inset-0 opacity-60 bg-[radial-gradient(#f59e0b_1px,transparent_1px)] bg-[length:16px_16px]" />
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-white text-4xl shadow-lg shadow-amber-200">
-                🦕
-              </div>
-            </div>
-            <div className="mt-3">
-              <p className="text-sm font-bold leading-snug text-gray-900">{t.example_etsy_headline}</p>
-              <p className="mt-1.5 text-xs leading-relaxed text-gray-500">{t.example_etsy_desc}</p>
-              <div className="mt-2.5 flex flex-wrap gap-1">
+          {/* Etsy */}
+          <ExampleCard label={t.lp_ex_etsy_label} footer={t.lp_ex_etsy_soon}>
+            <Field label={t.lp_ex_etsy_title_label} value={t.lp_ex_etsy_title} />
+            <Field label={t.lp_ex_etsy_desc_label} value={t.lp_ex_etsy_desc} />
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">{t.lp_ex_etsy_tags_label}</p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {etsyTags.map((tag) => (
-                  <span key={tag} className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-inset ring-amber-200/60">
+                  <span
+                    key={tag}
+                    className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-200/60"
+                  >
                     {tag}
                   </span>
                 ))}
               </div>
             </div>
-          </div>
+          </ExampleCard>
 
-          {/* SEO blog post mockup */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:shadow-md">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                {t.example_seo_title}
-              </span>
-              <span className="text-[10px] font-medium text-gray-300">16:9</span>
+          {/* TikTok */}
+          <ExampleCard label={t.lp_ex_tt_label} footer={t.lp_ex_tt_ready} footerTone="ready">
+            <Field label={t.lp_ex_tt_title_label} value={t.lp_ex_tt_title} />
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">{t.lp_ex_tt_scenes_label}</p>
+              <ul className="mt-1.5 space-y-1.5">
+                {ttScenes.map((scene) => (
+                  <li key={scene} className="rounded-lg bg-gray-50 px-2.5 py-1.5 text-xs leading-relaxed text-gray-700">
+                    {scene}
+                  </li>
+                ))}
+              </ul>
             </div>
-            <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-blue-100 via-indigo-50 to-purple-100">
-              <div className="absolute inset-0 opacity-60 bg-[radial-gradient(#6366f1_1px,transparent_1px)] bg-[length:16px_16px]" />
-              <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-white text-2xl shadow-lg shadow-indigo-200">
-                📝
+            <Field label={t.lp_ex_tt_caption_label} value={t.lp_ex_tt_caption} />
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                {t.lp_ex_tt_hashtags_label}
+              </p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {ttHashtags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200/60"
+                  >
+                    {tag}
+                  </span>
+                ))}
               </div>
             </div>
-            <div className="mt-3">
-              <p className="text-sm font-bold leading-snug text-gray-900">{t.example_blog_headline}</p>
-              <p className="mt-1.5 text-xs leading-relaxed text-gray-500">{t.example_blog_excerpt}</p>
-              <p className="mt-2 text-[10px] font-medium text-gray-400">{t.example_blog_meta}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-10 text-center">
-          <SecondaryButton href="/app/new-project">{t.example_cta}</SecondaryButton>
+          </ExampleCard>
         </div>
       </SectionContainer>
     </section>
   );
 }
 
-// ── HOW IT WORKS ────────────────────────────────────────────────────────────────
+// ── SO FUNKTIONIERT'S ───────────────────────────────────────────────────────────
 
 function HowItWorksSection() {
   const { t } = useTranslation();
 
   const steps = [
-    { number: "1", title: t.how_step1_title, text: t.how_step1_text },
-    { number: "2", title: t.how_step2_title, text: t.how_step2_text },
-    { number: "3", title: t.how_step3_title, text: t.how_step3_text },
+    { number: "1", title: t.lp_how_step1_title, text: t.lp_how_step1_text },
+    { number: "2", title: t.lp_how_step2_title, text: t.lp_how_step2_text },
+    { number: "3", title: t.lp_how_step3_title, text: t.lp_how_step3_text },
   ];
 
   return (
-    <section id="how-it-works" className="bg-white py-24 sm:py-32">
+    <section id="so-gehts" className="bg-gray-50 py-20 sm:py-28">
       <SectionContainer>
         <div className="mx-auto max-w-2xl text-center">
-          <SectionHeading>{t.how_headline}</SectionHeading>
+          <SectionHeading>{t.lp_how_headline}</SectionHeading>
         </div>
-        <div className="mt-16 grid gap-8 sm:grid-cols-3">
+        <div className="mt-12 grid gap-8 sm:grid-cols-3">
           {steps.map((step, idx) => (
             <div key={step.number} className="relative text-center">
-              {/* Connector line (desktop only) */}
               {idx < steps.length - 1 && (
-                <div className="absolute top-10 left-[60%] hidden h-0.5 w-full bg-gradient-to-r from-blue-200 via-purple-200 to-transparent sm:block" />
+                <div className="absolute left-[60%] top-9 hidden h-0.5 w-full bg-gradient-to-r from-blue-200 via-purple-200 to-transparent sm:block" />
               )}
-              {/* Step circle */}
-              <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-3xl font-extrabold text-white shadow-xl shadow-blue-200">
+              <div className="relative mx-auto flex h-18 w-18 items-center justify-center rounded-2xl bg-gray-900 text-2xl font-extrabold text-white shadow-lg">
                 {step.number}
               </div>
-              <h3 className="mt-6 text-xl font-bold text-gray-900">{step.title}</h3>
-              <p className="mt-3 text-sm leading-relaxed text-gray-500">{step.text}</p>
+              <h3 className="mt-5 text-lg font-bold text-gray-900">{step.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-gray-500">{step.text}</p>
             </div>
           ))}
         </div>
@@ -631,156 +481,32 @@ function HowItWorksSection() {
   );
 }
 
-// ── DIFFERENTIATION ─────────────────────────────────────────────────────────────
+// ── WAS NOCH IN ENTWICKLUNG IST ─────────────────────────────────────────────────
 
-function DifferentiationSection() {
+function SoonSection() {
   const { t } = useTranslation();
 
-  const leftItems = [
-    t.diff_col1_item1,
-    t.diff_col1_item2,
-    t.diff_col1_item3,
-    t.diff_col1_item4,
-  ];
-
-  const rightItems = [
-    t.diff_col2_item1,
-    t.diff_col2_item2,
-    t.diff_col2_item3,
-    t.diff_col2_item4,
-    t.diff_col2_item5,
-    // FIX-BLOCK 5 (M4): der 0–100-Score gehört sichtbar zur A/B-Entscheidungs-
-    // Funktion — nicht zu „jedem Ergebnis".
-    t.diff_col2_item6,
-  ];
-
   return (
-    <section id="differentiation" className="bg-gray-50 py-24 sm:py-32">
+    <section id="in-entwicklung" className="py-20 sm:py-28">
       <SectionContainer>
-        <div className="mx-auto max-w-2xl text-center">
-          <SectionHeading>{t.diff_headline}</SectionHeading>
-        </div>
-
-        <div className="mt-14 grid gap-8 lg:grid-cols-2">
-          {/* Left column: Standard AI-Chat */}
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-8">
-            <h3 className="text-xl font-bold text-gray-500">{t.diff_col1_title}</h3>
-            <ul className="mt-6 space-y-4">
-              {leftItems.map((item) => (
-                <li key={item} className="flex items-start gap-3">
-                  <span className="mt-0.5 flex-shrink-0 text-red-400">
-                    <CrossIcon />
-                  </span>
-                  <span className="text-sm text-gray-500">{item}</span>
-                </li>
-              ))}
-            </ul>
+        <div className="mx-auto max-w-3xl rounded-3xl border border-amber-200 bg-amber-50/60 p-8 sm:p-12">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+              <ClockIcon className="h-5 w-5" />
+            </span>
+            <h2 className="text-xl font-extrabold text-gray-900 sm:text-2xl">{t.lp_soon_headline}</h2>
           </div>
-
-          {/* Right column: Growimo */}
-          <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-8 shadow-sm shadow-blue-100/50">
-            <h3 className="text-xl font-bold text-blue-700">{t.diff_col2_title}</h3>
-            <ul className="mt-6 space-y-4">
-              {rightItems.map((item) => (
-                <li key={item} className="flex items-start gap-3">
-                  <span className="mt-0.5 flex-shrink-0 text-emerald-500">
-                    <CheckIcon />
-                  </span>
-                  <span className="text-sm font-medium text-gray-700">{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </SectionContainer>
-    </section>
-  );
-}
-
-// ── TARGET AUDIENCE ─────────────────────────────────────────────────────────────
-
-function AudienceSection() {
-  const { t } = useTranslation();
-
-  const audiences = [
-    { emoji: "🛍️", title: t.audience1_title, text: t.audience1_text },
-    { emoji: "📌", title: t.audience2_title, text: t.audience2_text },
-    { emoji: "📦", title: t.audience3_title, text: t.audience3_text },
-    { emoji: "👕", title: t.audience4_title, text: t.audience4_text },
-    { emoji: "🎯", title: t.audience5_title, text: t.audience5_text },
-    { emoji: "✍️", title: t.audience6_title, text: t.audience6_text },
-  ];
-
-  return (
-    <section id="audience" className="bg-white py-24 sm:py-32">
-      <SectionContainer>
-        <div className="mx-auto max-w-3xl text-center">
-          <SectionHeading className="text-2xl sm:text-3xl lg:text-4xl">
-            {t.audience_headline}
-          </SectionHeading>
-        </div>
-        <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {audiences.map((aud) => (
-            <div
-              key={aud.title}
-              className="group rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all hover:border-blue-200 hover:shadow-md hover:-translate-y-0.5"
-            >
-              <div className="text-3xl transition-transform group-hover:scale-110">{aud.emoji}</div>
-              <h3 className="mt-4 text-lg font-bold text-gray-900">{aud.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-gray-500">{aud.text}</p>
-            </div>
-          ))}
-        </div>
-      </SectionContainer>
-    </section>
-  );
-}
-
-// ── START FREE CTA ──────────────────────────────────────────────────────────────
-
-function StartFreeSection() {
-  const { t } = useTranslation();
-
-  const benefits = [t.cta_banner_benefit1, t.cta_banner_benefit2, t.cta_banner_benefit3];
-
-  return (
-    <section id="start-free" className="bg-gray-50 py-24 sm:py-32">
-      <SectionContainer>
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-purple-600 to-purple-700 px-6 py-16 sm:px-16 sm:py-24">
-          {/* Decorative blurs */}
-          <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/3">
-            <div className="h-80 w-80 rounded-full bg-white/10 blur-3xl" />
-          </div>
-          <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/3">
-            <div className="h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-          </div>
-
-          <div className="relative mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
-              {t.cta_banner_headline}
-            </h2>
-            <p className="mt-4 text-lg leading-relaxed text-blue-100">
-              {t.cta_banner_text}
-            </p>
-
-            <ul className="mt-10 space-y-3">
-              {benefits.map((benefit) => (
-                <li key={benefit} className="flex items-center justify-center gap-3 text-blue-100">
-                  <CheckIcon className="h-5 w-5 flex-shrink-0 text-emerald-300" />
-                  <span className="text-base">{benefit}</span>
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-10">
-              <a
-                href="/app/sign-up"
-                className="inline-flex items-center justify-center rounded-xl bg-white px-10 py-4 text-base font-bold text-blue-700 shadow-xl shadow-black/10 transition-all hover:bg-gray-50 hover:shadow-2xl hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-              >
-                {t.cta_banner_button}
-              </a>
-            </div>
-          </div>
+          <ul className="mt-6 space-y-4">
+            <li className="flex items-start gap-3">
+              <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-amber-500" />
+              <span className="text-sm leading-relaxed text-gray-700">{t.lp_soon_pinterest}</span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-amber-500" />
+              <span className="text-sm leading-relaxed text-gray-700">{t.lp_soon_etsy}</span>
+            </li>
+          </ul>
+          <p className="mt-6 text-xs leading-relaxed text-gray-500">{t.lp_soon_note}</p>
         </div>
       </SectionContainer>
     </section>
@@ -793,31 +519,31 @@ function FaqSection() {
   const { t } = useTranslation();
 
   const faqs = [
-    { q: t.faq_q1, a: t.faq_a1 },
-    { q: t.faq_q2, a: t.faq_a2 },
-    { q: t.faq_q3, a: t.faq_a3 },
-    { q: t.faq_q4, a: t.faq_a4 },
-    { q: t.faq_q5, a: t.faq_a5 },
-    { q: t.faq_q6, a: t.faq_a6 },
+    { q: t.lp_faq_q1, a: t.lp_faq_a1 },
+    { q: t.lp_faq_q2, a: t.lp_faq_a2 },
+    { q: t.lp_faq_q3, a: t.lp_faq_a3 },
+    { q: t.lp_faq_q4, a: t.lp_faq_a4 },
+    { q: t.lp_faq_q5, a: t.lp_faq_a5 },
+    { q: t.lp_faq_q6, a: t.lp_faq_a6 },
   ];
 
   return (
-    <section id="faq" className="bg-white py-24 sm:py-32">
+    <section id="fragen" className="bg-gray-50 py-20 sm:py-28">
       <SectionContainer>
         <div className="mx-auto max-w-3xl text-center">
-          <SectionHeading>{t.faq_headline}</SectionHeading>
+          <SectionHeading>{t.lp_faq_headline}</SectionHeading>
         </div>
-        <div className="mx-auto mt-14 max-w-3xl space-y-4">
+        <div className="mx-auto mt-12 max-w-3xl space-y-3">
           {faqs.map((faq) => (
             <details
               key={faq.q}
-              className="group rounded-2xl border border-gray-200 bg-white p-6 transition-all hover:border-blue-200 open:border-blue-200 open:shadow-sm"
+              className="group rounded-2xl border border-gray-200 bg-white p-5 transition-all hover:border-blue-200 open:border-blue-200 open:shadow-sm sm:p-6"
             >
-              <summary className="flex cursor-pointer items-center justify-between text-base font-semibold text-gray-900 marker:content-none">
+              <summary className="flex cursor-pointer items-center justify-between gap-4 text-base font-semibold text-gray-900 marker:content-none">
                 {faq.q}
                 <ChevronDownIcon className="h-5 w-5 flex-shrink-0 text-gray-400 transition-transform group-open:rotate-180" />
               </summary>
-              <p className="mt-4 text-gray-600 leading-relaxed">{faq.a}</p>
+              <p className="mt-3 text-sm leading-relaxed text-gray-600">{faq.a}</p>
             </details>
           ))}
         </div>
@@ -826,19 +552,24 @@ function FaqSection() {
   );
 }
 
-// ── FINAL CTA ───────────────────────────────────────────────────────────────────
+// ── ABSCHLUSS-CTA ───────────────────────────────────────────────────────────────
 
 function FinalCtaSection() {
   const { t } = useTranslation();
 
   return (
-    <section className="bg-gray-50 py-24 sm:py-32">
+    <section className="py-20 sm:py-28">
       <SectionContainer>
         <div className="mx-auto max-w-2xl text-center">
-          <SectionHeading>{t.cta_final_headline}</SectionHeading>
-          <p className="mt-4 text-lg text-gray-500">{t.cta_final_text}</p>
-          <div className="mt-10">
-            <a href="/app/sign-up" className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg">{t.cta_final_button}</a>
+          <SectionHeading>{t.lp_cta_headline}</SectionHeading>
+          <p className="mt-4 text-base text-gray-500 sm:text-lg">{t.lp_cta_text}</p>
+          <div className="mt-9">
+            <a
+              href="/app/sign-up"
+              className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-8 py-4 text-base font-semibold text-white shadow-lg shadow-gray-900/10 transition-all hover:bg-gray-800 hover:-translate-y-0.5"
+            >
+              {t.lp_cta_button}
+            </a>
           </div>
         </div>
       </SectionContainer>
@@ -852,18 +583,12 @@ function Footer() {
   const { t } = useTranslation();
 
   const featureLinks = [
-    { label: t.nav_features, href: "#features" },
-    { label: t.nav_how_it_works, href: "#how-it-works" },
-    { label: t.nav_examples, href: "#examples" },
-    { label: t.nav_audience, href: "#audience" },
-    { label: t.nav_faq, href: "#faq" },
+    { label: t.lp_nav_features, href: "#funktionen" },
+    { label: t.lp_nav_examples, href: "#beispiele" },
+    { label: t.lp_nav_how, href: "#so-gehts" },
+    { label: t.lp_nav_faq, href: "#fragen" },
   ];
 
-  // Rechtstexte (2026-10-23): echte Routen statt toter "#"-Links.
-  // „Kontakt" führt auf das Impressum, weil dort die Kontaktangaben stehen —
-  // solange keine Kontakt-E-Mail hinterlegt ist, wird kein Postfach erfunden.
-  // 2026-10-25 (Owner-Freigabe): AGB und Widerrufsbelehrung sind eigene Seiten
-  // und werden hier vollständig verlinkt.
   const legalLinks = [
     { label: t.footer_imprint, href: "/impressum" },
     { label: t.footer_privacy, href: "/datenschutz" },
@@ -876,17 +601,13 @@ function Footer() {
     <footer className="border-t border-gray-200 bg-white py-12">
       <SectionContainer>
         <div className="grid gap-10 sm:grid-cols-3">
-          {/* Logo + description */}
           <div>
             <div className="flex items-center gap-2.5">
-                <img src="/logo.png" alt="Growimo" className="h-8 w-auto" />
-              </div>
-            <p className="mt-4 text-sm leading-relaxed text-gray-500">
-              {t.footer_description}
-            </p>
+              <img src="/logo.png" alt="Growimo" className="h-8 w-auto" />
+            </div>
+            <p className="mt-4 text-sm leading-relaxed text-gray-500">{t.lp_footer_description}</p>
           </div>
 
-          {/* Feature links */}
           <div>
             <h4 className="text-sm font-semibold text-gray-900">{t.footer_features}</h4>
             <ul className="mt-4 space-y-2">
@@ -900,7 +621,6 @@ function Footer() {
             </ul>
           </div>
 
-          {/* Legal links */}
           <div>
             <h4 className="text-sm font-semibold text-gray-900">{t.footer_legal}</h4>
             <ul className="mt-4 space-y-2">
@@ -915,14 +635,9 @@ function Footer() {
           </div>
         </div>
 
-        {/* Bottom */}
         <div className="mt-10 border-t border-gray-100 pt-6">
-          <p className="text-xs leading-relaxed text-gray-400">
-            {t.footer_disclaimer}
-          </p>
-          <p className="mt-4 text-sm text-gray-400">
-            {t.footer_copyright}
-          </p>
+          <p className="text-xs leading-relaxed text-gray-400">{t.lp_footer_disclaimer}</p>
+          <p className="mt-4 text-sm text-gray-400">{t.footer_copyright}</p>
         </div>
       </SectionContainer>
     </footer>
@@ -936,13 +651,10 @@ export default function LandingPage() {
     <div className="min-h-dvh bg-white bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-[length:24px_24px]">
       <NavBar />
       <HeroSection />
-      <ProblemSection />
-      <SolutionSection />
+      <FeaturesSection />
       <ExamplesSection />
       <HowItWorksSection />
-      <DifferentiationSection />
-      <AudienceSection />
-      <StartFreeSection />
+      <SoonSection />
       <FaqSection />
       <FinalCtaSection />
       <Footer />

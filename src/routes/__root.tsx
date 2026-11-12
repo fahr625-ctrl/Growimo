@@ -21,22 +21,32 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Growimo — Pinterest Pins, Etsy-Mockups & SEO-Content mit KI erstellen" },
+      // Teil B (2026-11-12): Die Meta-Texte versprechen nur, was gebaut ist.
+      // Pin-Bild und Etsy-Mockup sind in Entwicklung und werden hier nicht zugesagt.
+      { title: "Growimo — Fertige Inhalte für Pinterest, Etsy und TikTok" },
       {
         name: "description",
         content:
-          "Erstelle Pinterest Pins, Etsy-Mockups, SEO-Content und komplette Marketing-Strategien mit KI — in Sekunden. Jetzt kostenlos starten.",
+          "Growimo macht aus einer Produktidee drei fertige Inhalte: Pin-Texte für Pinterest, ein Etsy-Listing mit 13 Tags und ein TikTok-Skript. Pin-Bild und Mockup sind in Entwicklung.",
       },
-      { property: "og:title", content: "Growimo — Gebaut für Wachstum" },
-      { property: "og:description", content: "Erstelle Pinterest Pins, Etsy-Mockups und SEO-Content mit KI. Jetzt kostenlos starten." },
+      { property: "og:title", content: "Growimo — Drei fertige Inhalte aus einer Idee" },
+      {
+        property: "og:description",
+        content:
+          "Pin-Texte für Pinterest, ein Etsy-Listing mit 13 Tags und ein TikTok-Skript — fertig zum Kopieren. Pin-Bild und Mockup sind in Entwicklung.",
+      },
       // FIX-BLOCK 3 (2026-10-08): Social-Images MÜSSEN absolut sein — Crawler
       // lösen relative Pfade nicht gegen die Seite auf. /logo.png liegt als
       // statische Datei in /public und ist im Build-Output vorhanden.
       { property: "og:image", content: OG_IMAGE_URL },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Growimo — Gebaut für Wachstum" },
-      { name: "twitter:description", content: "Erstelle Content, verbessere SEO und wachse mit deinem Business — mit einem KI-gestützten Arbeitsbereich." },
+      { name: "twitter:title", content: "Growimo — Drei fertige Inhalte aus einer Idee" },
+      {
+        name: "twitter:description",
+        content:
+          "Pin-Texte für Pinterest, ein Etsy-Listing mit 13 Tags und ein TikTok-Skript — fertig zum Kopieren.",
+      },
       { name: "twitter:image", content: OG_IMAGE_URL },
     ],
     links: [

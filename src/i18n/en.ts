@@ -2151,4 +2151,128 @@ export const en: EnShape = {
   legal_en_notice_body:
     'The Terms and Conditions and the withdrawal notice are currently available in German only. An English version has not been prepared yet; the German version is authoritative (Terms § 16 (6)). The text below is therefore in German.',
 
+
+  // ── Public landing page (Part B, 2026-11-12) ──────────────────────────────────
+  // Only what is built: Pinterest copy, Etsy copy, TikTok script.
+  // Pin image and Etsy mockup are explicitly marked "in development".
+  lp_nav_features: 'The three outputs',
+  lp_nav_examples: 'Examples',
+  lp_nav_how: 'How it works',
+  lp_nav_faq: 'Questions',
+
+  lp_hero_badge: 'Built for Growth',
+  lp_hero_headline: 'Your idea. Your finished content. In a few clicks.',
+  lp_hero_sub:
+    'Growimo turns one product idea into three finished pieces of content: pin copy for Pinterest, an Etsy listing and a TikTok script. No consulting, no strategy decks — text you can use right away.',
+  lp_hero_point1: 'Pinterest: title, description and keywords',
+  lp_hero_point2: 'Etsy: title, description and exactly 13 tags',
+  lp_hero_point3: 'TikTok: script with hook, scenes, title and 5 hashtags',
+  lp_hero_cta_primary: 'Start for free',
+  lp_hero_cta_secondary: 'See examples',
+  lp_hero_note: 'Free sign-up, no credit card required.',
+  lp_hero_card_label: 'Example result · Pinterest',
+  lp_hero_card_title: 'Soy wax candles in a jar – three scents for quiet autumn evenings',
+  lp_hero_card_desc:
+    'Hand-poured soy wax candles, three scents to choose from. For anyone who likes it cosy at home.',
+  lp_hero_card_meta: 'Description and keywords come with it.',
+  lp_hero_card_image_note: 'Pin image: in development',
+
+  lp_features_headline: 'Three features. Three finished results.',
+  lp_features_sub:
+    'Every feature gives you copy to paste. Whatever is not finished yet is stated explicitly.',
+  lp_feature_pinterest_title: 'Pinterest',
+  lp_feature_pinterest_desc:
+    'SEO title, description and keywords for one pin — fully written, ready to copy.',
+  lp_feature_pinterest_status: 'Copy ready · pin image in development',
+  lp_feature_etsy_title: 'Etsy',
+  lp_feature_etsy_desc: 'Listing title, sales-oriented description and exactly 13 valid tags.',
+  lp_feature_etsy_status: 'Copy ready · mockup in development',
+  lp_feature_tiktok_title: 'TikTok',
+  lp_feature_tiktok_desc:
+    'Video script with hook, timed scenes, spoken lines, title, description and exactly 5 hashtags.',
+  lp_feature_tiktok_status: 'Fully available',
+
+  lp_examples_headline: 'Three real example results',
+  lp_examples_sub:
+    'Example product: “soy wax candles in a jar”. This is what the output you copy looks like.',
+  lp_examples_input: 'Your input: “I sell hand-poured soy wax candles in a jar in three scents.”',
+
+  lp_ex_pin_label: 'Pinterest · pin copy',
+  lp_ex_pin_title_label: 'Title (max. 100 characters)',
+  lp_ex_pin_title: 'Soy wax candles in a jar – 3 scents for cosy autumn evenings',
+  lp_ex_pin_desc_label: 'Description',
+  lp_ex_pin_desc:
+    'Hand-poured soy wax candles in a jar, three scents to choose from. Cosy for autumn and winter evenings, also a gift. Discover them in the shop now.',
+  lp_ex_pin_kw_label: 'Keywords',
+  lp_ex_pin_kw: 'soy wax candles·candles in a jar·autumn scent·gift idea·handmade candles',
+  lp_ex_pin_soon: 'Pin image coming — the copy is already yours.',
+
+  lp_ex_etsy_label: 'Etsy · listing copy',
+  lp_ex_etsy_title_label: 'Title',
+  lp_ex_etsy_title: 'Soy wax candle in a jar | hand-poured | 3 scents | gift',
+  lp_ex_etsy_desc_label: 'Description (excerpt)',
+  lp_ex_etsy_desc:
+    'Hand-poured soy wax candle in a jar, three scents to choose from: cinnamon, vanilla, fir. A lovely gift idea for autumn and winter evenings.',
+  lp_ex_etsy_tags_label: 'Exactly 13 tags',
+  lp_ex_etsy_tags:
+    'soy wax candle·candle in a jar·autumn scent·candle gift·handmade·scented candle·cinnamon candle·vanilla candle·fir candle·candle present·autumn decor·soy wax·candle',
+  lp_ex_etsy_soon:
+    'Mockup coming — for handmade products Etsy requires a real photo anyway.',
+
+  lp_ex_tt_label: 'TikTok · video script (15 s)',
+  lp_ex_tt_title_label: 'Title',
+  lp_ex_tt_title: 'Candles that smell like autumn 🕯️',
+  lp_ex_tt_scenes_label: 'Scenes with timings',
+  lp_ex_tt_scenes:
+    '0–3 s · Hook: “Three candles, three autumn evenings — which one is yours?”·3–8 s · Scene 1: wax is poured into a jar, overlay “soy wax”·8–13 s · Scene 2: three jars on a shelf, overlay “cinnamon · vanilla · fir”·13–15 s · CTA: “Tell me which scent you would try first.”',
+  lp_ex_tt_caption_label: 'Description',
+  lp_ex_tt_caption: 'Hand-poured soy wax candles in three scents. Which one moves in with you?',
+  lp_ex_tt_hashtags_label: 'Exactly 5 hashtags',
+  lp_ex_tt_hashtags: '#soywaxcandles·#scentedcandles·#handmade·#autumnnights·#candlelove',
+  lp_ex_tt_ready: 'Fully available — a script, not a video.',
+
+  lp_how_headline: 'How it works',
+  lp_how_step1_title: 'Describe',
+  lp_how_step1_text: 'One sentence about your product or topic — no marketing knowledge needed.',
+  lp_how_step2_title: 'Pick a feature',
+  lp_how_step2_text: 'Pinterest, Etsy or TikTok. Each feature has its own format.',
+  lp_how_step3_title: 'Copy the result',
+  lp_how_step3_text: 'You get text you can use right away — not a to-do list.',
+
+  lp_soon_headline: 'What is still in development',
+  lp_soon_pinterest:
+    'The pin image for the Pinterest copy. Until it is done you get the copy — no image.',
+  lp_soon_etsy:
+    'The mockup for the Etsy listing. A mockup is not a real product photo and does not replace one.',
+  lp_soon_note:
+    'We promise nothing here that does not work yet. Once image and mockup are ready, it will say so here.',
+
+  lp_faq_headline: 'Frequent questions',
+  lp_faq_q1: 'What exactly do I get from Growimo?',
+  lp_faq_a1:
+    'Three finished pieces of content: pin copy for Pinterest, an Etsy listing with 13 tags and a TikTok script. Each one is text to copy, not advice.',
+  lp_faq_q2: 'Do I get a finished pin image?',
+  lp_faq_a2:
+    'Not yet — the image is in development. Right now you get title, description and keywords for your pin.',
+  lp_faq_q3: 'Is the Etsy mockup finished?',
+  lp_faq_a3:
+    'Not yet, it is in development. For handmade products Etsy requires a real product photo — a mockup is an addition, not a replacement.',
+  lp_faq_q4: 'Does Growimo create TikToks or videos?',
+  lp_faq_a4:
+    'No. You get a script you can act on, with timings, spoken lines, overlays and hashtags. You shoot the video yourself.',
+  lp_faq_q5: 'Do I need prior experience?',
+  lp_faq_a5: 'No. You describe your product in one sentence and pick a feature.',
+  lp_faq_q6: 'Can I try Growimo for free?',
+  lp_faq_a6:
+    'Yes. Sign-up is free and you get a free allowance of generations, enough to try all three features.',
+
+  lp_cta_headline: 'One sentence is enough to start.',
+  lp_cta_text: 'Describe your product and get your first finished piece of content.',
+  lp_cta_button: 'Start for free',
+
+  lp_footer_description:
+    'Growimo turns one product idea into three finished pieces of content: pin copy for Pinterest, an Etsy listing and a TikTok script.',
+  lp_footer_disclaimer:
+    'AI-generated copy can contain mistakes. Check it before you publish.',
+
 }
