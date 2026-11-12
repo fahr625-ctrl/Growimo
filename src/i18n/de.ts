@@ -10,6 +10,7 @@ export const de = {
   nav_examples: 'Beispiele',
   nav_audience: 'Für wen?',
   nav_menu_toggle: 'Menü umschalten',
+  nav_menu_close: 'Menü schließen',
 
   // ── Hero ─────────────────────────────────────────────────────────────────────
   hero_badge: 'Gebaut für Wachstum',

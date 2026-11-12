@@ -12,6 +12,7 @@ export const en: EnShape = {
   nav_examples: 'Examples',
   nav_audience: 'Who is it for?',
   nav_menu_toggle: 'Toggle menu',
+  nav_menu_close: 'Close menu',
 
   // ── Hero ─────────────────────────────────────────────────────────────────────
   hero_badge: 'Built for Growth',
