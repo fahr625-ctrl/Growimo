@@ -19,6 +19,11 @@ import {
 } from "~/store/projects";
 import type { ContentType, Project } from "~/store/projects";
 import { timeAgo as timeAgoFromLib } from "~/lib/date";
+import {
+  SHOW_ADVICE_PANELS,
+  SHOW_LEGACY_TOOLS_GRID,
+  SHOW_STRATEGY_SCORE_TEXTS,
+} from "~/lib/ui-neuausrichtung";
 // FIX-BLOCK 2 (2026-10-08): echter Datei-Export (Markdown) statt PDF-Alert.
 import { exportFileName, exportMarkdown } from "~/utils/export";
 
@@ -312,14 +317,6 @@ function DashboardContent() {
   }, []);
 
   const forceRefresh = () => setRefreshKey((k) => k + 1);
-  const quickActions = [
-    { title: t.package_dashboard_title, desc: t.package_dashboard_desc, icon: '✨', to: '/app/package', style: 'border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-purple-50', iconStyle: 'bg-fuchsia-100' },
-    { title: t.dashboard_task_publish_pin, desc: t.dashboard_task_publish_pin_desc, icon: '📌', to: '/app/generate/pinterest', style: 'border-pink-100 bg-gradient-to-br from-rose-50 to-white', iconStyle: 'bg-rose-100' },
-    { title: t.dashboard_task_improve_etsy, desc: t.dashboard_task_improve_etsy_desc, icon: '🛍️', to: '/app/generate/etsy', style: 'border-amber-100 bg-gradient-to-br from-amber-50 to-white', iconStyle: 'bg-amber-100' },
-    { title: t.dashboard_task_create_blog, desc: t.dashboard_task_create_blog_desc, icon: '📝', to: '/app/generate/blog', style: 'border-blue-100 bg-gradient-to-br from-blue-50 to-white', iconStyle: 'bg-blue-100' },
-    { title: t.dashboard_tools_image_studio, desc: t.dashboard_tools_image_studio_desc, icon: '🎨', to: '/app/image-studio', style: 'border-purple-100 bg-gradient-to-br from-purple-50 to-white', iconStyle: 'bg-purple-100' },
-    { title: t.dashboard_tools_tiktok, desc: t.dashboard_tools_tiktok_desc, icon: '🎵', to: '/app/tiktok', style: 'border-cyan-100 bg-gradient-to-br from-cyan-50 to-white', iconStyle: 'bg-cyan-100' },
-  ];
 
   // Load projects + stats from PostgreSQL
   useEffect(() => {
@@ -591,16 +588,12 @@ function DashboardContent() {
               {t.dashboard_welcome_subtitle}
             </p>
 
-            {/* Primary CTA button */}
-            <div className="mt-6 flex justify-center">
-              <Link
-                to="/app/new-project"
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-4 text-base font-semibold text-white shadow-lg shadow-blue-200 transition-all hover:from-blue-700 hover:to-purple-700 hover:shadow-xl hover:-translate-y-0.5"
-              >
-                {t.dashboard_cta_create}
-              </Link>
-            </div>
+            {/* Teil A (A7): kein Strategie-Versprechen mehr, der Einstieg sind
+                die drei Kernfunktionen direkt darunter (A6). */}
           </div>
+
+          {/* Teil A (A6): die drei Kernfunktionen, direkt vom Dashboard */}
+          <CoreEntries t={t} />
 
           {/* Getting Started checklist */}
           <GettingStartedCard steps={gsSteps} onToggle={toggleGsStep} t={t} />
@@ -689,6 +682,9 @@ function DashboardContent() {
         />
 
         {/* ── Premium marketing command center ─────────────────────────────── */}
+        {/* Teil A (A8): Marketing-Score + „Strategie-Erfüllungsgrad" bewerten
+            eine Strategie, die es nicht mehr gibt — per Flag ausgeblendet. */}
+        {SHOW_STRATEGY_SCORE_TEXTS && (
         <section className="relative overflow-hidden rounded-3xl border border-blue-100 bg-gradient-to-br from-white via-blue-50/60 to-purple-50/70 p-6 shadow-md sm:p-8">
           <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-purple-200/30 blur-3xl" />
           <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
@@ -710,13 +706,10 @@ function DashboardContent() {
             </div>
           </div>
         </section>
+        )}
 
-        <section>
-          <div className="mb-4 flex items-end justify-between"><div><p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{t.dashboard_next_actions}</p><h2 className="mt-1 text-xl font-bold text-gray-900">{t.dashboard_priority_tasks}</h2></div><span className="text-xs text-gray-400">{t.dashboard_actions_count.replace('%d', String(quickActions.length))}</span></div>
-          <div className="grid gap-4 md:grid-cols-3">
-            {quickActions.map((task) => <Link key={task.title} to={task.to} className={`group rounded-2xl border p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md ${task.style}`}><div className="flex items-start justify-between"><span className={`flex h-11 w-11 items-center justify-center rounded-xl text-xl ${task.iconStyle}`}>{task.icon}</span><span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-white/80 text-xs text-gray-300 shadow-sm">○</span></div><h3 className="mt-4 text-base font-bold text-gray-900 group-hover:text-blue-700">{task.title}</h3><p className="mt-1 text-sm leading-relaxed text-gray-500">{task.desc}</p><span className="mt-4 inline-flex text-xs font-semibold text-gray-700 group-hover:text-blue-700">{t.dashboard_start_now} →</span></Link>)}
-          </div>
-        </section>
+        {/* ── Teil A (A6): die drei Kernfunktionen, direkt vom Dashboard ──── */}
+        <CoreEntries t={t} />
 
         <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -780,20 +773,27 @@ function DashboardContent() {
         </div>
 
         {/* ── 3. Performance scores ────────────────────────────────────────── */}
-        <PerformanceScores scores={scores} t={t} />
+        {/* Teil A (A8/A7): Scores und Beratungs-Panels (Coach, Mission,
+            KI-Empfehlungen) sind Ratschläge statt fertiger Ergebnisse —
+            per Flag ausgeblendet, Code und Daten bleiben erhalten. */}
+        {SHOW_ADVICE_PANELS && (
+          <>
+            <PerformanceScores scores={scores} t={t} />
 
-        {/* ── 4. AI Recommendations panel ──────────────────────────────────── */}
-        <AIRecommendationsPanel
-          recommendations={recommendations}
-          hasAnalysis={analysisBody !== null}
-          latestProjectId={latestAnalysisProject?.id ?? null}
-          coach={coach}
-          mission={mission}
-          t={t}
-        />
+            {/* ── 4. AI Recommendations panel ──────────────────────────────────── */}
+            <AIRecommendationsPanel
+              recommendations={recommendations}
+              hasAnalysis={analysisBody !== null}
+              latestProjectId={latestAnalysisProject?.id ?? null}
+              coach={coach}
+              mission={mission}
+              t={t}
+            />
+          </>
+        )}
 
         {/* ── 4. Quick Tools grid ──────────────────────────────────────────── */}
-        <QuickToolsGrid t={t} />
+        {SHOW_LEGACY_TOOLS_GRID && <QuickToolsGrid t={t} />}
 
         {/* ── 5. Content calendar mini preview ─────────────────────────────── */}
         <CalendarMiniPreview days={weekDays} t={t} />
@@ -885,6 +885,60 @@ function DashboardContent() {
         </div>
       </div>
     </>
+  );
+}
+
+// ── Core entries: die drei Kernfunktionen (Teil A, A6) ────────────────────────
+/**
+ * Owner-Vorgabe 2026-11-12 (SPEC A4/A6/A9): genau drei Einstiege, mobil
+ * einspaltig, jeder führt direkt in den passenden Flow. Pinterest und Etsy
+ * wählen im Erstell-Bereich die passende Kachel vor (`?type=`), TikTok führt
+ * direkt in den Skriptgenerator. Keine doppelten Einstiegspunkte.
+ */
+function CoreEntries({ t }: { t: ReturnType<typeof useTranslation>['t'] }) {
+  const card =
+    'group flex flex-col rounded-2xl border p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md';
+  return (
+    <section data-testid="dashboard-core-entries">
+      <h2 className="mb-4 text-lg font-bold text-gray-900">{t.dashboard_core_title}</h2>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Link
+          to="/app/new-project"
+          search={{ type: 'pinterest' }}
+          data-testid="core-entry-pinterest"
+          className={`${card} border-pink-100 bg-gradient-to-br from-rose-50 to-white`}
+        >
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-100 text-xl">📌</span>
+          <h3 className="mt-4 text-base font-bold text-gray-900 group-hover:text-blue-700">
+            {t.dashboard_core_pinterest}
+          </h3>
+          <p className="mt-1 text-sm leading-relaxed text-gray-500">{t.strategy_tile_pinterest_desc}</p>
+        </Link>
+        <Link
+          to="/app/new-project"
+          search={{ type: 'etsy' }}
+          data-testid="core-entry-etsy"
+          className={`${card} border-amber-100 bg-gradient-to-br from-amber-50 to-white`}
+        >
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-100 text-xl">🛍️</span>
+          <h3 className="mt-4 text-base font-bold text-gray-900 group-hover:text-blue-700">
+            {t.dashboard_core_etsy}
+          </h3>
+          <p className="mt-1 text-sm leading-relaxed text-gray-500">{t.strategy_tile_etsy_desc}</p>
+        </Link>
+        <Link
+          to="/app/tiktok"
+          data-testid="core-entry-tiktok"
+          className={`${card} border-cyan-100 bg-gradient-to-br from-cyan-50 to-white`}
+        >
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-100 text-xl">🎬</span>
+          <h3 className="mt-4 text-base font-bold text-gray-900 group-hover:text-blue-700">
+            {t.dashboard_core_tiktok}
+          </h3>
+          <p className="mt-1 text-sm leading-relaxed text-gray-500">{t.strategy_tile_tiktok_desc}</p>
+        </Link>
+      </div>
+    </section>
   );
 }
 

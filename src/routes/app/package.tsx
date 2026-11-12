@@ -10,6 +10,7 @@ import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { StrategyBrief } from '~/components/StrategyBrief';
 import { ScoreBadge } from '~/components/ScoreBadge';
 import { VariantPicker } from '~/components/VariantPicker';
+import { showAbVariantsFor } from '~/lib/ui-neuausrichtung';
 import { ScoreCard } from '~/components/ScoreCard';
 import { tempAssetId } from '~/components/AssetFeedback';
 import { PrioritizeCard } from '~/components/PrioritizeCard';
@@ -948,14 +949,17 @@ function ChannelCard({
             />
           </div>
           {/* F7 A/B-Varianten - 3 gescorte Alternativen, die beste uebernehmen */}
-          <div className="mb-4">
-            <VariantPicker
-              content={display}
-              productIdea={productIdea}
-              strategyContext={strategyContext}
-              onAdopt={handleAdoptVariant}
-            />
-          </div>
+          {/* Teil A (A8): nur wo Varianten ein Ergebnis liefern (nicht Etsy/TikTok). */}
+          {showAbVariantsFor(display.contentType) && (
+            <div className="mb-4">
+              <VariantPicker
+                content={display}
+                productIdea={productIdea}
+                strategyContext={strategyContext}
+                onAdopt={handleAdoptVariant}
+              />
+            </div>
+          )}
 
           {/* F5 Kanal-Aktionspläne — concrete per-channel checklist below the score card */}
           <div className="mb-4">

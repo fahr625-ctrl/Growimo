@@ -26,6 +26,7 @@ import {
   type StrategyTileConfig,
 } from '~/ai/strategy-tiles';
 import { checkResultQuality, type QualityCheck } from '~/lib/result-quality';
+import { SHOW_STRATEGY_SCORE_TEXTS } from '~/lib/ui-neuausrichtung';
 import { TONES, toneLabel } from '~/lib/tones';
 import { formatDate } from '~/lib/date';
 import { extractStrategyImage, saveStrategyPrefill } from '~/lib/strategy-image';
@@ -96,6 +97,11 @@ import { classifyGenerationError } from '~/lib/analytics-error';
 // ── Search params type ────────────────────────────────────────────────────────
 interface NewProjectSearch {
   idea?: string;
+  /**
+   * Teil A (Owner-Vorgabe 2026-11-12): Einstieg von einer Dashboard-Kachel.
+   * `pinterest` / `etsy` wählt die passende Kachel vor.
+   */
+  type?: string;
 }
 
 // ── Route definition ──────────────────────────────────────────────────────────
@@ -104,6 +110,7 @@ export const Route = createFileRoute('/app/new-project')({
   validateSearch: (search: Record<string, unknown>): NewProjectSearch => {
     return {
       idea: typeof search.idea === 'string' ? search.idea : undefined,
+      type: typeof search.type === 'string' ? search.type : undefined,
     };
   },
   component: NewProjectPage,
@@ -199,7 +206,7 @@ function NewProjectContent() {
   const { user } = useUser();
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { idea: ideaParam } = useSearch({ from: '/app/new-project' });
+  const { idea: ideaParam, type: typeParam } = useSearch({ from: '/app/new-project' });
 
   // Loading messages from translations
   const LOADING_MESSAGES = useMemo(() => [
@@ -323,6 +330,14 @@ function NewProjectContent() {
     // greift nur, wenn keine ?idea= vorliegt (src/lib/idea-priority.ts).
     const resolved = resolveInitialIdea(ideaParam, draftIdea);
     if (resolved.idea) setProductIdea(resolved.idea);
+    // Teil A (Owner-Vorgabe 2026-11-12): Kommt der Nutzer über eine
+    // Dashboard-Kachel (?type=pinterest|etsy), ist die passende Kachel
+    // vorausgewählt. Der Klick auf „Erstellen" bleibt beim Nutzer.
+    const preselected: ContentType | null =
+      typeParam === 'pinterest' ? 'pinterest_pin' : typeParam === 'etsy' ? 'etsy_listing' : null;
+    if (preselected) {
+      setSelectedTypes((prev) => normalizeStrategySelection([...prev, preselected]));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1089,13 +1104,13 @@ function Step1Strategy({
           </div>
         </div>
 
-        {/* Kachel-Auswahl — Owner-Direktion 2026-10-05: genau 6 Kacheln.
-            2 Spalten auf Mobile (393 px, kein horizontales Scrollen),
-            3 Spalten ab sm. `data-strategy-tiles` dient als Bundle-Proof. */}
+        {/* Kachel-Auswahl — Teil A (Owner-Vorgabe 2026-11-12): mobil einspaltig,
+            ab sm drei Spalten (drei Kernfunktionen, klare Hierarchie).
+            `data-strategy-tiles` dient als Bundle-Proof. */}
         <div
           data-strategy-tiles={STRATEGY_TILES_MARKER}
           data-strategy-tile-count={STRATEGY_TILE_COUNT_ALL}
-          className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+          className="grid grid-cols-1 gap-3 sm:grid-cols-3"
         >
           {STRATEGY_TILE_CONFIG.map((tile) => {
             const isSelected = isStrategyTileSelected(tile, selectedTypes);
@@ -1170,12 +1185,17 @@ function Step1Strategy({
             0–100-Score mit konkreten Verbesserungen kommt über die Entscheidungs-
             Ebene (A/B-Varianten / Verbessern). Reine Beschriftung, keine
             Funktionsänderung. */}
-        <p
-          data-testid="strategy-score-scope-note"
-          className="mt-6 rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-3 text-xs leading-relaxed text-gray-600"
-        >
-          {t.strategy_score_scope_note}
-        </p>
+        {/* Teil A (A8): Der Score-Umfangshinweis beschreibt die Strategie-
+            Bewertung (0–100-Score, A/B-Varianten). Im Drei-Funktionen-Konzept
+            greift er nicht — per Flag ausgeblendet, Text bleibt erhalten. */}
+        {SHOW_STRATEGY_SCORE_TEXTS && (
+          <p
+            data-testid="strategy-score-scope-note"
+            className="mt-6 rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-3 text-xs leading-relaxed text-gray-600"
+          >
+            {t.strategy_score_scope_note}
+          </p>
+        )}
 
         {/* Generate CTA + transparente Ergebnis-/Kosten-Anzeige */}
         <div className="mt-8 flex flex-col items-center gap-2">

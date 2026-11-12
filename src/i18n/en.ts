@@ -252,7 +252,7 @@ export const en: EnShape = {
 
   // ── Sidebar ──────────────────────────────────────────────────────────────────
   sidebar_dashboard: 'Dashboard',
-  sidebar_new_strategy: 'New Strategy',
+  sidebar_new_strategy: 'Create content',
   sidebar_content_library: 'Content Library',
   content_library_subtitle: 'All your generated content in one place. Browse, filter and copy.', content_library_all: 'All', content_library_no_type: 'No content of this type', content_library_generate_hint: 'Generate %s to see them here.', content_library_content: 'content', content_library_empty_title: 'Your content library is empty', content_library_empty_desc: 'Start a project to generate your first content.', content_library_new_project: 'Create new project',
   sidebar_settings: 'Settings',
@@ -269,14 +269,14 @@ export const en: EnShape = {
   dashboard_stat_projects: 'Projects',
   dashboard_stat_contents: 'Contents',
   dashboard_stat_channels: 'Channels',
-  dashboard_new_strategy: 'New Strategy',
+  dashboard_new_strategy: 'Create content',
   dashboard_empty_no_results: 'No results',
   dashboard_empty_no_results_desc:
     'No projects match your search. Try a different term.',
   dashboard_empty_no_projects: 'No projects yet',
   dashboard_empty_no_projects_desc:
-    'Create your first marketing strategy and generate content for all channels with one click.',
-  dashboard_empty_cta: 'Create first strategy',
+    'Create your first Pinterest pin, your first Etsy listing or your first TikTok script.',
+  dashboard_empty_cta: 'Create content',
   dashboard_favorite_add: 'Add favorite',
   dashboard_favorite_remove: 'Remove favorite',
   dashboard_duplicate: 'Duplicate',
@@ -290,8 +290,12 @@ export const en: EnShape = {
 
   // ── Dashboard Welcome (empty state) ────────────────────────────────────────────
   dashboard_welcome: '👋 Welcome to Growimo',
-  dashboard_welcome_subtitle: 'Create your first marketing strategy in less than a minute. Simply describe your product and Growimo creates content for Pinterest, Etsy, SEO, Social Media, newsletters, and more.',
-  dashboard_cta_create: '🚀 Create your first marketing strategy',
+  dashboard_welcome_subtitle: 'Growimo creates three finished pieces of content: a Pinterest pin, an Etsy listing and a TikTok script.',
+  dashboard_cta_create: 'Create content',
+  dashboard_core_title: 'What would you like to create today?',
+  dashboard_core_pinterest: 'Create Pinterest pin',
+  dashboard_core_etsy: 'Create Etsy listing',
+  dashboard_core_tiktok: 'Create video script',
   dashboard_quickstart_label: 'Or try one of these examples:',
   dashboard_example_1: 'Personalized soy wax candle',
   dashboard_example_2: 'Leather dog leash',
@@ -299,11 +303,11 @@ export const en: EnShape = {
   dashboard_example_4: 'Personalized water bottle',
   dashboard_example_5: 'Digital household planner',
   dashboard_example_6: 'Birthday greeting card',
-  dashboard_empty_title: 'No marketing strategies created yet',
-  dashboard_empty_text: 'With your first strategy, Growimo creates content for multiple marketing channels at once.',
+  dashboard_empty_title: 'No content created yet',
+  dashboard_empty_text: 'Growimo creates three finished pieces of content: a Pinterest pin, an Etsy listing and a TikTok script.',
   dashboard_how_title: '💡 How it works',
   dashboard_how_step1: 'Describe product',
-  dashboard_how_step2: 'Generate strategy',
+  dashboard_how_step2: 'Create content',
   dashboard_how_step3: 'Copy content',
   dashboard_how_step4: 'Publish',
   dashboard_stats_projects: 'Projects',
@@ -314,7 +318,7 @@ export const en: EnShape = {
   dashboard_greeting_morning: 'Good morning',
   dashboard_greeting_afternoon: 'Good afternoon',
   dashboard_greeting_evening: 'Good evening',
-  dashboard_cta_new: 'Create New Strategy',
+  dashboard_cta_new: 'Create content',
   dashboard_kpi_projects: 'Projects',
   dashboard_kpi_content: 'Content pieces',
   dashboard_kpi_channels: 'Channels',
@@ -364,25 +368,25 @@ export const en: EnShape = {
   dashboard_recent_title: 'Recent Projects',
 
   // ── Strategy Flow (New Project) ──────────────────────────────────────────────
-  strategy_title: 'Create Marketing Strategy',
-  strategy_subtitle: 'One idea. All channels. One click.',
+  strategy_title: 'What would you like to create today?',
+  strategy_subtitle: 'Your idea. Your finished content. In a few clicks.',
   strategy_idea_label: 'Describe your product or product idea...',
   strategy_idea_placeholder:
     'e.g. Handcrafted ceramic coffee mugs with minimalist design',
   strategy_tone_label: 'Tone (optional)',
   strategy_select_types: 'Select content types',
-  strategy_select_types_desc: 'Choose what to generate for your strategy.',
+  strategy_select_types_desc: 'Choose what Growimo creates for you.',
   strategy_selected_count: '%d selected',
   strategy_select_all: '👥 Select all',
   strategy_clear_selection: 'Clear selection',
-  strategy_create_btn: '🚀 Create strategy',
+  strategy_create_btn: 'Create',
   // ── Tile simplification (owner direction 2026-10-05) ────────────────────────
   // Exactly 6 tiles are visible (src/ai/strategy-tiles.ts). SEO blog +
   // email newsletter are combined under "Content" (2 results).
   strategy_tile_pinterest: 'Pinterest',
-  strategy_tile_pinterest_desc: 'Pin titles, descriptions, keywords & image prompt',
+  strategy_tile_pinterest_desc: 'Finished pin with image and SEO texts',
   strategy_tile_etsy: 'Etsy',
-  strategy_tile_etsy_desc: 'Etsy title, description & all 13 tags',
+  strategy_tile_etsy_desc: 'Finished listing with title, description, 13 tags and mockup',
   strategy_tile_social: 'Social Media',
   strategy_tile_social_desc: 'Posts for Instagram, Facebook & TikTok',
   strategy_tile_marketing: 'Marketing strategy',
@@ -394,9 +398,9 @@ export const en: EnShape = {
   // Phase 1 (Owner approval 2026-11-11): third tile leads into the existing
   // TikTok module (script, no video).
   strategy_tile_tiktok: 'TikTok',
-  strategy_tile_tiktok_desc: 'Video script with timings, spoken text & 5 hashtags',
-  strategy_create_btn_pinterest: '📌 Create pin',
-  strategy_create_btn_etsy: '🛍️ Create listing',
+  strategy_tile_tiktok_desc: 'Finished video script with hook, scenes, title, description and hashtags',
+  strategy_create_btn_pinterest: 'Create Pinterest pin',
+  strategy_create_btn_etsy: 'Create Etsy listing',
   // FIX-BLOCK 5 (M4): a tile run delivers content + an action plan; the 0–100
   // score with concrete improvements comes from the decision layer.
   strategy_score_scope_note:
@@ -478,7 +482,7 @@ export const en: EnShape = {
     'No usable result was produced for these channels: %s. Nothing was shown as successful and nothing was saved as completed.',
   results_retry_failed: 'Generate again',
   strategy_open_module: 'Open module',
-  results_new: 'New Strategy',
+  results_new: 'Create content',
   results_view_project: 'View project',
   results_all_copied: 'All copied!',
   results_generation_failed: 'Generation failed',
@@ -1264,7 +1268,7 @@ export const en: EnShape = {
   calendar_subtitle: 'Plan and track your content across all channels',
   calendar_week: 'Week',
   calendar_month: 'Month',
-  calendar_new_strategy: 'New Strategy',
+  calendar_new_strategy: 'Create content',
   calendar_prev: 'Previous',
   calendar_next: 'Next',
   calendar_this_week: 'This Week',

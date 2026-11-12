@@ -13,6 +13,7 @@ import BrandBadge from '~/components/BrandBadge';
 import { ScoreCard } from '~/components/ScoreCard';
 import { tempAssetId } from '~/components/AssetFeedback';
 import { VariantPicker } from '~/components/VariantPicker';
+import { showAbVariantsFor } from '~/lib/ui-neuausrichtung';
 import { useTranslation } from '~/i18n';
 import { saveProject, updateChannel } from '~/store/projects';
 import { getBrandContext } from '~/store/brand';
@@ -662,12 +663,15 @@ function QuickGeneratorContent({
                 </span>
               )}
               {/* F7 A/B-Varianten — 3 gescorte Alternativen, die beste übernehmen */}
-              <VariantPicker
-                content={result}
-                productIdea={productIdea}
-                strategyContext={strategyContext}
-                onAdopt={handleAdoptVariant}
-              />
+              {/* Teil A (A8): nur wo Varianten ein Ergebnis liefern (nicht Etsy/TikTok). */}
+              {showAbVariantsFor(result.contentType) && (
+                <VariantPicker
+                  content={result}
+                  productIdea={productIdea}
+                  strategyContext={strategyContext}
+                  onAdopt={handleAdoptVariant}
+                />
+              )}
               {savedProjectId && (
                 <button
                   type="button"

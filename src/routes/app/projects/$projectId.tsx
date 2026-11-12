@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { ScoreBadge } from '~/components/ScoreBadge';
 import { VariantPicker } from '~/components/VariantPicker';
+import { showAbVariantsFor } from '~/lib/ui-neuausrichtung';
 import { ScoreCard, scoreFromMetadata } from '~/components/ScoreCard';
 import { useTranslation } from '~/i18n';
 import { formatDateTime } from '~/lib/date';
@@ -371,20 +372,24 @@ function ContentCard({ content, project, productIdea, strategyContext }: { conte
             </div>
           )}
           {/* F5 Kanal-Aktionspläne — concrete per-channel checklist below the asset */}
-          <div className="mt-4">
-            <VariantPicker
-              content={{
-                contentType: display.contentType,
-                title: display.title,
-                body: display.body,
-                metadata: display.metadata ?? {},
-                score: score ?? undefined,
-              }}
-              productIdea={productIdea}
-              strategyContext={strategyContext}
-              onAdopt={handleAdoptVariant}
-            />
-          </div>
+          {/* Teil A (A8): A/B-Varianten nur dort, wo sie ein Ergebnis liefern —
+              Etsy-Listing und TikTok-Skript haben keine Varianten-Ebene. */}
+          {showAbVariantsFor(display.contentType) && (
+            <div className="mt-4">
+              <VariantPicker
+                content={{
+                  contentType: display.contentType,
+                  title: display.title,
+                  body: display.body,
+                  metadata: display.metadata ?? {},
+                  score: score ?? undefined,
+                }}
+                productIdea={productIdea}
+                strategyContext={strategyContext}
+                onAdopt={handleAdoptVariant}
+              />
+            </div>
+          )}
           {/* F7 A/B-Varianten — 3 gescorte Alternativen, die beste uebernehmen */}
           <div className="mt-4">
             <ActionPlanCard

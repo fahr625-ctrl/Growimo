@@ -249,7 +249,7 @@ export const de = {
 
   // ── Sidebar ──────────────────────────────────────────────────────────────────
   sidebar_dashboard: 'Dashboard',
-  sidebar_new_strategy: 'Neue Strategie',
+  sidebar_new_strategy: 'Inhalte erstellen',
   sidebar_content_library: 'Inhaltsbibliothek',
   content_library_subtitle: 'Alle deine generierten Inhalte an einem Ort. Durchsuchen, filtern und kopieren.', content_library_all: 'Alle', content_library_no_type: 'Kein Inhalt dieses Typs', content_library_generate_hint: 'Generiere %s, um sie hier zu sehen.', content_library_content: 'Inhalte', content_library_empty_title: 'Deine Inhaltsbibliothek ist leer', content_library_empty_desc: 'Starte ein Projekt, um deine ersten Inhalte zu generieren.', content_library_new_project: 'Neues Projekt erstellen',
   sidebar_settings: 'Einstellungen',
@@ -266,14 +266,14 @@ export const de = {
   dashboard_stat_projects: 'Projekte',
   dashboard_stat_contents: 'Inhalte',
   dashboard_stat_channels: 'Kanäle',
-  dashboard_new_strategy: 'Neue Strategie',
+  dashboard_new_strategy: 'Inhalte erstellen',
   dashboard_empty_no_results: 'Keine Ergebnisse',
   dashboard_empty_no_results_desc:
     'Keine Projekte entsprechen deiner Suche. Versuche einen anderen Begriff.',
   dashboard_empty_no_projects: 'Noch keine Projekte',
   dashboard_empty_no_projects_desc:
-    'Erstelle deine erste Marketing-Strategie und generiere Content für alle Kanäle mit einem Klick.',
-  dashboard_empty_cta: 'Erste Strategie erstellen',
+    'Erstelle deinen ersten Pinterest-Pin, dein erstes Etsy-Listing oder dein erstes TikTok-Skript.',
+  dashboard_empty_cta: 'Inhalte erstellen',
   dashboard_favorite_add: 'Favorit hinzufügen',
   dashboard_favorite_remove: 'Favorit entfernen',
   dashboard_duplicate: 'Duplizieren',
@@ -287,8 +287,12 @@ export const de = {
 
   // ── Dashboard Welcome (empty state) ────────────────────────────────────────────
   dashboard_welcome: '👋 Willkommen bei Growimo',
-  dashboard_welcome_subtitle: 'Erstelle in weniger als einer Minute deine erste Marketingstrategie. Beschreibe einfach dein Produkt und Growimo erstellt Inhalte für Pinterest, Etsy, SEO, Social Media, Newsletter und mehr.',
-  dashboard_cta_create: '🚀 Erste Marketingstrategie erstellen',
+  dashboard_welcome_subtitle: 'Growimo erstellt drei fertige Inhalte: Pinterest-Pin, Etsy-Listing und TikTok-Skript.',
+  dashboard_cta_create: 'Inhalte erstellen',
+  dashboard_core_title: 'Was möchtest du heute erstellen?',
+  dashboard_core_pinterest: 'Pinterest-Pin erstellen',
+  dashboard_core_etsy: 'Etsy-Listing erstellen',
+  dashboard_core_tiktok: 'Videoskript erstellen',
   dashboard_quickstart_label: 'Oder teste eines dieser Beispiele:',
   dashboard_example_1: 'Personalisierte Kerze aus Sojawachs',
   dashboard_example_2: 'Hundeleine aus Leder',
@@ -296,11 +300,11 @@ export const de = {
   dashboard_example_4: 'Personalisierte Trinkflasche',
   dashboard_example_5: 'Digitaler Haushaltsplaner',
   dashboard_example_6: 'Grußkarte für Geburtstag',
-  dashboard_empty_title: 'Noch keine Marketingstrategien erstellt',
-  dashboard_empty_text: 'Mit deiner ersten Strategie erstellt Growimo Inhalte für mehrere Marketingkanäle gleichzeitig.',
+  dashboard_empty_title: 'Noch keine Inhalte erstellt',
+  dashboard_empty_text: 'Growimo erstellt drei fertige Inhalte: Pinterest-Pin, Etsy-Listing und TikTok-Skript.',
   dashboard_how_title: '💡 So funktioniert\'s',
   dashboard_how_step1: 'Produkt beschreiben',
-  dashboard_how_step2: 'Strategie generieren',
+  dashboard_how_step2: 'Inhalte erstellen',
   dashboard_how_step3: 'Inhalte kopieren',
   dashboard_how_step4: 'Veröffentlichen',
   dashboard_stats_projects: 'Projekte',
@@ -311,7 +315,7 @@ export const de = {
   dashboard_greeting_morning: 'Guten Morgen',
   dashboard_greeting_afternoon: 'Guten Tag',
   dashboard_greeting_evening: 'Guten Abend',
-  dashboard_cta_new: 'Neue Strategie erstellen',
+  dashboard_cta_new: 'Inhalte erstellen',
   dashboard_kpi_projects: 'Projekte',
   dashboard_kpi_content: 'Content-Elemente',
   dashboard_kpi_channels: 'Kanäle',
@@ -361,25 +365,25 @@ export const de = {
   dashboard_recent_title: 'Letzte Projekte',
 
   // ── Strategy Flow (New Project) ──────────────────────────────────────────────
-  strategy_title: 'Marketing-Strategie erstellen',
-  strategy_subtitle: 'Eine Idee. Alle Kanäle. Ein Klick.',
+  strategy_title: 'Was möchtest du heute erstellen?',
+  strategy_subtitle: 'Deine Idee. Dein fertiger Content. In wenigen Klicks.',
   strategy_idea_label: 'Beschreibe dein Produkt oder deine Produktidee ...',
   strategy_idea_placeholder:
     'z.B. Handgefertigte Keramik-Kaffeetassen mit minimalistischem Design',
   strategy_tone_label: 'Tonalität (optional)',
   strategy_select_types: 'Inhaltstypen auswählen',
-  strategy_select_types_desc: 'Wähle aus, was für deine Strategie generiert werden soll.',
+  strategy_select_types_desc: 'Wähle aus, was Growimo für dich erstellt.',
   strategy_selected_count: '%d ausgewählt',
   strategy_select_all: '👥 Alle auswählen',
   strategy_clear_selection: 'Auswahl löschen',
-  strategy_create_btn: '🚀 Strategie erstellen',
+  strategy_create_btn: 'Erstellen',
   // ── Kachel-Vereinfachung (Owner-Direktion 2026-10-05) ────────────────────────
   // Sichtbar sind genau 6 Kacheln (src/ai/strategy-tiles.ts). SEO-Blog +
   // E-Mail-Newsletter sind unter „Content" zusammengefasst (2 Ergebnisse).
   strategy_tile_pinterest: 'Pinterest',
-  strategy_tile_pinterest_desc: 'Pin-Titel, Beschreibung, Keywords & Bild-Prompt',
+  strategy_tile_pinterest_desc: 'Fertiger Pin mit Bild und SEO-Texten',
   strategy_tile_etsy: 'Etsy',
-  strategy_tile_etsy_desc: 'Etsy-Titel, Beschreibung & alle 13 Tags',
+  strategy_tile_etsy_desc: 'Fertiges Listing mit Titel, Beschreibung, 13 Tags und Mockup',
   strategy_tile_social: 'Social Media',
   strategy_tile_social_desc: 'Beiträge für Instagram, Facebook & TikTok',
   strategy_tile_marketing: 'Marketing-Strategie',
@@ -391,9 +395,9 @@ export const de = {
   // Phase 1 (Owner-Freigabe 2026-11-11): dritte Kachel fuehrt in das bestehende
   // TikTok-Modul (Skript, kein Video).
   strategy_tile_tiktok: 'TikTok',
-  strategy_tile_tiktok_desc: 'Videoskript mit Zeitangaben, Sprechtext & 5 Hashtags',
-  strategy_create_btn_pinterest: '📌 Pin erstellen',
-  strategy_create_btn_etsy: '🛍️ Listing erstellen',
+  strategy_tile_tiktok_desc: 'Fertiges Videoskript mit Hook, Szenen, Titel, Beschreibung und Hashtags',
+  strategy_create_btn_pinterest: 'Pinterest-Pin erstellen',
+  strategy_create_btn_etsy: 'Etsy-Listing erstellen',
   // FIX-BLOCK 5 (M4): Der Kachel-Lauf liefert Inhalt + Aktionsplan; der
   // 0–100-Score mit konkreten Verbesserungen kommt über die Entscheidungs-Ebene.
   strategy_score_scope_note:
@@ -475,7 +479,7 @@ export const de = {
     'Für diese Kanäle liegt kein verwendbares Ergebnis vor: %s. Es wurde nichts als Erfolg angezeigt und nichts als abgeschlossen gespeichert.',
   results_retry_failed: 'Erneut generieren',
   strategy_open_module: 'Zum Modul',
-  results_new: 'Neue Strategie',
+  results_new: 'Inhalte erstellen',
   results_view_project: 'Projekt ansehen',
   results_all_copied: 'Alles kopiert!',
   results_generation_failed: 'Generierung fehlgeschlagen',
@@ -1268,7 +1272,7 @@ export const de = {
   calendar_subtitle: 'Plane und verfolge deine Inhalte über alle Kanäle',
   calendar_week: 'Woche',
   calendar_month: 'Monat',
-  calendar_new_strategy: 'Neue Strategie',
+  calendar_new_strategy: 'Inhalte erstellen',
   calendar_prev: 'Vorherige',
   calendar_next: 'Nächste',
   calendar_this_week: 'Diese Woche',
