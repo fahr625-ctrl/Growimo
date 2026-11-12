@@ -1,4 +1,5 @@
 import type { AIConfig, ContentRequest, ContentResult } from './types';
+import type { QualityCheck } from '~/lib/result-quality';
 import { getConfiguredProviders } from './providers/index';
 
 /**
@@ -29,6 +30,75 @@ async function runProvider(
   throw new Error(
     'Kein KI-Anbieter konfiguriert. Bitte OPENAI_API_KEY in den Umgebungsvariablen setzen, um Inhalte zu generieren.',
   );
+}
+
+/**
+ * Phase 1 (Owner-Freigabe 2026-11-11) — GATE VOR DEM ERGEBNIS.
+ *
+ * Der Provider-Aufruf wird EINMAL wiederholt, wenn die Antwort keine brauchbare
+ * Ausgabe ist (Absage oder unvollständig). Erst danach fliegt ein typisierter
+ * `GenerationQualityError`. Weil dieser Fehler aus `fn()` heraus geworfen wird,
+ * kompensiert `withGenerationGuard` (src/lib/usage-guard.ts) die reservierte
+ * Einheit automatisch — der Nutzer verliert für eine Absage kein Kontingent.
+ *
+ * Muster bewusst wie in `tiktok.ts` (Retry mit Selbstprüfung): genau EIN
+ * zusätzlicher Versuch, nie eine Schleife, nie ein stiller Fallback.
+ */
+async function runProviderGated(
+  request: ContentRequest,
+  config?: AIConfig,
+): Promise<ContentResult> {
+  const { checkResultQuality, isQualityError, qualityCorrection, GenerationQualityError } =
+    await import('~/lib/result-quality');
+
+  let first: ContentResult | null = null;
+  let firstCheck: QualityCheck;
+  try {
+    first = await runProvider(request, config);
+    firstCheck = checkResultQuality(request.contentType, first);
+  } catch (err) {
+    // Eine Absage kommt schon typisiert aus dem Provider (openai.ts).
+    if (!isQualityError(err)) throw err;
+    firstCheck = { ok: false, code: err.qualityCode, violations: err.violations };
+  }
+
+  if (firstCheck.ok && first) return first;
+
+  console.warn(
+    '[generate] Qualitaetspruefung fehlgeschlagen:',
+    firstCheck.code,
+    firstCheck.violations.join('|'),
+    'fuer',
+    request.contentType,
+    '— ein korrigierender Versuch.',
+  );
+
+  const retryRequest: ContentRequest = {
+    ...request,
+    correctionNote: [request.correctionNote, qualityCorrection(firstCheck)]
+      .filter(Boolean)
+      .join('\n\n'),
+  };
+
+  let retry: ContentResult;
+  try {
+    retry = await runProvider(retryRequest, config);
+  } catch (err) {
+    if (!isQualityError(err)) throw err;
+    throw new GenerationQualityError(err.qualityCode, err.violations);
+  }
+  const retryCheck = checkResultQuality(request.contentType, retry);
+  if (retryCheck.ok) return retry;
+
+  console.error(
+    '[generate] Qualitaetspruefung auch nach Korrektur fehlgeschlagen:',
+    retryCheck.code,
+    retryCheck.violations.join('|'),
+    'fuer',
+    request.contentType,
+    '— Ausgabe wird abgelehnt.',
+  );
+  throw new GenerationQualityError(retryCheck.code ?? 'incomplete', retryCheck.violations);
 }
 
 /** Post-Processing, das für JEDEN generierten Kanal gilt (Metric-Guard + Score). */
@@ -166,7 +236,11 @@ async function generateWithContextLoyalty(
   request: ContentRequest,
   config?: AIConfig,
 ): Promise<ContentResult> {
-  const run = await runWithContextLoyalty(request, (req) => runProvider(req, config));
+  // Phase 1: JEDER Provider-Aufruf läuft durch das Qualitäts-Gate (Absage /
+  // unvollständig ⇒ 1 Wiederholung ⇒ typisierter Fehler). Damit gilt der Gate
+  // für alle Pfade, die `generateContent` nutzen: Strategie-Stream, Einzel-Asset,
+  // Paket-Flow und Verbessern.
+  const run = await runWithContextLoyalty(request, (req) => runProviderGated(req, config));
   return finish(request, run.result);
 }
 

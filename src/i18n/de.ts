@@ -387,6 +387,12 @@ export const de = {
   strategy_tile_content_desc: 'SEO-Blogbeitrag + E-Mail-Newsletter in einem Lauf',
   strategy_tile_ideas: 'Produktideen',
   strategy_tile_ideas_desc: 'Neue Produktideen mit beobachtbarem Trend- und Marktblick',
+  // Phase 1 (Owner-Freigabe 2026-11-11): dritte Kachel fuehrt in das bestehende
+  // TikTok-Modul (Skript, kein Video).
+  strategy_tile_tiktok: 'TikTok',
+  strategy_tile_tiktok_desc: 'Videoskript mit Zeitangaben, Sprechtext & 5 Hashtags',
+  strategy_create_btn_pinterest: '📌 Pin erstellen',
+  strategy_create_btn_etsy: '🛍️ Listing erstellen',
   // FIX-BLOCK 5 (M4): Der Kachel-Lauf liefert Inhalt + Aktionsplan; der
   // 0–100-Score mit konkreten Verbesserungen kommt über die Entscheidungs-Ebene.
   strategy_score_scope_note:
@@ -462,6 +468,12 @@ export const de = {
   results_words: '%s Wörter insgesamt',
   results_read_time: '~%ds Lesezeit',
   results_generated_badge: 'Generiert',
+  results_incomplete_badge: 'Unvollständig',
+  results_quality_failed_title: 'Kein brauchbares Ergebnis',
+  results_quality_failed_body:
+    'Für diese Kanäle liegt kein verwendbares Ergebnis vor: %s. Es wurde nichts als Erfolg angezeigt und nichts als abgeschlossen gespeichert.',
+  results_retry_failed: 'Erneut generieren',
+  strategy_open_module: 'Zum Modul',
   results_new: 'Neue Strategie',
   results_view_project: 'Projekt ansehen',
   results_all_copied: 'Alles kopiert!',

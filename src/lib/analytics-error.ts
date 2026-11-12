@@ -92,6 +92,15 @@ export function classifyGenerationError(
   if (errCode === 'RATE_LIMIT' || errName === 'RateLimitError') {
     return { category: 'rate_limit', code: 'rate_limit' };
   }
+  // Phase 1 (Owner-Freigabe 2026-11-11): Qualitäts-Gate — das Modell hat
+  // abgelehnt oder unvollständig geliefert. Eigene Codes, damit die
+  // Fehleranalyse „Absage" von „unvollständig" trennt. Strukturell erkannt
+  // (name/qualityCode), damit dieses Modul client-sicher bleibt.
+  if (errName === 'GenerationQualityError') {
+    const qc = (err as { qualityCode?: unknown }).qualityCode;
+    if (qc === 'refusal') return { category: 'validation', code: 'refusal' };
+    return { category: 'validation', code: 'incomplete_result' };
+  }
 
   const msg = rawMessage(err);
   const lower = msg.toLowerCase();

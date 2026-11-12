@@ -36,6 +36,9 @@
 // bei 10 parallelen Kanälen über das Limit hinausschießen.
 import { OWNER_CLERK_ID } from './owner-id';
 import { verifySessionSubject } from '../api/tracking';
+import { analyticsPseudonymFor } from './analytics-pseudonym';
+import { isQualityError } from './result-quality';
+import { analyticsChannelForContentType, qInsertAnalyticsEvent } from '../db/analytics';
 import {
   qGetPlanTier,
   qGetRemaining,
@@ -277,6 +280,45 @@ export async function releaseGeneration(clerkUserId: string): Promise<void> {
 }
 
 /**
+ * Phase 1 (Owner-Freigabe 2026-11-11) — SERVERSEITIGE FEHLERSPUR OHNE INHALTE.
+ *
+ * Der Echfall vom 11.11.2026 war nicht rekonstruierbar, weil ein Fehlversuch
+ * NIRGENDS auftauchte (keine error-Zeile in der DB, Vercel-Logs nach ~30 min
+ * weg). Deshalb schreibt jeder fehlgeschlagene Qualitäts-Gate-Lauf eine Zeile
+ * in `analytics_events`:
+ *   event           = 'generation_finished'
+ *   status          = 'error'
+ *   error_category  = 'validation'
+ *   error_code      = '<refusal|incomplete>[_<erster technischer Grund>]'
+ *   user_pseudonym  = HMAC(ANALYTICS_SALT, clerk_id) — nie die Clerk-ID selbst
+ * Es werden NUR technische Schlüssel geschrieben: kein Prompt, kein
+ * Produkttext, keine Modellantwort, keine Länge des Nutzertexts.
+ *
+ * Fail-soft: Logging darf den Originalfehler nie verschlucken.
+ */
+export async function logGenerationFailure(
+  callerId: string | null | undefined,
+  err: unknown,
+  ctx?: UsageEventContext,
+): Promise<void> {
+  try {
+    if (!isQualityError(err)) return;
+    const firstReason = err.violations[0] ?? '';
+    const errorCode = `${err.qualityCode}${firstReason ? `_${firstReason}` : ''}`.slice(0, 40);
+    await qInsertAnalyticsEvent({
+      userPseudonym: analyticsPseudonymFor(callerId ?? null),
+      event: 'generation_finished',
+      channel: analyticsChannelForContentType(String(ctx?.detail ?? '')),
+      status: 'error',
+      errorCategory: 'validation',
+      errorCode,
+    });
+  } catch (logErr) {
+    console.error('[usage-guard] Fehlerprotokollierung fehlgeschlagen:', logErr);
+  }
+}
+
+/**
  * Guard+Increment um einen echten Generierungsaufruf:
  *   1. reserviert atomar (konditionales Increment unter dem Limit),
  *   2. führt fn aus,
@@ -303,7 +345,14 @@ export async function withGenerationGuard<T>(
   // Usage-Event (kein Zähler ⇒ kein Ledger-Eintrag, Vorgabe 8.2 bleibt sichtbar
   // unverändert).
   if (isAdminOverride(callerId)) {
-    return fn();
+    // Phase 1: Auch der Owner-Lauf (der Echfall vom 11.11. lief auf dem
+    // Owner-Konto, ohne Zähler) hinterlässt bei einem Fehlversuch eine Spur.
+    try {
+      return await fn();
+    } catch (err) {
+      await logGenerationFailure(callerId, err, ctx);
+      throw err;
+    }
   }
   const planTier = await qGetPlanTier(callerId);
   const limit = limitForPlan(planTier);
@@ -336,6 +385,9 @@ export async function withGenerationGuard<T>(
     } catch {
       // Kompensation darf den Originalfehler nie verschlucken.
     }
+    // Phase 1: Fehlversuch protokollieren (nur bei Qualitäts-Gate-Fehlern) —
+    // nach der Kompensation, damit die Spur auch bei Log-Fehler steht.
+    await logGenerationFailure(callerId, err, ctx);
     throw err;
   }
 }

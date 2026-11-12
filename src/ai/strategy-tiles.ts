@@ -42,7 +42,34 @@ export interface StrategyTileConfig {
   contentTypes: ContentType[];
 }
 
-export const STRATEGY_TILE_CONFIG: StrategyTileConfig[] = [
+/**
+ * Phase 1 — Owner-Freigabe 2026-11-11: „Drei Kacheln, drei fertige Ergebnisse".
+ *
+ * `true`  = sichtbar sind Pinterest, Etsy (generierbar) und TikTok (führt in das
+ *           bestehende TikTok-Modul). Die vier übrigen Bereiche — Marketing-
+ *           Strategie, Social-Media-Beiträge, Content/Blog/Newsletter,
+ *           Produktideen — sind AUSGEBLENDET, nicht gelöscht: ihre ContentTypes
+ *           bleiben in der Registry, in den Prompts, in der DB und in allen
+ *           Lese-/Anzeigepfaden (gespeicherte Projekte dieser Typen öffnen
+ *           unverändert).
+ * `false` = die alte Sechs-Kachel-Ansicht kommt in einer Minute zurück
+ *           (eine Konstante, kein Umbau, keine Datenmigration).
+ */
+export const STRATEGY_THREE_TILES_ENABLED = true;
+
+/** Die Kacheln, die im Drei-Kachel-Modus noch selbst generieren. */
+const THREE_TILE_KEYS: readonly StrategyTileKey[] = ['pinterest', 'etsy'];
+
+/** Kachel, die nicht generiert, sondern in ein bestehendes Modul führt. */
+export interface StrategyLinkTile {
+  key: 'tiktok';
+  labelKey: keyof Translations;
+  descKey: keyof Translations;
+  icon: string;
+  href: string;
+}
+
+const ALL_TILES: StrategyTileConfig[] = [
   {
     key: 'pinterest',
     labelKey: 'strategy_tile_pinterest',
@@ -87,6 +114,32 @@ export const STRATEGY_TILE_CONFIG: StrategyTileConfig[] = [
     contentTypes: ['product_idea'],
   },
 ];
+
+/**
+ * Sichtbare, GENERIERENDE Kacheln. Im Drei-Kachel-Modus sind das Pinterest und
+ * Etsy; die vier übrigen Einträge bleiben in `ALL_TILES` erhalten und werden
+ * nur nicht mehr angeboten.
+ */
+export const STRATEGY_TILE_CONFIG: StrategyTileConfig[] = STRATEGY_THREE_TILES_ENABLED
+  ? ALL_TILES.filter((tile) => THREE_TILE_KEYS.includes(tile.key))
+  : ALL_TILES;
+
+/** Kacheln, die in ein bestehendes Modul führen (kein ContentType, keine Einheit). */
+export const STRATEGY_LINK_TILES: StrategyLinkTile[] = STRATEGY_THREE_TILES_ENABLED
+  ? [
+      {
+        key: 'tiktok',
+        labelKey: 'strategy_tile_tiktok',
+        descKey: 'strategy_tile_tiktok_desc',
+        icon: '🎬',
+        href: '/app/tiktok',
+      },
+    ]
+  : [];
+
+/** Anzahl aller sichtbaren Kacheln (generierend + verlinkend) für die Anzeige. */
+export const STRATEGY_TILE_COUNT_ALL =
+  STRATEGY_TILE_CONFIG.length + STRATEGY_LINK_TILES.length;
 
 /** Alle ContentTypes, die über die sichtbaren Kacheln wählbar sind. */
 export const STRATEGY_TILE_CONTENT_TYPES: ContentType[] = STRATEGY_TILE_CONFIG.flatMap(

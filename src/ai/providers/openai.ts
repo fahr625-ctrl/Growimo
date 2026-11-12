@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import type { AIProvider, AIConfig, ContentRequest, ContentResult, ContentType } from '../types';
 import { SELF_REFERENCE_CONSTRAINT } from '../context-loyalty';
 import { FACT_PROTECTION_CONSTRAINT } from '../fact-guard';
+import { GenerationQualityError, isRefusalText } from '~/lib/result-quality';
 
 const NO_INVENT_CONSTRAINT = `⚠️ WICHTIG: Verwende AUSSCHLIESSLICH die vom Nutzer bereitgestellten Produktinformationen. Erfinde KEINE Größen, Materialien, Preise, Farben, Versanddetails oder andere Produktspezifikationen, die nicht in den Produktdetails genannt werden. Wenn eine Information nicht verfügbar ist, formuliere allgemein oder lasse sie weg — aber erfinde sie nicht.`;
 
@@ -887,11 +888,30 @@ export function createOpenAIProvider(): AIProvider {
       });
 
       const text = response.choices[0]?.message?.content;
-      console.log('[openai] Response received, length:', text?.length ?? 0);
+      const finishReason = response.choices[0]?.finish_reason;
+      // Phase 1 (Owner-Freigabe 2026-11-11): Das Anbieter-Signal getrennt von der
+      // Textprüfung — ein `content_filter`-Abbruch ist eine Absage, auch wenn
+      // irgendein Resttext ankommt.
+      const providerRefusal =
+        (response.choices[0]?.message as { refusal?: string | null } | undefined)?.refusal;
+      console.log('[openai] Response received, length:', text?.length ?? 0, 'finish_reason:', finishReason);
       console.log('[openai] Response (first 200 chars):', text?.slice(0, 200));
 
       if (!text) {
         throw new Error('OpenAI returned an empty response');
+      }
+
+      // Phase 1: Eine Absage ist ein FEHLER, kein Ergebnis. Vorher wurde sie als
+      // „nicht leer" = Erfolg gespeichert (Echfall 2026-11-11: „Es tut mir leid,
+      // aber ich kann diese Anfrage nicht weiter bearbeiten."). Der Parser darf
+      // aus einer Absage keinen Titel mehr basteln.
+      if (finishReason === 'content_filter' || providerRefusal || isRefusalText(text)) {
+        console.warn('[openai] Absage erkannt — kein Ergebnis (contentType:', req.contentType + ')');
+        throw new GenerationQualityError('refusal', [
+          providerRefusal ? 'provider_refusal' : '',
+          finishReason === 'content_filter' ? 'content_filter' : '',
+          !providerRefusal && finishReason !== 'content_filter' ? 'refusal_text' : '',
+        ].filter(Boolean));
       }
 
       const result = parseResponse(req.contentType, text);

@@ -11,9 +11,11 @@ import { getContentTypeConfig } from '~/ai/content-types';
 // für alle (auch nicht mehr wählbare) Typen in Ergebnis-, Projekt- und
 // Bibliotheks-Ansichten.
 import {
+  STRATEGY_LINK_TILES,
   STRATEGY_TILE_CONFIG,
   STRATEGY_TILE_COUNT,
   STRATEGY_TILES_MARKER,
+  STRATEGY_TILE_COUNT_ALL,
   isStrategyTileSelected,
   normalizeStrategySelection,
   selectAllStrategyContentTypes,
@@ -23,6 +25,7 @@ import {
   toggleStrategyTile,
   type StrategyTileConfig,
 } from '~/ai/strategy-tiles';
+import { checkResultQuality, type QualityCheck } from '~/lib/result-quality';
 import { TONES, toneLabel } from '~/lib/tones';
 import { formatDate } from '~/lib/date';
 import { extractStrategyImage, saveStrategyPrefill } from '~/lib/strategy-image';
@@ -251,6 +254,11 @@ function NewProjectContent() {
   // (einmalige) Kontingent erschöpft ist — vorher landete das nur in der Konsole.
   const [quotaNotice, setQuotaNotice] = useState(false);
 
+  // Phase 1 (Owner-Freigabe 2026-11-11): Kanäle, deren Ergebnis die Prüfung
+  // NICHT bestanden hat (Absage/unvollständig). Sie werden nicht als Erfolg
+  // angezeigt, nicht gespeichert und können gezielt neu erzeugt werden.
+  const [failedTypes, setFailedTypes] = useState<ContentType[]>([]);
+
 
   // ── Cycle loading messages ────────────────────────────────────────────────
   useEffect(() => {
@@ -409,12 +417,18 @@ function NewProjectContent() {
   }, [productDetails]);
 
 // ── Generate all selected content types ────────────────────────────────────
-  const handleGenerate = useCallback(async () => {
-    if (selectedTypes.length === 0) return;
+  // Phase 1 (Owner-Freigabe 2026-11-11): optional NUR bestimmte Kanäle erzeugen
+  // — das ist der „Erneut generieren"-Weg nach einem Fehlversuch (kein zweiter
+  // Verbrauch für Kanäle, die schon ein gutes Ergebnis haben).
+  const handleGenerate = useCallback(async (onlyTypes?: ContentType[]) => {
+    const targetTypes =
+      Array.isArray(onlyTypes) && onlyTypes.length > 0 ? onlyTypes : selectedTypes;
+    if (targetTypes.length === 0) return;
 
     const uid = user?.id ?? 'anonymous';
     setErrorMessage(null);
     setQuotaNotice(false);
+    setFailedTypes([]);
 
     // Check usage limits
     // R4-Fix (2026-10-22): Der Client-Spiegel (`canGenerate`, gespeist aus dem
@@ -429,20 +443,26 @@ function NewProjectContent() {
       return;
     }
 
+    // Phase 1: Ein „Erneut generieren" NUR für fehlgeschlagene Kanäle behält die
+    // bereits guten Ergebnisse auf dem Schirm und hängt die neuen an.
+    const isRetry = Array.isArray(onlyTypes) && onlyTypes.length > 0;
     setIsLoading(true);
     setStep(2);
-    setResults([]);
-    setSavedProjectId(null);
+    if (!isRetry) {
+      setResults([]);
+      setSavedProjectId(null);
+    }
     // Reset stream progress state (used by the stream path; harmless for legacy)
     setStepStatus({});
     setStreamOrder([]);
     setStreamTitles({});
 
     // Admin-Analytics MVP Phase 1 (additive): one started event per channel.
-    // Channel list is derived from selectedTypes so it is also available in
-    // the error path below (requests itself is built inside the try block).
+    // Channel list is derived from the types actually requested so it is also
+    // available in the error path below (requests itself is built inside the
+    // try block).
     const analyticsStart = Date.now();
-    const analyticsChannels = selectedTypes
+    const analyticsChannels = targetTypes
       .map((ct) => analyticsChannelForContentType(ct))
       .filter((c): c is NonNullable<typeof c> => c !== null);
     try {
@@ -461,7 +481,7 @@ function NewProjectContent() {
       // AUSgeschaltetes Profil ⇒ getBrandContext() liefert '' (keine Wirkung).
       const brandContext = getBrandContext();
 
-      const requests: ContentRequest[] = selectedTypes.map((contentType) => ({
+      const requests: ContentRequest[] = targetTypes.map((contentType) => ({
         contentType,
         // Roh — kein vorangestellter Markenblock mehr (Phase 1/C1).
         productIdea,
@@ -478,6 +498,8 @@ function NewProjectContent() {
         console.info('[new-project] streaming via /api/generate/stream at', new Date().toISOString());
         const collected: ContentResult[] = [];
         let streamFailed: string | null = null;
+        // Phase 1: Kanäle, die der Server als fehlgeschlagen gemeldet hat.
+        const channelErrors: ContentType[] = [];
         for await (const event of readGenerateStream(requests)) {
           if (event.type === 'step' && event.stepId) {
             const stepId = event.stepId;
@@ -504,6 +526,11 @@ function NewProjectContent() {
             if (event.code === 'USAGE_LIMIT' || isQuotaExhaustedMessage(event.message)) {
               setQuotaNotice(true);
             }
+            // Phase 1: Der Kanal wird als fehlgeschlagen geführt (stepId =
+            // "channel:<contentType>") — er erscheint NICHT als Erfolg und kann
+            // gezielt neu erzeugt werden.
+            const failedType = event.stepId.replace(/^channel:/, '') as ContentType;
+            if (targetTypes.includes(failedType)) channelErrors.push(failedType);
             console.error('Channel generation failed (stream):', event.stepId, event.message);
           } else if (event.type === 'fatal') {
             streamFailed = event.message ?? 'Unbekannter Fehler';
@@ -512,6 +539,7 @@ function NewProjectContent() {
         }
         if (streamFailed) throw new Error(streamFailed);
         generated = collected;
+        if (channelErrors.length > 0) setFailedTypes(channelErrors);
       } else {
         // ── Legacy path (unchanged): one ServerFn POST per channel, parallel.
         console.info('[new-project] calling generateContentServer at', new Date().toISOString());
@@ -522,43 +550,83 @@ function NewProjectContent() {
         setResults(generated);
       }
 
-      // Record this generation in usage tracking
-      recordGeneration(uid);
+      // ── Phase 1 (Owner-Freigabe 2026-11-11): GATE STATT ANZEIGE ─────────────
+      // 1) Vollständigkeitsprüfung: jeder angeforderte Kanal muss ein Ergebnis
+      //    haben (vorher wurde das Projekt trotz fehlender Kanäle als
+      //    `completed` gespeichert).
+      // 2) Qualitätsprüfung im Client: ein Ergebnis, das die Prüfung nicht
+      //    besteht (Absage/unvollständig), wird NIE grün angezeigt.
+      const passed: ContentResult[] = [];
+      const failed: ContentType[] = [...channelErrors];
+      for (const req of requests) {
+        const result = generated.find((r) => r.contentType === req.contentType);
+        if (!result) {
+          if (!failed.includes(req.contentType)) failed.push(req.contentType);
+          continue;
+        }
+        const quality: QualityCheck = checkResultQuality(result.contentType, result);
+        if (quality.ok) passed.push(result);
+        else if (!failed.includes(req.contentType)) failed.push(req.contentType);
+      }
+      if (failed.length > 0) {
+        console.warn('[new-project] Kanäle ohne brauchbares Ergebnis:', failed.join(','));
+        setFailedTypes(failed);
+        // Fehlgeschlagene Kanäle verschwinden aus der Anzeige (kein grüner
+        // Status ohne bestandene Prüfung). Bereits gute Ergebnisse eines
+        // früheren Laufs bleiben stehen.
+        setResults((prev) => prev.filter((r) => !failed.includes(r.contentType)));
+      }
+      generated = passed;
 
-      // Admin-Analytics MVP Phase 1 (additive): finished/done per channel.
+      // Record this generation in usage tracking (nur wenn etwas entstanden ist)
+      if (generated.length > 0) recordGeneration(uid);
+
+      // Admin-Analytics MVP Phase 1 (additive): finished/done per channel —
+      // Phase 1: NUR für Kanäle mit bestandener Prüfung. Fehlgeschlagene Kanäle
+      // stehen als `error` (Server-Protokoll + Client-Klassifizierung), nicht
+      // als `done`.
       try {
         const durationMs = Date.now() - analyticsStart;
-        for (const channel of analyticsChannels) {
+        const doneChannels = generated
+          .map((r) => analyticsChannelForContentType(r.contentType))
+          .filter((c): c is NonNullable<typeof c> => c !== null);
+        for (const channel of doneChannels) {
           trackAnalytics('generation_finished', { channel, status: 'done', durationMs });
         }
       } catch {
         // analytics must never surface errors
       }
 
-      // Save to in-memory store
+      // Save to in-memory store — Phase 1: nur brauchbare Ergebnisse, und NICHT
+      // als `completed`, wenn ein angeforderter Kanal fehlt (Vollständigkeit).
       const userId = user?.id ?? 'anonymous';
       const projectTitle =
         productIdea.length > 50
           ? productIdea.slice(0, 50) + '...'
           : productIdea;
 
-      const saved = await saveProject(
-        userId,
-        {
+      // Ein „Erneut generieren" für einzelne Kanäle legt kein zweites Projekt an,
+      // wenn das Projekt bereits gespeichert ist.
+      const shouldSave = generated.length > 0 && (!isRetry || !savedProjectId);
+      if (shouldSave) {
+        const saved = await saveProject(
           userId,
-          title: projectTitle,
-          productIdea,
-          contentTypes: selectedTypes,
-          status: 'completed',
-        },
-        generated.map((r) => ({
-          contentType: r.contentType,
-          title: r.title,
-          body: r.body,
-          metadata: r.metadata,
-        })),
-      );
-      setSavedProjectId(saved.id);
+          {
+            userId,
+            title: projectTitle,
+            productIdea,
+            contentTypes: generated.map((r) => r.contentType),
+            status: failed.length === 0 ? 'completed' : 'draft',
+          },
+          generated.map((r) => ({
+            contentType: r.contentType,
+            title: r.title,
+            body: r.body,
+            metadata: r.metadata,
+          })),
+        );
+        setSavedProjectId(saved.id);
+      }
 
       // Track strategy creation
       try {
@@ -747,6 +815,8 @@ function NewProjectContent() {
           copiedAll={copiedAll}
           savedProjectId={savedProjectId}
           errorMessage={errorMessage}
+          failedTypes={failedTypes}
+          onRetryFailed={() => handleGenerate(failedTypes)}
           stepStatus={stepStatus}
           streamOrder={streamOrder}
           streamTitles={streamTitles}
@@ -1024,7 +1094,7 @@ function Step1Strategy({
             3 Spalten ab sm. `data-strategy-tiles` dient als Bundle-Proof. */}
         <div
           data-strategy-tiles={STRATEGY_TILES_MARKER}
-          data-strategy-tile-count={STRATEGY_TILE_COUNT}
+          data-strategy-tile-count={STRATEGY_TILE_COUNT_ALL}
           className="grid grid-cols-2 gap-3 sm:grid-cols-3"
         >
           {STRATEGY_TILE_CONFIG.map((tile) => {
@@ -1071,6 +1141,28 @@ function Step1Strategy({
               </button>
             );
           })}
+          {/* Phase 1 (Owner-Freigabe 2026-11-11): dritte Kachel = TikTok. Sie
+              generiert hier nichts, sondern fuehrt in das bestehende
+              TikTok-Modul (Skript mit Zeitangaben, kein Video). */}
+          {STRATEGY_LINK_TILES.map((tile) => (
+            <Link
+              key={tile.key}
+              to={tile.href}
+              data-strategy-tile-link={tile.key}
+              className="relative flex flex-col items-center gap-1.5 rounded-xl border-2 border-gray-200 bg-white p-4 text-center transition-all hover:-translate-y-0.5 hover:shadow-sm"
+            >
+              <span className="text-2xl">{tile.icon}</span>
+              <span className="text-xs font-semibold leading-tight text-gray-700">
+                {t[tile.labelKey]}
+              </span>
+              <span className="text-[10px] leading-tight text-gray-400 line-clamp-2">
+                {t[tile.descKey]}
+              </span>
+              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">
+                {t.strategy_open_module}
+              </span>
+            </Link>
+          ))}
         </div>
 
         {/* FIX-BLOCK 5 (Owner-Entscheidung 2026-10-08, Punkt M4): Produktversprechen
@@ -1093,7 +1185,12 @@ function Step1Strategy({
             disabled={!canGen}
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-4 text-base font-semibold text-white shadow-lg shadow-blue-200 transition-all hover:from-blue-700 hover:to-purple-700 hover:shadow-xl hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
           >
-            {t.strategy_create_btn}
+            {/* Phase 1: eigener Button-Text je Bereich (Pinterest/Etsy). */}
+            {selectedTypes.length === 1 && selectedTypes[0] === 'pinterest_pin'
+              ? t.strategy_create_btn_pinterest
+              : selectedTypes.length === 1 && selectedTypes[0] === 'etsy_listing'
+                ? t.strategy_create_btn_etsy
+                : t.strategy_create_btn}
           </button>
           {resultCount > 0 && (
             <p className="text-xs font-medium text-gray-500">
@@ -1125,6 +1222,8 @@ function Step2Results({
   copiedAll,
   savedProjectId,
   errorMessage,
+  failedTypes,
+  onRetryFailed,
   stepStatus,
   streamOrder,
   streamTitles,
@@ -1147,6 +1246,10 @@ function Step2Results({
   copiedAll: boolean;
   savedProjectId: string | null;
   errorMessage: string | null;
+  /** Phase 1: Kanäle ohne brauchbares Ergebnis (Absage/unvollständig/fehlend). */
+  failedTypes: ContentType[];
+  /** Phase 1: „Erneut generieren" — nur für die fehlgeschlagenen Kanäle. */
+  onRetryFailed: () => void;
   stepStatus: Record<string, StreamStepState>;
   streamOrder: string[];
   streamTitles: Record<string, string>;
@@ -1206,6 +1309,35 @@ function Step2Results({
           className="mt-3 text-sm font-medium text-red-700 underline hover:text-red-900"
           >
           {t.common_retry}
+          </button>
+        </div>
+      )}
+
+      {/* Phase 1 (Owner-Freigabe 2026-11-11): KEIN grüner Status ohne bestandene
+          Prüfung. Kanäle ohne brauchbares Ergebnis werden hier ehrlich benannt
+          und können gezielt neu erzeugt werden (nur diese Kanäle — kein zweiter
+          Verbrauch für bereits gute Ergebnisse). */}
+      {!isLoading && failedTypes.length > 0 && (
+        <div
+          role="alert"
+          data-testid="quality-failed-banner"
+          className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-800"
+        >
+          <p className="font-semibold">{t.results_quality_failed_title}</p>
+          <p className="mt-1">
+            {t.results_quality_failed_body.replace(
+              '%s',
+              failedTypes
+                .map((ct) => getContentTypeConfig(ct)?.label ?? ct)
+                .join(', '),
+            )}
+          </p>
+          <button
+            type="button"
+            onClick={onRetryFailed}
+            className="mt-3 inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-red-700"
+          >
+            🔄 {t.results_retry_failed}
           </button>
         </div>
       )}
@@ -1486,22 +1618,35 @@ function AccordionResults({
                   ⭐
                 </span>
               )}
-              <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-                <svg
-                  className="h-3 w-3"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
+              {/* Phase 1 (Owner-Freigabe 2026-11-11): GATE STATT ANZEIGE — das
+                  grüne „Generiert" erscheint nur noch, wenn das Ergebnis die
+                  Prüfung besteht. Vorher stand es bedingungslos an jedem
+                  Ergebnisobjekt (Echfall 11.11.: Absage mit grünem Status). */}
+              {checkResultQuality(result.contentType, result).ok ? (
+                <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                  <svg
+                    className="h-3 w-3"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  {t.results_generated_badge}
+                </span>
+              ) : (
+                <span
+                  data-testid="result-incomplete-badge"
+                  className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-                {t.results_generated_badge}
-              </span>
+                  ⚠️ {t.results_incomplete_badge}
+                </span>
+              )}
               <svg
                 className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform duration-200 ${
                   isOpen ? 'rotate-180' : ''

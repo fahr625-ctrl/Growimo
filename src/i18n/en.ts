@@ -390,6 +390,12 @@ export const en: EnShape = {
   strategy_tile_content_desc: 'SEO blog post + email newsletter in one run',
   strategy_tile_ideas: 'Product ideas',
   strategy_tile_ideas_desc: 'New product ideas with an observable trend and market view',
+  // Phase 1 (Owner approval 2026-11-11): third tile leads into the existing
+  // TikTok module (script, no video).
+  strategy_tile_tiktok: 'TikTok',
+  strategy_tile_tiktok_desc: 'Video script with timings, spoken text & 5 hashtags',
+  strategy_create_btn_pinterest: '📌 Create pin',
+  strategy_create_btn_etsy: '🛍️ Create listing',
   // FIX-BLOCK 5 (M4): a tile run delivers content + an action plan; the 0–100
   // score with concrete improvements comes from the decision layer.
   strategy_score_scope_note:
@@ -465,6 +471,12 @@ export const en: EnShape = {
   results_words: '%s words total',
   results_read_time: '~%ds read time',
   results_generated_badge: 'Generated',
+  results_incomplete_badge: 'Incomplete',
+  results_quality_failed_title: 'No usable result',
+  results_quality_failed_body:
+    'No usable result was produced for these channels: %s. Nothing was shown as successful and nothing was saved as completed.',
+  results_retry_failed: 'Generate again',
+  strategy_open_module: 'Open module',
   results_new: 'New Strategy',
   results_view_project: 'View project',
   results_all_copied: 'All copied!',
