@@ -485,6 +485,7 @@ export const en: EnShape = {
   results_new: 'Create content',
   results_view_project: 'View project',
   results_all_copied: 'All copied!',
+  results_save_failed: 'Result visible but not saved:',
   results_generation_failed: 'Generation failed',
 
   // ── Stream progress (SSE, /app/new-project) ────────────────────────────────

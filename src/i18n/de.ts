@@ -482,6 +482,7 @@ export const de = {
   results_new: 'Inhalte erstellen',
   results_view_project: 'Projekt ansehen',
   results_all_copied: 'Alles kopiert!',
+  results_save_failed: 'Ergebnis sichtbar, aber nicht gespeichert:',
   results_generation_failed: 'Generierung fehlgeschlagen',
 
   // ── Stream-Fortschritt (SSE, /app/new-project) ─────────────────────────────

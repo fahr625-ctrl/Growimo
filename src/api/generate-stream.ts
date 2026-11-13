@@ -154,11 +154,15 @@ export async function handleGenerateStreamApi(
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
-      const send = (event: StreamEvent) => {
+      // Rueckgabe `false` = Ereignis NICHT zugestellt (Client weg). stream.ts
+      // gibt dann die Einheit zurueck (kein Verbrauch ohne geliefertes Ergebnis).
+      const send = (event: StreamEvent): boolean => {
         try {
           controller.enqueue(encoder.encode(sseEncode(event)));
+          return true;
         } catch {
           // Client went away — stop writing.
+          return false;
         }
       };
       const heartbeat = setInterval(() => {

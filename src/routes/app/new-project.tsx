@@ -507,14 +507,19 @@ function NewProjectContent() {
       }));
 
       let generated: ContentResult[];
+      // Phase 1: Kanäle, die der Server als fehlgeschlagen gemeldet hat.
+      // MUSS ausserhalb des Stream-Zweigs stehen: die Vollständigkeitsprüfung
+      // weiter unten liest diese Liste auch im Legacy-Zweig. Stand vorher
+      // innerhalb des `if` und warf dort einen ReferenceError
+      // („channelErrors is not defined") — nach der fertigen Generierung, also
+      // NACH dem Verbrauch: Ergebnis verworfen, „Unbekannter Fehler", Einheit weg.
+      const channelErrors: ContentType[] = [];
       if (isStreamGenerateEnabled()) {
         // ── Stream path (Phase 1): fetch POST /api/generate/stream, collect
         // `result` events incrementally, isolate per-channel `error` events.
         console.info('[new-project] streaming via /api/generate/stream at', new Date().toISOString());
         const collected: ContentResult[] = [];
         let streamFailed: string | null = null;
-        // Phase 1: Kanäle, die der Server als fehlgeschlagen gemeldet hat.
-        const channelErrors: ContentType[] = [];
         for await (const event of readGenerateStream(requests)) {
           if (event.type === 'step' && event.stepId) {
             const stepId = event.stepId;
@@ -624,23 +629,38 @@ function NewProjectContent() {
       // wenn das Projekt bereits gespeichert ist.
       const shouldSave = generated.length > 0 && (!isRetry || !savedProjectId);
       if (shouldSave) {
-        const saved = await saveProject(
-          userId,
-          {
+        // Owner-Zusage 2026-11-13: „Ein Versuch ohne Ergebnis verbraucht
+        // nichts" — und umgekehrt darf ein Fehler NACH der fertigen
+        // Generierung das bezahlte Ergebnis nicht mehr wegwerfen. Das Speichern
+        // hat seinen eigenen Fehlerpfad: schlägt es fehl, bleibt das Ergebnis
+        // sichtbar (es steht bereits im State) und der Nutzer bekommt einen
+        // echten Hinweis statt eines gelöschten Bildschirms.
+        try {
+          const saved = await saveProject(
             userId,
-            title: projectTitle,
-            productIdea,
-            contentTypes: generated.map((r) => r.contentType),
-            status: failed.length === 0 ? 'completed' : 'draft',
-          },
-          generated.map((r) => ({
-            contentType: r.contentType,
-            title: r.title,
-            body: r.body,
-            metadata: r.metadata,
-          })),
-        );
-        setSavedProjectId(saved.id);
+            {
+              userId,
+              title: projectTitle,
+              productIdea,
+              contentTypes: generated.map((r) => r.contentType),
+              status: failed.length === 0 ? 'completed' : 'draft',
+            },
+            generated.map((r) => ({
+              contentType: r.contentType,
+              title: r.title,
+              body: r.body,
+              metadata: r.metadata,
+            })),
+          );
+          setSavedProjectId(saved.id);
+        } catch (saveError) {
+          console.error('[new-project] saveProject failed:', saveError);
+          setErrorMessage(
+            saveError instanceof Error && saveError.message
+              ? `${t.results_save_failed} ${saveError.message}`
+              : t.results_save_failed,
+          );
+        }
       }
 
       // Track strategy creation
@@ -689,14 +709,24 @@ function NewProjectContent() {
       } catch (stringifyError) {
         console.error('Generation failed - could not stringify error:', stringifyError);
       }
-      setResults([]);
+      // Owner-Zusage 2026-11-13 (2): KEIN pauschales Loeschen mehr. Ein
+      // Ergebnis, das der Server bereits geliefert hat, ist bezahlt und bleibt
+      // sichtbar. Vorher raeumte `setResults([])` genau das weg — der Nutzer
+      // sah nichts, die Einheit war aber weg (Echfall 19:08 UTC).
+      // Owner-Zusage 2026-11-13 (3): die ECHTE Meldung anzeigen, nicht
+      // „Unbekannter Fehler", wenn eine Meldung existiert.
       // R4 (Owner 2026-10-22): Kontingent-Fehler bekommen den sichtbaren
-      // Abo-Hinweis statt der generischen „Unbekannter Fehler"-Meldung.
+      // Abo-Hinweis statt einer Fehlermeldung.
       if (isQuotaExhaustedError(error)) {
         setQuotaNotice(true);
         setErrorMessage(null);
       } else {
-        setErrorMessage(t.common_unknown_error);
+        const realMessage = error instanceof Error ? error.message.trim() : '';
+        setErrorMessage(
+          realMessage
+            ? `${t.results_generation_failed}: ${realMessage}`
+            : t.common_unknown_error,
+        );
       }
       // Admin-Analytics MVP Phase 1 (additive): finished/error per channel.
       // Phase Analytics-Erweiterung: EINE Klassifizierung für den gesamten

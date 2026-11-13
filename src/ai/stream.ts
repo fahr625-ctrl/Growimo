@@ -33,7 +33,10 @@ export type StreamEvent =
   | { type: "fatal"; message: string }
   | { type: "done"; runId: string };
 
-export type StreamEmit = (event: StreamEvent) => void;
+// Liefert `false`, wenn das Ereignis den Client NICHT erreicht hat (Verbindung
+// weg). Der Kanal-Runner gibt dann die verbrauchte Einheit zurueck — Owner-
+// Zusage 2026-11-13: kein Verbrauch ohne geliefertes Ergebnis.
+export type StreamEmit = (event: StreamEvent) => boolean | void;
 
 /** stepId for a channel request — stable, client-addressable. */
 export function stepIdFor(contentType: ContentType): string {
@@ -146,7 +149,18 @@ export async function runStrategyStream(
           durationMs: Date.now() - startedAt[i],
           order: i,
         });
-        emit({ type: "result", stepId, result });
+        // Owner-Zusage 2026-11-13: Die Einheit bleibt nur, wenn das Ergebnis
+        // die Verbindung wirklich erreicht hat. Vorher galt "Kanal fertig =
+        // verbraucht" auch dann, wenn der Client nie ein Ergebnis sah.
+        const delivered = emit({ type: "result", stepId, result });
+        if (delivered === false && options.userId) {
+          try {
+            const { releaseGeneration } = await import('../lib/usage-guard');
+            await releaseGeneration(options.userId);
+          } catch (releaseErr) {
+            console.error('[stream] Rueckgabe der Einheit fehlgeschlagen:', releaseErr);
+          }
+        }
         return result;
       } catch (err) {
         const message =
