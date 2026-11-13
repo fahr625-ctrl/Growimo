@@ -1,0 +1,7 @@
+# Env-Dateien gehoeren nie in ein Deployment.
+# Grund (2026-11-12, Deployment site-do8s9d78g): die gitignorierte Repo-`.env`
+# (enthaelt VITE_CLERK_PUBLISHABLE_KEY=pk_test…) wurde als Deployment-Datei
+# hochgeladen und beim Vercel-Build gelesen -> 6 Dev-Key-Treffer im Client-Bundle,
+# Pre-Deploy-Gate rot. Build-Env kommt ausschliesslich aus den
+# Vercel-Projektvariablen (VITE_CLERK_PUBLISHABLE_KEY = pk_live_…).
+.env*

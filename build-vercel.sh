@@ -51,28 +51,32 @@ cat > .vercel/output/functions/render.func/.vc-config.json <<'JSON'
 { "runtime": "nodejs22.x", "handler": "index.mjs", "launcherType": "Nodejs", "supportsResponseStreaming": true, "maxDuration": 300 }
 JSON
 # ── Cron-Registrierung im Build-Artefakt (Owner-Freigabe 2026-10-22) ─────────
-# `vercel deploy --prebuilt` wertet vercel.json NICHT aus — es deployt
-# ausschliesslich .vercel/output. Die dort fehlende `crons`-Angabe war der
-# Grund, warum der 90-Tage-TTL-Cron (/api/cron/blob-ttl, "0 3 * * *") nie
-# registriert wurde (Projekt-API: crons.definitions = []). Quelle der Wahrheit
-# bleibt vercel.json; hier wird sie 1:1 in config.json uebernommen (kein
-# zweiter, abweichender Schedule, keine Doppel-Registrierung: Vercel legt pro
-# Deployment je Pfad genau EINEN Cron-Job an, identische Eintraege in
-# vercel.json werden im --prebuilt-Pfad ignoriert).
-bun -e '
-const file = Bun.file("vercel.json");
-const manifest = await file.json();
-const crons = Array.isArray(manifest?.crons)
-  ? manifest.crons.filter((c) => c && typeof c.path === "string" && typeof c.schedule === "string" && c.path.startsWith("/"))
-  : [];
-const config = { version: 3, routes: [ { handle: "filesystem" }, { src: "/(.*)", dest: "/render" } ] };
-if (crons.length) config.crons = crons;
-await Bun.write(".vercel/output/config.json", JSON.stringify(config, null, 2) + "\n");
-'
-# Fail-closed: vercel.json DEKLARIERT Cron(s), config.json enthaelt sie nicht →
-# Build abbrechen, statt still einen Deploy ohne Cron auszuliefern.
-if grep -q '"crons"' vercel.json && ! grep -q '"crons"' .vercel/output/config.json; then
-  echo "CRON-REGISTRIERUNG FEHLT in .vercel/output/config.json — Build verworfen." >&2
+# EINZIGE Quelle der Wahrheit fuer den 90-Tage-TTL-Cron (/api/cron/blob-ttl,
+# "0 3 * * *") ist seit 2026-11-13 DIESE Datei: `vercel.json` fuehrt keinen
+# crons-Eintrag mehr. Grund: Vercel fuehrt die crons aus vercel.json UND die
+# crons aus .vercel/output/config.json zusammen — stand dieselbe Definition in
+# beiden, brach der Deploy mit `duplicated_cron_job` ab (site-5gau5zl4s,
+# 2026-11-12: "A duplicated cron job with the same schedule (0 3 * * *) and
+# path (/api/cron/blob-ttl) was found. Please remove the duplicated entry.").
+# `vercel deploy --prebuilt` wertet vercel.json ohnehin nicht aus, sondern
+# ausschliesslich .vercel/output.
+cat > .vercel/output/config.json <<'JSON'
+{
+  "version": 3,
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/render" }
+  ],
+  "crons": [
+    { "path": "/api/cron/blob-ttl", "schedule": "0 3 * * *" }
+  ]
+}
+JSON
+# Fail-closed: der Cron muss GENAU EINMAL im Artefakt stehen — sonst Build
+# abbrechen, statt einen Deploy ohne (oder mit doppeltem) Cron auszuliefern.
+cron_hits="$(grep -o '/api/cron/blob-ttl' .vercel/output/config.json | wc -l | tr -d ' ')"
+if [ "$cron_hits" != "1" ]; then
+  echo "CRON-REGISTRIERUNG NICHT GENAU EINMAL in .vercel/output/config.json (${cron_hits} Treffer) — Build verworfen." >&2
   exit 1
 fi
 
