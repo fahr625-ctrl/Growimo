@@ -19,6 +19,10 @@ export function ClerkAuthProvider({ children }: { children: ReactNode }) {
       afterSignInUrl="/app"
       afterSignUpUrl="/app"
       afterSignOutUrl="/"
+      // Überschrift der Anmeldeseite statt „Sign in to ContentForge“ (Clerk-
+      // Anwendungsname). Nur dieser eine Schlüssel; Clerk v5 liest
+      // `localization` ausschließlich am Provider, nicht an <SignIn>.
+      localization={{ signIn: { start: { title: "Growimo" } } }}
       appearance={{
         variables: {
           colorPrimary: "#4f46e5",

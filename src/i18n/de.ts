@@ -1159,7 +1159,7 @@ export const de = {
 
   // ── Onboarding ────────────────────────────────────────────────────────────────
   onboarding_welcome_title: '👋 Willkommen bei Growimo!',
-  onboarding_welcome_text: 'Growimo verwandelt deine Produktidee in eine komplette Marketingstrategie — in wenigen Minuten.',
+  onboarding_welcome_text: 'Erstelle Pinterest-Texte, Etsy-Listings und TikTok-Skripte.',
   onboarding_step2_title: '📝 Beschreibe dein Produkt',
   onboarding_step2_text: 'Gib einfach ein, was du verkaufst. Je genauer deine Beschreibung, desto besser die Ergebnisse. Du kannst Details wie Größe, Material und Zielgruppe ergänzen.',
   onboarding_step3_title: '✨ Deine Strategie in Sekunden',

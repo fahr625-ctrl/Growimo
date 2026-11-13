@@ -1156,7 +1156,7 @@ export const en: EnShape = {
 
   // ── Onboarding ────────────────────────────────────────────────────────────────
   onboarding_welcome_title: '👋 Welcome to Growimo!',
-  onboarding_welcome_text: 'Growimo transforms your product idea into a complete marketing strategy — in just minutes.',
+  onboarding_welcome_text: 'Create Pinterest texts, Etsy listings and TikTok scripts.',
   onboarding_step2_title: '📝 Describe Your Product',
   onboarding_step2_text: 'Simply enter what you sell. The more detailed your description, the better the results. You can add details like size, material, and target audience.',
   onboarding_step3_title: '✨ Your Strategy in Seconds',
