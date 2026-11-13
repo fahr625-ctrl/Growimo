@@ -384,9 +384,9 @@ export const en: EnShape = {
   // Exactly 6 tiles are visible (src/ai/strategy-tiles.ts). SEO blog +
   // email newsletter are combined under "Content" (2 results).
   strategy_tile_pinterest: 'Pinterest',
-  strategy_tile_pinterest_desc: 'Finished pin with image and SEO texts',
+  strategy_tile_pinterest_desc: 'Pin texts ready: SEO title, description, keywords',
   strategy_tile_etsy: 'Etsy',
-  strategy_tile_etsy_desc: 'Finished listing with title, description, 13 tags and mockup',
+  strategy_tile_etsy_desc: 'Listing ready: title, description and exactly 13 tags',
   strategy_tile_social: 'Social Media',
   strategy_tile_social_desc: 'Posts for Instagram, Facebook & TikTok',
   strategy_tile_marketing: 'Marketing strategy',

@@ -381,9 +381,9 @@ export const de = {
   // Sichtbar sind genau 6 Kacheln (src/ai/strategy-tiles.ts). SEO-Blog +
   // E-Mail-Newsletter sind unter „Content" zusammengefasst (2 Ergebnisse).
   strategy_tile_pinterest: 'Pinterest',
-  strategy_tile_pinterest_desc: 'Fertiger Pin mit Bild und SEO-Texten',
+  strategy_tile_pinterest_desc: 'Pin-Texte fertig: SEO-Titel, Beschreibung, Keywords',
   strategy_tile_etsy: 'Etsy',
-  strategy_tile_etsy_desc: 'Fertiges Listing mit Titel, Beschreibung, 13 Tags und Mockup',
+  strategy_tile_etsy_desc: 'Listing fertig: Titel, Beschreibung und genau 13 Tags',
   strategy_tile_social: 'Social Media',
   strategy_tile_social_desc: 'Beiträge für Instagram, Facebook & TikTok',
   strategy_tile_marketing: 'Marketing-Strategie',
