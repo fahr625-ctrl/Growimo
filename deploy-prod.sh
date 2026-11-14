@@ -8,7 +8,7 @@
 #   bash deploy-prod.sh
 #
 # The gate (scripts/prod-bundle-gate.sh) runs inside build-vercel.sh as step
-# [4/4]; because build-vercel.sh uses `set -e`, a red gate makes it exit non-zero
+# [5/5]; because build-vercel.sh uses `set -e`, a red gate makes it exit non-zero
 # and the `&&` below never reaches the deploy line. That is the whole point: a
 # bundle carrying the Clerk *development* key (or a missing production key) can no
 # longer be shipped. See clerk-gate3-krise-diagnose-2026-10-11/KRISE-REPORT.md.
@@ -25,7 +25,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 umask 002
 
-bash ./build-vercel.sh   # step [4/4] = fail-closed gate; aborts on a red gate
+bash ./build-vercel.sh   # step [5/5] = fail-closed gate; aborts on a red gate
 
 echo "==> deploying prebuilt bundle to production"
 bunx vercel deploy --prebuilt --prod --yes

@@ -11,7 +11,8 @@
 #    the Node (req,res) launcher to the web fetch handler.
 #
 # ── FAIL-CLOSED PRE-DEPLOY GATE (since 2026-10-11) ───────────────────────────
-# Step [4/4] runs scripts/prod-bundle-gate.sh on the freshly built bundle. If the
+# Step [1/5] runs scripts/typecheck-gate.sh (`tsc --noEmit`, since 2026-11-13)
+# and step [5/5] runs scripts/prod-bundle-gate.sh on the freshly built bundle. If the
 # production Clerk publishable key is missing, any dev key material / dev instance
 # marker is present, or the owner-approved legacy-owner filter (criterion d, since
 # 2026-10-26 a POSITIVE check) is missing from the bundle, the gate exits non-zero
@@ -31,19 +32,30 @@ set -euo pipefail
 cd "$(dirname "$0")"
 umask 002
 
-echo "[1/4] vite build (light — safe under the sandbox memory cap)"
+echo "[1/5] Typprüfung (fail-closed, Owner-Freigabe 2026-11-13)"
 # The workspace starts as sources only (deps live with the image's pre-built
 # placeholder copy); no-op once node_modules is current.
 bun install
+# Der Ausfall vom 2026-11-13 war ein ReferenceError (channelErrors) — ein Fehler,
+# den `tsc --noEmit` auf dem live gegangenen Commit 519f258 als TS2304 gemeldet
+# hätte. Die Prüfung ist deshalb Pflicht: rot = kein Deploy. Details, inkl. der
+# eingefrorenen Baseline der vorbestehenden Fehler, in scripts/typecheck-gate.sh.
+if ! bash ./scripts/typecheck-gate.sh; then
+  echo "" >&2
+  echo "TYPPRÜFUNG ROT — Build verworfen, KEIN Deploy." >&2
+  exit 1
+fi
+
+echo "[2/5] vite build (light — safe under the sandbox memory cap)"
 bun run build
 
-echo "[2/4] assemble .vercel/output (Build Output API v3)"
+echo "[3/5] assemble .vercel/output (Build Output API v3)"
 rm -rf .vercel/output
 mkdir -p .vercel/output/functions/render.func
 cp -R dist/client .vercel/output/static
 rm -f .vercel/output/static/index.html   # SSR owns "/", not a static shell
 
-echo "[3/4] bundle SSR handler + deps into the render function"
+echo "[4/5] bundle SSR handler + deps into the render function"
 bun build vercel-entry.ts --target node \
   --outfile .vercel/output/functions/render.func/index.mjs
 
@@ -80,7 +92,7 @@ if [ "$cron_hits" != "1" ]; then
   exit 1
 fi
 
-echo "[4/4] pre-deploy gate (fail-closed): Production-Clerk-Key + keine Dev-Marker"
+echo "[5/5] pre-deploy gate (fail-closed): Production-Clerk-Key + keine Dev-Marker"
 if ! bash ./scripts/prod-bundle-gate.sh; then
   echo "" >&2
   echo "PRE-DEPLOY-GATE ROT — Build verworfen, KEIN Deploy. (.vercel/output bleibt liegen," >&2

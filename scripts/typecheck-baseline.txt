@@ -1,0 +1,55 @@
+serve.ts	TS2339	Property 'dir' does not exist on type 'ImportMeta'.
+serve.ts	TS2339	Property 'dir' does not exist on type 'ImportMeta'.
+serve.ts	TS2868	Cannot find name 'Bun'. Do you need to install type definitions for Bun? Try `npm i --save-dev @types/bun` and then add 'bun' to the types field in your tsconfig.
+serve.ts	TS2868	Cannot find name 'Bun'. Do you need to install type definitions for Bun? Try `npm i --save-dev @types/bun` and then add 'bun' to the types field in your tsconfig.
+serve.ts	TS2868	Cannot find name 'Bun'. Do you need to install type definitions for Bun? Try `npm i --save-dev @types/bun` and then add 'bun' to the types field in your tsconfig.
+serve.ts	TS2868	Cannot find name 'Bun'. Do you need to install type definitions for Bun? Try `npm i --save-dev @types/bun` and then add 'bun' to the types field in your tsconfig.
+serve.ts	TS2868	Cannot find name 'Bun'. Do you need to install type definitions for Bun? Try `npm i --save-dev @types/bun` and then add 'bun' to the types field in your tsconfig.
+serve.ts	TS7006	Parameter 'req' implicitly has an 'any' type.
+src/ai/performance/insights.ts	TS6133	'diff' is declared but its value is never read.
+src/ai/performance/insights.ts	TS6196	'FeatureDef' is declared but never used.
+src/ai/performance/insights.ts	TS6196	'PerformanceMetrics' is declared but never used.
+src/ai/performance/wording.ts	TS6133	'lang' is declared but its value is never read.
+src/ai/scoring/rules.ts	TS6133	'blockByNumber' is declared but its value is never read.
+src/ai/scoring/rules.ts	TS6133	'inRange' is declared but its value is never read.
+src/ai/server.ts	TS2345	Argument of type '({ data }: ServerFnCtx<Register, "POST", undefined, (input: unknown) => { contentType: ContentType; field: string; currentTitle: string; currentBody: string; metadata: Record<string, unknown>; ... 4 more ...; lang: "de" | "en"; }>) => Promise<...>' is not assignable to parameter of type 'ServerFn<Register, "POST", undefined, (input: unknown) => { contentType: ContentType; field: string; currentTitle: string; currentBody: string; metadata: Record<string, unknown>; ... 4 more ...; lang: "de" | "en"; }, Promise<...>, true>'.
+src/ai/server.ts	TS2345	Argument of type '({ data }: ServerFnCtx<Register, "POST", undefined, (input: unknown) => { contentType: ContentType; productIdea: string; title: string; body: string; metadata: Record<string, unknown>; score: ContentScore; target: number; }>) => Promise<...>' is not assignable to parameter of type 'ServerFn<Register, "POST", undefined, (input: unknown) => { contentType: ContentType; productIdea: string; title: string; body: string; metadata: Record<string, unknown>; score: ContentScore; target: number; }, Promise<...>, true>'.
+src/ai/server.ts	TS2345	Argument of type '({ data }: ServerFnCtx<Register, "POST", undefined, (input: unknown) => { contentType: ContentType; productIdea: string; title: string; body: string; metadata: Record<string, unknown>; score: ContentScore; }>) => Promise<...>' is not assignable to parameter of type 'ServerFn<Register, "POST", undefined, (input: unknown) => { contentType: ContentType; productIdea: string; title: string; body: string; metadata: Record<string, unknown>; score: ContentScore; }, Promise<...>, true>'.
+src/ai/server.ts	TS2345	Argument of type '({ data }: ServerFnCtx<Register, "POST", undefined, (input: unknown) => { contentType: ContentType; productIdea: string; tone: string | undefined; additionalContext: string | undefined; declaredFacts: DeclaredFacts | undefined; }>) => Promise<...>' is not assignable to parameter of type 'ServerFn<Register, "POST", undefined, (input: unknown) => { contentType: ContentType; productIdea: string; tone: string | undefined; additionalContext: string | undefined; declaredFacts: DeclaredFacts | undefined; }, Promise<...>, true>'.
+src/ai/server.ts	TS2345	Argument of type '({ data }: ServerFnCtx<Register, "POST", undefined, (input: unknown) => { declaredFacts: DeclaredFacts | undefined; contentType: ContentType; currentContent: string; analysisFeedback: string; productIdea: string; }>) => Promise<...>' is not assignable to parameter of type 'ServerFn<Register, "POST", undefined, (input: unknown) => { declaredFacts: DeclaredFacts | undefined; contentType: ContentType; currentContent: string; analysisFeedback: string; productIdea: string; }, Promise<...>, true>'.
+src/ai/server.ts	TS2345	Argument of type '({ data }: ServerFnCtx<Register, "POST", undefined, (input: unknown) => { productIdea: string; contentType: ContentType; context: string; grounding: string; }>) => Promise<...>' is not assignable to parameter of type 'ServerFn<Register, "POST", undefined, (input: unknown) => { productIdea: string; contentType: ContentType; context: string; grounding: string; }, Promise<ContentResult>, true>'.
+src/ai/server.ts	TS2345	Argument of type '({ data }: ServerFnCtx<Register, "POST", undefined, (input: unknown) => { productIdea: string; lang: "de" | "en"; brief: Record<string, string> | null; }>) => Promise<...>' is not assignable to parameter of type 'ServerFn<Register, "POST", undefined, (input: unknown) => { productIdea: string; lang: "de" | "en"; brief: Record<string, string> | null; }, Promise<MarketingPackage>, true>'.
+src/api/images.ts	TS2345	Argument of type 'Uint8Array<ArrayBufferLike>' is not assignable to parameter of type 'BodyInit | null | undefined'.
+src/components/AnalysisDashboard.tsx	TS2345	Argument of type 'unknown' is not assignable to parameter of type 'ContentResult'.
+src/components/PreferencesCard.tsx	TS6133	't' is declared but its value is never read.
+src/components/ProjectIntelligence.tsx	TS6133	'currentProjectId' is declared but its value is never read.
+src/components/ScoreCard.tsx	TS18046	'outcome' is of type 'unknown'.
+src/components/ScoreCard.tsx	TS18046	'outcome' is of type 'unknown'.
+src/components/ScoreCard.tsx	TS18046	'outcome' is of type 'unknown'.
+src/components/ScoreCard.tsx	TS18046	'outcome' is of type 'unknown'.
+src/components/ScoreCard.tsx	TS2345	Argument of type 'unknown' is not assignable to parameter of type 'ImproveOutcome'.
+src/components/ScoreCard.tsx	TS2345	Argument of type 'unknown' is not assignable to parameter of type 'ImproveOutcome'.
+src/components/ScoreCard.tsx	TS2345	Argument of type 'unknown' is not assignable to parameter of type 'SetStateAction<ImproveOutcome | null>'.
+src/components/ScoreCard.tsx	TS2345	Argument of type 'unknown' is not assignable to parameter of type 'SetStateAction<ImproveOutcome | null>'.
+src/i18n/index.tsx	TS6133	'getInitialLocale' is declared but its value is never read.
+src/i18n/index.tsx	TS6133	'hydrated' is declared but its value is never read.
+src/lib/blob-store.ts	TS2367	This comparison appears to be unintentional because the types '304' and '200' have no overlap.
+src/lib/content-types.ts	TS2322	Type 'string | readonly string[]' is not assignable to type 'string'.
+src/lib/tones.ts	TS2322	Type 'string | readonly string[]' is not assignable to type 'string'.
+src/routes/app/analytics.tsx	TS6133	'AnalyticsEntry' is declared but its value is never read.
+src/routes/app/new-project.tsx	TS2322	Type '"completed" | "draft"' is not assignable to type '"completed"'.
+src/routes/app/new-project.tsx	TS6133	'AnalysisPlaceholder' is declared but its value is never read.
+src/routes/app/package.tsx	TS2345	Argument of type '"package_created"' is not assignable to parameter of type 'AnalyticsEvent'.
+src/routes/app/performance.tsx	TS6133	'AssetLogCard' is declared but its value is never read.
+src/routes/app/performance.tsx	TS6133	'InsightsSection' is declared but its value is never read.
+src/routes/app/performance.tsx	TS6133	'PUBLISHABLE' is declared but its value is never read.
+src/routes/app/performance.tsx	TS6133	'handleSave' is declared but its value is never read.
+src/routes/app/performance.tsx	TS6133	'i' is declared but its value is never read.
+src/routes/app/performance.tsx	TS6133	'openForms' is declared but its value is never read.
+src/routes/app/performance.tsx	TS6133	'saving' is declared but its value is never read.
+src/routes/app/performance.tsx	TS6133	'setFormDate' is declared but its value is never read.
+src/routes/app/performance.tsx	TS6133	'setFormNotes' is declared but its value is never read.
+src/routes/app/performance.tsx	TS6133	'sufficiency' is declared but its value is never read.
+src/routes/app/performance.tsx	TS6133	'toggleForm' is declared but its value is never read.
+src/store/projects.ts	TS2345	Argument of type '({ data }: ServerFnCtx<Register, "POST", undefined, (input: unknown) => { op: string; args: unknown[]; }>) => Promise<string | boolean | RawContent | RawProject | ... 4 more ... | null>' is not assignable to parameter of type 'ServerFn<Register, "POST", undefined, (input: unknown) => { op: string; args: unknown[]; }, Promise<string | boolean | RawContent | RawProject | RawContent[] | RawStats | { ...; } | RawProject[] | null>, true>'.
+src/stripe/invoices.ts	TS6133	'invoicePayments' is declared but its value is never read.
