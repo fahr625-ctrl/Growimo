@@ -205,26 +205,21 @@ function AppSidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
       ),
     },
     {
-      label: t.sidebar_new_strategy,
-      to: "/app/new-project",
+      label: t.sidebar_pinterest,
+      to: "/app/generate/pinterest",
       icon: (active: boolean) => (
-        <svg
-          className={`h-5 w-5 ${active ? "text-blue-600" : "text-gray-400"}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.5}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+        <svg className={`h-5 w-5 ${active ? "text-blue-600" : "text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 4.5a4.5 4.5 0 00-6.9 3.8c0 1.6.6 2.9 1.6 3.7l-.8 3.3-2.4.9.9 2.4 3-1.1 1-4.2" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18z" />
         </svg>
       ),
     },
     {
-      label: t.sidebar_image_studio,
-      to: "/app/image-studio",
+      label: t.sidebar_etsy,
+      to: "/app/generate/etsy",
       icon: (active: boolean) => (
         <svg className={`h-5 w-5 ${active ? "text-blue-600" : "text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M4 20l4.586-1.586a2 2 0 00.707-.464L19 8.243a2 2 0 000-2.828l-.415-.415a2 2 0 00-2.828 0L6.05 14.707a2 2 0 00-.464.707L4 20z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12A1.125 1.125 0 0119.745 21.75H4.255a1.125 1.125 0 01-1.124-1.243l1.263-12A1.125 1.125 0 015.518 7.5h12.964a1.125 1.125 0 011.124 1.007z" />
         </svg>
       ),
     },
@@ -234,6 +229,15 @@ function AppSidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
       icon: (active: boolean) => (
         <svg className={`h-5 w-5 ${active ? "text-blue-600" : "text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h3m6-6.5V15a6 6 0 01-6 6H9a6 6 0 01-6-6V9a6 6 0 016-6h1.5M18 4v.01M21 6v3a3 3 0 01-3 3h-3a3 3 0 01-3-3V6a3 3 0 013-3h3a3 3 0 013 3z" />
+        </svg>
+      ),
+    },
+    {
+      label: t.sidebar_image_studio,
+      to: "/app/image-studio",
+      icon: (active: boolean) => (
+        <svg className={`h-5 w-5 ${active ? "text-blue-600" : "text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M4 20l4.586-1.586a2 2 0 00.707-.464L19 8.243a2 2 0 000-2.828l-.415-.415a2 2 0 00-2.828 0L6.05 14.707a2 2 0 00-.464.707L4 20z" />
         </svg>
       ),
     },
@@ -466,36 +470,38 @@ function AppSidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
             );
           })}
         </ul>
-
-        {/* Owner / Administration - nur fuer das Owner-Konto sichtbar */}
-        {isOwner ? (
-          <div className="mt-5" data-testid="sidebar-owner-section">
-            <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-              {t.sidebar_owner_admin}
-            </p>
-            <ul className="space-y-1">
-              {ownerNavItems.map((item) => {
-                const active = isActive(item.to);
-                return (
-                  <li key={`owner-${item.label}`}>
-                    <Link
-                      to={item.to}
-                      className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-                        active
-                          ? "bg-blue-50 text-blue-700"
-                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                      }`}
-                    >
-                      {item.icon(active)}
-                      {item.label}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ) : null}
       </nav>
+
+      {/* Owner / Administration - nur fuer das Owner-Konto sichtbar.
+          Ausserhalb des scrollbaren <nav>, damit der Block auf dem Handy
+          ohne Scrollen direkt ueber dem Fussbereich sichtbar ist. */}
+      {isOwner ? (
+        <div className="border-t border-gray-100 px-3 py-4" data-testid="sidebar-owner-section">
+          <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            {t.sidebar_owner_admin}
+          </p>
+          <ul className="space-y-1">
+            {ownerNavItems.map((item) => {
+              const active = isActive(item.to);
+              return (
+                <li key={`owner-${item.label}`}>
+                  <Link
+                    to={item.to}
+                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                      active
+                        ? "bg-blue-50 text-blue-700"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    }`}
+                  >
+                    {item.icon(active)}
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
 
       {/* User section */}
       <SidebarFooter>
