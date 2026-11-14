@@ -489,6 +489,11 @@ export const en: EnShape = {
   results_all_copied: 'All copied!',
   results_save_failed: 'Result visible but not saved:',
   results_generation_failed: 'Generation failed',
+  // Network abort (2026-11-14): the server may have finished, but the response
+  // never reaches the browser (TypeError "Failed to fetch"). No generation was
+  // used up — say so honestly instead of showing the raw browser message.
+  gen_network_error:
+    'The connection to the server was interrupted — the response never arrived. No generation was used up. Please try again in a moment.',
 
   // ── Stream progress (SSE, /app/new-project) ────────────────────────────────
   stream_elapsed: 'Generating for %ds',

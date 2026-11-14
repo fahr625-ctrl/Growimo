@@ -486,6 +486,12 @@ export const de = {
   results_all_copied: 'Alles kopiert!',
   results_save_failed: 'Ergebnis sichtbar, aber nicht gespeichert:',
   results_generation_failed: 'Generierung fehlgeschlagen',
+  // Netzwerk-Abbruch (2026-11-14): Der Server kann fertig generiert haben, die
+  // Antwort erreicht den Browser aber nie (TypeError „Failed to fetch"). Dann
+  // wurde KEINE Einheit abgezogen — das muss ehrlich dastehen, nicht die rohe
+  // Browser-Meldung.
+  gen_network_error:
+    'Die Verbindung zum Server wurde unterbrochen — die Antwort kam nicht an. Es wurde keine Generierung abgezogen. Bitte versuche es gleich noch einmal.',
 
   // ── Stream-Fortschritt (SSE, /app/new-project) ─────────────────────────────
   stream_elapsed: 'Generiert seit %ds',

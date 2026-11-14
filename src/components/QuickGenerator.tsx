@@ -36,6 +36,18 @@ import { TONES, toneLabel } from '~/lib/tones';
 
 const DEFAULT_TONE_KEY = 'growimo_default_tone';
 
+/**
+ * Erkennt einen Netzwerk-Abbruch (Browser-TypeError, z. B. „Failed to fetch").
+ * Solche Fehler heissen je Browser anders (Chrome/Safari/Firefox/Edge) — deshalb
+ * wird auf die Meldung geprueft, nicht auf den Typ allein.
+ */
+export function isNetworkAbortError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return /failed to fetch|fetch failed|network ?error|network request failed|load failed|network connection was lost|err_internet|err_network|typeerror: fetch/i.test(
+    message,
+  );
+}
+
 export interface QuickGeneratorProps {
   contentType: ContentType;
   titleKey: 'gen_pinterest_title' | 'gen_etsy_title' | 'gen_blog_title';
@@ -371,7 +383,17 @@ function QuickGeneratorContent({
       }
     } catch (error) {
       console.error('Generation failed:', error);
-      const message = error instanceof Error ? error.message : t.common_unknown_error;
+      // Netzwerk-Abbruch (2026-11-14): Bricht die Verbindung zwischen Browser und
+      // Server weg, wirft der Browser einen TypeError („Failed to fetch") — die
+      // Antwort kommt nie an, obwohl der Server fertig generiert haben kann. Das
+      // ist KEIN Serverfehler und es wurde KEINE Einheit abgezogen (am 14.11. live
+      // belegt: usage_monthly/usage_events nach dem Fehlversuch unveraendert).
+      // Deshalb eine ehrliche deutsche Meldung statt der rohen Browser-Meldung.
+      const message = isNetworkAbortError(error)
+        ? t.gen_network_error
+        : error instanceof Error
+          ? error.message
+          : t.common_unknown_error;
       setErrorMessage(message);
       // Admin-Analytics MVP Phase 1 (additive): quick generation error.
       // Phase Analytics-Erweiterung: Kategorie/Code zusaetzlich (nur Kurzfelder,
