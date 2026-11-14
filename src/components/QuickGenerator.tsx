@@ -725,10 +725,21 @@ function QuickGeneratorContent({
         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-800">
           <p className="font-semibold">{t.results_generation_failed}</p>
           <p className="mt-1">{errorMessage}</p>
+          {/* Owner 2026-11-14: „Erneut versuchen" löst die Generierung wirklich
+              erneut aus, statt nur die Meldung wegzunehmen. Der Lauf-Schlüssel
+              im localStorage bleibt liegen (er wird erst bei Erfolg gelöscht),
+              deshalb trifft der Aufruf denselben Auftrag: der Server gibt das
+              bereits gespeicherte Listing zurück — kein Duplikat, keine zweite
+              Einheit. Ist die Idee inzwischen geändert, gilt sie als neuer
+              Auftrag (runKeyForOrder). */}
           <button
             type="button"
-            onClick={() => setErrorMessage(null)}
-            className="mt-3 text-sm font-medium text-red-700 underline hover:text-red-900"
+            data-testid="quick-retry-generate"
+            onClick={() => {
+              void handleGenerate();
+            }}
+            disabled={!canGenerateNow}
+            className="mt-3 text-sm font-medium text-red-700 underline hover:text-red-900 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {t.common_retry}
           </button>
