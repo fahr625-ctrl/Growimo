@@ -470,36 +470,38 @@ function AppSidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
             );
           })}
         </ul>
-
-        {/* Owner / Administration - nur fuer das Owner-Konto sichtbar */}
-        {isOwner ? (
-          <div className="mt-5" data-testid="sidebar-owner-section">
-            <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-              {t.sidebar_owner_admin}
-            </p>
-            <ul className="space-y-1">
-              {ownerNavItems.map((item) => {
-                const active = isActive(item.to);
-                return (
-                  <li key={`owner-${item.label}`}>
-                    <Link
-                      to={item.to}
-                      className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-                        active
-                          ? "bg-blue-50 text-blue-700"
-                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                      }`}
-                    >
-                      {item.icon(active)}
-                      {item.label}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ) : null}
       </nav>
+
+      {/* Owner / Administration - nur fuer das Owner-Konto sichtbar.
+          Ausserhalb des scrollbaren <nav>, damit der Block auf dem Handy
+          ohne Scrollen direkt ueber dem Fussbereich sichtbar ist. */}
+      {isOwner ? (
+        <div className="border-t border-gray-100 px-3 py-4" data-testid="sidebar-owner-section">
+          <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            {t.sidebar_owner_admin}
+          </p>
+          <ul className="space-y-1">
+            {ownerNavItems.map((item) => {
+              const active = isActive(item.to);
+              return (
+                <li key={`owner-${item.label}`}>
+                  <Link
+                    to={item.to}
+                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                      active
+                        ? "bg-blue-50 text-blue-700"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    }`}
+                  >
+                    {item.icon(active)}
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
 
       {/* User section */}
       <SidebarFooter>
