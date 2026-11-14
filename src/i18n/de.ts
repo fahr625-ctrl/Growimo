@@ -249,6 +249,8 @@ export const de = {
 
   // ── Sidebar ──────────────────────────────────────────────────────────────────
   sidebar_dashboard: 'Dashboard',
+  sidebar_pinterest: '📌 Pinterest',
+  sidebar_etsy: '🛍️ Etsy',
   sidebar_new_strategy: 'Inhalte erstellen',
   sidebar_content_library: 'Inhaltsbibliothek',
   content_library_subtitle: 'Alle deine generierten Inhalte an einem Ort. Durchsuchen, filtern und kopieren.', content_library_all: 'Alle', content_library_no_type: 'Kein Inhalt dieses Typs', content_library_generate_hint: 'Generiere %s, um sie hier zu sehen.', content_library_content: 'Inhalte', content_library_empty_title: 'Deine Inhaltsbibliothek ist leer', content_library_empty_desc: 'Starte ein Projekt, um deine ersten Inhalte zu generieren.', content_library_new_project: 'Neues Projekt erstellen',

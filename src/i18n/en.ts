@@ -252,6 +252,8 @@ export const en: EnShape = {
 
   // ── Sidebar ──────────────────────────────────────────────────────────────────
   sidebar_dashboard: 'Dashboard',
+  sidebar_pinterest: '📌 Pinterest',
+  sidebar_etsy: '🛍️ Etsy',
   sidebar_new_strategy: 'Create content',
   sidebar_content_library: 'Content Library',
   content_library_subtitle: 'All your generated content in one place. Browse, filter and copy.', content_library_all: 'All', content_library_no_type: 'No content of this type', content_library_generate_hint: 'Generate %s to see them here.', content_library_content: 'content', content_library_empty_title: 'Your content library is empty', content_library_empty_desc: 'Start a project to generate your first content.', content_library_new_project: 'Create new project',
