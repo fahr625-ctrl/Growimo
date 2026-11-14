@@ -491,7 +491,7 @@ export const de = {
   // wurde KEINE Einheit abgezogen — das muss ehrlich dastehen, nicht die rohe
   // Browser-Meldung.
   gen_network_error:
-    'Die Verbindung zum Server wurde unterbrochen — die Antwort kam nicht an. Es wurde keine Generierung abgezogen. Bitte versuche es gleich noch einmal.',
+    'Die Verbindung zum Server wurde unterbrochen, bevor das Ergebnis ankam. Es wurde keine Einheit abgezogen. Ein fertiges Ergebnis steht möglicherweise schon in der Inhaltsbibliothek — dort nachsehen, sonst erneut versuchen.',
 
   // ── Stream-Fortschritt (SSE, /app/new-project) ─────────────────────────────
   stream_elapsed: 'Generiert seit %ds',

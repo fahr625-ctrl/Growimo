@@ -493,7 +493,7 @@ export const en: EnShape = {
   // never reaches the browser (TypeError "Failed to fetch"). No generation was
   // used up — say so honestly instead of showing the raw browser message.
   gen_network_error:
-    'The connection to the server was interrupted — the response never arrived. No generation was used up. Please try again in a moment.',
+    'The connection to the server was interrupted before the result arrived. No generation was used up. A finished result may already be in the content library — check there, otherwise try again.',
 
   // ── Stream progress (SSE, /app/new-project) ────────────────────────────────
   stream_elapsed: 'Generating for %ds',

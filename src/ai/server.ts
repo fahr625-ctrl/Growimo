@@ -108,7 +108,7 @@ export const generateContentServer = createServerFn({ method: 'POST' })
     console.log('[server.validator] Raw input:', JSON.stringify(input).slice(0, 300));
 
     // TanStack strips the { data: ... } wrapper — input IS the payload directly
-    const d = input as ContentRequest;
+    const d = input as ContentRequest & { runKey?: unknown; persistToLibrary?: unknown };
     if (!d || typeof d !== 'object') throw new Error('data is required');
     if (!d.contentType) throw new Error('contentType is required');
     if (!d.productIdea) throw new Error('productIdea is required');
@@ -120,6 +120,13 @@ export const generateContentServer = createServerFn({ method: 'POST' })
       // Stabilisierung Schritt 2, Punkt 4/5: strukturierte Nutzerangaben
       // (Produktdetails) als erlaubte Werteliste für den Fakten-Check.
       declaredFacts: sanitizeDeclaredFacts(d.declaredFacts),
+      // Owner-Entscheidung 2026-11-14 („erst speichern, dann buchen"):
+      //  · runKey           — Lauf-Schlüssel des Clients, der den Reload überlebt
+      //                       (Idempotenz: derselbe Auftrag = kein Duplikat)
+      //  · persistToLibrary — dieser Aufruf soll das fertige Ergebnis VOR der
+      //                       Buchung in die Inhaltsbibliothek schreiben (Etsy-Kachel)
+      runKey: typeof d.runKey === 'string' && d.runKey.trim() ? d.runKey.trim().slice(0, 120) : undefined,
+      persistToLibrary: d.persistToLibrary === true,
     };
   })
   .handler(async ({ data }): Promise<ContentResult> => {
@@ -129,13 +136,38 @@ export const generateContentServer = createServerFn({ method: 'POST' })
     // Phase 8.2 — Drossel (2 s) + Guard: Einzel-Asset = 1 Generierung.
     await g.assertRateOk(userId);
     const { generateContent } = await import('./generate');
+    // Owner-Entscheidung 2026-11-14 — Etsy: speichern → lesen → DANN buchen.
+    // Kein nutzbares, wieder lesbares Listing in der Inhaltsbibliothek = keine
+    // Einheit verloren (Buchung passiert in `etsy-library.ts` erst nach Schritt 5).
+    if (data.contentType === 'etsy_listing' && data.persistToLibrary) {
+      const { generateEtsyListingPersistFirst } = await import('../lib/etsy-library');
+      const outcome = await generateEtsyListingPersistFirst({
+        userId,
+        request: {
+          contentType: data.contentType,
+          productIdea: data.productIdea,
+          tone: data.tone,
+          additionalContext: data.additionalContext,
+          declaredFacts: data.declaredFacts,
+        },
+        runKey: data.runKey ?? null,
+      });
+      return outcome.result;
+    }
     // Stabilisierung Schritt 2, Punkt 5: JEDER Kanal-Pfad (QuickGenerator,
     // Projekt-Flow, Kanal-Paket) läuft durch den Fakten-Post-Check. Server-seitig
     // gesetzt (nicht vom Client manipulierbar). Nicht-Kanal-Typen bleiben wie bisher.
     // FIX-BLOCK 1: Zuordnung im Ledger = Aktion + Kanal (Content-Type).
     return g.withGenerationGuard(
       userId,
-      () => generateContent({ ...data, enforceFacts: shouldEnforceFacts(data.contentType) }),
+      () => generateContent({
+        contentType: data.contentType,
+        productIdea: data.productIdea,
+        tone: data.tone,
+        additionalContext: data.additionalContext,
+        declaredFacts: data.declaredFacts,
+        enforceFacts: shouldEnforceFacts(data.contentType),
+      }),
       'de',
       { action: 'generate_content', detail: String(data.contentType) },
     );

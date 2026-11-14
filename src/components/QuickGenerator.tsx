@@ -48,6 +48,67 @@ export function isNetworkAbortError(error: unknown): boolean {
   );
 }
 
+// ── Lauf-Schlüssel für „erst speichern, dann buchen" (Owner 2026-11-14) ──────
+// Der Schlüssel identifiziert EINEN Auftrag und muss den Reload überleben:
+// er liegt deshalb im localStorage, zusammen mit Idee + Tonalität, für die er
+// gilt. Bricht die Verbindung ab, bleibt er liegen → „Erneut versuchen" trifft
+// denselben Auftrag (kein Duplikat, keine zweite Einheit). Kommt das Ergebnis
+// an, wird er gelöscht → der nächste Klick ist bewusst ein NEUER Auftrag.
+const RUN_KEY_STORAGE = 'growimo_etsy_run_key';
+
+interface StoredRunKey {
+  key: string;
+  idea: string;
+  tone: string;
+}
+
+export function readStoredRunKey(): StoredRunKey | null {
+  try {
+    const raw = window.localStorage.getItem(RUN_KEY_STORAGE);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StoredRunKey>;
+    if (typeof parsed.key === 'string' && typeof parsed.idea === 'string' && typeof parsed.tone === 'string') {
+      return { key: parsed.key, idea: parsed.idea, tone: parsed.tone };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeStoredRunKey(value: StoredRunKey): void {
+  try {
+    window.localStorage.setItem(RUN_KEY_STORAGE, JSON.stringify(value));
+  } catch {
+    // Storage gesperrt/voll — der Server-Fingerabdruck greift als Fallback.
+  }
+}
+
+export function clearStoredRunKey(): void {
+  try {
+    window.localStorage.removeItem(RUN_KEY_STORAGE);
+  } catch {
+    // ignore
+  }
+}
+
+function newRunKey(): string {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `run_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+
+/** Lauf-Schlüssel für diesen Auftrag: vorhandenen weiterverwenden, sonst neu. */
+export function runKeyForOrder(idea: string, tone: string): string {
+  const stored = readStoredRunKey();
+  if (stored && stored.idea === idea && stored.tone === tone) return stored.key;
+  const key = newRunKey();
+  writeStoredRunKey({ key, idea, tone });
+  return key;
+}
+
 export interface QuickGeneratorProps {
   contentType: ContentType;
   titleKey: 'gen_pinterest_title' | 'gen_etsy_title' | 'gen_blog_title';
@@ -324,6 +385,14 @@ function QuickGeneratorContent({
         learnContext = '';
       }
 
+      // Owner-Entscheidung 2026-11-14: Die Etsy-Kachel lässt das fertige Listing
+      // serverseitig ZUERST in die Inhaltsbibliothek schreiben und bucht die
+      // Einheit erst danach. Der Lauf-Schlüssel überlebt den Reload, damit
+      // „Erneut versuchen" denselben Auftrag trifft (kein Duplikat, keine
+      // zweite Einheit).
+      const persistToLibrary = contentType === 'etsy_listing';
+      const runKey = persistToLibrary ? runKeyForOrder(productIdea, tone ?? '') : undefined;
+
       const generated = (await generateContentServer({
         data: {
           contentType,
@@ -331,11 +400,31 @@ function QuickGeneratorContent({
           productIdea,
           tone: tone || undefined,
           additionalContext: [brandContext, briefContext, perfContext, learnContext].filter(Boolean).join('\n\n') || undefined,
+          persistToLibrary,
+          runKey,
         },
       })) as ContentResult;
 
+      const libraryProjectId =
+        typeof generated?.metadata?.libraryProjectId === 'string'
+          ? (generated.metadata.libraryProjectId as string)
+          : null;
+      // Wiederholung desselben Auftrags: der Server hat das vorhandene Listing
+      // zurückgegeben — dann ist auch KEINE neue Einheit verbraucht worden.
+      const reusedFromLibrary = generated?.metadata?.libraryReused === true;
+
       setResult(generated);
-      recordGeneration(uid);
+      if (!reusedFromLibrary) recordGeneration(uid);
+
+      // Server-gespeichertes Listing (Etsy): Das Projekt existiert schon, der
+      // Auto-Save unten darf KEIN zweites anlegen. Schlüssel löschen = der
+      // nächste Klick ist bewusst ein neuer Auftrag.
+      if (libraryProjectId) {
+        savedProjectRef.current = libraryProjectId;
+        setSavedProjectId(libraryProjectId);
+        setAutoSaveStatus('saved');
+        clearStoredRunKey();
+      }
 
       // AUTO-SAVE nach erfolgreicher Einzel-Generierung (Owner-Entscheid
       // 2026-10-18, K3): Der bezahlte Output landet SOFORT in einem eigenen
