@@ -253,7 +253,9 @@ export const de = {
   sidebar_etsy: '🛍️ Etsy',
   sidebar_new_strategy: 'Inhalte erstellen',
   sidebar_content_library: 'Inhaltsbibliothek',
-  content_library_subtitle: 'Alle deine generierten Inhalte an einem Ort. Durchsuchen, filtern und kopieren.', content_library_all: 'Alle', content_library_no_type: 'Kein Inhalt dieses Typs', content_library_generate_hint: 'Generiere %s, um sie hier zu sehen.', content_library_content: 'Inhalte', content_library_empty_title: 'Deine Inhaltsbibliothek ist leer', content_library_empty_desc: 'Starte ein Projekt, um deine ersten Inhalte zu generieren.', content_library_new_project: 'Neues Projekt erstellen',
+  content_library_subtitle: 'Alle deine generierten Inhalte an einem Ort. Durchsuchen, filtern und kopieren.', content_library_all: 'Alle', content_library_no_type: 'Kein Inhalt dieses Typs', content_library_generate_hint: 'Generiere %s, um sie hier zu sehen.', content_library_content: 'Inhalte', content_library_empty_title: 'Deine Inhaltsbibliothek ist leer', content_library_empty_desc: 'Starte ein Projekt, um deine ersten Inhalte zu generieren.',
+  // Ein Ladefehler ist NICHT "leer" (Owner 2026-11-15): gespeicherte Inhalte dürfen nie unsichtbar wirken.
+  content_library_load_error_title: 'Inhaltsbibliothek konnte nicht geladen werden', content_library_load_error_desc: 'Die gespeicherten Inhalte sind nicht abrufbar — sie sind NICHT gelöscht. Bitte erneut laden.', content_library_load_error_stale: 'Aktualisierung fehlgeschlagen — angezeigt wird der zuletzt geladene Stand.', content_library_new_project: 'Neues Projekt erstellen',
   sidebar_settings: 'Einstellungen',
   sidebar_pricing: 'Preise',
   sidebar_billing: 'Abrechnung',
