@@ -472,14 +472,17 @@ function QuickGeneratorContent({
       }
     } catch (error) {
       console.error('Generation failed:', error);
-      // Netzwerk-Abbruch (2026-11-14): Bricht die Verbindung zwischen Browser und
-      // Server weg, wirft der Browser einen TypeError („Failed to fetch") — die
-      // Antwort kommt nie an, obwohl der Server fertig generiert haben kann. Das
-      // ist KEIN Serverfehler und es wurde KEINE Einheit abgezogen (am 14.11. live
-      // belegt: usage_monthly/usage_events nach dem Fehlversuch unveraendert).
-      // Deshalb eine ehrliche deutsche Meldung statt der rohen Browser-Meldung.
+      // Netzwerk-Abbruch (2026-11-14, Owner-Vorgabe): Bricht die Verbindung
+      // zwischen Browser und Server weg, wirft der Browser einen TypeError
+      // („Failed to fetch") — die Antwort kommt nie an, obwohl der Server fertig
+      // generiert UND gespeichert haben kann. Der Browser kann die Buchung nicht
+      // beurteilen; die Meldung verweist deshalb auf die Inhaltsbibliothek und
+      // sagt nur, was sicher ist: eine Einheit wird erst bei gespeichertem
+      // Ergebnis fällig. Etsy hat dafür den Listing-Wortlaut.
       const message = isNetworkAbortError(error)
-        ? t.gen_network_error
+        ? contentType === 'etsy_listing'
+          ? t.gen_network_error_etsy
+          : t.gen_network_error
         : error instanceof Error
           ? error.message
           : t.common_unknown_error;

@@ -486,12 +486,16 @@ export const de = {
   results_all_copied: 'Alles kopiert!',
   results_save_failed: 'Ergebnis sichtbar, aber nicht gespeichert:',
   results_generation_failed: 'Generierung fehlgeschlagen',
-  // Netzwerk-Abbruch (2026-11-14): Der Server kann fertig generiert haben, die
-  // Antwort erreicht den Browser aber nie (TypeError „Failed to fetch"). Dann
-  // wurde KEINE Einheit abgezogen — das muss ehrlich dastehen, nicht die rohe
-  // Browser-Meldung.
+  // Netzwerk-Abbruch (2026-11-14, Owner-Vorgabe): Der Server kann fertig
+  // generiert und gespeichert haben, die Antwort erreicht den Browser aber nie
+  // (TypeError „Failed to fetch"). Der Browser kann die Buchung NICHT beurteilen
+  // — deshalb keine Behauptung über abgezogene Einheiten, sondern: in der
+  // Inhaltsbibliothek nachsehen, und eine Einheit wird erst bei gespeichertem
+  // Ergebnis fällig. Nicht die rohe Browser-Meldung zeigen.
   gen_network_error:
-    'Die Verbindung zum Server wurde unterbrochen, bevor das Ergebnis ankam. Es wurde keine Einheit abgezogen. Ein fertiges Ergebnis steht möglicherweise schon in der Inhaltsbibliothek — dort nachsehen, sonst erneut versuchen.',
+    'Die Verbindung zum Server wurde unterbrochen, bevor das Ergebnis ankam. Ein fertiges Ergebnis steht möglicherweise schon in der Inhaltsbibliothek — dort zuerst nachsehen. Ob eine Einheit gebucht wurde, kann der Browser nicht beurteilen; eine Einheit wird erst fällig, wenn das Ergebnis wirklich gespeichert ist.',
+  gen_network_error_etsy:
+    'Die Verbindung zum Server wurde unterbrochen, bevor das Ergebnis ankam. Das fertige Listing steht möglicherweise schon in der Inhaltsbibliothek — dort zuerst nachsehen. Ob eine Einheit gebucht wurde, kann der Browser nicht beurteilen; eine Einheit wird erst fällig, wenn ein Listing wirklich gespeichert ist.',
 
   // ── Stream-Fortschritt (SSE, /app/new-project) ─────────────────────────────
   stream_elapsed: 'Generiert seit %ds',
