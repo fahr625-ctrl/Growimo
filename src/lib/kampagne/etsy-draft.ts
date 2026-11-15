@@ -67,7 +67,11 @@ const TAG_STOPWORDS = new Set([
 const TAG_VERBS = new Set([
   'ist', 'sind', 'war', 'waren', 'wird', 'werden', 'wurde', 'hat', 'haben', 'kann', 'können',
   'muss', 'soll', 'darf', 'bleibt', 'passt', 'macht', 'kommt', 'gibt', 'wirkt', 'zeigt',
+  'machen', 'mögen', 'möchte', 'möchten', 'bringt', 'bringen', 'brachte', 'bringt',
+  'schenken', 'verschenken', 'holen', 'kaufen', 'freuen', 'lieben', 'gefällt', 'gefallen',
+  'hängen', 'hängt', 'stehen', 'steht', 'liegen', 'liegt', 'braucht', 'bieten', 'bietet',
   'is', 'are', 'was', 'were', 'has', 'have', 'can', 'will', 'fits', 'shows',
+  'bring', 'brings', 'love', 'loves', 'makes', 'make', 'works', 'work',
 ]);
 
 /**
@@ -101,7 +105,25 @@ const WEAK_WORDS = new Set([
   'bunt', 'bunte', 'bunter', 'schön', 'schoen', 'schöne', 'lustig', 'lustige', 'süß', 'suess',
   'perfekt', 'ideal', 'hochwertig', 'modern', 'einfach', 'schnell', 'günstig', 'guenstig',
   'toll', 'super', 'echt', 'ganz', 'richtig', 'echte', 'tolle',
+  'langsam', 'langsamer', 'langsames', 'schneller', 'schnelles',
   'bigger', 'smaller', 'cute', 'funny', 'perfect', 'great', 'nice', 'best',
+]);
+
+/**
+ * Einzelwörter, die allein keinen Tag abgeben, weil sie nichts beschreiben
+ * (Owner-Befund 2026-11-15: „gäste", „wc", „klo", „bad", „leute", „humor",
+ * „digitales" füllten die Liste auf, statt sie zu tragen). Gilt NUR für das
+ * alleinstehende Wort — in einer Wendung bleiben sie erlaubt („baddeko mit
+ * humor", „gäste-wc-poster").
+ */
+const GENERIC_SINGLES = new Set([
+  'leute', 'leuten', 'mensch', 'menschen', 'person', 'personen', 'kunde', 'kunden',
+  'gäste', 'gaeste', 'gast', 'klo', 'klos', 'wc', 'wcs', 'bad', 'bäder', 'baeder',
+  'humor', 'witz', 'spaß', 'spass',
+  'digital', 'digitale', 'digitaler', 'digitalen', 'digitales',
+  'produkt', 'produkte', 'artikel', 'design', 'designs', 'motiv', 'motive',
+  'idee', 'ideen', 'sache', 'sachen', 'ding', 'dinge', 'zeug', 'teil', 'teile',
+  'people', 'person', 'product', 'item', 'thing', 'stuff', 'design',
 ]);
 
 /**
@@ -159,6 +181,16 @@ function isContentWord(word: string): boolean {
   return true;
 }
 
+/**
+ * Ist das ein nichtssagendes Einzelwort? Geprüft wird nur das ALLEINSTEHENDE
+ * Wort — „gäste" allein trägt nichts, „gäste-wc-poster" und „gäste zum
+ * schmunzeln" schon.
+ */
+function isGenericSingle(tag: string): boolean {
+  if (tag.includes(' ') || tag.includes('-')) return false;
+  return GENERIC_SINGLES.has(tag);
+}
+
 /** Ist diese Wortfolge ein vorzeigbarer Begriff? Anfang und Ende müssen tragen. */
 function isPhrase(words: readonly string[]): boolean {
   if (words.length === 0) return false;
@@ -177,58 +209,98 @@ function isPhrase(words: readonly string[]): boolean {
  * „… mit Spruch. Kleines Klo …" kein „spruch kleines" mehr werden. Und was
  * verneint ist, wird vorher abgeschnitten: „kein Rahmen enthalten" liefert
  * keinen Tag.
+ *
+ * **Wendungen vor Einzelwörtern** (Owner-Befund 2026-11-15): eine Klausel, die
+ * schon eine Wendung hergibt, liefert KEINE Einzelwörter mehr — sonst zerfällt
+ * „Baddeko mit Humor" in „baddeko" und „humor", und die Liste füllt sich mit
+ * Füllmaterial, statt zu beschreiben. Einzelwörter sind nur der Ersatz, wenn
+ * eine Klausel sonst gar nichts hergibt, und nichtssagende Einzelwörter
+ * (`GENERIC_SINGLES`: „digitales", „leute", „klo") entfallen ganz. Lieber
+ * wenige tragende Tags als dreizehn mittelmäßige: die Oberfläche bittet um
+ * weitere Merkmale, statt aufzufüllen.
  */
 export function etsyTagCandidates(source: EtsySource): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
-  const push = (value: string): void => {
+  const push = (value: string): boolean => {
     const tag = value.trim().toLowerCase();
-    if (tag.length < 2 || tag.length > ETSY_TAG_MAX_CHARS) return;
-    if (seen.has(tag)) return;
+    if (tag.length < 2 || tag.length > ETSY_TAG_MAX_CHARS) return false;
+    if (isGenericSingle(tag)) return false;
+    if (seen.has(tag)) return false;
     seen.add(tag);
     out.push(tag);
+    return true;
   };
 
-  const fromText = (text: string): void => {
+  /** Die positiven Klauseln einer Angabe, schon in Wörter zerlegt. */
+  const allClauses = (text: string): string[][] => {
+    const list: string[][] = [];
     for (const clause of clauses(text)) {
       const positive = positivePart(clause);
       if (!positive) continue;
       const words = clauseWords(positive);
-      if (words.length === 0) continue;
+      if (words.length > 0) list.push(words);
+    }
+    return list;
+  };
 
-      // 1. Die ganze Wendung, wenn sie als Tag durchgeht („gäste-wc-poster").
-      if (isPhrase(words)) push(words.join(' '));
+  const fields = [source.product, source.audience, source.message].map(allClauses);
 
-      // 2. Zusammenhängende Fenster von drei, dann zwei Wörtern.
-      for (const size of [3, 2]) {
-        for (let i = 0; i + size <= words.length; i++) {
-          const window = words.slice(i, i + size);
-          if (!isPhrase(window)) continue;
-          push(window.join(' '));
+  /** Die Wendungen einer Klausel: ganze Klausel, Bindestrich-Begriff, dann
+   *  Fenster von drei, dann zwei Wörtern. */
+  const phrasesOf = (words: readonly string[]): string[] => {
+    const found: string[] = [];
+    if (isPhrase(words)) found.push(words.join(' '));
+    // „Gäste-WC-Poster" ist auch als Einzelwort eine Wendung.
+    for (const word of words) {
+      if (word.includes('-') && word.replace(/-/g, '').length >= 3) found.push(word);
+    }
+    for (const size of [3, 2]) {
+      for (let i = 0; i + size <= words.length; i++) {
+        const window = words.slice(i, i + size);
+        if (isPhrase(window)) found.push(window.join(' '));
+      }
+    }
+    return found;
+  };
+
+  // 1. Wendungen zuerst — über ALLE Angaben. Ihre Wörter sind danach belegt:
+  //    ein Einzelwort aus einer Wendung („spruch" neben „frecher spruch") ist
+  //    Füllmaterial und entfällt.
+  const phraseWords = new Set<string>();
+  for (const clausesOfField of fields) {
+    for (const words of clausesOfField) {
+      for (const phrase of phrasesOf(words)) {
+        if (!push(phrase)) continue;
+        for (const token of phrase.split(' ')) {
+          phraseWords.add(token);
+          for (const part of token.split('-')) if (part) phraseWords.add(part);
         }
       }
+    }
+  }
 
-      // 3. Einzelbegriffe. Ein Bindestrich-Wort bleibt ganz; zusätzlich seine
-      //    Teile ab zwei Zeichen („wc" aus „gäste-wc-poster").
+  // 2. Einzelbegriffe nur als Ersatz, in der Reihenfolge der Angaben. Eine
+  //    Klausel, die schon eine Wendung hergibt (die also wirklich als Tag in der
+  //    Liste steht), liefert keine Einzelwörter; ein Bindestrich-Wort bleibt
+  //    ganz („gäste-wc-poster") und wird nicht in seine Teile zerlegt, denn
+  //    „gäste" und „wc" sind kein Tag.
+  for (const clausesOfField of fields) {
+    for (const words of clausesOfField) {
+      const hasAcceptedPhrase = phrasesOf(words).some((phrase) =>
+        seen.has(phrase.trim().toLowerCase()),
+      );
+      if (hasAcceptedPhrase) continue;
       for (const word of words) {
         if (word.includes('-')) {
           if (word.replace(/-/g, '').length >= 3) push(word);
-          for (const part of word.split('-')) {
-            if (part.length < 2) continue;
-            if (/^[0-9]+$/.test(part)) continue;
-            if (TAG_STOPWORDS.has(part) || TAG_VERBS.has(part)) continue;
-            push(part);
-          }
-        } else if (isContentWord(word)) {
+        } else if (isContentWord(word) && !phraseWords.has(word)) {
           push(word);
         }
       }
     }
-  };
+  }
 
-  fromText(source.product);
-  fromText(source.audience);
-  fromText(source.message);
   return out;
 }
 
