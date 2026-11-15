@@ -55,18 +55,27 @@ function ContentLibraryContent() {
     (StoredContent & { projectTitle: string })[]
   >([]);
   const [loading, setLoading] = useState(true);
+  // Ein Ladefehler ist NICHT dasselbe wie „nichts gespeichert" (Owner 2026-11-15):
+  // vorher setzte der catch-Zweig die Liste auf [] und die Seite behauptete
+  // „Deine Inhaltsbibliothek ist leer", obwohl gespeicherte Listings nur nicht
+  // abrufbar waren. Jetzt: Fehlerzustand mit erneutem Laden, Liste bleibt stehen.
+  const [loadError, setLoadError] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
 
   // Load content from PostgreSQL
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setLoadError(false);
     getAllContentByUser(userId)
       .then((content) => {
-        if (!cancelled) setAllContent(content);
+        if (cancelled) return;
+        setAllContent(content);
+        setLoadError(false);
       })
       .catch((err) => {
         console.error("Failed to load content library:", err);
-        if (!cancelled) setAllContent([]);
+        if (!cancelled) setLoadError(true);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -74,7 +83,9 @@ function ContentLibraryContent() {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, reloadToken]);
+
+  const reloadLibrary = () => setReloadToken((n) => n + 1);
 
   const [activeTab, setActiveTab] = useState<ContentType | "all">("all");
   // Stabilisierung Schritt 4 (Punkt 6): Projekt → Produktidee, damit die
@@ -162,8 +173,24 @@ function ContentLibraryContent() {
         ))}
       </div>
 
+      {/* Ladefehler bei bereits geladenen Inhalten: Liste bleibt, Hinweis darüber. */}
+      {loadError && allContent.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <p className="text-sm text-amber-800">{t.content_library_load_error_stale}</p>
+          <button
+            type="button"
+            onClick={reloadLibrary}
+            className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
+          >
+            {t.common_retry}
+          </button>
+        </div>
+      )}
+
       {/* Content list */}
-      {allContent.length === 0 ? (
+      {loadError && allContent.length === 0 ? (
+        <LoadErrorState onRetry={reloadLibrary} />
+      ) : allContent.length === 0 ? (
         <EmptyState />
       ) : filteredContent.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-12 text-center">
@@ -421,6 +448,30 @@ function ContentCard({
         className="mt-3 bg-gray-50/70"
         testId="library-next-actions"
       />
+    </div>
+  );
+}
+
+function LoadErrorState({ onRetry }: { onRetry: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <div className="rounded-2xl border border-dashed border-amber-300 bg-amber-50/60 p-12 text-center">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100">
+        <span className="text-3xl">⚠️</span>
+      </div>
+      <h3 className="mt-4 text-sm font-semibold text-gray-900">
+        {t.content_library_load_error_title}
+      </h3>
+      <p className="mt-1 text-sm text-gray-600">
+        {t.content_library_load_error_desc}
+      </p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-200 transition-all hover:from-blue-700 hover:to-purple-700"
+      >
+        {t.common_retry}
+      </button>
     </div>
   );
 }

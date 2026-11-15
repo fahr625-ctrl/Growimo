@@ -256,7 +256,8 @@ export const en: EnShape = {
   sidebar_etsy: '🛍️ Etsy',
   sidebar_new_strategy: 'Create content',
   sidebar_content_library: 'Content Library',
-  content_library_subtitle: 'All your generated content in one place. Browse, filter and copy.', content_library_all: 'All', content_library_no_type: 'No content of this type', content_library_generate_hint: 'Generate %s to see them here.', content_library_content: 'content', content_library_empty_title: 'Your content library is empty', content_library_empty_desc: 'Start a project to generate your first content.', content_library_new_project: 'Create new project',
+  content_library_subtitle: 'All your generated content in one place. Browse, filter and copy.', content_library_all: 'All', content_library_no_type: 'No content of this type', content_library_generate_hint: 'Generate %s to see them here.', content_library_content: 'content', content_library_empty_title: 'Your content library is empty', content_library_empty_desc: 'Start a project to generate your first content.',
+  content_library_load_error_title: 'The content library could not be loaded', content_library_load_error_desc: 'The saved content cannot be retrieved — it is NOT deleted. Please load again.', content_library_load_error_stale: 'Refresh failed — showing the last loaded state.', content_library_new_project: 'Create new project',
   sidebar_settings: 'Settings',
   sidebar_pricing: 'Pricing',
   sidebar_billing: 'Billing',
@@ -489,6 +490,15 @@ export const en: EnShape = {
   results_all_copied: 'All copied!',
   results_save_failed: 'Result visible but not saved:',
   results_generation_failed: 'Generation failed',
+  // Network abort (2026-11-14, owner rule): the server may have finished and
+  // saved, but the response never reaches the browser (TypeError "Failed to
+  // fetch"). The browser cannot judge the booking — so no claim about used-up
+  // generations; point at the content library and say a generation only becomes
+  // due once the result is really saved. Never show the raw browser message.
+  gen_network_error:
+    'The connection to the server was interrupted before the result arrived. A finished result may already be in the content library — check there first. The browser cannot tell whether a generation was booked; a generation only becomes due once the result has really been saved.',
+  gen_network_error_etsy:
+    'The connection to the server was interrupted before the result arrived. The finished listing may already be in the content library — check there first. The browser cannot tell whether a generation was booked; a generation only becomes due once a listing has really been saved.',
 
   // ── Stream progress (SSE, /app/new-project) ────────────────────────────────
   stream_elapsed: 'Generating for %ds',

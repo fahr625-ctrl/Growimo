@@ -412,6 +412,48 @@ export async function qGetAllContentByUser(
   return rows.map((r) => ({ ...mapContentRow(r), projectTitle: String(r.project_title ?? "") }));
 }
 
+/**
+ * Owner-Entscheidung 2026-11-14 („erst speichern, dann buchen") — findet ein
+ * bereits gespeichertes Etsy-Listing DESSELBEN Auftrags wieder.
+ *
+ * Der Auftrag wird über zwei Merkmale erkannt, die beide am Projekt hängen
+ * (projects.metadata, gesetzt von `qSaveProject`):
+ *   · `runKey`        — vom Client mitgeschickter Lauf-Schlüssel, der den Reload
+ *                       überlebt (exakt, auch wenn der Nutzer den Text ändert)
+ *   · `runFingerprint`— serverseitig gebildet aus Konto + Content-Type +
+ *                       Produktidee + Tonalität (Fallback, wenn der Client keinen
+ *                       Schlüssel (mehr) hat)
+ * Beides nur innerhalb des Zeitfensters, damit derselbe Auftrag Tage später
+ * wieder eine echte Generierung ist. Gelesen wird ausschließlich — nichts wird
+ * angelegt, nichts verändert.
+ */
+export async function qFindEtsyLibraryRun(
+  clerkUserId: string,
+  runKey: string | null,
+  fingerprint: string,
+  windowMs: number,
+): Promise<RawContent | null> {
+  if (!clerkUserId) return null;
+  const sql = getDb();
+  const rows = await sql`
+    SELECT gc.*
+    FROM generated_content gc
+    JOIN projects p ON p.id = gc.project_id
+    JOIN users u ON u.id = gc.user_id
+    WHERE u.clerk_id = ${clerkUserId}
+      AND gc.content_type = 'etsy_listing'
+      AND p.created_at > NOW() - (${Math.max(0, Math.round(windowMs))} * INTERVAL '1 millisecond')
+      AND (
+        (${runKey}::text IS NOT NULL AND p.metadata->>'runKey' = ${runKey}::text)
+        OR p.metadata->>'runFingerprint' = ${fingerprint}
+      )
+    ORDER BY gc.created_at DESC
+    LIMIT 1
+  `;
+  if (rows.length === 0) return null;
+  return mapContentRow(rows[0]);
+}
+
 export async function qGetRecentProjects(
   userId: string,
   limit: number,

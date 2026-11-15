@@ -3,6 +3,7 @@ import type { AIProvider, AIConfig, ContentRequest, ContentResult, ContentType }
 import { SELF_REFERENCE_CONSTRAINT } from '../context-loyalty';
 import { FACT_PROTECTION_CONSTRAINT } from '../fact-guard';
 import { GenerationQualityError, isRefusalText } from '~/lib/result-quality';
+import { etsyTagFallbacks, sanitizeEtsyTags } from '~/lib/etsy-tags';
 
 const NO_INVENT_CONSTRAINT = `⚠️ WICHTIG: Verwende AUSSCHLIESSLICH die vom Nutzer bereitgestellten Produktinformationen. Erfinde KEINE Größen, Materialien, Preise, Farben, Versanddetails oder andere Produktspezifikationen, die nicht in den Produktdetails genannt werden. Wenn eine Information nicht verfügbar ist, formuliere allgemein oder lasse sie weg — aber erfinde sie nicht.`;
 
@@ -674,12 +675,6 @@ export function parseResponse(contentType: ContentType, text: string): ContentRe
     const titleMatch = trimmed.match(/(?:1\.\s*)?(?:SEO-Titel|SEO Title)[:\s]*\n?\s*(.+?)(?:\n|$)/i);
     const title = titleMatch?.[1]?.trim() ?? 'Etsy-Listing';
 
-    const tagsMatch = trimmed.match(/(?:4\.\s*)?(?:13 Etsy-Tags|Etsy Tags)[:\s]*\n?\s*(.+?)(?:\n|$)/i);
-    const tags = tagsMatch?.[1]
-      ?.split(/[,;]/)
-      .map(t => t.trim())
-      .filter(t => t.length > 0 && t.length <= 20) ?? [];
-
     const keywordsMatch = trimmed.match(/(?:5\.\s*)?(?:Fokus-Keywords|Focus Keywords)[:\s]*\n?\s*(.+?)(?:\n|$)/i);
     const focusKeywords = keywordsMatch?.[1]
       ?.split(/[,;]/)
@@ -690,10 +685,35 @@ export function parseResponse(contentType: ContentType, text: string): ContentRe
     const primaryColorMatch = trimmed.match(/(?:8\.\s*)?(?:Primärfarbe|Primary Color)[:\s]*\n?\s*(.+?)(?:\n|$)/i);
     const styleMatch = trimmed.match(/(?:10\.\s*)?(?:Stil|Style)[:\s]*\n?\s*(.+?)(?:\n|$)/i);
 
+    // Owner-Befund 2026-11-14: Etsys Grenze (13 Tags, je ≤ 20 Zeichen) wird
+    // DURCHGESETZT, nicht nur geprüft. Vorher verwarf der Parser überlange Tags
+    // stillschweigend — deshalb meldete das Score-Panel „Nur 9 von 13", während
+    // im Text 13 standen. Jetzt: kürzen statt verwerfen, Duplikate raus, aus
+    // vorhandenen Begriffen des Listings auf 13 auffüllen. Und weil der Nutzer
+    // den TEXT kopiert, wird die Tag-Zeile im Body mitgezogen — Panel und
+    // Listing zeigen dieselben 13 gültigen Tags.
+    const tagsMatch = trimmed.match(/(?:4\.\s*)?(?:13 Etsy-Tags|Etsy Tags)[:\s]*\n?\s*(.+?)(?:\n|$)/i);
+    const rawTagLine = tagsMatch?.[1]?.trim() ?? '';
+    const rawTags = rawTagLine
+      ? rawTagLine.split(/[,;]/).map(t => t.trim()).filter(t => t.length > 0)
+      : [];
+    const tags = sanitizeEtsyTags(
+      rawTags,
+      etsyTagFallbacks({
+        focusKeywords,
+        category: catMatch?.[1]?.trim(),
+        style: styleMatch?.[1]?.trim(),
+        title,
+      }),
+    );
+    const body = rawTagLine && tags.length > 0
+      ? trimmed.replace(rawTagLine, () => tags.join(', '))
+      : trimmed;
+
     return {
       contentType,
       title,
-      body: trimmed,
+      body,
       metadata: {
         tags,
         focusKeywords,

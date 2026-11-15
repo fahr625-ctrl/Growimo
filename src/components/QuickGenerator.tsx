@@ -36,6 +36,79 @@ import { TONES, toneLabel } from '~/lib/tones';
 
 const DEFAULT_TONE_KEY = 'growimo_default_tone';
 
+/**
+ * Erkennt einen Netzwerk-Abbruch (Browser-TypeError, z. B. „Failed to fetch").
+ * Solche Fehler heissen je Browser anders (Chrome/Safari/Firefox/Edge) — deshalb
+ * wird auf die Meldung geprueft, nicht auf den Typ allein.
+ */
+export function isNetworkAbortError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return /failed to fetch|fetch failed|network ?error|network request failed|load failed|network connection was lost|err_internet|err_network|typeerror: fetch/i.test(
+    message,
+  );
+}
+
+// ── Lauf-Schlüssel für „erst speichern, dann buchen" (Owner 2026-11-14) ──────
+// Der Schlüssel identifiziert EINEN Auftrag und muss den Reload überleben:
+// er liegt deshalb im localStorage, zusammen mit Idee + Tonalität, für die er
+// gilt. Bricht die Verbindung ab, bleibt er liegen → „Erneut versuchen" trifft
+// denselben Auftrag (kein Duplikat, keine zweite Einheit). Kommt das Ergebnis
+// an, wird er gelöscht → der nächste Klick ist bewusst ein NEUER Auftrag.
+const RUN_KEY_STORAGE = 'growimo_etsy_run_key';
+
+interface StoredRunKey {
+  key: string;
+  idea: string;
+  tone: string;
+}
+
+export function readStoredRunKey(): StoredRunKey | null {
+  try {
+    const raw = window.localStorage.getItem(RUN_KEY_STORAGE);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StoredRunKey>;
+    if (typeof parsed.key === 'string' && typeof parsed.idea === 'string' && typeof parsed.tone === 'string') {
+      return { key: parsed.key, idea: parsed.idea, tone: parsed.tone };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeStoredRunKey(value: StoredRunKey): void {
+  try {
+    window.localStorage.setItem(RUN_KEY_STORAGE, JSON.stringify(value));
+  } catch {
+    // Storage gesperrt/voll — der Server-Fingerabdruck greift als Fallback.
+  }
+}
+
+export function clearStoredRunKey(): void {
+  try {
+    window.localStorage.removeItem(RUN_KEY_STORAGE);
+  } catch {
+    // ignore
+  }
+}
+
+function newRunKey(): string {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `run_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+
+/** Lauf-Schlüssel für diesen Auftrag: vorhandenen weiterverwenden, sonst neu. */
+export function runKeyForOrder(idea: string, tone: string): string {
+  const stored = readStoredRunKey();
+  if (stored && stored.idea === idea && stored.tone === tone) return stored.key;
+  const key = newRunKey();
+  writeStoredRunKey({ key, idea, tone });
+  return key;
+}
+
 export interface QuickGeneratorProps {
   contentType: ContentType;
   titleKey: 'gen_pinterest_title' | 'gen_etsy_title' | 'gen_blog_title';
@@ -312,6 +385,14 @@ function QuickGeneratorContent({
         learnContext = '';
       }
 
+      // Owner-Entscheidung 2026-11-14: Die Etsy-Kachel lässt das fertige Listing
+      // serverseitig ZUERST in die Inhaltsbibliothek schreiben und bucht die
+      // Einheit erst danach. Der Lauf-Schlüssel überlebt den Reload, damit
+      // „Erneut versuchen" denselben Auftrag trifft (kein Duplikat, keine
+      // zweite Einheit).
+      const persistToLibrary = contentType === 'etsy_listing';
+      const runKey = persistToLibrary ? runKeyForOrder(productIdea, tone ?? '') : undefined;
+
       const generated = (await generateContentServer({
         data: {
           contentType,
@@ -319,11 +400,31 @@ function QuickGeneratorContent({
           productIdea,
           tone: tone || undefined,
           additionalContext: [brandContext, briefContext, perfContext, learnContext].filter(Boolean).join('\n\n') || undefined,
+          persistToLibrary,
+          runKey,
         },
       })) as ContentResult;
 
+      const libraryProjectId =
+        typeof generated?.metadata?.libraryProjectId === 'string'
+          ? (generated.metadata.libraryProjectId as string)
+          : null;
+      // Wiederholung desselben Auftrags: der Server hat das vorhandene Listing
+      // zurückgegeben — dann ist auch KEINE neue Einheit verbraucht worden.
+      const reusedFromLibrary = generated?.metadata?.libraryReused === true;
+
       setResult(generated);
-      recordGeneration(uid);
+      if (!reusedFromLibrary) recordGeneration(uid);
+
+      // Server-gespeichertes Listing (Etsy): Das Projekt existiert schon, der
+      // Auto-Save unten darf KEIN zweites anlegen. Schlüssel löschen = der
+      // nächste Klick ist bewusst ein neuer Auftrag.
+      if (libraryProjectId) {
+        savedProjectRef.current = libraryProjectId;
+        setSavedProjectId(libraryProjectId);
+        setAutoSaveStatus('saved');
+        clearStoredRunKey();
+      }
 
       // AUTO-SAVE nach erfolgreicher Einzel-Generierung (Owner-Entscheid
       // 2026-10-18, K3): Der bezahlte Output landet SOFORT in einem eigenen
@@ -371,7 +472,20 @@ function QuickGeneratorContent({
       }
     } catch (error) {
       console.error('Generation failed:', error);
-      const message = error instanceof Error ? error.message : t.common_unknown_error;
+      // Netzwerk-Abbruch (2026-11-14, Owner-Vorgabe): Bricht die Verbindung
+      // zwischen Browser und Server weg, wirft der Browser einen TypeError
+      // („Failed to fetch") — die Antwort kommt nie an, obwohl der Server fertig
+      // generiert UND gespeichert haben kann. Der Browser kann die Buchung nicht
+      // beurteilen; die Meldung verweist deshalb auf die Inhaltsbibliothek und
+      // sagt nur, was sicher ist: eine Einheit wird erst bei gespeichertem
+      // Ergebnis fällig. Etsy hat dafür den Listing-Wortlaut.
+      const message = isNetworkAbortError(error)
+        ? contentType === 'etsy_listing'
+          ? t.gen_network_error_etsy
+          : t.gen_network_error
+        : error instanceof Error
+          ? error.message
+          : t.common_unknown_error;
       setErrorMessage(message);
       // Admin-Analytics MVP Phase 1 (additive): quick generation error.
       // Phase Analytics-Erweiterung: Kategorie/Code zusaetzlich (nur Kurzfelder,
@@ -614,10 +728,21 @@ function QuickGeneratorContent({
         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-800">
           <p className="font-semibold">{t.results_generation_failed}</p>
           <p className="mt-1">{errorMessage}</p>
+          {/* Owner 2026-11-14: „Erneut versuchen" löst die Generierung wirklich
+              erneut aus, statt nur die Meldung wegzunehmen. Der Lauf-Schlüssel
+              im localStorage bleibt liegen (er wird erst bei Erfolg gelöscht),
+              deshalb trifft der Aufruf denselben Auftrag: der Server gibt das
+              bereits gespeicherte Listing zurück — kein Duplikat, keine zweite
+              Einheit. Ist die Idee inzwischen geändert, gilt sie als neuer
+              Auftrag (runKeyForOrder). */}
           <button
             type="button"
-            onClick={() => setErrorMessage(null)}
-            className="mt-3 text-sm font-medium text-red-700 underline hover:text-red-900"
+            data-testid="quick-retry-generate"
+            onClick={() => {
+              void handleGenerate();
+            }}
+            disabled={!canGenerateNow}
+            className="mt-3 text-sm font-medium text-red-700 underline hover:text-red-900 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {t.common_retry}
           </button>
