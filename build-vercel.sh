@@ -69,24 +69,44 @@ JSON
 # werden. Ohne die Pakete im Funktionsordner findet die gebaute Funktion ihr
 # Binding zur Laufzeit nicht — und zwar erst im Betrieb. Deshalb: kopieren UND
 # fail-closed prüfen, sonst bricht der Build hier ab (kein Deploy).
-mkdir -p .vercel/output/functions/render.func/node_modules
-cp -R node_modules/sharp .vercel/output/functions/render.func/node_modules/ 2>/dev/null || true
-for d in node_modules/@img/*; do
-  [ -d "$d" ] || continue
-  cp -R "$d" .vercel/output/functions/render.func/node_modules/ 2>/dev/null || true
+#
+# KORREKTUR 2026-11-15 (Befund aus dem Artefakt-Lauf außerhalb des Repos):
+# Die erste Fassung kopierte `node_modules/@img/*` OHNE den Scope-Ordner und
+# ließ `semver` / `detect-libc` weg. Im Repo fiel das nicht auf, weil Node die
+# fehlenden Pakete aus `site/node_modules` eine Ebene höher nachlud — die Kopie
+# außerhalb des Repos brach dagegen mit
+#   "Cannot find package '@img/colour' imported from .../sharp/dist/colour.mjs"
+# ab. Also: Scope-Struktur erhalten, Laufzeit-Abhängigkeiten mitkopieren, und
+# die Prüfung in einer Kopie AUSSERHALB des Repos fahren (dort gibt es kein
+# node_modules darüber, das stillschweigend aushilft).
+rm -rf .vercel/output/functions/render.func/node_modules
+mkdir -p .vercel/output/functions/render.func/node_modules/@img
+cp -R node_modules/sharp .vercel/output/functions/render.func/node_modules/
+cp -R node_modules/@img/. .vercel/output/functions/render.func/node_modules/@img/
+for d in detect-libc semver; do
+  [ -d "node_modules/$d" ] || { echo "sharp-Abhängigkeit $d fehlt in node_modules — Build verworfen." >&2; exit 1; }
+  cp -R "node_modules/$d" .vercel/output/functions/render.func/node_modules/
 done
-echo "[4/5] sharp-Artefakt prüfen (fail-closed)"
-if ! ( cd .vercel/output/functions/render.func && node -e '
-  const sharp = require("sharp");
+echo "[4/5] sharp-Artefakt prüfen (fail-closed, außerhalb des Repos)"
+sharp_proof_dir="$(mktemp -d "${TMPDIR:-/tmp}/growimo-sharp-proof.XXXXXX")"
+cp -R .vercel/output/functions/render.func "$sharp_proof_dir/"
+if ! ( cd "$sharp_proof_dir/render.func" && node --input-type=module -e '
+  const { default: sharp } = await import("sharp");
   const v = sharp.versions || {};
   if (!v.sharp || !v.vips) { console.error("sharp-Versionen fehlen"); process.exit(3); }
-  console.log("sharp " + v.sharp + " / libvips " + v.vips);
+  const svg = Buffer.from("<svg width=\"40\" height=\"40\" xmlns=\"http://www.w3.org/2000/svg\"><rect width=\"40\" height=\"40\" fill=\"#0f766e\"/></svg>");
+  const png = await sharp(svg).png().toBuffer();
+  const meta = await sharp(png).metadata();
+  if (meta.width !== 40 || meta.height !== 40) { console.error("Render-Maße falsch"); process.exit(4); }
+  console.log("sharp " + v.sharp + " / libvips " + v.vips + " / PNG-Render ok (" + meta.width + "x" + meta.height + ")");
 ' ); then
+  rm -rf "$sharp_proof_dir"
   echo "" >&2
   echo "SHARP IM FUNKTIONS-ARTEFAKT NICHT LADBAR — Build verworfen, KEIN Deploy." >&2
-  echo "Das Native-Binding (@img/sharp-<platform>) fehlt in render.func/node_modules." >&2
+  echo "Geprüft wurde eine Kopie von render.func außerhalb des Repos (kein Repo-node_modules darüber)." >&2
   exit 1
 fi
+rm -rf "$sharp_proof_dir"
 if ! find .vercel/output/functions/render.func/node_modules -name '*.node' -print -quit | grep -q .; then
   echo "KEIN NATIVES BINDING (*.node) im Funktions-Artefakt — Build verworfen, KEIN Deploy." >&2
   exit 1

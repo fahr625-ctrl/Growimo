@@ -15,13 +15,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { PinRenderError, renderPinPng } from '../lib/kampagne/pin-render';
+import { loadSharp } from '../lib/kampagne/sharp-loader';
 
 export const KAMPAGNE_PROOF_PATH = '/api/kampagne/proof';
 export const KAMPAGNE_PROOF_PNG_PATH = '/api/kampagne/proof.png';
 
 /** Synthetisches Grundbild (Verlauf + Formen) — kein KI-Bild, keine Kosten. */
 async function syntheticPhoto(): Promise<Buffer> {
-  const sharp = (await import(/* @vite-ignore */ 'sharp')).default;
+  const sharp = await loadSharp();
   const svg = `<svg width="1200" height="1200" xmlns="http://www.w3.org/2000/svg">
     <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#1e3a8a"/><stop offset="55%" stop-color="#0f766e"/><stop offset="100%" stop-color="#78350f"/>
@@ -36,7 +37,7 @@ async function syntheticPhoto(): Promise<Buffer> {
 
 /** Synthetisches Logo (geometrisch, damit kein Font nötig ist). */
 async function syntheticLogo(): Promise<Buffer> {
-  const sharp = (await import(/* @vite-ignore */ 'sharp')).default;
+  const sharp = await loadSharp();
   const svg = `<svg width="320" height="320" xmlns="http://www.w3.org/2000/svg">
     <circle cx="160" cy="160" r="150" fill="#ffffff" fill-opacity="0.92"/>
     <path d="M100 200 L160 90 L220 200 Z" fill="#0f766e"/>

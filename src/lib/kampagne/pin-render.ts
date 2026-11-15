@@ -14,6 +14,8 @@
 //     leeres Pin-Bild auszuliefern.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { loadSharp, type SharpFactory } from './sharp-loader';
+
 export const PIN_WIDTH = 1000;
 export const PIN_HEIGHT = 1500;
 
@@ -54,12 +56,9 @@ export class PinRenderError extends Error {
   }
 }
 
-type SharpFactory = typeof import('sharp').default;
-
 /** Lazy: `sharp` wird erst beim ersten Rendern geladen (Native-Binding). */
 async function getSharp(): Promise<SharpFactory> {
-  const mod = await import(/* @vite-ignore */ 'sharp');
-  return mod.default as unknown as SharpFactory;
+  return loadSharp();
 }
 
 /** XML-Escaping für Text in SVG (sonst bricht jedes „&" oder „<" das Bild). */

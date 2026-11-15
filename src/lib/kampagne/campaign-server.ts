@@ -23,6 +23,7 @@ import {
   type CampaignDraft,
   type CampaignOption,
 } from './campaign';
+import { loadSharp } from './sharp-loader';
 
 /** SQL-Executor (Neon-Tag). Injizierbar, damit Tests keinen Prod-Schreibzugriff brauchen. */
 export type CampaignSqlTag = (
@@ -78,7 +79,7 @@ export async function prepareCampaignPhoto(dataUrl: string): Promise<PreparedPho
     throw new CampaignError('invalid_input', 'Foto ist zu groß.', ['photo_too_large']);
   }
   try {
-    const sharp = (await import(/* @vite-ignore */ 'sharp')).default;
+    const sharp = await loadSharp();
     const buf = await sharp(Buffer.from(parsed.base64, 'base64'))
       .rotate()
       .resize({
