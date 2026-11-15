@@ -111,6 +111,11 @@ export const renderPinsServer = createServerFn({ method: 'POST' })
     const photoBytes = new Uint8Array(Buffer.from(photo.base64, 'base64'));
     const { brand, brandLine } = pinBrandFrom(data.brand);
 
+    // Schrift bereitstellen, BEVOR der erste Text gezeichnet wird: im
+    // Laufzeit-Image gibt es keine Systemschriften (Befund 2026-11-15).
+    const { ensurePinFonts } = await import('./pin-font');
+    await ensurePinFonts();
+
     const rendered: RenderedPin[] = [];
     for (const draft of drafts) {
       if (!draft.headline.trim()) {

@@ -2364,6 +2364,10 @@ export const en: EnShape = {
   kampagne_pin_color: 'Text colour',
   kampagne_pin_title: 'Pinterest title',
   kampagne_pin_description: 'Description',
+  kampagne_export_png: 'Download PNG',
+  kampagne_export_zip: 'All five as ZIP',
+  kampagne_export_busy: 'Downloading …',
+  kampagne_export_failed: 'The download did not work. Please try again — the preview is unchanged.',
   kampagne_brand_apply: 'Apply brand profile (colours and brand name)',
   kampagne_brand_none:
     'No brand profile stored — the drafts stay neutral. Colours and brand name come from the profile once it is filled in.',

@@ -10,6 +10,9 @@
 // .vercel/output/functions/render.func/index.mjs by build-vercel.sh.
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+import { prepareSync as preparePinFontsSync } from './src/lib/kampagne/pin-font';
+preparePinFontsSync(); // Schrift VOR dem ersten libvips-Zugriff bekannt machen
+
 import handler from "./dist/server/server.js";
 import { dbInitState, initDb } from "./src/db/init";
 import { handleBetaApi } from "./src/api/beta";

@@ -46,8 +46,14 @@ export const PIN_WIDTH = 1000;
 export const PIN_HEIGHT = 1500;
 
 /** Freie, lizenzsichere Schriftkette (OFL-Systemschriften, keine Downloads). */
+// Reihenfolge: zuerst die EINGEBETTETE Schrift (pin-font.ts richtet fontconfig
+// darauf ein) — damit der Pin überall gleich aussieht. Die Systemschriften
+// danach sind nur Rückfall für die lokale Entwicklung.
 export const PIN_FONT_STACK =
-  '"DejaVu Sans", "Liberation Sans", "Noto Sans", Arial, Helvetica, sans-serif';
+  '"Liberation Sans", "DejaVu Sans", "Noto Sans", Arial, Helvetica, sans-serif';
+
+/** Schriftgröße der Schrift-Prüfung (Tofu-Erkennung). */
+const PROBE_SIZE = 100;
 
 /** Mindestkontrast Text ↔ Hintergrund (WCAG AA, normaler Text). */
 export const MIN_TEXT_CONTRAST = 4.5;
@@ -430,6 +436,47 @@ function boxFitsSafeArea(box: InkBox): boolean {
   );
 }
 
+// ── Schrift-Prüfung (Tofu-Erkennung) ─────────────────────────────────────────
+// BEFUND 2026-11-15: Ohne Schrift zeichnet librsvg für JEDES Zeichen dasselbe
+// leere Kästchen. Solche Pixel sind „Text" im Sinne der alten Prüfung — der Pin
+// ging also als gerendert durch und war doch unlesbar (Beleg:
+// /home/team/shared/kampagne-schrift-2026-11-15/). Diese Prüfung misst nicht,
+// OB Pixel da sind, sondern ob verschiedene Zeichen VERSCHIEDEN breit sind:
+// mit echter Schrift ist „MMMM" deutlich breiter als „iiii", mit Tofu sind
+// beide gleich breit. Ohne diesen Nachweis gibt es kein Bild.
+let fontProbe: { ratio: number; mmmm: number; iiii: number } | null = null;
+
+/** Prüft, ob die Schriftkette wirklich Glyphen zeichnet (einmal je Prozess). */
+export async function assertFontRenders(sharp: SharpFactory): Promise<void> {
+  // Ein positives Ergebnis gilt für den Prozess. Ein negatives wird NICHT
+  // gemerkt: es kann an einer vorübergehenden Lage liegen (Schrift noch nicht
+  // abgelegt) und darf die Instanz nicht dauerhaft sperren.
+  if (fontProbe) return;
+
+  const measure = async (text: string): Promise<number> => {
+    const svg = Buffer.from(
+      `<svg width="${PIN_WIDTH}" height="${PROBE_SIZE * 2}" xmlns="http://www.w3.org/2000/svg">` +
+        `<text x="10" y="${Math.round(PROBE_SIZE * 1.4)}" font-family='${esc(PIN_FONT_STACK)}' ` +
+        `font-size="${PROBE_SIZE}" font-weight="700" fill="#ffffff">${text}</text></svg>`,
+    );
+    const layer = await measureInk(sharp, svg);
+    return layer.box.right - layer.box.left + (layer.pixels > 0 ? 1 : 0);
+  };
+  const mmmm = await measure('MMMM');
+  const iiii = await measure('iiii');
+  // Echte Schrift: „MMMM" mindestens 1,6× so breit wie „iiii" (Liberation Sans
+  // ≈ 3,3×). Tofu liegt bei 1,0, weil jedes Zeichen dasselbe Kästchen ist.
+  const ratio = iiii > 0 ? mmmm / iiii : 0;
+  if (mmmm > 0 && iiii > 0 && ratio >= 1.6) {
+    fontProbe = { ratio, mmmm, iiii };
+    return;
+  }
+  throw new PinRenderError(
+    'font_missing',
+    `Schrift zeichnet keine Zeichen (Breiten-Verhältnis MMMM/iiii = ${ratio.toFixed(2)} statt ≥ 1,6) — im Laufzeit-Image fehlt eine Schrift.`,
+  );
+}
+
 // ── Geometrie ────────────────────────────────────────────────────────────────
 
 interface TextGeometry {
@@ -758,6 +805,10 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
   }
   const sharp = await getSharp();
   const versions = (sharp as unknown as { versions?: Record<string, string> }).versions ?? {};
+  // 0) Erst prüfen, dass die Schrift überhaupt Zeichen zeichnet. Ohne diesen
+  //    Nachweis entstünde ein Pin voller leerer Kästchen (Tofu) — ein Bild, das
+  //    wie ein Ergebnis aussieht und keines ist.
+  await assertFontRenders(sharp);
   const layout: PinLayoutId = input.layout && isPinLayoutId(input.layout) ? input.layout : 'bottom-left';
 
   // 1) Text-Ebene rendern, messen und — falls nötig — verkleinern, bis sie in

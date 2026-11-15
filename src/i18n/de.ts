@@ -2378,6 +2378,11 @@ export const de = {
   kampagne_pin_color: 'Textfarbe',
   kampagne_pin_title: 'Pinterest-Titel',
   kampagne_pin_description: 'Beschreibung',
+  kampagne_export_png: 'PNG herunterladen',
+  kampagne_export_zip: 'Alle fünf als ZIP',
+  kampagne_export_busy: 'Wird geladen …',
+  kampagne_export_failed:
+    'Der Download hat nicht geklappt. Bitte noch einmal versuchen — die Vorschau bleibt unverändert.',
   kampagne_brand_apply: 'Markenprofil anwenden (Farben und Markenname)',
   kampagne_brand_none:
     'Kein Markenprofil hinterlegt — die Entwürfe bleiben neutral. Farben und Markenname kommen aus dem Profil, sobald es ausgefüllt ist.',

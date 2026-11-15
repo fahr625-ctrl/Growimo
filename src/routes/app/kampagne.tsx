@@ -28,6 +28,13 @@ import {
 } from '~/lib/kampagne/pin-drafts';
 import { renderPinsServer, type PinBrandInput } from '~/lib/kampagne/pin-server';
 import { downscalePhoto } from '~/lib/kampagne/pin-client';
+import {
+  buildZip,
+  dataUrlToBytes,
+  downloadBytes,
+  pinFileName,
+  zipFileName,
+} from '~/lib/kampagne/pin-export';
 import type { PinLayoutId } from '~/lib/kampagne/pin-render';
 import { getBrandProfile } from '~/store/brand';
 
@@ -199,6 +206,78 @@ function KampagneContent() {
     setField('brandApplied', checked);
     void rerenderAll({ applied: checked, colors: brandColors, name: brandName });
   };
+
+  // ── Export (PNG je Pin, ZIP für alle) ───────────────────────────────────────
+  const [exporting, setExporting] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  /**
+   * Rendert ALLE Pins aus dem JETZT bearbeiteten Stand und gibt die frischen
+   * Data-URLs zurück. Der Export benutzt genau diese Bytes: ein noch laufendes
+   * Nachrendern (600 ms nach dem Tippen) darf keinen alten Text in die Datei
+   * bringen. Kein KI-Aufruf, keine Einheit — nur Rechnen.
+   */
+  const renderLatestPins = useCallback(async (): Promise<{
+    list: PinDraft[];
+    urls: Record<string, string>;
+  }> => {
+    for (const timer of Object.values(renderTimers.current)) clearTimeout(timer);
+    renderTimers.current = {};
+    const src = draft.photoDataUrl;
+    const list = pinsRef.current;
+    if (!src) throw new Error('photo_required');
+    if (list.length === 0) throw new Error('no_pins');
+    const photoUrl = await ensureRenderPhoto(src);
+    setRenderingIds(list.map((p) => p.id));
+    try {
+      const res = await renderPinsServer({
+        data: { photoDataUrl: photoUrl, brand: brandInput, pins: list },
+      });
+      const urls: Record<string, string> = {};
+      for (const rendered of res.pins) urls[rendered.id] = rendered.dataUrl;
+      setRenders((prev) => ({ ...prev, ...urls }));
+      return { list, urls };
+    } finally {
+      setRenderingIds([]);
+    }
+  }, [brandInput, draft.photoDataUrl, ensureRenderPhoto]);
+
+  const onExportPin = useCallback(
+    async (pin: PinDraft) => {
+      setExporting(pin.id);
+      setExportError(null);
+      try {
+        const { list, urls } = await renderLatestPins();
+        const dataUrl = urls[pin.id];
+        if (!dataUrl) throw new Error('render_missing');
+        const index = list.findIndex((p) => p.id === pin.id);
+        downloadBytes(dataUrlToBytes(dataUrl), pinFileName(index, pin.layout), 'image/png');
+      } catch {
+        setExportError('export');
+      } finally {
+        setExporting(null);
+      }
+    },
+    [renderLatestPins],
+  );
+
+  const onExportZip = useCallback(async () => {
+    setExporting('zip');
+    setExportError(null);
+    try {
+      const { list, urls } = await renderLatestPins();
+      const entries = list.map((pin, index) => {
+        const dataUrl = urls[pin.id];
+        if (!dataUrl) throw new Error('render_missing');
+        return { name: pinFileName(index, pin.layout), bytes: dataUrlToBytes(dataUrl) };
+      });
+      downloadBytes(buildZip(entries), zipFileName(draft.name), 'application/zip');
+    } catch {
+      setExportError('export');
+    } finally {
+      setExporting(null);
+    }
+  }, [draft.name, renderLatestPins]);
 
   const refreshList = useCallback(async () => {
     setLoadingList(true);
@@ -589,6 +668,15 @@ function KampagneContent() {
                       )}
                     </div>
 
+                    <button
+                      type="button"
+                      onClick={() => void onExportPin(pin)}
+                      disabled={exporting !== null || isRendering || !renders[pin.id]}
+                      className="mb-3 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                    >
+                      {exporting === pin.id ? t.kampagne_export_busy : t.kampagne_export_png}
+                    </button>
+
                     <label className="mb-2 block">
                       <span className="mb-1 block text-xs font-medium text-gray-700">{t.kampagne_pin_overlay}</span>
                       <textarea
@@ -684,6 +772,12 @@ function KampagneContent() {
         </p>
       )}
 
+      {exportError && (
+        <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {t.kampagne_export_failed}
+        </div>
+      )}
+
       <div className="mb-8 flex flex-wrap items-center gap-3">
         <button
           type="button"
@@ -692,6 +786,14 @@ function KampagneContent() {
           className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
         >
           {saving ? t.kampagne_saving : t.kampagne_save}
+        </button>
+        <button
+          type="button"
+          onClick={() => void onExportZip()}
+          disabled={exporting !== null || pins.length === 0}
+          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+        >
+          {exporting === 'zip' ? t.kampagne_export_busy : t.kampagne_export_zip}
         </button>
         <button
           type="button"
