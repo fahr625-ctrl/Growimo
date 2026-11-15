@@ -146,15 +146,29 @@ export async function runWithContextLoyalty(
   // Owner-Entscheid 2026-10-01 (Teil 2): Fakten-Schutz NUR für den Paket-Flow
   // (`enforceFacts`), alle anderen Pfade bleiben byte-gleich wie vorher.
   const enforceFacts = request.enforceFacts === true;
-  const { resultFactViolations, factGuardCorrection, sanitizeFactResult, FACT_GUARD_ERROR, buildFactGrounding } =
-    await import('./fact-guard');
+  const {
+    resultFactViolations,
+    factGuardCorrection,
+    sanitizeFactResult,
+    stripUngroundedEtsyFaq,
+    FACT_GUARD_ERROR,
+    buildFactGrounding,
+  } = await import('./fact-guard');
   const grounding = enforceFacts ? buildFactGrounding(request) : '';
+  // Owner-Auftrag 2026-11-15: Beim Etsy-Listing fällt die FAQ-Sektion ganz weg,
+  // wenn der Nutzer keine Lieferumfang-Angaben gemacht hat (bzw. ihre
+  // Frage/Antwort-Blöcke, die erfundene Angaben enthalten). Nur dieser Kanal.
+  const applyEtsyFaqScope = (res: ContentResult): ContentResult => {
+    if (!enforceFacts || request.contentType !== 'etsy_listing') return res;
+    const body = stripUngroundedEtsyFaq(res.body, grounding, request.declaredFacts);
+    return body === res.body ? res : { ...res, body };
+  };
 
   const first = await run(request);
   const violations = resultLoyaltyViolations(request, first);
   const firstFact = enforceFacts ? resultFactViolations(first, grounding, request.declaredFacts) : [];
   if (violations.length === 0 && firstFact.length === 0) {
-    return { result: first, attempts: 1, corrected: false };
+    return { result: applyEtsyFaqScope(first), attempts: 1, corrected: false };
   }
   if (violations.length > 0) {
     console.warn(
@@ -191,7 +205,12 @@ export async function runWithContextLoyalty(
   const retryViolations = resultLoyaltyViolations(request, retry);
   const retryFact = enforceFacts ? resultFactViolations(retry, grounding, request.declaredFacts) : [];
   if (retryViolations.length === 0 && retryFact.length === 0) {
-    return { result: retry, attempts: 2, corrected: violations.length > 0, factCorrected: firstFact.length > 0 };
+    return {
+      result: applyEtsyFaqScope(retry),
+      attempts: 2,
+      corrected: violations.length > 0,
+      factCorrected: firstFact.length > 0,
+    };
   }
   // Kontexttreue bleibt hart (Stabilisierung 4.2): unbegründeter Selbstbezug
   // auch nach der Korrektur ⇒ ehrlicher Fehler, nichts wird still geliefert.
@@ -224,7 +243,7 @@ export async function runWithContextLoyalty(
     throw new Error(FACT_GUARD_ERROR);
   }
   return {
-    result: { ...cleaned, title: safeTitle },
+    result: applyEtsyFaqScope({ ...cleaned, title: safeTitle }),
     attempts: 2,
     corrected: false,
     factCorrected: true,

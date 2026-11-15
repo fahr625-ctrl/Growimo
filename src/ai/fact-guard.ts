@@ -78,6 +78,14 @@ export interface FactPattern {
   valueRe?: RegExp;
   /** true = ohne belegten Wert gilt die Aussage selbst dann als erfunden. */
   valueRequired?: boolean;
+  /**
+   * Owner-Auftrag 2026-11-15 (Lieferumfang in TEXTFORM): jedes Wort des Fundes
+   * muss wörtlich (normalisiert) im Nutzerkontext stehen — auch kurze Tokens wie
+   * „PDF", „PNG" oder „JPG", die `claimLiteral` über seine 4-Zeichen-Stammregel
+   * verlieren würde. Gedacht für Aussagen ohne Zahl: Dateiformate, Größen-,
+   * Drucker- und Download-Zusagen.
+   */
+  claimTokens?: boolean;
 }
 
 /** Kategorie-Präfix der Verstoß-Meldungen. */
@@ -325,6 +333,19 @@ export function declaredFactValues(blob: string): Set<string> {
   return out;
 }
 
+/**
+ * Füllwörter, die beim `claimTokens`-Beleg ignoriert werden (de+en) — sonst
+ * scheitert eine belegte Aussage an „in"/„der"/„deiner".
+ */
+const CLAIM_STOPWORDS = new Set([
+  'der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einer', 'einen', 'einem', 'eines',
+  'und', 'oder', 'mit', 'ohne', 'für', 'fuer', 'von', 'vom', 'zu', 'zum', 'zur', 'im', 'in',
+  'an', 'am', 'auf', 'aus', 'bei', 'je', 'nach', 'ist', 'sind', 'wird', 'werden', 'kann',
+  'kannst', 'du', 'dein', 'deine', 'deiner', 'deinem', 'deinen', 'es', 'sie', 'er',
+  'the', 'a', 'an', 'and', 'or', 'with', 'for', 'of', 'to', 'in', 'on', 'is', 'are', 'your',
+  'you', 'it', 'this', 'that',
+]);
+
 /** Umlaut-/Schreibvarianten-tolerant (spuelmaschinenfest ⇔ spülmaschinenfest). */
 function normalizeClaim(raw: string): string {
   return (raw || '')
@@ -391,6 +412,53 @@ FACT_PATTERNS.push(
     name: 'lieferumfang',
     re: /\bim\s+lieferumfang\b|\blieferumfang\s*:|\bwas\s+du\s+bekommst\b|\bwhat'?s\s+included\b|\binklusive\s+(?:geschenkverpackung|verpackung|anhänger|zubehör|zubehoer)\b|\bincluded\s+in\s+(?:the\s+)?(?:box|package|set)\b/i,
     grounding: /lieferumfang|was\s+du\s+bekommst|what'?s\s+included|inklusive\s+(?:geschenkverpackung|verpackung|anhänger|zubehör|zubehoer)|zubehör|zubehoer/i,
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Owner-Auftrag 2026-11-15 — LIEFERUMFANG IN TEXTFORM (Etsy-FAQ-Härtung).
+//
+// Beleg (echter Live-Lauf 15.11., /home/team/shared/etsy-echtlauf-2026-11-15/
+// result-card-raw.txt, Feld 16 FAQ): das Modell erfand
+//   „Der Download-Link enthält verschiedene gängige Formate",
+//   „Drucke es in deiner Lieblingsgröße",
+//   „… mit den meisten Standarddruckern gut funktioniert".
+// Die vorhandene Lieferumfang-Regel greift nur bei Zahlen+Einheiten, Motiv-/
+// Druckseiten und Verpackung — Aussagen über FORMATE, GRÖSSEN, DRUCKER und
+// DOWNLOAD sind ohne Zahl und kamen deshalb durch.
+//
+// Kategorie (g): solche Aussagen sind nur belegt, wenn der Nutzer sie WÖRTLICH
+// genannt hat (`claimTokens`). Ein Themen-Keyword („digital", „Poster") oder ein
+// Dateiname mit „.jpg" entwaffnet bewusst NICHT.
+// ─────────────────────────────────────────────────────────────────────────────
+FACT_PATTERNS.push(
+  {
+    // Dateiformate: „als PDF", „PDF, JPG und PNG", „verschiedene gängige Formate".
+    // Die Negativ-Lookbehind schützt den vom Prompt verlangten Dateinamen
+    // („…-poster.jpg" in Feld 14) vor einem Fehlalarm.
+    name: 'dateiformat-claim',
+    re: /(?<!\.)\b(?:pdf|jpe?g|png|svg|dxf|eps|psd|tiff)\b|\bdateiformat\w*|\bfile\s+formats?\b|\b(?:verschiedene|gängige|gaengige|gängigen|gängiger|mehrere|alle|übliche|uebliche|andere)\s+(?:datei-?\s*)?formate?n?\b/gi,
+    claimTokens: true,
+  },
+  {
+    // Größen-Zusage: „in deiner Lieblingsgröße", „jede Größe", „Größe anpassen".
+    name: 'groessen-zusage',
+    re: /\blieblingsgr(?:ö|oe)(?:ß|ss)e\w*|\bin\s+jeder\s+(?:gewünschten\s+|beliebigen\s+)?gr(?:ö|oe)(?:ß|ss)e\b|\bgr(?:ö|oe)(?:ß|ss)e\w*[^.!?\n]{0,30}?\b(?:anpass\w*|anpassbar|flexibel|variabel|wählbar|waehlbar|änder\w*|aender\w*|skalier\w*)\b|\b(?:verschiedene|gängige|gaengige|übliche|uebliche|mehrere|alle|beliebige|jede)\s+gr(?:ö|oe)(?:ß|ss)en\b|\bstandardgr(?:ö|oe)(?:ß|ss)en\b|\bany\s+size\b|\bcustom\s+size\b|\bmultiple\s+sizes\b|\ball\s+sizes\b/gi,
+    claimTokens: true,
+  },
+  {
+    // Drucker-/Druckeinstellungs-Zusage: „Standarddrucker", „Druckeinstellungen".
+    name: 'drucker-zusage',
+    re: /(?:standard)?drucker(?:n|s)?\b|\bdruckeinstellung\w*|\bdruckfertig\w*|\bdruckergebnis\w*|\bhome\s+printer\b|\bprint[- ]?ready\b|\bprint\s+at\s+home\b/gi,
+    claimTokens: true,
+  },
+  {
+    // Download-Zusage: „Download-Link", „herunterladen", „Sofort-Download".
+    // „Download" matcht auch innerhalb von „Download-Link" — der Zusatz „Link"
+    // ist kein eigener Fakt und soll einen belegten Download nicht entwaffnen.
+    name: 'download-zusage',
+    re: /\bdownloads?\b|\bherunterlad\w*|\bsofort-?download\b|\binstant\s+download\b/gi,
+    claimTokens: true,
   },
 );
 
@@ -520,6 +588,20 @@ function isGrounded(
     return blob.includes(lower) || (words.length > 0 && words.every((w) => blob.includes(w)));
   }
   let verified = false;
+  if (pattern.claimTokens) {
+    // Owner-Auftrag 2026-11-15: JEDES Wort des Fundes muss wörtlich im
+    // Nutzerkontext stehen (normalisiert, flexions-tolerant als Teilstring).
+    // Anders als `claimLiteral` fallen kurze Tokens („PDF", „PNG", „JPG") NICHT
+    // durch die 4-Zeichen-Stammregel. Füllwörter werden ignoriert, damit ein
+    // belegter Satz nicht an „in"/„der" scheitert.
+    const tokens = normalizeClaim(m[0])
+      .split(/[\s/-]+/)
+      .map((t) => t.replace(/[^a-z0-9%]/g, ''))
+      .filter((t) => t.length >= 2 && !CLAIM_STOPWORDS.has(t));
+    if (tokens.length === 0) return false;
+    if (tokens.some((t) => !claimBlob.includes(t))) return false;
+    verified = true;
+  }
   if (pattern.claimLiteral) {
     // Wörtlicher Beleg: der Nutzer muss die Aussage selbst formuliert haben.
     // Zahlen im Ausdruck (z. B. „100 %") zählen dabei wörtlich, Wörter stammweise
@@ -732,6 +814,141 @@ export function sanitizeFactResult<T extends { title: string; body: string }>(
   return { ...result, title, body };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Owner-Auftrag 2026-11-15 — ETSY-FAQ OHNE ERFUNDENEN LIEFERUMFANG.
+//
+// Regel des Owners: Nennt der Nutzer keine Dateiformate, Größen, Dateianzahl oder
+// Angaben zum Download, darf das Listing dazu NICHTS behaupten — die FAQ entfällt
+// dann GANZ. Sind Angaben vorhanden, werden ausschließlich die ausdrücklich
+// genannten Fakten übernommen.
+//
+// Die Satz-Eliminierung (`sanitizeFactText`) lässt von einer erfundenen
+// FAQ-Antwort die Frage-Überschrift stehen („**Kann ich die Größe anpassen?**"
+// ohne Antwort). Deshalb diese letzte Instanz auf FELD-Ebene: unhaltbare
+// Frage/Antwort-Blöcke fliegen raus, und wenn keine belegte FAQ übrig bleibt —
+// oder der Nutzer gar keine FAQ-relevante Angabe gemacht hat — verschwindet die
+// Sektion samt Überschrift.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Überschrift der FAQ-Sektion (nummeriert wie „16. FAQ" oder unnummeriert). */
+const FAQ_HEADING_RE =
+  /^\s*(?:(\d{1,2})\s*[.)]\s*)?(?:\*\*)?\s*(?:faq|häufige\s+fragen|haeufige\s+fragen|frequently\s+asked\s+questions)\s*(?:\*\*)?\s*:?\s*$/i;
+
+/** Beliebige nummerierte Überschrift (Ende der FAQ-Sektion). */
+const ANY_NUMBERED_HEADING_RE = /^\s*(\d{1,2})\s*[.)]\s+\S/;
+
+/**
+ * Nutzerangaben, auf denen eine FAQ überhaupt stehen kann: Lieferumfang in
+ * Textform (Formate, Größe, Auflösung, Drucker, Download) oder eine genannte
+ * Liefer-/Rückgabe-/Pflegeangabe. Fehlt alles, gibt es nichts zu fragen.
+ */
+const FAQ_GROUNDING_RE =
+  /\b(?:pdf|jpe?g|png|svg|dxf|eps|psd|tiff|dateiformat\w*|file\s+formats?|formate?n?|lieferumfang|download\w*|herunterlad\w*|drucker\w*|druckfertig\w*|aufl(?:ö|oe)sung|dpi|seitenzahl|dateianzahl|lieferzeit|versand|r(?:ü|ue)ckgabe|pflege)\b|\bgr(?:ö|oe)(?:ß|ss)e\w*/i;
+
+/**
+ * Hat der Nutzer überhaupt eine Angabe gemacht, auf die sich eine FAQ stützen
+ * kann? (`declaredFacts` = strukturierte Angaben aus dem Formular.)
+ */
+export function hasEtsyFaqGrounding(groundingBlob: string, declared?: DeclaredFacts): boolean {
+  if (declaredFactBlob(declared).trim() !== '') return true;
+  const blob = typeof groundingBlob === 'string' ? groundingBlob : '';
+  return FAQ_GROUNDING_RE.test(blob);
+}
+
+/** Zerlegt den FAQ-Text in Frage/Antwort-Blöcke (Frage = Zeile mit „?"). */
+function splitFaqUnits(section: string): string[] {
+  const lines = section.split('\n');
+  const units: string[] = [];
+  let current: string[] = [];
+  const flush = (): void => {
+    const block = current.join('\n').trim();
+    if (block) units.push(block);
+    current = [];
+  };
+  for (const line of lines) {
+    const trimmed = line.trim();
+    // Neue Frage beginnt: Zeile endet auf „?" (auch „**…?**") und der laufende
+    // Block hat schon Inhalt.
+    const isQuestion = /\?\s*(?:\*\*)?\s*$/.test(trimmed);
+    if (isQuestion && current.some((l) => l.trim() !== '')) flush();
+    current.push(line);
+  }
+  flush();
+  return units;
+}
+
+/** Hat ein FAQ-Block eine Antwort (mehr als nur die Frage-Zeile)? */
+function faqUnitHasAnswer(unit: string): boolean {
+  const lines = unit.split('\n').map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return false;
+  const rest = lines.filter((l) => !/\?\s*(?:\*\*)?\s*$/.test(l));
+  return rest.length > 0;
+}
+
+/**
+ * Entfernt aus einem Etsy-Listing den erfundenen Lieferumfang der FAQ-Sektion.
+ *
+ * - Keine FAQ-relevante Nutzerangabe ⇒ Sektion 16 fällt KOMPLETT weg.
+ * - Sonst: jeder Frage/Antwort-Block mit einem Fakten-Verstoß (oder ohne Antwort
+ *   nach der Satz-Eliminierung) fällt weg; bleibt nichts übrig, fällt die
+ *   Sektion ebenfalls weg.
+ * - Andere Sektionen und die Nummerierung bleiben unverändert (der Parser ordnet
+ *   Felder über ihre Nummer/Überschrift zu).
+ */
+export function stripUngroundedEtsyFaq(
+  body: string,
+  groundingBlob: string,
+  declared?: DeclaredFacts,
+): string {
+  if (typeof body !== 'string' || body.trim() === '') return body;
+  const lines = body.split('\n');
+  let faqIdx = -1;
+  let faqNumber = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(FAQ_HEADING_RE);
+    if (m) {
+      faqIdx = i;
+      faqNumber = m[1] ? Number(m[1]) : 0;
+      break;
+    }
+  }
+  if (faqIdx < 0) return body;
+  // Sektion endet an der nächsten nummerierten Überschrift (bei nummerierter FAQ
+  // nur an einer HÖHEREN Nummer — „1." innerhalb einer Antwort schneidet nicht).
+  let endIdx = lines.length;
+  for (let i = faqIdx + 1; i < lines.length; i++) {
+    const m = lines[i].match(ANY_NUMBERED_HEADING_RE);
+    if (!m) continue;
+    const num = Number(m[1]);
+    if (faqNumber === 0 || num > faqNumber) {
+      endIdx = i;
+      break;
+    }
+  }
+  const before = lines.slice(0, faqIdx);
+  const after = lines.slice(endIdx);
+  const rebuild = (middle: string[]): string => {
+    const out = [...before, ...middle];
+    // Leerzeile zwischen Sektion und nächster Überschrift erhalten.
+    if (middle.length > 0 && after.length > 0) out.push('');
+    out.push(...after);
+    return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  };
+
+  if (!hasEtsyFaqGrounding(groundingBlob, declared)) {
+    return rebuild([]); // Owner-Regel: ohne Angaben entfällt die FAQ ganz.
+  }
+  const ctx = buildCheckContext(groundingBlob, declared);
+  const values = declaredFactValues(ctx);
+  const units = splitFaqUnits(lines.slice(faqIdx + 1, endIdx).join('\n'));
+  const kept = units.filter((unit) => {
+    if (!faqUnitHasAnswer(unit)) return false;
+    return !splitSentences(unit).some((s) => matchViolationsInSentence(s, ctx, values).length > 0);
+  });
+  if (kept.length === 0) return rebuild([]);
+  return rebuild([lines[faqIdx], ...kept.join('\n\n').split('\n')]);
+}
+
 /** Lesbare Beschreibung eines Verstoßes für den Korrektur-Hinweis. */
 const VIOLATION_LABELS: Record<string, { de: string; en: string }> = {
   anekdote: {
@@ -765,6 +982,22 @@ const VIOLATION_LABELS: Record<string, { de: string; en: string }> = {
   lieferumfang: {
     de: 'erfundener Lieferumfang/Verpackungsangabe',
     en: 'invented scope-of-delivery/packaging claim',
+  },
+  'dateiformat-claim': {
+    de: 'erfundene Angabe zu Dateiformaten',
+    en: 'invented file-format claim',
+  },
+  'groessen-zusage': {
+    de: 'erfundene Größen-Zusage',
+    en: 'invented size promise',
+  },
+  'drucker-zusage': {
+    de: 'erfundene Drucker-/Druck-Zusage',
+    en: 'invented printer/print promise',
+  },
+  'download-zusage': {
+    de: 'erfundene Download-Angabe',
+    en: 'invented download claim',
   },
   zertifikat: { de: 'erfundenes Zertifikat/Material- oder Wirkversprechen', en: 'invented certification or material/effect claim' },
   garantie: { de: 'erfundenes Garantieversprechen', en: 'invented guarantee' },

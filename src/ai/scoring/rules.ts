@@ -8,7 +8,8 @@
 //  - Pinterest: titles ≤ 100 chars, descriptions ~250–400 chars, 14–20 keywords,
 //    12–18 hashtags, alt text 80–125 chars, 2:3 image prompt.
 //  - Etsy: title ≤ 140 chars, exactly 13 tags (≤ 20 chars each), descriptions
-//    ≥ 500 chars, main keyword at position 1, FAQ, alt text 90–130 chars.
+//    ≥ 500 chars, main keyword at position 1, FAQ (freiwillig, kein Abzug),
+//    alt text 90–130 chars.
 //  - SEO: 1.500–2.500 words, H1/meta title ≤ 60 chars, meta description ≤ 160
 //    chars, keyword 4–6× in body + in H1, FAQ, CTA, slug.
 //  - Social: Instagram caption 100–180, Facebook 150–250, TikTok 30–100 chars,
@@ -47,6 +48,12 @@ interface RuleContext {
   blocks: SectionBlock[];
   numbered: Map<number, SectionBlock>;
   result: ContentResult;
+  /**
+   * Alle Nutzerangaben (Produktidee + Zusatzkontext) als Text. Beleg-Grundlage
+   * für Hinweise, die Themen wie Lieferung/Rückgabe/Dateiformate berühren
+   * dürfen (Owner-Entscheidung 2026-11-15).
+   */
+  grounding: string;
 }
 
 type RuleCheck = (ctx: RuleContext) => RuleOutcome;
@@ -196,6 +203,37 @@ const pinterestRules: RuleCheck[] = [
 
 // ── Etsy ──────────────────────────────────────────────────────────────────────
 
+/**
+ * Owner-Entscheidung 2026-11-15 — FAQ ohne erfundenen Lieferumfang.
+ *
+ * Ein Verbesserungshinweis darf Lieferung, Rückgabe und Dateiformate NUR nennen,
+ * wenn der Nutzer sie selbst genannt hat. Diese Funktion liefert genau die
+ * Angaben, die im Nutzertext WÖRTLICH vorkommen (in dieser Reihenfolge), damit
+ * der Hinweis sie zitieren kann und nichts dazuerfindet. Kein Treffer ⇒ leere
+ * Liste ⇒ der Hinweis nennt keines dieser Themen.
+ */
+function etsyFaqNamedFacts(grounding: string): string[] {
+  const blob = typeof grounding === 'string' ? grounding : '';
+  if (blob.trim() === '') return [];
+  const patterns: RegExp[] = [
+    // Dateiformate (auch einzeln: „PDF", „JPG")
+    /\b(?:pdf|jpe?g|png|svg|dxf|eps|psd|tiff)\b/gi,
+    // Größen wie „30x40 cm"
+    /\b\d{1,4}\s*[x×]\s*\d{1,4}\s*(?:cm|mm|zoll)\b/gi,
+    // Liefer-/Rückgabe-/Datei-Angaben in Worten
+    /\b(?:dateiformat\w*|dateianzahl|lieferumfang|lieferzeit\w*|versand\w*|r(?:ü|ue)ckgabe\w*|retoure\w*|umtausch\w*|download\w*|herunterlad\w*|aufl(?:ö|oe)sung\w*|dpi)\b/gi,
+  ];
+  const facts: string[] = [];
+  for (const re of patterns) {
+    for (const m of blob.matchAll(re)) {
+      const fact = m[0].replace(/\s+/g, ' ').trim();
+      if (fact === '') continue;
+      if (!facts.some((f) => lower(f) === lower(fact))) facts.push(fact);
+    }
+  }
+  return facts.slice(0, 5);
+}
+
 const etsyRules: RuleCheck[] = [
   (ctx) => {
     const title = ctx.result.title;
@@ -286,11 +324,28 @@ const etsyRules: RuleCheck[] = [
   (ctx) => {
     const faq = blockByHeading(ctx.blocks, ['FAQ']);
     const questions = faq ? countLines(faq.content, /\?/) : 0;
-    if (!faq || questions < 3) {
-      return issue(false, 'structure', `FAQ fehlt oder hat nur ${questions} Frage(n) (Ziel: 5).`,
-        { field: 'faq', action: 'add', suggestion: `Ergänze 5 häufige Käuferfragen (Pflege, Größe, Material, Lieferung, Rückgabe) mit ausführlichen Antworten — aktuell ${questions} Frage(n) gefunden.` });
+    // Owner-Entscheidung 2026-11-15: Die FAQ ist KEINE Pflicht mehr. Fehlt sie
+    // (oder ist leer), gilt die Prüfung als bestanden — ein fehlender Abschnitt
+    // darf den Score nicht senken. Grund: Ohne Angaben des Nutzers zu
+    // Lieferumfang, Rückgabe oder Dateiformaten gibt es keine belegbare Antwort,
+    // und eine erfundene ist schlechter als keine.
+    if (!faq || questions === 0) {
+      return issue(true, 'structure', 'Keine FAQ — freiwillig, kein Abzug.', { field: 'faq', action: 'keep', suggestion: '' });
     }
-    return issue(true, 'structure', `FAQ mit ${questions} Fragen vorhanden.`, { field: 'faq', action: 'keep', suggestion: '' });
+    if (questions >= 3) {
+      return issue(true, 'structure', `FAQ mit ${questions} Fragen vorhanden.`, { field: 'faq', action: 'keep', suggestion: '' });
+    }
+    // FAQ vorhanden, aber dünn: Der Hinweis nennt NUR Angaben, die der Nutzer
+    // selbst gemacht hat (Lieferung/Rückgabe/Dateiformate nie ungefragt).
+    const named = etsyFaqNamedFacts(ctx.grounding);
+    const base = `Ergänze weitere Käuferfragen zu Punkten, die du selbst festgelegt hast — aktuell ${questions} Frage(n) gefunden.`;
+    return issue(false, 'structure', `FAQ hat nur ${questions} Frage(n).`, {
+      field: 'faq',
+      action: 'add',
+      suggestion: named.length > 0
+        ? `Ergänze weitere Käuferfragen zu deinen eigenen Angaben (${named.join(', ')}) — aktuell ${questions} Frage(n) gefunden.`
+        : base,
+    });
   },
   (ctx) => {
     const fn = ctx.numbered.get(14)?.content ?? '';
@@ -581,15 +636,23 @@ export function dimensionLabel(dim: ScoreDimension): string {
 /**
  * Run all deterministic checks for a content type. Never throws: malformed
  * output degrades to warnings, and unsupported types return no issues.
+ * `grounding` = alle Nutzerangaben (Produktidee + Zusatzkontext); Hinweise
+ * dürfen Themen wie Lieferung/Rückgabe/Dateiformate nur daraus nennen.
  */
-export function runRules(result: ContentResult): RuleResults {
+export function runRules(result: ContentResult, grounding = ''): RuleResults {
   const checks = RULES_BY_TYPE[result.contentType] ?? [];
   if (checks.length === 0) {
     return { outcomes: [], issues: [] };
   }
   const blocks = extractBlocks(result.body);
   const numbered = numberedBlocks(blocks);
-  const ctx: RuleContext = { type: result.contentType, blocks, numbered, result };
+  const ctx: RuleContext = {
+    type: result.contentType,
+    blocks,
+    numbered,
+    result,
+    grounding: typeof grounding === 'string' ? grounding : '',
+  };
 
   const outcomes = checks.map((check) => {
     try {
