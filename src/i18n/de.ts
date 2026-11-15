@@ -2358,5 +2358,33 @@ export const de = {
   kampagne_err_message_too_long: 'Die Kernbotschaft ist zu lang (max. 300 Zeichen).',
   kampagne_err_option: 'Bitte wähle eine Option.',
   kampagne_err_generic: 'Das hat nicht geklappt. Bitte noch einmal versuchen.',
+  kampagne_pins_title: 'Fünf Pin-Entwürfe',
+  kampagne_pins_hint:
+    'Aus diesem Foto entstehen fünf Entwürfe: fünf Layouts, fünf Botschaften. Jedes Pin ist einzeln bearbeitbar — Text, Position, Farbe, Titel und Beschreibung.',
+  kampagne_pins_generate: 'Fünf Pin-Entwürfe erzeugen',
+  kampagne_pins_regenerate: 'Entwürfe neu erzeugen',
+  kampagne_pins_generating: 'Entwürfe werden erzeugt …',
+  kampagne_pins_empty: 'Noch keine Entwürfe. Klick auf „Fünf Pin-Entwürfe erzeugen".',
+  kampagne_pin_rendering: 'Wird gerendert …',
+  kampagne_pin_no_preview: 'Noch keine Vorschau',
+  kampagne_pin_render_failed:
+    'Die Vorschau konnte nicht gerendert werden. Bitte noch einmal versuchen — gespeichert wurde nichts geändert.',
+  kampagne_pin_overlay: 'Text auf dem Pin',
+  kampagne_pin_subline: 'Untertext',
+  kampagne_pin_position: 'Position',
+  kampagne_pin_position_top: 'oben',
+  kampagne_pin_position_middle: 'mittig',
+  kampagne_pin_position_bottom: 'unten',
+  kampagne_pin_color: 'Textfarbe',
+  kampagne_pin_title: 'Pinterest-Titel',
+  kampagne_pin_description: 'Beschreibung',
+  kampagne_brand_apply: 'Markenprofil anwenden (Farben und Markenname)',
+  kampagne_brand_none:
+    'Kein Markenprofil hinterlegt — die Entwürfe bleiben neutral. Farben und Markenname kommen aus dem Profil, sobald es ausgefüllt ist.',
+  kampagne_layout_bottom_left: 'Text unten links',
+  kampagne_layout_top_band: 'Kopfbereich',
+  kampagne_layout_center_card: 'Mittlere Karte',
+  kampagne_layout_side_stripe: 'Seitenstreifen',
+  kampagne_layout_minimal_frame: 'Reduziert',
 
 } as const;

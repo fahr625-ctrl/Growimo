@@ -24,6 +24,7 @@ import {
   type CampaignOption,
 } from './campaign';
 import { loadSharp } from './sharp-loader';
+import { sanitizePinDrafts, type PinDraft } from './pin-drafts';
 
 /** SQL-Executor (Neon-Tag). Injizierbar, damit Tests keinen Prod-Schreibzugriff brauchen. */
 export type CampaignSqlTag = (
@@ -47,6 +48,8 @@ export interface CampaignRecord extends CampaignSummary {
   targetUrl: string;
   /** Originalfoto als Data-URL (null bei „Nur Etsy"). */
   photoDataUrl: string | null;
+  /** Gespeicherte Pin-Entwürfe (leer bei „Nur Etsy"). */
+  pins: PinDraft[];
   createdAt: string;
 }
 
@@ -125,11 +128,39 @@ function toRecord(row: Record<string, unknown>): CampaignRecord {
     message: row.message == null ? '' : String(row.message),
     targetUrl: row.target_url == null ? '' : String(row.target_url),
     photoDataUrl: photo ? `data:${mime};base64,${photo}` : null,
+    pins: parsePinsJson(row.pins),
     createdAt: row.created_at == null ? new Date(0).toISOString() : String(row.created_at),
   };
 }
 
+/** `pins` ist JSONB — je nach Treiber kommt ein Array oder ein JSON-Text. */
+export function parsePinsJson(value: unknown): PinDraft[] {
+  if (value == null) return [];
+  let raw: unknown = value;
+  if (typeof value === 'string') {
+    try {
+      raw = JSON.parse(value);
+    } catch {
+      return [];
+    }
+  }
+  return sanitizePinDrafts(raw);
+}
+
 // ── Repo (DB-Zugriffe, ohne Session-Logik) ───────────────────────────────────
+
+/** Quelle für die Pin-Ableitung (nur Produkt/Zielgruppe/Botschaft der Kampagne). */
+function pinSourceOf(draft: Partial<CampaignDraft>): {
+  product: string;
+  audience: string;
+  message: string;
+} {
+  return {
+    product: draft.product ?? '',
+    audience: draft.audience ?? '',
+    message: draft.message ?? '',
+  };
+}
 
 export async function insertCampaign(
   userId: string,
@@ -147,7 +178,8 @@ export async function insertCampaign(
        ${(draft.targetUrl ?? '').trim() || null},
        ${photo ? photo.mime : null}, ${photo ? photo.base64 : null},
        ${photo ? photo.width : null}, ${photo ? photo.height : null},
-       ${draft.brandApplied === true}, ${JSON.stringify([])}::jsonb, ${null}::jsonb)
+       ${draft.brandApplied === true},
+       ${JSON.stringify(sanitizePinDrafts(draft.pins ?? [], pinSourceOf(draft)))}::jsonb, ${null}::jsonb)
     RETURNING id
   `;
   const id = rows[0]?.id;
@@ -175,6 +207,7 @@ export async function updateCampaign(
       photo_width = COALESCE(${photo ? photo.width : null}, photo_width),
       photo_height = COALESCE(${photo ? photo.height : null}, photo_height),
       brand_applied = ${draft.brandApplied === true},
+      pins = ${JSON.stringify(sanitizePinDrafts(draft.pins ?? [], pinSourceOf(draft)))}::jsonb,
       updated_at = NOW()
     WHERE id = ${id} AND user_id = ${userId}
     RETURNING id
@@ -203,7 +236,7 @@ export async function readCampaign(
 ): Promise<CampaignRecord | null> {
   const rows = await sql`
     SELECT id, name, option, product, audience, message, target_url,
-           photo_mime, photo_data, brand_applied, created_at, updated_at
+           photo_mime, photo_data, brand_applied, pins, created_at, updated_at
     FROM campaigns
     WHERE id = ${id} AND user_id = ${userId}
     LIMIT 1

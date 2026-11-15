@@ -2344,5 +2344,33 @@ export const en: EnShape = {
   kampagne_err_message_too_long: 'The key message is too long (max. 300 characters).',
   kampagne_err_option: 'Please choose an option.',
   kampagne_err_generic: 'That did not work. Please try again.',
+  kampagne_pins_title: 'Five pin drafts',
+  kampagne_pins_hint:
+    'Five drafts from this photo: five layouts, five messages. Every pin is editable on its own — text, position, colour, title and description.',
+  kampagne_pins_generate: 'Create five pin drafts',
+  kampagne_pins_regenerate: 'Recreate drafts',
+  kampagne_pins_generating: 'Creating drafts …',
+  kampagne_pins_empty: 'No drafts yet. Click “Create five pin drafts”.',
+  kampagne_pin_rendering: 'Rendering …',
+  kampagne_pin_no_preview: 'No preview yet',
+  kampagne_pin_render_failed:
+    'The preview could not be rendered. Please try again — nothing was saved.',
+  kampagne_pin_overlay: 'Text on the pin',
+  kampagne_pin_subline: 'Subtext',
+  kampagne_pin_position: 'Position',
+  kampagne_pin_position_top: 'top',
+  kampagne_pin_position_middle: 'middle',
+  kampagne_pin_position_bottom: 'bottom',
+  kampagne_pin_color: 'Text colour',
+  kampagne_pin_title: 'Pinterest title',
+  kampagne_pin_description: 'Description',
+  kampagne_brand_apply: 'Apply brand profile (colours and brand name)',
+  kampagne_brand_none:
+    'No brand profile stored — the drafts stay neutral. Colours and brand name come from the profile once it is filled in.',
+  kampagne_layout_bottom_left: 'Text bottom left',
+  kampagne_layout_top_band: 'Top band',
+  kampagne_layout_center_card: 'Centre card',
+  kampagne_layout_side_stripe: 'Side stripe',
+  kampagne_layout_minimal_frame: 'Reduced',
 
 }

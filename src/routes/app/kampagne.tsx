@@ -1,6 +1,6 @@
 import { seoHead } from '~/lib/seo';
 import { createFileRoute } from '@tanstack/react-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import { useTranslation } from '~/i18n';
 import {
@@ -18,6 +18,18 @@ import {
   type CampaignRecord,
   type CampaignSummary,
 } from '~/lib/kampagne/campaign-server';
+import {
+  PIN_DESCRIPTION_MAX,
+  PIN_HEADLINE_MAX,
+  PIN_SUBLINE_MAX,
+  PIN_TITLE_MAX,
+  buildPinDrafts,
+  type PinDraft,
+} from '~/lib/kampagne/pin-drafts';
+import { renderPinsServer, type PinBrandInput } from '~/lib/kampagne/pin-server';
+import { downscalePhoto } from '~/lib/kampagne/pin-client';
+import type { PinLayoutId } from '~/lib/kampagne/pin-render';
+import { getBrandProfile } from '~/store/brand';
 
 export const Route = createFileRoute('/app/kampagne')({
   head: () => seoHead({ titleKey: 'meta_app_kampagne_title' }),
@@ -59,8 +71,134 @@ function KampagneContent() {
   const [photoBytes, setPhotoBytes] = useState<number>(0);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
+  // ── Pin-Entwürfe ────────────────────────────────────────────────────────────
+  const [pins, setPins] = useState<PinDraft[]>([]);
+  const pinsRef = useRef<PinDraft[]>([]);
+  const [renders, setRenders] = useState<Record<string, string>>({});
+  const [renderingIds, setRenderingIds] = useState<string[]>([]);
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [brandName, setBrandName] = useState('');
+  const [brandColors, setBrandColors] = useState('');
+  const [brandAvailable, setBrandAvailable] = useState(false);
+  const renderPhotoRef = useRef<{ src: string; out: string } | null>(null);
+  const renderTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
   const needsPhoto = optionNeedsPhoto(draft.option);
   const includesEtsy = optionIncludesEtsy(draft.option);
+
+  // Markenprofil: nur Farben + Markenname werden übernommen — was das Profil
+  // nicht hergibt (Schrift, Logo), wird nicht erfunden.
+  useEffect(() => {
+    const profile = getBrandProfile();
+    if (!profile) return;
+    setBrandName(profile.brandName ?? '');
+    setBrandColors(profile.brandColors ?? '');
+    setBrandAvailable(!!(profile.brandName || profile.brandColors));
+  }, []);
+
+  const brandInput = useMemo<PinBrandInput>(
+    () => ({
+      applied: draft.brandApplied === true,
+      colors: brandColors,
+      name: brandName,
+    }),
+    [draft.brandApplied, brandColors, brandName],
+  );
+
+  const applyPins = useCallback((next: PinDraft[]) => {
+    pinsRef.current = next;
+    setPins(next);
+  }, []);
+
+  /** Foto für das Rendern (einmal verkleinert, dann wiederverwendet). */
+  const ensureRenderPhoto = useCallback(async (src: string): Promise<string> => {
+    if (renderPhotoRef.current?.src === src) return renderPhotoRef.current.out;
+    const out = await downscalePhoto(src);
+    renderPhotoRef.current = { src, out };
+    return out;
+  }, []);
+
+  const renderOne = useCallback(
+    async (pin: PinDraft, photoUrl: string, brand: PinBrandInput) => {
+      setRenderingIds((prev) => (prev.includes(pin.id) ? prev : [...prev, pin.id]));
+      try {
+        const res = await renderPinsServer({
+          data: { photoDataUrl: photoUrl, brand, pins: [pin] },
+        });
+        const first = res.pins[0];
+        if (first) setRenders((prev) => ({ ...prev, [first.id]: first.dataUrl }));
+      } catch {
+        setPinError('render');
+      } finally {
+        setRenderingIds((prev) => prev.filter((id) => id !== pin.id));
+      }
+    },
+    [],
+  );
+
+  const onGeneratePins = useCallback(async () => {
+    setPinError(null);
+    if (!draft.photoDataUrl) {
+      setPinError('photo_required');
+      return;
+    }
+    const next = buildPinDrafts({
+      product: draft.product,
+      audience: draft.audience,
+      message: draft.message,
+    });
+    applyPins(next);
+    setRenders({});
+    const brand = brandInput;
+    const photoUrl = await ensureRenderPhoto(draft.photoDataUrl);
+    for (const pin of next) {
+      await renderOne(pin, photoUrl, brand);
+    }
+  }, [applyPins, brandInput, draft.photoDataUrl, draft.product, draft.audience, draft.message, ensureRenderPhoto, renderOne]);
+
+  /** Ein Feld eines Pins ändern und die Vorschau nach kurzer Pause neu rendern. */
+  const updatePin = useCallback(
+    <K extends keyof PinDraft>(id: string, key: K, value: PinDraft[K]) => {
+      const current = pinsRef.current.find((p) => p.id === id);
+      if (!current) return;
+      const updated = { ...current, [key]: value } as PinDraft;
+      applyPins(pinsRef.current.map((p) => (p.id === id ? updated : p)));
+
+      const src = draft.photoDataUrl;
+      if (!src || !updated.headline.trim()) return;
+      if (renderTimers.current[id]) clearTimeout(renderTimers.current[id]);
+      const brand = brandInput;
+      renderTimers.current[id] = setTimeout(() => {
+        void ensureRenderPhoto(src).then((photoUrl) => renderOne(updated, photoUrl, brand));
+      }, 600);
+    },
+    [applyPins, brandInput, draft.photoDataUrl, ensureRenderPhoto, renderOne],
+  );
+
+  useEffect(
+    () => () => {
+      for (const t of Object.values(renderTimers.current)) clearTimeout(t);
+    },
+    [],
+  );
+
+  /** Alle vorhandenen Entwürfe neu rendern (z. B. wenn das Markenprofil schaltet). */
+  const rerenderAll = useCallback(
+    async (brand: PinBrandInput) => {
+      const src = draft.photoDataUrl;
+      if (!src || pinsRef.current.length === 0) return;
+      const photoUrl = await ensureRenderPhoto(src);
+      for (const pin of pinsRef.current) {
+        await renderOne(pin, photoUrl, brand);
+      }
+    },
+    [draft.photoDataUrl, ensureRenderPhoto, renderOne],
+  );
+
+  const onToggleBrand = (checked: boolean) => {
+    setField('brandApplied', checked);
+    void rerenderAll({ applied: checked, colors: brandColors, name: brandName });
+  };
 
   const refreshList = useCallback(async () => {
     setLoadingList(true);
@@ -116,7 +254,9 @@ function KampagneContent() {
     setErrors([]);
     setNotice(null);
     try {
-      const saved: CampaignRecord = await saveCampaignServer({ data: draft });
+      const saved: CampaignRecord = await saveCampaignServer({
+        data: { ...draft, pins: pinsRef.current },
+      });
       // Der Server gibt den LESEND geprüften Stand zurück — der Client zeigt
       // genau diesen, nicht den lokalen Entwurf.
       setDraft({
@@ -129,7 +269,9 @@ function KampagneContent() {
         targetUrl: saved.targetUrl,
         photoDataUrl: saved.photoDataUrl,
         brandApplied: saved.brandApplied,
+        pins: saved.pins,
       });
+      applyPins(saved.pins);
       setNotice(t.kampagne_save_ok);
       await refreshList();
     } catch (err) {
@@ -161,7 +303,24 @@ function KampagneContent() {
         targetUrl: record.targetUrl,
         photoDataUrl: record.photoDataUrl,
         brandApplied: record.brandApplied,
+        pins: record.pins,
       });
+      // Gespeicherte Entwürfe wieder anzeigen — und erneut rendern, damit die
+      // Vorschau zeigt, was gespeichert ist (kein KI-Aufruf, keine Einheit).
+      applyPins(record.pins);
+      setRenders({});
+      setPinError(null);
+      if (record.pins.length > 0 && record.photoDataUrl) {
+        const brand: PinBrandInput = {
+          applied: record.brandApplied === true,
+          colors: brandColors,
+          name: brandName,
+        };
+        const photoUrl = await ensureRenderPhoto(record.photoDataUrl);
+        for (const pin of record.pins) {
+          await renderOne(pin, photoUrl, brand);
+        }
+      }
       setPhotoBytes(0);
       if (fileRef.current) fileRef.current.value = '';
     } catch {
@@ -176,6 +335,9 @@ function KampagneContent() {
     setErrors([]);
     setNotice(null);
     setPhotoBytes(0);
+    applyPins([]);
+    setRenders({});
+    setPinError(null);
     if (fileRef.current) fileRef.current.value = '';
   };
 
@@ -196,6 +358,17 @@ function KampagneContent() {
         <span className="mt-1 block text-xs text-gray-600">{hint}</span>
       </button>
     );
+  };
+
+  const layoutLabel = (layout: PinLayoutId): string => {
+    const map: Record<PinLayoutId, string> = {
+      'bottom-left': t.kampagne_layout_bottom_left,
+      'top-band': t.kampagne_layout_top_band,
+      'center-card': t.kampagne_layout_center_card,
+      'side-stripe': t.kampagne_layout_side_stripe,
+      'minimal-frame': t.kampagne_layout_minimal_frame,
+    };
+    return map[layout] ?? layout;
   };
 
   const errorText = (code: string): string => {
@@ -343,6 +516,167 @@ function KampagneContent() {
           {t.kampagne_photo_none_etsy}
         </p>
       )}
+
+      {/* Schritt 4 — fünf Pin-Entwürfe aus diesem Foto */}
+      {needsPhoto && draft.photoDataUrl ? (
+        <section className="mb-6 rounded-xl border border-gray-200 bg-white p-4">
+          <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-gray-900">{t.kampagne_pins_title}</h2>
+              <p className="mt-1 text-xs text-gray-600">{t.kampagne_pins_hint}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void onGeneratePins()}
+              disabled={renderingIds.length > 0}
+              className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-60"
+            >
+              {renderingIds.length > 0
+                ? t.kampagne_pins_generating
+                : pins.length > 0
+                  ? t.kampagne_pins_regenerate
+                  : t.kampagne_pins_generate}
+            </button>
+          </div>
+
+          {brandAvailable ? (
+            <label className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700">
+              <input
+                type="checkbox"
+                checked={draft.brandApplied === true}
+                onChange={(e) => onToggleBrand(e.target.checked)}
+              />
+              <span className="font-medium">{t.kampagne_brand_apply}</span>
+              <span className="text-gray-500">
+                {[brandName, brandColors].filter(Boolean).join(' · ')}
+              </span>
+            </label>
+          ) : (
+            <p className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
+              {t.kampagne_brand_none}
+            </p>
+          )}
+
+          {pinError && (
+            <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {pinError === 'photo_required' ? t.kampagne_err_photo_required : t.kampagne_pin_render_failed}
+            </div>
+          )}
+
+          {pins.length === 0 ? (
+            <p className="text-sm text-gray-500">{t.kampagne_pins_empty}</p>
+          ) : (
+            <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {pins.map((pin) => {
+                const isRendering = renderingIds.includes(pin.id);
+                const position = pin.offsetY < -0.05 ? 'top' : pin.offsetY > 0.05 ? 'bottom' : 'middle';
+                return (
+                  <li key={pin.id} className="rounded-xl border border-gray-200 p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-gray-900">{layoutLabel(pin.layout)}</span>
+                      <span className="text-[11px] text-gray-500">
+                        {isRendering ? t.kampagne_pin_rendering : '1000 × 1500 px'}
+                      </span>
+                    </div>
+
+                    <div className="mb-3 overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+                      {renders[pin.id] ? (
+                        <img src={renders[pin.id]} alt={pin.headline} className="block w-full" />
+                      ) : (
+                        <div className="flex h-40 items-center justify-center text-xs text-gray-500">
+                          {isRendering ? t.kampagne_pin_rendering : t.kampagne_pin_no_preview}
+                        </div>
+                      )}
+                    </div>
+
+                    <label className="mb-2 block">
+                      <span className="mb-1 block text-xs font-medium text-gray-700">{t.kampagne_pin_overlay}</span>
+                      <textarea
+                        value={pin.headline}
+                        onChange={(e) => updatePin(pin.id, 'headline', e.target.value)}
+                        rows={2}
+                        maxLength={PIN_HEADLINE_MAX}
+                        className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </label>
+
+                    <label className="mb-2 block">
+                      <span className="mb-1 block text-xs font-medium text-gray-700">{t.kampagne_pin_subline}</span>
+                      <input
+                        value={pin.subline}
+                        onChange={(e) => updatePin(pin.id, 'subline', e.target.value)}
+                        maxLength={PIN_SUBLINE_MAX}
+                        className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </label>
+
+                    <div className="mb-2 grid grid-cols-2 gap-2">
+                      <label className="block">
+                        <span className="mb-1 block text-xs font-medium text-gray-700">{t.kampagne_pin_position}</span>
+                        <select
+                          value={position}
+                          onChange={(e) =>
+                            updatePin(
+                              pin.id,
+                              'offsetY',
+                              e.target.value === 'top' ? -0.15 : e.target.value === 'bottom' ? 0.15 : 0,
+                            )
+                          }
+                          className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                          <option value="top">{t.kampagne_pin_position_top}</option>
+                          <option value="middle">{t.kampagne_pin_position_middle}</option>
+                          <option value="bottom">{t.kampagne_pin_position_bottom}</option>
+                        </select>
+                      </label>
+                      <label className="block">
+                        <span className="mb-1 block text-xs font-medium text-gray-700">{t.kampagne_pin_color}</span>
+                        <input
+                          type="color"
+                          value={pin.textColor}
+                          onChange={(e) => updatePin(pin.id, 'textColor', e.target.value)}
+                          className="h-9 w-full rounded-lg border border-gray-300 bg-white px-1"
+                        />
+                      </label>
+                    </div>
+
+                    <label className="mb-2 block">
+                      <span className="mb-1 flex items-center justify-between text-xs font-medium text-gray-700">
+                        <span>{t.kampagne_pin_title}</span>
+                        <span className="text-gray-400">
+                          {pin.title.length}/{PIN_TITLE_MAX}
+                        </span>
+                      </span>
+                      <input
+                        value={pin.title}
+                        onChange={(e) => updatePin(pin.id, 'title', e.target.value)}
+                        maxLength={PIN_TITLE_MAX}
+                        className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-1 flex items-center justify-between text-xs font-medium text-gray-700">
+                        <span>{t.kampagne_pin_description}</span>
+                        <span className="text-gray-400">
+                          {pin.description.length}/{PIN_DESCRIPTION_MAX}
+                        </span>
+                      </span>
+                      <textarea
+                        value={pin.description}
+                        onChange={(e) => updatePin(pin.id, 'description', e.target.value)}
+                        rows={3}
+                        maxLength={PIN_DESCRIPTION_MAX}
+                        className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      ) : null}
 
       {includesEtsy && (
         <p className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">

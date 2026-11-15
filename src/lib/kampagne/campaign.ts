@@ -6,6 +6,8 @@
 // Nichts wird gebucht: Speichern kostet keine Einheit (keine KI im Spiel).
 // ─────────────────────────────────────────────────────────────────────────────
 
+import type { PinDraft } from './pin-drafts';
+
 export type CampaignOption = 'pinterest' | 'etsy' | 'both';
 
 export const CAMPAIGN_OPTIONS: CampaignOption[] = ['pinterest', 'etsy', 'both'];
@@ -35,6 +37,8 @@ export interface CampaignDraft {
   /** Originalfoto als Data-URL (nur bei Pinterest/Beides). */
   photoDataUrl?: string | null;
   brandApplied?: boolean;
+  /** Bis zu fünf Pin-Entwürfe (nur bei Pinterest/Beides). */
+  pins?: PinDraft[] | null;
 }
 
 /** Braucht diese Option ein Foto? (Nur Etsy: nein.) */
