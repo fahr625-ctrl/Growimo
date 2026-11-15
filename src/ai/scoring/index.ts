@@ -18,7 +18,7 @@ import { dimensionLabel, ruleDimensionScores, runRules } from './rules';
 import { judgeContent, type LlmJudgment } from './llm';
 import { sanitizeFactText } from '../fact-guard';
 
-export const RULE_VERSION = 2;
+export const RULE_VERSION = 3;
 
 /**
  * Owner-Auftrag 2026-10-03 (Schritt 1, Punkt 2) — EINE zentrale Wahrheit:
@@ -344,9 +344,11 @@ export async function scoreContent(
   request: Pick<ContentRequest, 'contentType' | 'productIdea'> & { additionalContext?: string },
   result: ContentResult,
 ): Promise<ContentScore> {
+  // Fakten-Schutz der Hinweise: Grounding = Nutzerangaben (Idee + Zusatzkontext).
+  const grounding = [request.productIdea ?? '', request.additionalContext ?? ''].filter(Boolean).join('\n');
   let rules;
   try {
-    rules = runRules(result);
+    rules = runRules(result, grounding);
   } catch (err) {
     console.error('[scoring] rules failed:', err);
     rules = { outcomes: [], issues: [] };
@@ -368,7 +370,6 @@ export async function scoreContent(
   // „Score < 80 ⇒ mindestens ein handelbarer Punkt".
   const merged = criticalsFirst([...rules.issues, ...judgmentIssues(llm)]);
   // Fakten-Schutz der Hinweise: Grounding = Nutzerangaben (Idee + Zusatzkontext).
-  const grounding = [request.productIdea ?? '', request.additionalContext ?? ''].filter(Boolean).join('\n');
   const issues = factSafeIssues(ensureActionableIssues(total, subScores, merged), grounding);
   const summary = buildScoreSummary(result.contentType, total, subScores, issues);
 
