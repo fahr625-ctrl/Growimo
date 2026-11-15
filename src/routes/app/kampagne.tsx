@@ -49,6 +49,9 @@ import {
 import type { PinLayoutId } from '~/lib/kampagne/pin-render';
 import { getBrandProfile } from '~/store/brand';
 
+/** Schlüssel des Entwurfs im sessionStorage (Foto + Angaben überleben einen Remount). */
+const DRAFT_STORE_KEY = 'growimo.kampagne.entwurf.v1';
+
 export const Route = createFileRoute('/app/kampagne')({
   head: () => seoHead({ titleKey: 'meta_app_kampagne_title' }),
   component: KampagnePage,
@@ -101,6 +104,8 @@ function KampagneContent() {
   const [brandAvailable, setBrandAvailable] = useState(false);
   const renderPhotoRef = useRef<{ src: string; out: string } | null>(null);
   const renderTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  /** Das Foto, das „Entwürfe neu erzeugen" NIE verliert — nur „Foto entfernen" leert es. */
+  const photoRef = useRef<string | null>(null);
 
   const needsPhoto = optionNeedsPhoto(draft.option);
   const includesEtsy = optionIncludesEtsy(draft.option);
@@ -144,6 +149,45 @@ function KampagneContent() {
     setPins(next);
   }, []);
 
+  /**
+   * Den zuletzt bearbeiteten Entwurf zurückholen. Grund (Befund 2026-11-15):
+   * nach einem Remount standen Foto und Karten plötzlich leer da. Was hier
+   * liegt, wird wiederhergestellt — ein unlesbarer Eintrag wird nur
+   * übersprungen, nie gelöscht.
+   */
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(DRAFT_STORE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as Partial<CampaignDraft> | null;
+      if (!saved || typeof saved !== 'object') return;
+      setDraft((prev) => ({ ...prev, ...saved, id: saved.id ?? null }));
+      if (typeof saved.photoDataUrl === 'string' && saved.photoDataUrl) {
+        photoRef.current = saved.photoDataUrl;
+      }
+      if (Array.isArray(saved.pins) && saved.pins.length > 0) applyPins(saved.pins as PinDraft[]);
+    } catch {
+      // unlesbarer Eintrag: überspringen
+    }
+  }, [applyPins]);
+
+  /** Jede Änderung mitschreiben — das Foto in der Render-Größe, nicht als 8-MB-Original. */
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        DRAFT_STORE_KEY,
+        JSON.stringify({
+          ...draft,
+          photoDataUrl: renderPhotoRef.current?.out ?? draft.photoDataUrl ?? null,
+          pins,
+          etsy,
+        }),
+      );
+    } catch {
+      // Speicher voll: der Entwurf bleibt im Zustand, nichts wird gelöscht
+    }
+  }, [draft, pins, etsy]);
+
   /** Foto für das Rendern (einmal verkleinert, dann wiederverwendet). */
   const ensureRenderPhoto = useCallback(async (src: string): Promise<string> => {
     if (renderPhotoRef.current?.src === src) return renderPhotoRef.current.out;
@@ -156,9 +200,20 @@ function KampagneContent() {
     async (pin: PinDraft, photoUrl: string, brand: PinBrandInput) => {
       setRenderingIds((prev) => (prev.includes(pin.id) ? prev : [...prev, pin.id]));
       try {
-        const res = await renderPinsServer({
-          data: { photoDataUrl: photoUrl, brand, pins: [pin] },
-        });
+        // Ein einzelner Fehlschlag ist noch kein Ergebnis: genau ein
+        // Wiederholversuch, erst danach gilt es als Fehler.
+        let res: Awaited<ReturnType<typeof renderPinsServer>> | null = null;
+        let lastError: unknown = null;
+        for (let attempt = 0; attempt < 2 && !res; attempt++) {
+          try {
+            res = await renderPinsServer({
+              data: { photoDataUrl: photoUrl, brand, pins: [pin] },
+            });
+          } catch (err) {
+            lastError = err;
+          }
+        }
+        if (!res) throw lastError ?? new Error('render_failed');
         const first = res.pins[0];
         if (first) setRenders((prev) => ({ ...prev, [first.id]: first.dataUrl }));
       } catch {
@@ -172,9 +227,16 @@ function KampagneContent() {
 
   const onGeneratePins = useCallback(async () => {
     setPinError(null);
-    if (!draft.photoDataUrl) {
+    // Das Foto kommt aus dem Ref: „neu erzeugen" arbeitet aus DEMSELBEN Foto,
+    // auch wenn das Feld zwischendurch leer wäre — und stellt es wieder her.
+    const src = draft.photoDataUrl ?? photoRef.current;
+    if (!src) {
       setPinError('photo_required');
       return;
+    }
+    if (!draft.photoDataUrl) {
+      photoRef.current = src;
+      setDraft((prev) => (prev.photoDataUrl ? prev : { ...prev, photoDataUrl: src }));
     }
     const next = buildPinDrafts({
       product: draft.product,
@@ -184,7 +246,7 @@ function KampagneContent() {
     applyPins(next);
     setRenders({});
     const brand = brandInput;
-    const photoUrl = await ensureRenderPhoto(draft.photoDataUrl);
+    const photoUrl = await ensureRenderPhoto(src);
     for (const pin of next) {
       await renderOne(pin, photoUrl, brand);
     }
@@ -228,6 +290,24 @@ function KampagneContent() {
     },
     [draft.photoDataUrl, ensureRenderPhoto, renderOne],
   );
+
+  /** Nach einem Fehlschlag: alle Karten erneut rendern — mit DEMSELBEN Foto. */
+  const retryRenders = useCallback(async () => {
+    setPinError(null);
+    const src = draft.photoDataUrl ?? photoRef.current;
+    if (!src) {
+      setPinError('photo_required');
+      return;
+    }
+    if (!draft.photoDataUrl) {
+      photoRef.current = src;
+      setDraft((prev) => (prev.photoDataUrl ? prev : { ...prev, photoDataUrl: src }));
+    }
+    const photoUrl = await ensureRenderPhoto(src);
+    for (const pin of pinsRef.current) {
+      await renderOne(pin, photoUrl, brandInput);
+    }
+  }, [brandInput, draft.photoDataUrl, ensureRenderPhoto, renderOne]);
 
   const onToggleBrand = (checked: boolean) => {
     setField('brandApplied', checked);
@@ -345,6 +425,7 @@ function KampagneContent() {
       setErrors(['photo_invalid']);
       return;
     }
+    photoRef.current = dataUrl;
     setPhotoBytes(file.size);
     setField('photoDataUrl', dataUrl);
   };
@@ -667,6 +748,7 @@ function KampagneContent() {
                 <button
                   type="button"
                   onClick={() => {
+                    photoRef.current = null;
                     setField('photoDataUrl', null);
                     setPhotoBytes(0);
                     if (fileRef.current) fileRef.current.value = '';
@@ -727,7 +809,17 @@ function KampagneContent() {
 
           {pinError && (
             <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-              {pinError === 'photo_required' ? t.kampagne_err_photo_required : t.kampagne_pin_render_failed}
+              <p>{pinError === 'photo_required' ? t.kampagne_err_photo_required : t.kampagne_pin_render_failed}</p>
+              {pinError === 'render' && (
+                <button
+                  type="button"
+                  onClick={() => void retryRenders()}
+                  disabled={renderingIds.length > 0}
+                  className="mt-2 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-60"
+                >
+                  {t.common_retry}
+                </button>
+              )}
             </div>
           )}
 
