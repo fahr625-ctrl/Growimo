@@ -22,6 +22,8 @@ import { handleStripeWebhookApi } from "./src/api/stripe-webhook";
 // K4-B (Owner-Freigabe 2026-10-19): dauerhafte Bildspeicherung + TTL-Tageslauf.
 import { handleImagesApi } from "./src/api/images";
 import { handleCronBlobTtlApi } from "./src/api/cron-blob-ttl";
+// Phase 2 (2026-11-15): sharp-Nachweis-Route der Kampagne.
+import { handleKampagneProofApi } from "./src/api/kampagne-proof";
 // Zugriffsschutz der geschützten Klick-Demo (preview.growimo.app): env-gesteuert
 // (PREVIEW_AUTH_USER + PREVIEW_AUTH_PASS), in Production wirkungslos.
 import { applyPreviewBasicAuth } from "./src/lib/preview-basic-auth";
@@ -227,6 +229,22 @@ export default async function vercelHandler(
       imagesResponse.headers.forEach((value, key) => res.setHeader(key, value));
       if (imagesResponse.body) {
         const reader = imagesResponse.body.getReader();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          res.write(value);
+        }
+      }
+      res.end();
+      return;
+    }
+    // Phase 2 — sharp-Nachweis im Vercel-Runtime (/api/kampagne/proof[.png]).
+    const kampagneProofResponse = await handleKampagneProofApi(webReq, url.pathname);
+    if (kampagneProofResponse) {
+      res.statusCode = kampagneProofResponse.status;
+      kampagneProofResponse.headers.forEach((value, key) => res.setHeader(key, value));
+      if (kampagneProofResponse.body) {
+        const reader = kampagneProofResponse.body.getReader();
         for (;;) {
           const { done, value } = await reader.read();
           if (done) break;

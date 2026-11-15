@@ -20,6 +20,8 @@ import { handleStripeWebhookApi } from "./src/api/stripe-webhook";
 // K4-B (Owner-Freigabe 2026-10-19): dauerhafte Bildspeicherung + TTL-Tageslauf.
 import { handleImagesApi } from "./src/api/images";
 import { handleCronBlobTtlApi } from "./src/api/cron-blob-ttl";
+// Phase 2 (2026-11-15): sharp-Nachweis-Route der Kampagne.
+import { handleKampagneProofApi } from "./src/api/kampagne-proof";
 
 // Initialise the Neon PostgreSQL schema before serving. Wrapped in try/catch so
 // the server still starts (landing page, sign-in, etc.) if the database is
@@ -83,6 +85,9 @@ for (let attempt = 1; ; attempt++) {
         // K4-B: Bild-Meta-Liste, Original-Download, Löschen (/api/images[/<id>]).
         const imagesResponse = await handleImagesApi(req, pathname);
         if (imagesResponse) return imagesResponse;
+        // Phase 2: sharp-Nachweis (/api/kampagne/proof[.png]).
+        const kampagneProofResponse = await handleKampagneProofApi(req, pathname);
+        if (kampagneProofResponse) return kampagneProofResponse;
         // K4-B: Tageslauf (nur mit CRON_SECRET, fail-closed 401).
         const cronBlobTtlResponse = await handleCronBlobTtlApi(req, pathname);
         if (cronBlobTtlResponse) return cronBlobTtlResponse;

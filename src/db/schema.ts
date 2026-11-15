@@ -377,4 +377,32 @@ CREATE TABLE IF NOT EXISTS account_deletion_requests (
 );
 CREATE INDEX IF NOT EXISTS idx_account_deletion_requests_due
   ON account_deletion_requests(status, scheduled_for);
+
+-- ── Phase 2 Kampagne (Owner-Freigabe 2026-11-15, NICHT live) ─────────────────
+-- Eine Kampagne = gemeinsame Produktangaben + gewaehlte Option
+-- ('pinterest' | 'etsy' | 'both') + das hochgeladene Originalfoto (verkleinert
+-- als Base64 in photo_data, damit "wieder oeffnen" ohne Zusatzspeicher geht)
+-- + die je Kanal erzeugten Entwuerfe (JSONB).
+-- Kein KI-Bild, keine Kontingent-Buchung: Speichern kostet nichts.
+CREATE TABLE IF NOT EXISTS campaigns (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  option TEXT NOT NULL CHECK (option IN ('pinterest', 'etsy', 'both')),
+  product TEXT NOT NULL,
+  audience TEXT,
+  message TEXT,
+  target_url TEXT,
+  photo_mime TEXT,
+  photo_data TEXT,
+  photo_width INTEGER,
+  photo_height INTEGER,
+  brand_applied BOOLEAN NOT NULL DEFAULT FALSE,
+  pins JSONB NOT NULL DEFAULT '[]',
+  etsy JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_campaigns_user
+  ON campaigns(user_id, updated_at DESC);
 `;

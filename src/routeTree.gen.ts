@@ -9,58 +9,44 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WiderrufRouteImport } from './routes/widerruf'
-import { Route as ImpressumRouteImport } from './routes/impressum'
-import { Route as DatenschutzRouteImport } from './routes/datenschutz'
-import { Route as AppRouteImport } from './routes/app'
-import { Route as AgbRouteImport } from './routes/agb'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AgbRouteImport } from './routes/agb'
+import { Route as AppRouteImport } from './routes/app'
+import { Route as DatenschutzRouteImport } from './routes/datenschutz'
+import { Route as ImpressumRouteImport } from './routes/impressum'
+import { Route as WiderrufRouteImport } from './routes/widerruf'
 import { Route as AppIndexRouteImport } from './routes/app/index'
-import { Route as AppTiktokRouteImport } from './routes/app/tiktok'
-import { Route as AppSettingsRouteImport } from './routes/app/settings'
-import { Route as AppPricingRouteImport } from './routes/app/pricing'
-import { Route as AppPerformanceRouteImport } from './routes/app/performance'
-import { Route as AppPackageRouteImport } from './routes/app/package'
-import { Route as AppNewProjectRouteImport } from './routes/app/new-project'
-import { Route as AppKontoLoeschenRouteImport } from './routes/app/konto-loeschen'
-import { Route as AppImageStudioRouteImport } from './routes/app/image-studio'
-import { Route as AppFeedbackRouteImport } from './routes/app/feedback'
-import { Route as AppContentLibraryRouteImport } from './routes/app/content-library'
-import { Route as AppCalendarRouteImport } from './routes/app/calendar'
-import { Route as AppBrandRouteImport } from './routes/app/brand'
-import { Route as AppBillingRouteImport } from './routes/app/billing'
-import { Route as AppBetaWelcomeRouteImport } from './routes/app/beta-welcome'
-import { Route as AppBetaSignupsRouteImport } from './routes/app/beta-signups'
-import { Route as AppAnalyticsRouteImport } from './routes/app/analytics'
-import { Route as AppAdminTrackingRouteImport } from './routes/app/admin-tracking'
 import { Route as AppAdminAnalyticsRouteImport } from './routes/app/admin-analytics'
-import { Route as AppSignUpIndexRouteImport } from './routes/app/sign-up/index'
-import { Route as AppSignInIndexRouteImport } from './routes/app/sign-in/index'
-import { Route as AppSignUpSplatRouteImport } from './routes/app/sign-up/$'
-import { Route as AppSignInSplatRouteImport } from './routes/app/sign-in/$'
-import { Route as AppProjectsProjectIdRouteImport } from './routes/app/projects/$projectId'
-import { Route as AppGeneratePinterestRouteImport } from './routes/app/generate/pinterest'
-import { Route as AppGenerateEtsyRouteImport } from './routes/app/generate/etsy'
+import { Route as AppAdminTrackingRouteImport } from './routes/app/admin-tracking'
+import { Route as AppAnalyticsRouteImport } from './routes/app/analytics'
+import { Route as AppBetaSignupsRouteImport } from './routes/app/beta-signups'
+import { Route as AppBetaWelcomeRouteImport } from './routes/app/beta-welcome'
+import { Route as AppBillingRouteImport } from './routes/app/billing'
+import { Route as AppBrandRouteImport } from './routes/app/brand'
+import { Route as AppCalendarRouteImport } from './routes/app/calendar'
+import { Route as AppContentLibraryRouteImport } from './routes/app/content-library'
+import { Route as AppFeedbackRouteImport } from './routes/app/feedback'
+import { Route as AppImageStudioRouteImport } from './routes/app/image-studio'
+import { Route as AppKampagneRouteImport } from './routes/app/kampagne'
+import { Route as AppKontoLoeschenRouteImport } from './routes/app/konto-loeschen'
+import { Route as AppNewProjectRouteImport } from './routes/app/new-project'
+import { Route as AppPackageRouteImport } from './routes/app/package'
+import { Route as AppPerformanceRouteImport } from './routes/app/performance'
+import { Route as AppPricingRouteImport } from './routes/app/pricing'
+import { Route as AppSettingsRouteImport } from './routes/app/settings'
+import { Route as AppTiktokRouteImport } from './routes/app/tiktok'
 import { Route as AppGenerateBlogRouteImport } from './routes/app/generate/blog'
+import { Route as AppGenerateEtsyRouteImport } from './routes/app/generate/etsy'
+import { Route as AppGeneratePinterestRouteImport } from './routes/app/generate/pinterest'
+import { Route as AppProjectsProjectIdRouteImport } from './routes/app/projects/$projectId'
+import { Route as AppSignInIndexRouteImport } from './routes/app/sign-in/index'
+import { Route as AppSignInSplatRouteImport } from './routes/app/sign-in/$'
+import { Route as AppSignUpIndexRouteImport } from './routes/app/sign-up/index'
+import { Route as AppSignUpSplatRouteImport } from './routes/app/sign-up/$'
 
-const WiderrufRoute = WiderrufRouteImport.update({
-  id: '/widerruf',
-  path: '/widerruf',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ImpressumRoute = ImpressumRouteImport.update({
-  id: '/impressum',
-  path: '/impressum',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DatenschutzRoute = DatenschutzRouteImport.update({
-  id: '/datenschutz',
-  path: '/datenschutz',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppRoute = AppRouteImport.update({
-  id: '/app',
-  path: '/app',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AgbRoute = AgbRouteImport.update({
@@ -68,9 +54,24 @@ const AgbRoute = AgbRouteImport.update({
   path: '/agb',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AppRoute = AppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DatenschutzRoute = DatenschutzRouteImport.update({
+  id: '/datenschutz',
+  path: '/datenschutz',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImpressumRoute = ImpressumRouteImport.update({
+  id: '/impressum',
+  path: '/impressum',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WiderrufRoute = WiderrufRouteImport.update({
+  id: '/widerruf',
+  path: '/widerruf',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -78,84 +79,9 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppTiktokRoute = AppTiktokRouteImport.update({
-  id: '/tiktok',
-  path: '/tiktok',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSettingsRoute = AppSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppPricingRoute = AppPricingRouteImport.update({
-  id: '/pricing',
-  path: '/pricing',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppPerformanceRoute = AppPerformanceRouteImport.update({
-  id: '/performance',
-  path: '/performance',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppPackageRoute = AppPackageRouteImport.update({
-  id: '/package',
-  path: '/package',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppNewProjectRoute = AppNewProjectRouteImport.update({
-  id: '/new-project',
-  path: '/new-project',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppKontoLoeschenRoute = AppKontoLoeschenRouteImport.update({
-  id: '/konto-loeschen',
-  path: '/konto-loeschen',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppImageStudioRoute = AppImageStudioRouteImport.update({
-  id: '/image-studio',
-  path: '/image-studio',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppFeedbackRoute = AppFeedbackRouteImport.update({
-  id: '/feedback',
-  path: '/feedback',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppContentLibraryRoute = AppContentLibraryRouteImport.update({
-  id: '/content-library',
-  path: '/content-library',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCalendarRoute = AppCalendarRouteImport.update({
-  id: '/calendar',
-  path: '/calendar',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppBrandRoute = AppBrandRouteImport.update({
-  id: '/brand',
-  path: '/brand',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppBillingRoute = AppBillingRouteImport.update({
-  id: '/billing',
-  path: '/billing',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppBetaWelcomeRoute = AppBetaWelcomeRouteImport.update({
-  id: '/beta-welcome',
-  path: '/beta-welcome',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppBetaSignupsRoute = AppBetaSignupsRouteImport.update({
-  id: '/beta-signups',
-  path: '/beta-signups',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
+const AppAdminAnalyticsRoute = AppAdminAnalyticsRouteImport.update({
+  id: '/admin-analytics',
+  path: '/admin-analytics',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAdminTrackingRoute = AppAdminTrackingRouteImport.update({
@@ -163,39 +89,94 @@ const AppAdminTrackingRoute = AppAdminTrackingRouteImport.update({
   path: '/admin-tracking',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAdminAnalyticsRoute = AppAdminAnalyticsRouteImport.update({
-  id: '/admin-analytics',
-  path: '/admin-analytics',
+const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
   getParentRoute: () => AppRoute,
 } as any)
-const AppSignUpIndexRoute = AppSignUpIndexRouteImport.update({
-  id: '/sign-up/',
-  path: '/sign-up/',
+const AppBetaSignupsRoute = AppBetaSignupsRouteImport.update({
+  id: '/beta-signups',
+  path: '/beta-signups',
   getParentRoute: () => AppRoute,
 } as any)
-const AppSignInIndexRoute = AppSignInIndexRouteImport.update({
-  id: '/sign-in/',
-  path: '/sign-in/',
+const AppBetaWelcomeRoute = AppBetaWelcomeRouteImport.update({
+  id: '/beta-welcome',
+  path: '/beta-welcome',
   getParentRoute: () => AppRoute,
 } as any)
-const AppSignUpSplatRoute = AppSignUpSplatRouteImport.update({
-  id: '/sign-up/$',
-  path: '/sign-up/$',
+const AppBillingRoute = AppBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
   getParentRoute: () => AppRoute,
 } as any)
-const AppSignInSplatRoute = AppSignInSplatRouteImport.update({
-  id: '/sign-in/$',
-  path: '/sign-in/$',
+const AppBrandRoute = AppBrandRouteImport.update({
+  id: '/brand',
+  path: '/brand',
   getParentRoute: () => AppRoute,
 } as any)
-const AppProjectsProjectIdRoute = AppProjectsProjectIdRouteImport.update({
-  id: '/projects/$projectId',
-  path: '/projects/$projectId',
+const AppCalendarRoute = AppCalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
   getParentRoute: () => AppRoute,
 } as any)
-const AppGeneratePinterestRoute = AppGeneratePinterestRouteImport.update({
-  id: '/generate/pinterest',
-  path: '/generate/pinterest',
+const AppContentLibraryRoute = AppContentLibraryRouteImport.update({
+  id: '/content-library',
+  path: '/content-library',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFeedbackRoute = AppFeedbackRouteImport.update({
+  id: '/feedback',
+  path: '/feedback',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppImageStudioRoute = AppImageStudioRouteImport.update({
+  id: '/image-studio',
+  path: '/image-studio',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppKampagneRoute = AppKampagneRouteImport.update({
+  id: '/kampagne',
+  path: '/kampagne',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppKontoLoeschenRoute = AppKontoLoeschenRouteImport.update({
+  id: '/konto-loeschen',
+  path: '/konto-loeschen',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNewProjectRoute = AppNewProjectRouteImport.update({
+  id: '/new-project',
+  path: '/new-project',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPackageRoute = AppPackageRouteImport.update({
+  id: '/package',
+  path: '/package',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPerformanceRoute = AppPerformanceRouteImport.update({
+  id: '/performance',
+  path: '/performance',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPricingRoute = AppPricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTiktokRoute = AppTiktokRouteImport.update({
+  id: '/tiktok',
+  path: '/tiktok',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGenerateBlogRoute = AppGenerateBlogRouteImport.update({
+  id: '/generate/blog',
+  path: '/generate/blog',
   getParentRoute: () => AppRoute,
 } as any)
 const AppGenerateEtsyRoute = AppGenerateEtsyRouteImport.update({
@@ -203,9 +184,34 @@ const AppGenerateEtsyRoute = AppGenerateEtsyRouteImport.update({
   path: '/generate/etsy',
   getParentRoute: () => AppRoute,
 } as any)
-const AppGenerateBlogRoute = AppGenerateBlogRouteImport.update({
-  id: '/generate/blog',
-  path: '/generate/blog',
+const AppGeneratePinterestRoute = AppGeneratePinterestRouteImport.update({
+  id: '/generate/pinterest',
+  path: '/generate/pinterest',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProjectsProjectIdRoute = AppProjectsProjectIdRouteImport.update({
+  id: '/projects/$projectId',
+  path: '/projects/$projectId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSignInIndexRoute = AppSignInIndexRouteImport.update({
+  id: '/sign-in/',
+  path: '/sign-in/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSignInSplatRoute = AppSignInSplatRouteImport.update({
+  id: '/sign-in/$',
+  path: '/sign-in/$',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSignUpIndexRoute = AppSignUpIndexRouteImport.update({
+  id: '/sign-up/',
+  path: '/sign-up/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSignUpSplatRoute = AppSignUpSplatRouteImport.update({
+  id: '/sign-up/$',
+  path: '/sign-up/$',
   getParentRoute: () => AppRoute,
 } as any)
 
@@ -227,6 +233,7 @@ export interface FileRoutesByFullPath {
   '/app/content-library': typeof AppContentLibraryRoute
   '/app/feedback': typeof AppFeedbackRoute
   '/app/image-studio': typeof AppImageStudioRoute
+  '/app/kampagne': typeof AppKampagneRoute
   '/app/konto-loeschen': typeof AppKontoLoeschenRoute
   '/app/new-project': typeof AppNewProjectRoute
   '/app/package': typeof AppPackageRoute
@@ -261,6 +268,7 @@ export interface FileRoutesByTo {
   '/app/content-library': typeof AppContentLibraryRoute
   '/app/feedback': typeof AppFeedbackRoute
   '/app/image-studio': typeof AppImageStudioRoute
+  '/app/kampagne': typeof AppKampagneRoute
   '/app/konto-loeschen': typeof AppKontoLoeschenRoute
   '/app/new-project': typeof AppNewProjectRoute
   '/app/package': typeof AppPackageRoute
@@ -297,6 +305,7 @@ export interface FileRoutesById {
   '/app/content-library': typeof AppContentLibraryRoute
   '/app/feedback': typeof AppFeedbackRoute
   '/app/image-studio': typeof AppImageStudioRoute
+  '/app/kampagne': typeof AppKampagneRoute
   '/app/konto-loeschen': typeof AppKontoLoeschenRoute
   '/app/new-project': typeof AppNewProjectRoute
   '/app/package': typeof AppPackageRoute
@@ -334,6 +343,7 @@ export interface FileRouteTypes {
     | '/app/content-library'
     | '/app/feedback'
     | '/app/image-studio'
+    | '/app/kampagne'
     | '/app/konto-loeschen'
     | '/app/new-project'
     | '/app/package'
@@ -368,6 +378,7 @@ export interface FileRouteTypes {
     | '/app/content-library'
     | '/app/feedback'
     | '/app/image-studio'
+    | '/app/kampagne'
     | '/app/konto-loeschen'
     | '/app/new-project'
     | '/app/package'
@@ -403,6 +414,7 @@ export interface FileRouteTypes {
     | '/app/content-library'
     | '/app/feedback'
     | '/app/image-studio'
+    | '/app/kampagne'
     | '/app/konto-loeschen'
     | '/app/new-project'
     | '/app/package'
@@ -432,32 +444,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/widerruf': {
-      id: '/widerruf'
-      path: '/widerruf'
-      fullPath: '/widerruf'
-      preLoaderRoute: typeof WiderrufRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/impressum': {
-      id: '/impressum'
-      path: '/impressum'
-      fullPath: '/impressum'
-      preLoaderRoute: typeof ImpressumRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/datenschutz': {
-      id: '/datenschutz'
-      path: '/datenschutz'
-      fullPath: '/datenschutz'
-      preLoaderRoute: typeof DatenschutzRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app': {
-      id: '/app'
-      path: '/app'
-      fullPath: '/app'
-      preLoaderRoute: typeof AppRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/agb': {
@@ -467,11 +458,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AgbRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/datenschutz': {
+      id: '/datenschutz'
+      path: '/datenschutz'
+      fullPath: '/datenschutz'
+      preLoaderRoute: typeof DatenschutzRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/impressum': {
+      id: '/impressum'
+      path: '/impressum'
+      fullPath: '/impressum'
+      preLoaderRoute: typeof ImpressumRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/widerruf': {
+      id: '/widerruf'
+      path: '/widerruf'
+      fullPath: '/widerruf'
+      preLoaderRoute: typeof WiderrufRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/': {
@@ -481,116 +493,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/tiktok': {
-      id: '/app/tiktok'
-      path: '/tiktok'
-      fullPath: '/app/tiktok'
-      preLoaderRoute: typeof AppTiktokRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/settings': {
-      id: '/app/settings'
-      path: '/settings'
-      fullPath: '/app/settings'
-      preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/pricing': {
-      id: '/app/pricing'
-      path: '/pricing'
-      fullPath: '/app/pricing'
-      preLoaderRoute: typeof AppPricingRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/performance': {
-      id: '/app/performance'
-      path: '/performance'
-      fullPath: '/app/performance'
-      preLoaderRoute: typeof AppPerformanceRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/package': {
-      id: '/app/package'
-      path: '/package'
-      fullPath: '/app/package'
-      preLoaderRoute: typeof AppPackageRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/new-project': {
-      id: '/app/new-project'
-      path: '/new-project'
-      fullPath: '/app/new-project'
-      preLoaderRoute: typeof AppNewProjectRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/konto-loeschen': {
-      id: '/app/konto-loeschen'
-      path: '/konto-loeschen'
-      fullPath: '/app/konto-loeschen'
-      preLoaderRoute: typeof AppKontoLoeschenRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/image-studio': {
-      id: '/app/image-studio'
-      path: '/image-studio'
-      fullPath: '/app/image-studio'
-      preLoaderRoute: typeof AppImageStudioRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/feedback': {
-      id: '/app/feedback'
-      path: '/feedback'
-      fullPath: '/app/feedback'
-      preLoaderRoute: typeof AppFeedbackRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/content-library': {
-      id: '/app/content-library'
-      path: '/content-library'
-      fullPath: '/app/content-library'
-      preLoaderRoute: typeof AppContentLibraryRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/calendar': {
-      id: '/app/calendar'
-      path: '/calendar'
-      fullPath: '/app/calendar'
-      preLoaderRoute: typeof AppCalendarRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/brand': {
-      id: '/app/brand'
-      path: '/brand'
-      fullPath: '/app/brand'
-      preLoaderRoute: typeof AppBrandRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/billing': {
-      id: '/app/billing'
-      path: '/billing'
-      fullPath: '/app/billing'
-      preLoaderRoute: typeof AppBillingRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/beta-welcome': {
-      id: '/app/beta-welcome'
-      path: '/beta-welcome'
-      fullPath: '/app/beta-welcome'
-      preLoaderRoute: typeof AppBetaWelcomeRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/beta-signups': {
-      id: '/app/beta-signups'
-      path: '/beta-signups'
-      fullPath: '/app/beta-signups'
-      preLoaderRoute: typeof AppBetaSignupsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/analytics': {
-      id: '/app/analytics'
-      path: '/analytics'
-      fullPath: '/app/analytics'
-      preLoaderRoute: typeof AppAnalyticsRouteImport
+    '/app/admin-analytics': {
+      id: '/app/admin-analytics'
+      path: '/admin-analytics'
+      fullPath: '/app/admin-analytics'
+      preLoaderRoute: typeof AppAdminAnalyticsRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/admin-tracking': {
@@ -600,53 +507,130 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminTrackingRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/admin-analytics': {
-      id: '/app/admin-analytics'
-      path: '/admin-analytics'
-      fullPath: '/app/admin-analytics'
-      preLoaderRoute: typeof AppAdminAnalyticsRouteImport
+    '/app/analytics': {
+      id: '/app/analytics'
+      path: '/analytics'
+      fullPath: '/app/analytics'
+      preLoaderRoute: typeof AppAnalyticsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/sign-up/': {
-      id: '/app/sign-up/'
-      path: '/sign-up'
-      fullPath: '/app/sign-up/'
-      preLoaderRoute: typeof AppSignUpIndexRouteImport
+    '/app/beta-signups': {
+      id: '/app/beta-signups'
+      path: '/beta-signups'
+      fullPath: '/app/beta-signups'
+      preLoaderRoute: typeof AppBetaSignupsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/sign-in/': {
-      id: '/app/sign-in/'
-      path: '/sign-in'
-      fullPath: '/app/sign-in/'
-      preLoaderRoute: typeof AppSignInIndexRouteImport
+    '/app/beta-welcome': {
+      id: '/app/beta-welcome'
+      path: '/beta-welcome'
+      fullPath: '/app/beta-welcome'
+      preLoaderRoute: typeof AppBetaWelcomeRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/sign-up/$': {
-      id: '/app/sign-up/$'
-      path: '/sign-up/$'
-      fullPath: '/app/sign-up/$'
-      preLoaderRoute: typeof AppSignUpSplatRouteImport
+    '/app/billing': {
+      id: '/app/billing'
+      path: '/billing'
+      fullPath: '/app/billing'
+      preLoaderRoute: typeof AppBillingRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/sign-in/$': {
-      id: '/app/sign-in/$'
-      path: '/sign-in/$'
-      fullPath: '/app/sign-in/$'
-      preLoaderRoute: typeof AppSignInSplatRouteImport
+    '/app/brand': {
+      id: '/app/brand'
+      path: '/brand'
+      fullPath: '/app/brand'
+      preLoaderRoute: typeof AppBrandRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/projects/$projectId': {
-      id: '/app/projects/$projectId'
-      path: '/projects/$projectId'
-      fullPath: '/app/projects/$projectId'
-      preLoaderRoute: typeof AppProjectsProjectIdRouteImport
+    '/app/calendar': {
+      id: '/app/calendar'
+      path: '/calendar'
+      fullPath: '/app/calendar'
+      preLoaderRoute: typeof AppCalendarRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/generate/pinterest': {
-      id: '/app/generate/pinterest'
-      path: '/generate/pinterest'
-      fullPath: '/app/generate/pinterest'
-      preLoaderRoute: typeof AppGeneratePinterestRouteImport
+    '/app/content-library': {
+      id: '/app/content-library'
+      path: '/content-library'
+      fullPath: '/app/content-library'
+      preLoaderRoute: typeof AppContentLibraryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/feedback': {
+      id: '/app/feedback'
+      path: '/feedback'
+      fullPath: '/app/feedback'
+      preLoaderRoute: typeof AppFeedbackRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/image-studio': {
+      id: '/app/image-studio'
+      path: '/image-studio'
+      fullPath: '/app/image-studio'
+      preLoaderRoute: typeof AppImageStudioRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/kampagne': {
+      id: '/app/kampagne'
+      path: '/kampagne'
+      fullPath: '/app/kampagne'
+      preLoaderRoute: typeof AppKampagneRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/konto-loeschen': {
+      id: '/app/konto-loeschen'
+      path: '/konto-loeschen'
+      fullPath: '/app/konto-loeschen'
+      preLoaderRoute: typeof AppKontoLoeschenRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/new-project': {
+      id: '/app/new-project'
+      path: '/new-project'
+      fullPath: '/app/new-project'
+      preLoaderRoute: typeof AppNewProjectRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/package': {
+      id: '/app/package'
+      path: '/package'
+      fullPath: '/app/package'
+      preLoaderRoute: typeof AppPackageRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/performance': {
+      id: '/app/performance'
+      path: '/performance'
+      fullPath: '/app/performance'
+      preLoaderRoute: typeof AppPerformanceRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/pricing': {
+      id: '/app/pricing'
+      path: '/pricing'
+      fullPath: '/app/pricing'
+      preLoaderRoute: typeof AppPricingRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/settings': {
+      id: '/app/settings'
+      path: '/settings'
+      fullPath: '/app/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/tiktok': {
+      id: '/app/tiktok'
+      path: '/tiktok'
+      fullPath: '/app/tiktok'
+      preLoaderRoute: typeof AppTiktokRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/generate/blog': {
+      id: '/app/generate/blog'
+      path: '/generate/blog'
+      fullPath: '/app/generate/blog'
+      preLoaderRoute: typeof AppGenerateBlogRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/generate/etsy': {
@@ -656,11 +640,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppGenerateEtsyRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/generate/blog': {
-      id: '/app/generate/blog'
-      path: '/generate/blog'
-      fullPath: '/app/generate/blog'
-      preLoaderRoute: typeof AppGenerateBlogRouteImport
+    '/app/generate/pinterest': {
+      id: '/app/generate/pinterest'
+      path: '/generate/pinterest'
+      fullPath: '/app/generate/pinterest'
+      preLoaderRoute: typeof AppGeneratePinterestRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/projects/$projectId': {
+      id: '/app/projects/$projectId'
+      path: '/projects/$projectId'
+      fullPath: '/app/projects/$projectId'
+      preLoaderRoute: typeof AppProjectsProjectIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/sign-in/': {
+      id: '/app/sign-in/'
+      path: '/sign-in'
+      fullPath: '/app/sign-in/'
+      preLoaderRoute: typeof AppSignInIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/sign-in/$': {
+      id: '/app/sign-in/$'
+      path: '/sign-in/$'
+      fullPath: '/app/sign-in/$'
+      preLoaderRoute: typeof AppSignInSplatRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/sign-up/': {
+      id: '/app/sign-up/'
+      path: '/sign-up'
+      fullPath: '/app/sign-up/'
+      preLoaderRoute: typeof AppSignUpIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/sign-up/$': {
+      id: '/app/sign-up/$'
+      path: '/sign-up/$'
+      fullPath: '/app/sign-up/$'
+      preLoaderRoute: typeof AppSignUpSplatRouteImport
       parentRoute: typeof AppRoute
     }
   }
@@ -678,6 +697,7 @@ interface AppRouteChildren {
   AppContentLibraryRoute: typeof AppContentLibraryRoute
   AppFeedbackRoute: typeof AppFeedbackRoute
   AppImageStudioRoute: typeof AppImageStudioRoute
+  AppKampagneRoute: typeof AppKampagneRoute
   AppKontoLoeschenRoute: typeof AppKontoLoeschenRoute
   AppNewProjectRoute: typeof AppNewProjectRoute
   AppPackageRoute: typeof AppPackageRoute
@@ -708,6 +728,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppContentLibraryRoute: AppContentLibraryRoute,
   AppFeedbackRoute: AppFeedbackRoute,
   AppImageStudioRoute: AppImageStudioRoute,
+  AppKampagneRoute: AppKampagneRoute,
   AppKontoLoeschenRoute: AppKontoLoeschenRoute,
   AppNewProjectRoute: AppNewProjectRoute,
   AppPackageRoute: AppPackageRoute,

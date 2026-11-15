@@ -62,6 +62,39 @@ bun build vercel-entry.ts --target node \
 cat > .vercel/output/functions/render.func/.vc-config.json <<'JSON'
 { "runtime": "nodejs22.x", "handler": "index.mjs", "launcherType": "Nodejs", "supportsResponseStreaming": true, "maxDuration": 300 }
 JSON
+
+# ── sharp im Funktions-Artefakt (Phase 2, 2026-11-15, NICHT live) ────────────
+# `sharp` ist ein natives Modul: das JavaScript wird vom bun-Bundle erfasst, das
+# Native-Binding (@img/sharp-<platform>) kann aber NICHT in eine .mjs gebündelt
+# werden. Ohne die Pakete im Funktionsordner findet die gebaute Funktion ihr
+# Binding zur Laufzeit nicht — und zwar erst im Betrieb. Deshalb: kopieren UND
+# fail-closed prüfen, sonst bricht der Build hier ab (kein Deploy).
+mkdir -p .vercel/output/functions/render.func/node_modules
+cp -R node_modules/sharp .vercel/output/functions/render.func/node_modules/ 2>/dev/null || true
+for d in node_modules/@img/*; do
+  [ -d "$d" ] || continue
+  cp -R "$d" .vercel/output/functions/render.func/node_modules/ 2>/dev/null || true
+done
+echo "[4/5] sharp-Artefakt prüfen (fail-closed)"
+if ! ( cd .vercel/output/functions/render.func && node -e '
+  const sharp = require("sharp");
+  const v = sharp.versions || {};
+  if (!v.sharp || !v.vips) { console.error("sharp-Versionen fehlen"); process.exit(3); }
+  console.log("sharp " + v.sharp + " / libvips " + v.vips);
+' ); then
+  echo "" >&2
+  echo "SHARP IM FUNKTIONS-ARTEFAKT NICHT LADBAR — Build verworfen, KEIN Deploy." >&2
+  echo "Das Native-Binding (@img/sharp-<platform>) fehlt in render.func/node_modules." >&2
+  exit 1
+fi
+if ! find .vercel/output/functions/render.func/node_modules -name '*.node' -print -quit | grep -q .; then
+  echo "KEIN NATIVES BINDING (*.node) im Funktions-Artefakt — Build verworfen, KEIN Deploy." >&2
+  exit 1
+fi
+if ! grep -q 'sharp' .vercel/output/functions/render.func/index.mjs; then
+  echo "GEBÜNDELTER HANDLER ENTHÄLT KEIN sharp — Build verworfen, KEIN Deploy." >&2
+  exit 1
+fi
 # ── Cron-Registrierung im Build-Artefakt (Owner-Freigabe 2026-10-22) ─────────
 # EINZIGE Quelle der Wahrheit fuer den 90-Tage-TTL-Cron (/api/cron/blob-ttl,
 # "0 3 * * *") ist seit 2026-11-13 DIESE Datei: `vercel.json` fuehrt keinen

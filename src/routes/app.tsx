@@ -233,6 +233,17 @@ function AppSidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
       ),
     },
     {
+      // Phase 2 (2026-11-15): Kampagnen-Gerüst — drei Optionen, gemeinsame Angaben.
+      label: t.sidebar_kampagne,
+      to: "/app/kampagne",
+      icon: (active: boolean) => (
+        <svg className={`h-5 w-5 ${active ? "text-blue-600" : "text-gray-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75A2.25 2.25 0 016 4.5h3.879a2.25 2.25 0 011.591.659l1.06 1.06a2.25 2.25 0 001.591.659H18a2.25 2.25 0 012.25 2.25v7.5A2.25 2.25 0 0118 18.75H6a2.25 2.25 0 01-2.25-2.25V6.75z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 12.75h7.5M8.25 15.75h4.5" />
+        </svg>
+      ),
+    },
+    {
       label: t.sidebar_image_studio,
       to: "/app/image-studio",
       icon: (active: boolean) => (
