@@ -7,10 +7,15 @@
 // Versand, keine Lieferung, keine Rückgabe. Was nicht in der Eingabe steht,
 // steht auch nicht im Listing.
 //
-// Die Tags laufen durch die BESTEHENDE Durchsetzung (`src/lib/etsy-tags.ts`) —
-// also ≤ 20 Zeichen, keine Duplikate, genau 13. Reicht das Material des Nutzers
-// nicht für 13 Begriffe, bleiben es weniger und die Oberfläche sagt das
-// ehrlich, statt Begriffe zu erfinden.
+// Die Tags werden AUS DEN NUTZERANGABEN GEBILDET — als verständliche Begriffe
+// („gäste-wc-poster", „poster mit spruch"), nie als Wortfetzen. Verneinte
+// Eigenschaften („kein Rahmen enthalten", „ohne Rahmen") ergeben KEINEN Tag.
+// Reicht das Material nicht für 13 sinnvolle Begriffe, bleiben es weniger und
+// die Oberfläche bittet um weitere Produktmerkmale, statt aufzufüllen.
+// Danach laufen die Tags durch die BESTEHENDE Durchsetzung
+// (`src/lib/etsy-tags.ts`): ≤ 20 Zeichen, keine Duplikate, höchstens 13. Diese
+// Durchsetzung prüft NUR die Form — nicht den Sinn; deshalb behauptet die
+// Anzeige auch keine Gültigkeit.
 //
 // Dieselben Textregeln wie bei den Pin-Entwürfen (clip/sentence/clean werden
 // dort importiert), damit es keine zweite Wahrheit für Kürzen und Satzende gibt.
@@ -47,58 +52,183 @@ export interface EtsyDraft {
 const TAG_STOPWORDS = new Set([
   'der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einer', 'einen', 'einem', 'eines',
   'und', 'oder', 'aber', 'sowie', 'für', 'fuer', 'mit', 'ohne', 'in', 'im', 'am', 'an', 'auf',
-  'aus', 'bei', 'zu', 'zum', 'zur', 'von', 'vom', 'ist', 'sind', 'wird', 'werden', 'sich',
-  'auch', 'sehr', 'mehr', 'als', 'wie', 'dass', 'nicht', 'kein', 'keine', 'dein', 'deine',
+  'aus', 'bei', 'zu', 'zum', 'zur', 'von', 'vom', 'sich',
+  'auch', 'sehr', 'mehr', 'als', 'wie', 'dass', 'dein', 'deine',
   'deinem', 'deinen', 'ich', 'du', 'es', 'sie', 'er', 'wir', 'ihr', 'man', 'dieser', 'diese',
   'dieses', 'alle', 'etwas', 'jeder', 'jede', 'the', 'a', 'an', 'and', 'or', 'for', 'with',
-  'of', 'to', 'in', 'on', 'at', 'is', 'are', 'this', 'that', 'your', 'you', 'my', 'it',
+  'of', 'to', 'in', 'on', 'at', 'this', 'that', 'your', 'you', 'my', 'it',
 ]);
 
-/** Wörter eines Textes als Tag-Bausteine (klein, ohne Satzzeichen, ohne Füllwörter). */
-function tagTokens(text: string): string[] {
-  const out: string[] = [];
-  for (const word of clean(text).toLowerCase().split(/\s+/)) {
-    const bare = word.replace(/[^0-9a-zà-ÿß-]/g, '').replace(/^-+|-+$/g, '');
-    if (!bare) continue;
-    for (const part of bare.split('-')) {
-      if (part.length < 3) continue;
-      // Reine Zahlen sind kein Suchbegriff („200" aus „200 ml").
-      if (/^[0-9]+$/.test(part)) continue;
-      if (TAG_STOPWORDS.has(part)) continue;
-      out.push(part);
-    }
-  }
-  return out;
+/**
+ * Verben und Kopula. Ein Begriff, der so ein Wort enthält, ist kein Tag:
+ * „klo ist größer" entstand im Befund genau daraus, dass die Wortfolge ohne
+ * Rücksicht auf Satzbau zusammengeklebt wurde.
+ */
+const TAG_VERBS = new Set([
+  'ist', 'sind', 'war', 'waren', 'wird', 'werden', 'wurde', 'hat', 'haben', 'kann', 'können',
+  'muss', 'soll', 'darf', 'bleibt', 'passt', 'macht', 'kommt', 'gibt', 'wirkt', 'zeigt',
+  'is', 'are', 'was', 'were', 'has', 'have', 'can', 'will', 'fits', 'shows',
+]);
+
+/**
+ * Verneinung. Ab so einem Wort ist eine Angabe NICHT positiv — der Tag darf
+ * daraus nicht entstehen („kein Rahmen enthalten" ergab „rahmen enthalten").
+ */
+const NEGATION_WORDS = new Set([
+  'kein', 'keine', 'keinen', 'keinem', 'keiner', 'keines',
+  'ohne', 'nicht', 'nie', 'niemals', 'nichts', 'ausgeschlossen', 'entfällt', 'entfaellt',
+  'exklusive', 'exkl', 'no', 'not', 'without', 'none', 'never', 'excluded',
+]);
+
+/**
+ * Wörter, nach denen eine Verneinung RÜCKWÄRTS gilt: „Rahmen nicht enthalten"
+ * verneint den Rahmen, nicht das Enthalten. Steht hinter der Verneinung nur so
+ * ein Wort (oder gar keins), entfällt die ganze Klausel.
+ */
+const NEGATION_TAIL = new Set([
+  'enthalten', 'inklusive', 'inkl', 'inbegriffen', 'dabei', 'mitgeliefert',
+  'lieferumfang', 'vorhanden', 'not', 'included', 'available', 'provided',
+  'entfällt', 'entfaellt',
+]);
+
+/**
+ * Einzelwörter, die allein als Tag nichts taugen: reine Eigenschafts- und
+ * Vergleichswörter („größer", „bunt"). In einer Wendung bleiben sie erlaubt
+ * („bunte baddeko").
+ */
+const WEAK_WORDS = new Set([
+  'größer', 'groesser', 'größer', 'kleiner', 'kleines', 'kleine', 'groß', 'gross', 'große',
+  'bunt', 'bunte', 'bunter', 'schön', 'schoen', 'schöne', 'lustig', 'lustige', 'süß', 'suess',
+  'perfekt', 'ideal', 'hochwertig', 'modern', 'einfach', 'schnell', 'günstig', 'guenstig',
+  'toll', 'super', 'echt', 'ganz', 'richtig', 'echte', 'tolle',
+  'bigger', 'smaller', 'cute', 'funny', 'perfect', 'great', 'nice', 'best',
+]);
+
+/**
+ * Zerlegung in Klauseln: Satzzeichen, Aufzählungen und Gedankenstriche trennen.
+ * Innere Bindestriche bleiben stehen („Gäste-WC-Poster" ist EIN Begriff).
+ */
+function clauses(text: string): string[] {
+  return clean(text)
+    .split(/[.;:!?,|/\\&•·»«„“”"()[\]\n\r]+|\s+[-–—]+\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+/** Wörter einer Klausel: klein, ohne Satzzeichen, Bindestriche bleiben. */
+function clauseWords(clause: string): string[] {
+  return clause
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word) => word.replace(/[^0-9a-zà-ÿß-]/g, '').replace(/^-+|-+$/g, ''))
+    .filter(Boolean);
 }
 
 /**
- * Tag-Kandidaten ausschließlich aus den Nutzerangaben — in der Reihenfolge, in
- * der sie im Listing am meisten taugen: Wortpaare aus dem Produkt (das sind die
- * eigentlichen Suchphrasen), dann einzelne Produktwörter, dann Zielgruppe, dann
- * Kernbotschaft. Nichts davon ist ein neuer Begriff: alle Wörter stehen in der
- * Eingabe.
+ * Der positive Teil einer Klausel: alles vor einer Verneinung. Steht die
+ * Verneinung vorn oder bezieht sie sich rückwärts („Rahmen nicht enthalten"),
+ * bleibt nichts übrig — die Klausel ist dann vollständig verneint.
+ */
+function positivePart(clause: string): string {
+  const raw = clause.split(/\s+/).filter(Boolean);
+  const norm = raw.map((word) =>
+    word.toLowerCase().replace(/[^0-9a-zà-ÿß-]/g, '').replace(/^-+|-+$/g, ''),
+  );
+  const at = norm.findIndex((word) => NEGATION_WORDS.has(word));
+  if (at < 0) return clause;
+  const after = norm
+    .slice(at + 1)
+    .filter(
+      (word) =>
+        word.length >= 3 &&
+        !TAG_STOPWORDS.has(word) &&
+        !TAG_VERBS.has(word) &&
+        !NEGATION_TAIL.has(word) &&
+        !NEGATION_WORDS.has(word),
+    );
+  if (at === 0 || after.length === 0) return '';
+  return raw.slice(0, at).join(' ');
+}
+
+/** Taugt dieses Wort allein als Tag? */
+function isContentWord(word: string): boolean {
+  const bare = word.replace(/-/g, '');
+  if (bare.length < 3) return false;
+  if (/^[0-9]+$/.test(bare)) return false;
+  if (TAG_STOPWORDS.has(word) || TAG_VERBS.has(word) || WEAK_WORDS.has(word)) return false;
+  return true;
+}
+
+/** Ist diese Wortfolge ein vorzeigbarer Begriff? Anfang und Ende müssen tragen. */
+function isPhrase(words: readonly string[]): boolean {
+  if (words.length === 0) return false;
+  const first = words[0]!;
+  const last = words[words.length - 1]!;
+  if (!isContentWord(first) || !isContentWord(last)) return false;
+  return !words.some((word) => TAG_VERBS.has(word) || NEGATION_WORDS.has(word));
+}
+
+/**
+ * Tag-Kandidaten ausschließlich aus den Nutzerangaben. Reihenfolge: erst das
+ * Produkt, dann Zielgruppe, dann Kernbotschaft — innerhalb jeder Angabe erst
+ * die ganze Wendung, dann zusammenhängende Wortfenster, dann Einzelbegriffe.
+ *
+ * Die Fenster laufen NIE über eine Klauselgrenze: deshalb kann aus
+ * „… mit Spruch. Kleines Klo …" kein „spruch kleines" mehr werden. Und was
+ * verneint ist, wird vorher abgeschnitten: „kein Rahmen enthalten" liefert
+ * keinen Tag.
  */
 export function etsyTagCandidates(source: EtsySource): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
   const push = (value: string): void => {
     const tag = value.trim().toLowerCase();
-    if (tag.length < 3 || tag.length > ETSY_TAG_MAX_CHARS) return;
+    if (tag.length < 2 || tag.length > ETSY_TAG_MAX_CHARS) return;
     if (seen.has(tag)) return;
     seen.add(tag);
     out.push(tag);
   };
 
-  const phrases = (text: string): void => {
-    const tokens = tagTokens(text);
-    for (let i = 0; i + 1 < tokens.length; i++) push(`${tokens[i]} ${tokens[i + 1]}`);
-    for (const token of tokens) push(token);
-    for (let i = 0; i + 2 < tokens.length; i++) push(`${tokens[i]} ${tokens[i + 1]} ${tokens[i + 2]}`);
+  const fromText = (text: string): void => {
+    for (const clause of clauses(text)) {
+      const positive = positivePart(clause);
+      if (!positive) continue;
+      const words = clauseWords(positive);
+      if (words.length === 0) continue;
+
+      // 1. Die ganze Wendung, wenn sie als Tag durchgeht („gäste-wc-poster").
+      if (isPhrase(words)) push(words.join(' '));
+
+      // 2. Zusammenhängende Fenster von drei, dann zwei Wörtern.
+      for (const size of [3, 2]) {
+        for (let i = 0; i + size <= words.length; i++) {
+          const window = words.slice(i, i + size);
+          if (!isPhrase(window)) continue;
+          push(window.join(' '));
+        }
+      }
+
+      // 3. Einzelbegriffe. Ein Bindestrich-Wort bleibt ganz; zusätzlich seine
+      //    Teile ab zwei Zeichen („wc" aus „gäste-wc-poster").
+      for (const word of words) {
+        if (word.includes('-')) {
+          if (word.replace(/-/g, '').length >= 3) push(word);
+          for (const part of word.split('-')) {
+            if (part.length < 2) continue;
+            if (/^[0-9]+$/.test(part)) continue;
+            if (TAG_STOPWORDS.has(part) || TAG_VERBS.has(part)) continue;
+            push(part);
+          }
+        } else if (isContentWord(word)) {
+          push(word);
+        }
+      }
+    }
   };
 
-  phrases(source.product);
-  phrases(source.audience);
-  phrases(source.message);
+  fromText(source.product);
+  fromText(source.audience);
+  fromText(source.message);
   return out;
 }
 
@@ -186,8 +316,12 @@ export function formatTagList(tags: readonly string[]): string {
 /**
  * Entwurf prüfen und begrenzen (fail-closed, auch serverseitig vor dem
  * Speichern). Bearbeitete Titel/Beschreibung bleiben erhalten; die Tags laufen
- * durch `sanitizeEtsyTags` und werden bei Bedarf aus den Nutzerangaben
- * aufgefüllt — nie aus erfundenen Begriffen.
+ * durch `sanitizeEtsyTags`.
+ *
+ * Aufgefüllt wird NUR, wenn gar keine Tag-Liste vorliegt (dann entsteht sie aus
+ * den Nutzerangaben). Hat der Nutzer eine Liste — auch eine kürzere als 13 —,
+ * bleibt es genau dabei: eine gelöschte Zeile kommt nicht zurück, und es wird
+ * nichts erfunden.
  */
 export function sanitizeEtsyDraft(input: unknown, source?: EtsySource): EtsyDraft | null {
   if (!input || typeof input !== 'object') return null;
@@ -199,10 +333,12 @@ export function sanitizeEtsyDraft(input: unknown, source?: EtsySource): EtsyDraf
     typeof raw.description === 'string' ? raw.description : (fallback?.description ?? ''),
     ETSY_DESCRIPTION_MAX,
   );
-  const rawTags = Array.isArray(raw.tags)
+  const given = Array.isArray(raw.tags)
     ? raw.tags.filter((t): t is string => typeof t === 'string')
-    : (fallback?.tags ?? []);
-  const tags = sanitizeEtsyTags(rawTags, source ? etsyTagCandidates(source) : []);
+    : [];
+  const tags = given.length > 0
+    ? sanitizeEtsyTags(given)
+    : sanitizeEtsyTags(fallback?.tags ?? [], source ? etsyTagCandidates(source) : []);
   if (!title) return null;
   return { title, description, tags };
 }

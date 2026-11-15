@@ -31,13 +31,12 @@ import {
   ETSY_DESCRIPTION_MAX,
   ETSY_TITLE_MAX,
   buildEtsyDraft,
-  etsyTagCandidates,
   etsyTagsComplete,
   formatTagList,
   parseTagInput,
   type EtsyDraft,
 } from '~/lib/kampagne/etsy-draft';
-import { ETSY_TAG_COUNT, ETSY_TAG_MAX_CHARS, sanitizeEtsyTags } from '~/lib/etsy-tags';
+import { ETSY_TAG_MAX_CHARS, sanitizeEtsyTags } from '~/lib/etsy-tags';
 import { downscalePhoto } from '~/lib/kampagne/pin-client';
 import {
   buildZip,
@@ -581,22 +580,18 @@ function KampagneContent() {
 
   /**
    * Tags tippen: ein Tag pro Zeile. Was Etsy nicht annimmt (zu lang, doppelt),
-   * bereinigt die bestehende Durchsetzung; fehlende Positionen kommen aus den
-   * eigenen Angaben des Nutzers — nie aus erfundenen Begriffen.
+   * bereinigt die bestehende Durchsetzung — sie prüft Länge und Dubletten, mehr
+   * nicht. Aufgefüllt wird nichts: was der Nutzer streicht, bleibt gestrichen.
    */
-  const onTagTextChange = useCallback(
-    (text: string) => {
-      setTagText(text);
-      const current = etsyRef.current;
-      if (!current) return;
-      const source = { product: draft.product, audience: draft.audience, message: draft.message };
-      const tags = sanitizeEtsyTags(parseTagInput(text), etsyTagCandidates(source));
-      const next = { ...current, tags };
-      etsyRef.current = next;
-      setEtsy(next);
-    },
-    [draft.product, draft.audience, draft.message],
-  );
+  const onTagTextChange = useCallback((text: string) => {
+    setTagText(text);
+    const current = etsyRef.current;
+    if (!current) return;
+    const tags = sanitizeEtsyTags(parseTagInput(text));
+    const next = { ...current, tags };
+    etsyRef.current = next;
+    setEtsy(next);
+  }, []);
 
   const copyText = useCallback(async (key: string, text: string) => {
     setCopyFailed(false);
@@ -1049,8 +1044,8 @@ function KampagneContent() {
               <label className="mb-2 block">
                 <span className="mb-1 flex items-center justify-between text-xs font-medium text-gray-700">
                   <span>{t.kampagne_etsy_field_tags}</span>
-                  <span className={etsyTagsComplete(etsy.tags) ? 'text-green-700' : 'text-amber-700'}>
-                    {etsy.tags.length}/{ETSY_TAG_COUNT} {t.kampagne_etsy_tags_count}
+                  <span className="text-gray-500">
+                    {etsy.tags.length} {t.kampagne_etsy_tags_count}
                   </span>
                 </span>
                 <textarea

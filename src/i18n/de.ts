@@ -2341,10 +2341,10 @@ export const de = {
   kampagne_etsy_field_description: 'Beschreibung',
   kampagne_etsy_field_tags: 'Tags',
   kampagne_etsy_tags_hint:
-    'Ein Tag pro Zeile. Etsy erlaubt 13 Tags mit je höchstens 20 Zeichen — was nicht passt, wird beim Tippen bereinigt.',
-  kampagne_etsy_tags_count: 'von 13 Tags gültig',
+    'Ein Tag pro Zeile. Geprüft wird nur Etsys Form: höchstens 20 Zeichen je Tag, keine Dubletten. Ob ein Tag zum Produkt passt, entscheidest du.',
+  kampagne_etsy_tags_count: 'von 13 Tags',
   kampagne_etsy_tags_short:
-    'Deine Angaben reichen für weniger als 13 Tags. Ergänze das Produkt um Material, Farbe oder Anlass — dann werden es mehr. Erfunden wird nichts.',
+    'Deine Angaben reichen für weniger als 13 sinnvolle Tags. Ergänze weitere Produktmerkmale — Material, Farbe, Motiv, Anlass, Raum oder Stil — dann kommen mehr dazu. Aufgefüllt wird nichts.',
   kampagne_copy_title: 'Titel kopieren',
   kampagne_copy_description: 'Beschreibung kopieren',
   kampagne_copy_tags: 'Tags kopieren',

@@ -2328,10 +2328,10 @@ export const en: EnShape = {
   kampagne_etsy_field_description: 'Description',
   kampagne_etsy_field_tags: 'Tags',
   kampagne_etsy_tags_hint:
-    'One tag per line. Etsy allows 13 tags of at most 20 characters each — anything that does not fit is cleaned up as you type.',
-  kampagne_etsy_tags_count: 'of 13 tags valid',
+    'One tag per line. Only Etsy’s format is checked: at most 20 characters per tag, no duplicates. Whether a tag fits the product is your call.',
+  kampagne_etsy_tags_count: 'of 13 tags',
   kampagne_etsy_tags_short:
-    'Your details cover fewer than 13 tags. Add material, colour or occasion to the product — then there will be more. Nothing is invented.',
+    'Your details cover fewer than 13 meaningful tags. Add more product features — material, colour, motif, occasion, room or style — and more will follow. Nothing is padded.',
   kampagne_copy_title: 'Copy title',
   kampagne_copy_description: 'Copy description',
   kampagne_copy_tags: 'Copy tags',
