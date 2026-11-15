@@ -18,6 +18,7 @@ import {
   CAMPAIGN_LIMITS,
   deriveCampaignName,
   isCampaignOption,
+  optionIncludesEtsy,
   parseImageDataUrl,
   validateCampaignDraft,
   type CampaignDraft,
@@ -25,6 +26,7 @@ import {
 } from './campaign';
 import { loadSharp } from './sharp-loader';
 import { sanitizePinDrafts, type PinDraft } from './pin-drafts';
+import { parseEtsyJson, sanitizeEtsyDraft, type EtsyDraft } from './etsy-draft';
 
 /** SQL-Executor (Neon-Tag). Injizierbar, damit Tests keinen Prod-Schreibzugriff brauchen. */
 export type CampaignSqlTag = (
@@ -50,6 +52,8 @@ export interface CampaignRecord extends CampaignSummary {
   photoDataUrl: string | null;
   /** Gespeicherte Pin-Entwürfe (leer bei „Nur Etsy"). */
   pins: PinDraft[];
+  /** Gespeicherter Etsy-Listing-Entwurf (null bei „Nur Pinterest"). */
+  etsy: EtsyDraft | null;
   createdAt: string;
 }
 
@@ -122,15 +126,34 @@ function toSummary(row: Record<string, unknown>): CampaignSummary {
 function toRecord(row: Record<string, unknown>): CampaignRecord {
   const photo = row.photo_data == null ? '' : String(row.photo_data);
   const mime = row.photo_mime == null ? 'image/jpeg' : String(row.photo_mime);
-  return {
-    ...toSummary(row),
+  const source = pinSourceOf({
+    product: row.product == null ? '' : String(row.product),
     audience: row.audience == null ? '' : String(row.audience),
     message: row.message == null ? '' : String(row.message),
+  });
+  return {
+    ...toSummary(row),
+    audience: source.audience,
+    message: source.message,
     targetUrl: row.target_url == null ? '' : String(row.target_url),
     photoDataUrl: photo ? `data:${mime};base64,${photo}` : null,
     pins: parsePinsJson(row.pins),
+    // Etsy-Entwurf: gespeicherten Stand übernehmen, Tags laufen dabei erneut
+    // durch die Etsy-Durchsetzung (≤ 20 Zeichen, 13, keine Duplikate).
+    etsy: parseEtsyJson(row.etsy, source),
     createdAt: row.created_at == null ? new Date(0).toISOString() : String(row.created_at),
   };
+}
+
+/**
+ * Etsy-Entwurf für das Speichern: nur wenn die Option Etsy enthält. Ist noch
+ * keiner erzeugt worden, wird er aus denselben Nutzerangaben gebildet (kein
+ * KI-Aufruf) — so hat „Nur Etsy" immer einen Entwurf. Nichts wird erfunden:
+ * `sanitizeEtsyDraft` füllt Tags ausschließlich aus den Nutzerangaben auf.
+ */
+export function etsyForSave(draft: Partial<CampaignDraft>): EtsyDraft | null {
+  if (!isCampaignOption(draft.option) || !optionIncludesEtsy(draft.option)) return null;
+  return sanitizeEtsyDraft(draft.etsy ?? null, pinSourceOf(draft));
 }
 
 /** `pins` ist JSONB — je nach Treiber kommt ein Array oder ein JSON-Text. */
@@ -179,7 +202,8 @@ export async function insertCampaign(
        ${photo ? photo.mime : null}, ${photo ? photo.base64 : null},
        ${photo ? photo.width : null}, ${photo ? photo.height : null},
        ${draft.brandApplied === true},
-       ${JSON.stringify(sanitizePinDrafts(draft.pins ?? [], pinSourceOf(draft)))}::jsonb, ${null}::jsonb)
+       ${JSON.stringify(sanitizePinDrafts(draft.pins ?? [], pinSourceOf(draft)))}::jsonb,
+       ${JSON.stringify(etsyForSave(draft))}::jsonb)
     RETURNING id
   `;
   const id = rows[0]?.id;
@@ -208,6 +232,7 @@ export async function updateCampaign(
       photo_height = COALESCE(${photo ? photo.height : null}, photo_height),
       brand_applied = ${draft.brandApplied === true},
       pins = ${JSON.stringify(sanitizePinDrafts(draft.pins ?? [], pinSourceOf(draft)))}::jsonb,
+      etsy = ${JSON.stringify(etsyForSave(draft))}::jsonb,
       updated_at = NOW()
     WHERE id = ${id} AND user_id = ${userId}
     RETURNING id
@@ -236,7 +261,7 @@ export async function readCampaign(
 ): Promise<CampaignRecord | null> {
   const rows = await sql`
     SELECT id, name, option, product, audience, message, target_url,
-           photo_mime, photo_data, brand_applied, pins, created_at, updated_at
+           photo_mime, photo_data, brand_applied, pins, etsy, created_at, updated_at
     FROM campaigns
     WHERE id = ${id} AND user_id = ${userId}
     LIMIT 1

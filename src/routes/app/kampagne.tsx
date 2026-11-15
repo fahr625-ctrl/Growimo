@@ -27,6 +27,17 @@ import {
   type PinDraft,
 } from '~/lib/kampagne/pin-drafts';
 import { renderPinsServer, type PinBrandInput } from '~/lib/kampagne/pin-server';
+import {
+  ETSY_DESCRIPTION_MAX,
+  ETSY_TITLE_MAX,
+  buildEtsyDraft,
+  etsyTagCandidates,
+  etsyTagsComplete,
+  formatTagList,
+  parseTagInput,
+  type EtsyDraft,
+} from '~/lib/kampagne/etsy-draft';
+import { ETSY_TAG_COUNT, ETSY_TAG_MAX_CHARS, sanitizeEtsyTags } from '~/lib/etsy-tags';
 import { downscalePhoto } from '~/lib/kampagne/pin-client';
 import {
   buildZip,
@@ -63,6 +74,7 @@ function emptyDraft(): CampaignDraft {
     targetUrl: '',
     photoDataUrl: null,
     brandApplied: false,
+    etsy: null,
   };
 }
 
@@ -92,6 +104,21 @@ function KampagneContent() {
 
   const needsPhoto = optionNeedsPhoto(draft.option);
   const includesEtsy = optionIncludesEtsy(draft.option);
+
+  // ── Etsy-Entwurf ────────────────────────────────────────────────────────────
+  // Kein KI-Aufruf: Titel, Beschreibung und die 13 Tags entstehen aus den
+  // Nutzerangaben (etsy-draft.ts). Gespeichert wird der geprüfte Stand.
+  const [etsy, setEtsy] = useState<EtsyDraft | null>(null);
+  const etsyRef = useRef<EtsyDraft | null>(null);
+  const [tagText, setTagText] = useState('');
+  const [copied, setCopied] = useState<string | null>(null);
+  const [copyFailed, setCopyFailed] = useState(false);
+
+  const applyEtsy = useCallback((next: EtsyDraft | null) => {
+    etsyRef.current = next;
+    setEtsy(next);
+    setTagText(next ? next.tags.join('\n') : '');
+  }, []);
 
   // Markenprofil: nur Farben + Markenname werden übernommen — was das Profil
   // nicht hergibt (Schrift, Logo), wird nicht erfunden.
@@ -334,7 +361,7 @@ function KampagneContent() {
     setNotice(null);
     try {
       const saved: CampaignRecord = await saveCampaignServer({
-        data: { ...draft, pins: pinsRef.current },
+        data: { ...draft, pins: pinsRef.current, etsy: etsyRef.current },
       });
       // Der Server gibt den LESEND geprüften Stand zurück — der Client zeigt
       // genau diesen, nicht den lokalen Entwurf.
@@ -349,8 +376,10 @@ function KampagneContent() {
         photoDataUrl: saved.photoDataUrl,
         brandApplied: saved.brandApplied,
         pins: saved.pins,
+        etsy: saved.etsy,
       });
       applyPins(saved.pins);
+      applyEtsy(saved.etsy);
       setNotice(t.kampagne_save_ok);
       await refreshList();
     } catch (err) {
@@ -383,7 +412,9 @@ function KampagneContent() {
         photoDataUrl: record.photoDataUrl,
         brandApplied: record.brandApplied,
         pins: record.pins,
+        etsy: record.etsy,
       });
+      applyEtsy(record.etsy);
       // Gespeicherte Entwürfe wieder anzeigen — und erneut rendern, damit die
       // Vorschau zeigt, was gespeichert ist (kein KI-Aufruf, keine Einheit).
       applyPins(record.pins);
@@ -415,10 +446,68 @@ function KampagneContent() {
     setNotice(null);
     setPhotoBytes(0);
     applyPins([]);
+    applyEtsy(null);
     setRenders({});
     setPinError(null);
+    setCopied(null);
+    setCopyFailed(false);
     if (fileRef.current) fileRef.current.value = '';
   };
+
+  // ── Etsy-Entwurf: bauen, bearbeiten, kopieren ───────────────────────────────
+
+  /** Entwurf aus den gemeinsamen Angaben bauen — kein KI-Aufruf, keine Einheit. */
+  const onBuildEtsy = useCallback(() => {
+    applyEtsy(
+      buildEtsyDraft({
+        product: draft.product,
+        audience: draft.audience,
+        message: draft.message,
+      }),
+    );
+    setCopied(null);
+    setCopyFailed(false);
+  }, [applyEtsy, draft.product, draft.audience, draft.message]);
+
+  /** Titel/Beschreibung bleiben der Text des Nutzers — nur begrenzt, nie ersetzt. */
+  const updateEtsy = useCallback((patch: Partial<EtsyDraft>) => {
+    const current = etsyRef.current;
+    if (!current) return;
+    const next = { ...current, ...patch };
+    etsyRef.current = next;
+    setEtsy(next);
+  }, []);
+
+  /**
+   * Tags tippen: ein Tag pro Zeile. Was Etsy nicht annimmt (zu lang, doppelt),
+   * bereinigt die bestehende Durchsetzung; fehlende Positionen kommen aus den
+   * eigenen Angaben des Nutzers — nie aus erfundenen Begriffen.
+   */
+  const onTagTextChange = useCallback(
+    (text: string) => {
+      setTagText(text);
+      const current = etsyRef.current;
+      if (!current) return;
+      const source = { product: draft.product, audience: draft.audience, message: draft.message };
+      const tags = sanitizeEtsyTags(parseTagInput(text), etsyTagCandidates(source));
+      const next = { ...current, tags };
+      etsyRef.current = next;
+      setEtsy(next);
+    },
+    [draft.product, draft.audience, draft.message],
+  );
+
+  const copyText = useCallback(async (key: string, text: string) => {
+    setCopyFailed(false);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(key);
+      setTimeout(() => setCopied((current) => (current === key ? null : current)), 2000);
+    } catch {
+      setCopied(null);
+      setCopyFailed(true);
+    }
+  }, []);
 
   const optionCard = (option: CampaignOption, label: string, hint: string) => {
     const active = draft.option === option;
@@ -766,10 +855,123 @@ function KampagneContent() {
         </section>
       ) : null}
 
+      {/* Schritt 5 — Etsy-Listing-Entwurf (nur Etsy/Beides) */}
       {includesEtsy && (
-        <p className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
-          {t.kampagne_etsy_pending_hint}
-        </p>
+        <section className="mb-6 rounded-xl border border-gray-200 bg-white p-4">
+          <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-gray-900">{t.kampagne_etsy_title}</h2>
+              <p className="mt-1 text-xs text-gray-600">{t.kampagne_etsy_hint}</p>
+            </div>
+            <button
+              type="button"
+              onClick={onBuildEtsy}
+              disabled={!draft.product.trim()}
+              className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-60"
+            >
+              {etsy ? t.kampagne_etsy_regenerate : t.kampagne_etsy_generate}
+            </button>
+          </div>
+
+          {copyFailed && (
+            <div role="alert" className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              {t.kampagne_copy_failed}
+            </div>
+          )}
+
+          {!etsy ? (
+            <p className="text-sm text-gray-500">{t.kampagne_etsy_empty}</p>
+          ) : (
+            <>
+              <label className="mb-2 block">
+                <span className="mb-1 flex items-center justify-between text-xs font-medium text-gray-700">
+                  <span>{t.kampagne_etsy_field_title}</span>
+                  <span className="text-gray-400">
+                    {etsy.title.length}/{ETSY_TITLE_MAX}
+                  </span>
+                </span>
+                <input
+                  value={etsy.title}
+                  onChange={(e) => updateEtsy({ title: e.target.value })}
+                  maxLength={ETSY_TITLE_MAX}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => void copyText('title', etsy.title)}
+                className="mb-4 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              >
+                {copied === 'title' ? t.kampagne_copied : t.kampagne_copy_title}
+              </button>
+
+              <label className="mb-2 block">
+                <span className="mb-1 flex items-center justify-between text-xs font-medium text-gray-700">
+                  <span>{t.kampagne_etsy_field_description}</span>
+                  <span className="text-gray-400">
+                    {etsy.description.length}/{ETSY_DESCRIPTION_MAX}
+                  </span>
+                </span>
+                <textarea
+                  value={etsy.description}
+                  onChange={(e) => updateEtsy({ description: e.target.value })}
+                  rows={6}
+                  maxLength={ETSY_DESCRIPTION_MAX}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => void copyText('description', etsy.description)}
+                className="mb-4 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              >
+                {copied === 'description' ? t.kampagne_copied : t.kampagne_copy_description}
+              </button>
+
+              <label className="mb-2 block">
+                <span className="mb-1 flex items-center justify-between text-xs font-medium text-gray-700">
+                  <span>{t.kampagne_etsy_field_tags}</span>
+                  <span className={etsyTagsComplete(etsy.tags) ? 'text-green-700' : 'text-amber-700'}>
+                    {etsy.tags.length}/{ETSY_TAG_COUNT} {t.kampagne_etsy_tags_count}
+                  </span>
+                </span>
+                <textarea
+                  value={tagText}
+                  onChange={(e) => onTagTextChange(e.target.value)}
+                  rows={6}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+                <span className="mt-1 block text-xs text-gray-500">{t.kampagne_etsy_tags_hint}</span>
+              </label>
+
+              <ul className="mb-3 flex flex-wrap gap-2">
+                {etsy.tags.map((tag) => (
+                  <li
+                    key={tag}
+                    className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700"
+                    title={`${tag.length}/${ETSY_TAG_MAX_CHARS}`}
+                  >
+                    {tag}
+                  </li>
+                ))}
+              </ul>
+
+              {!etsyTagsComplete(etsy.tags) && (
+                <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                  {t.kampagne_etsy_tags_short}
+                </p>
+              )}
+
+              <button
+                type="button"
+                onClick={() => void copyText('tags', formatTagList(etsy.tags))}
+                className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              >
+                {copied === 'tags' ? t.kampagne_copied : t.kampagne_copy_tags}
+              </button>
+            </>
+          )}
+        </section>
       )}
 
       {exportError && (

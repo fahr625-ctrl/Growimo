@@ -45,7 +45,7 @@ export interface PinSource {
   message: string;
 }
 
-function clean(text: string | null | undefined): string {
+export function clean(text: string | null | undefined): string {
   return (text ?? '').replace(/\s+/g, ' ').trim();
 }
 
@@ -69,7 +69,7 @@ function trimDangling(text: string): string {
 }
 
 /** Auf `max` Zeichen kürzen — an Wortgrenzen, ohne hängende Füllwörter. */
-function clip(text: string, max: number): string {
+export function clip(text: string, max: number): string {
   const v = clean(text);
   if (v.length <= max) return trimDangling(v);
   const cut = v.slice(0, max);
@@ -80,7 +80,7 @@ function clip(text: string, max: number): string {
 }
 
 /** Satzende garantieren (vermeidet „….." wenn der Nutzer schon punktet). */
-function sentence(text: string): string {
+export function sentence(text: string): string {
   const v = clean(text);
   if (!v) return '';
   return /[.!?]$/.test(v) ? v : `${v}.`;

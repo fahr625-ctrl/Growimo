@@ -2318,8 +2318,25 @@ export const en: EnShape = {
   kampagne_photo_preview_alt: 'Preview of the uploaded photo',
   kampagne_photo_remove: 'Remove photo',
   kampagne_photo_none_etsy: 'Etsy only needs no photo.',
-  kampagne_etsy_pending_hint:
-    'The Etsy draft (title, description, 13 tags) from these details comes in the next step.',
+  kampagne_etsy_title: 'Etsy listing draft',
+  kampagne_etsy_hint:
+    'From the same product details. No AI call, no credit — and nothing invented: no formats, sizes, shipping or returns.',
+  kampagne_etsy_generate: 'Create Etsy draft',
+  kampagne_etsy_regenerate: 'Recreate draft',
+  kampagne_etsy_empty: 'No draft yet. Click “Create Etsy draft”.',
+  kampagne_etsy_field_title: 'Title',
+  kampagne_etsy_field_description: 'Description',
+  kampagne_etsy_field_tags: 'Tags',
+  kampagne_etsy_tags_hint:
+    'One tag per line. Etsy allows 13 tags of at most 20 characters each — anything that does not fit is cleaned up as you type.',
+  kampagne_etsy_tags_count: 'of 13 tags valid',
+  kampagne_etsy_tags_short:
+    'Your details cover fewer than 13 tags. Add material, colour or occasion to the product — then there will be more. Nothing is invented.',
+  kampagne_copy_title: 'Copy title',
+  kampagne_copy_description: 'Copy description',
+  kampagne_copy_tags: 'Copy tags',
+  kampagne_copied: 'Copied',
+  kampagne_copy_failed: 'Copying did not work. Please select the text and copy it yourself.',
   kampagne_save: 'Save campaign',
   kampagne_saving: 'Saving …',
   kampagne_save_ok: 'Campaign saved. You can reopen it at any time.',

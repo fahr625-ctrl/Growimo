@@ -2331,8 +2331,25 @@ export const de = {
   kampagne_photo_preview_alt: 'Vorschau des hochgeladenen Fotos',
   kampagne_photo_remove: 'Foto entfernen',
   kampagne_photo_none_etsy: 'Für „Nur Etsy" ist kein Foto nötig.',
-  kampagne_etsy_pending_hint:
-    'Der Etsy-Entwurf (Titel, Beschreibung, 13 Tags) aus diesen Angaben folgt im nächsten Schritt.',
+  kampagne_etsy_title: 'Etsy-Listing-Entwurf',
+  kampagne_etsy_hint:
+    'Aus denselben Produktangaben. Kein KI-Aufruf, keine Einheit — und keine erfundenen Angaben: keine Formate, Größen, Lieferung oder Rückgabe.',
+  kampagne_etsy_generate: 'Etsy-Entwurf erzeugen',
+  kampagne_etsy_regenerate: 'Entwurf neu erzeugen',
+  kampagne_etsy_empty: 'Noch kein Entwurf. Klick auf „Etsy-Entwurf erzeugen".',
+  kampagne_etsy_field_title: 'Titel',
+  kampagne_etsy_field_description: 'Beschreibung',
+  kampagne_etsy_field_tags: 'Tags',
+  kampagne_etsy_tags_hint:
+    'Ein Tag pro Zeile. Etsy erlaubt 13 Tags mit je höchstens 20 Zeichen — was nicht passt, wird beim Tippen bereinigt.',
+  kampagne_etsy_tags_count: 'von 13 Tags gültig',
+  kampagne_etsy_tags_short:
+    'Deine Angaben reichen für weniger als 13 Tags. Ergänze das Produkt um Material, Farbe oder Anlass — dann werden es mehr. Erfunden wird nichts.',
+  kampagne_copy_title: 'Titel kopieren',
+  kampagne_copy_description: 'Beschreibung kopieren',
+  kampagne_copy_tags: 'Tags kopieren',
+  kampagne_copied: 'Kopiert',
+  kampagne_copy_failed: 'Kopieren hat nicht geklappt. Bitte den Text markieren und selbst kopieren.',
   kampagne_save: 'Kampagne speichern',
   kampagne_saving: 'Wird gespeichert …',
   kampagne_save_ok: 'Kampagne gespeichert. Du kannst sie jederzeit wieder öffnen.',

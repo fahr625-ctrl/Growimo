@@ -7,6 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { PinDraft } from './pin-drafts';
+import type { EtsyDraft } from './etsy-draft';
 
 export type CampaignOption = 'pinterest' | 'etsy' | 'both';
 
@@ -39,6 +40,8 @@ export interface CampaignDraft {
   brandApplied?: boolean;
   /** Bis zu fünf Pin-Entwürfe (nur bei Pinterest/Beides). */
   pins?: PinDraft[] | null;
+  /** Ein Etsy-Listing-Entwurf (nur bei Etsy/Beides). */
+  etsy?: EtsyDraft | null;
 }
 
 /** Braucht diese Option ein Foto? (Nur Etsy: nein.) */
