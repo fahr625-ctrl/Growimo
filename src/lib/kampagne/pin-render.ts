@@ -23,12 +23,20 @@
 // Damit kann Schrift nicht mehr mit Bildinhalt kollidieren — auch nicht auf
 // einem dunklen, unruhigen Foto.
 //
+// KEIN WORT WIRD WEGGELASSEN (2026-11-15, Owner-Befund „Untertitel mitten im
+// Satz abgeschnitten"): Der Umbruch kennt keine Zeilen-Obergrenze mehr. Passt
+// ein Text nicht, wird er ZUERST umgebrochen (auch an vorhandenen Bindestrichen,
+// damit ein langes Kompositum nicht die ganze Fläche breit macht) und danach
+// verkleinert — nie gekürzt. Nach dem Setzen wird die Wortfolge gegen die
+// Eingabe geprüft: fehlt auch nur ein Wort, gibt es KEIN Bild (`text_truncated`).
+//
 // Fail-closed-Regeln (Phase-2-SPEC §6):
 //   • Ausgabe muss nachweislich 1000 × 1500 px PNG sein, sonst Fehler.
 //   • Text-Overlay muss nachweislich Pixel zeichnen. Fehlt im Laufzeit-Image
 //     eine Schrift, liefert librsvg stillschweigend ein leeres Overlay — genau
 //     das wird hier gemessen und als `font_missing` abgebrochen.
 //   • Text darf den sicheren Rand nicht überschreiten (`text_overflow`).
+//   • Kein Wort darf verloren gehen (`text_truncated`).
 //   • Text muss den Mindestkontrast erreichen (`contrast_too_low`).
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -47,8 +55,12 @@ export const MIN_TEXT_CONTRAST = 4.5;
 /** Abstand, den Text zum Pin-Rand halten muss. */
 const SAFE_MARGIN = 40;
 
-/** Stufen, in denen die Schrift schrumpft, bis der Text in den Rand passt. */
-const FIT_SCALES = [1, 0.94, 0.88, 0.82, 0.76, 0.7];
+/**
+ * Stufen, in denen die Schrift schrumpft, bis der Text in Rand und Fläche
+ * passt. Die Liste reicht bewusst weit hinunter: lieber kleiner setzen als ein
+ * Wort weglassen.
+ */
+const FIT_SCALES = [1, 0.94, 0.88, 0.82, 0.76, 0.7, 0.64, 0.58, 0.52, 0.46, 0.4];
 
 /** Flächenfarben, wenn die Markenfarbe selbst nicht lesbar wäre. */
 const PANEL_DARK = '#111827';
@@ -91,13 +103,20 @@ interface LayoutSpec {
   titleSize: number;
   subtitleSize: number;
   titleChars: number;
-  titleLines: number;
   subtitleChars: number;
-  subtitleLines: number;
   marginX: number;
   scrim: ScrimKind;
   frame: FrameKind;
   frameWidth: number;
+  /**
+   * Breitengebunden: die Zeichen pro Zeile bleiben beim Verkleinern KONSTANT.
+   * Nötig, wenn die Textfläche eine feste Breite hat (Seitenstreifen) — sonst
+   * würde kleiner gesetzte Schrift automatisch mehr Zeichen pro Zeile fassen
+   * und die Fläche bliebe trotzdem so breit wie das Foto es zulässt.
+   */
+  widthBound?: boolean;
+  /** Feste Breite der Textfläche (px) — nur bei `left-stripe`. */
+  stripe?: { solid: number; fade: number };
 }
 
 const LAYOUTS: Record<PinLayoutId, LayoutSpec> = {
@@ -108,9 +127,7 @@ const LAYOUTS: Record<PinLayoutId, LayoutSpec> = {
     titleSize: 76,
     subtitleSize: 40,
     titleChars: 22,
-    titleLines: 3,
     subtitleChars: 34,
-    subtitleLines: 2,
     marginX: 70,
     scrim: 'bottom-band',
     frame: 'inset',
@@ -123,9 +140,7 @@ const LAYOUTS: Record<PinLayoutId, LayoutSpec> = {
     titleSize: 66,
     subtitleSize: 38,
     titleChars: 24,
-    titleLines: 3,
     subtitleChars: 36,
-    subtitleLines: 2,
     marginX: 70,
     scrim: 'top-band',
     frame: 'rule',
@@ -138,30 +153,31 @@ const LAYOUTS: Record<PinLayoutId, LayoutSpec> = {
     titleSize: 84,
     subtitleSize: 40,
     titleChars: 18,
-    titleLines: 3,
     subtitleChars: 30,
-    subtitleLines: 2,
     marginX: 96,
     scrim: 'center-card',
     frame: 'none',
     frameWidth: 0,
   },
   // 4) Seitliche Spalte: große Typo links, Fläche als senkrechter Streifen.
+  //    Der Streifen hat eine FESTE Breite (380 px deckend + 70 px Auslauf =
+  //    45 % der Pin-Breite). Vorher wuchs er mit dem breitesten Wort auf rund
+  //    drei Viertel des Bildes und nahm dem Foto die Hauptrolle. Deshalb wird
+  //    hier breitengebunden umbrochen (auch an Bindestrichen) und die Schrift
+  //    bei Bedarf verkleinert — nicht der Text gekürzt.
   'side-stripe': {
     align: 'left',
     anchor: 'center',
-    // 72 statt 96: der Streifen muss die Schrift deckend tragen UND Platz für
-    // das Foto lassen — bei 96 lief die Zeile über den Streifen hinaus.
-    titleSize: 72,
-    subtitleSize: 34,
-    titleChars: 14,
-    titleLines: 4,
-    subtitleChars: 24,
-    subtitleLines: 2,
-    marginX: 56,
+    titleSize: 56,
+    subtitleSize: 30,
+    titleChars: 10,
+    subtitleChars: 19,
+    marginX: 44,
     scrim: 'left-stripe',
     frame: 'rule',
     frameWidth: 10,
+    widthBound: true,
+    stripe: { solid: 380, fade: 70 },
   },
   // 5) Reduziert: wenig Text, zentriert unten, schmales Band statt Rahmenkarte.
   'minimal-frame': {
@@ -170,9 +186,7 @@ const LAYOUTS: Record<PinLayoutId, LayoutSpec> = {
     titleSize: 58,
     subtitleSize: 32,
     titleChars: 30,
-    titleLines: 2,
     subtitleChars: 46,
-    subtitleLines: 2,
     marginX: 90,
     scrim: 'bottom-band-soft',
     frame: 'inset',
@@ -271,6 +285,7 @@ export class PinRenderError extends Error {
     | 'no_photo'
     | 'font_missing'
     | 'text_overflow'
+    | 'text_truncated'
     | 'contrast_too_low'
     | 'wrong_dimensions'
     | 'render_failed';
@@ -296,8 +311,16 @@ function esc(s: string): string {
     .replace(/'/g, '&apos;');
 }
 
-/** Grober Zeilenumbruch (kein Font-Metrics-Zugriff in librsvg nötig). */
-export function wrapText(text: string, maxCharsPerLine: number, maxLines: number): string[] {
+/**
+ * Bricht Text in Zeilen — OHNE je ein Wort zu verlieren.
+ *
+ * Es gibt keine Zeilen-Obergrenze: lieber mehr Zeilen (und danach kleinere
+ * Schrift) als ein halber Satz. Ein einzelnes Wort, das breiter als die Zeile
+ * ist, wird an einem VORHANDENEN Bindestrich getrennt („Gäste-" / „WC-Poster")
+ * — dabei geht kein Zeichen verloren, weil der Bindestrich stehen bleibt.
+ */
+export function wrapText(text: string, maxCharsPerLine: number): string[] {
+  const limit = Math.max(4, Math.round(maxCharsPerLine));
   const words = text
     .replace(/\s+/g, ' ')
     .trim()
@@ -307,16 +330,46 @@ export function wrapText(text: string, maxCharsPerLine: number, maxLines: number
   let current = '';
   for (const word of words) {
     const candidate = current ? `${current} ${word}` : word;
-    if (candidate.length <= maxCharsPerLine || !current) {
+    if (candidate.length <= limit) {
       current = candidate;
-    } else {
+      continue;
+    }
+    if (current) {
       lines.push(current);
+      current = '';
+    }
+    if (word.length > limit) {
+      // Zu langes Einzelwort: an vorhandenen Bindestrichen umbrechen.
+      let rest = word;
+      while (rest.length > limit) {
+        const cut = rest.lastIndexOf('-', limit - 1);
+        if (cut <= 0) break;
+        lines.push(rest.slice(0, cut + 1));
+        rest = rest.slice(cut + 1);
+      }
+      current = rest;
+    } else {
       current = word;
-      if (lines.length === maxLines) break;
     }
   }
-  if (lines.length < maxLines && current) lines.push(current);
-  return lines.slice(0, maxLines);
+  if (current) lines.push(current);
+  return lines;
+}
+
+/** Vergleichsform: Zeilenumbrüche (auch nach Bindestrich) zählen nicht. */
+function normalizeForCompare(text: string): string {
+  return text
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/([-/\u2010\u00AD])\s+/g, '$1');
+}
+
+/**
+ * Prüft, dass die gesetzten Zeilen die Eingabe VOLLSTÄNDIG enthalten: gleiche
+ * Wortfolge, gleiche Zeichen. Ein fehlendes Wort ⇒ `false` ⇒ kein Bild.
+ */
+export function textIsComplete(source: string, lines: string[]): boolean {
+  return normalizeForCompare(lines.join(' ')) === normalizeForCompare(source);
 }
 
 // ── Messung der Text-Ebene ───────────────────────────────────────────────────
@@ -405,9 +458,14 @@ function geometry(input: PinRenderInput, scale = 1): TextGeometry {
   const lineGap = Math.round(18 * scale);
   const ruleGap = Math.round(34 * scale);
 
-  const titleLines = wrapText(input.title || '', spec.titleChars, spec.titleLines);
+  // Kleinere Schrift fasst mehr Zeichen pro Zeile — außer bei breitengebundenen
+  // Layouts, deren Textfläche eine feste Breite hat.
+  const charsFor = (base: number) =>
+    spec.widthBound ? base : Math.max(6, Math.round(base / scale));
+
+  const titleLines = wrapText(input.title || '', charsFor(spec.titleChars));
   const subtitleLines = input.subtitle
-    ? wrapText(input.subtitle, spec.subtitleChars, spec.subtitleLines)
+    ? wrapText(input.subtitle, charsFor(spec.subtitleChars))
     : [];
 
   const blockHeight =
@@ -470,7 +528,7 @@ function textLayerSvg(input: PinRenderInput, g: TextGeometry): string {
 }
 
 /** Kleine Markenzeile (Markenprofil aktiv) — separat, damit die Textmessung sauber bleibt. */
-function brandLineSvg(input: PinRenderInput, g: TextGeometry): string | null {
+function brandLineSvg(input: PinRenderInput, g: TextGeometry, fontSize = 30): string | null {
   const text = (input.brandLine ?? '').trim();
   if (!text) return null;
   const fontFamily = input.brand?.fontFamily?.trim() || PIN_FONT_STACK;
@@ -478,7 +536,7 @@ function brandLineSvg(input: PinRenderInput, g: TextGeometry): string | null {
   // Gegenüber dem Textblock, damit sich nichts überlagert.
   const y = g.spec.anchor === 'top' ? PIN_HEIGHT - 60 : 90;
   return `<svg width="${PIN_WIDTH}" height="${PIN_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
-  <text x="${Math.round(PIN_WIDTH / 2)}" y="${y}" text-anchor="middle" font-family='${esc(fontFamily)}' font-size="30" font-weight="600" fill="${accent}" fill-opacity="0.95">${esc(text.slice(0, 40))}</text>
+  <text x="${Math.round(PIN_WIDTH / 2)}" y="${y}" text-anchor="middle" font-family='${esc(fontFamily)}' font-size="${fontSize}" font-weight="600" fill="${accent}" fill-opacity="0.95">${esc(text)}</text>
 </svg>`;
 }
 
@@ -577,16 +635,20 @@ function scrimLayerSvg(
     body =
       `<rect x="${Math.round(card.x)}" y="${Math.round(card.y)}" width="${Math.round(card.width)}" height="${Math.round(card.height)}" rx="36" ${fill} fill-opacity="${PANEL_OPACITY}" />`;
   } else {
-    // Senkrechter Streifen: deckend bis über die Textbox hinaus, dann weicher Auslauf.
-    const solidW = Math.round(panel.x + panel.width);
-    const fadeW = 160;
+    // Senkrechter Streifen: FESTE Breite (deckend) + kurzer weicher Auslauf.
+    // Die Breite kommt aus dem Layout, nicht aus dem breitesten Wort — sonst
+    // frisst die Fläche das Foto.
+    const stripe = g.spec.stripe ?? { solid: 380, fade: 70 };
+    // Feste Breite: der Streifen sieht in jedem Pin gleich aus und lässt dem
+    // Foto den Rest. Die Textpassung stellt sicher, dass die Schrift hineinpasst.
+    const solidW = Math.min(PIN_WIDTH, stripe.solid);
     body =
       `<rect x="0" y="0" width="${solidW}" height="${PIN_HEIGHT}" ${fill} fill-opacity="${PANEL_OPACITY}" />` +
       `<defs><linearGradient id="gFade" x1="0" y1="0" x2="1" y2="0">
         <stop offset="0%" stop-color="${panelColor}" stop-opacity="${PANEL_OPACITY}" />
         <stop offset="100%" stop-color="${panelColor}" stop-opacity="0" />
       </linearGradient></defs>` +
-      `<rect x="${solidW}" y="0" width="${fadeW}" height="${PIN_HEIGHT}" fill="url(#gFade)" />`;
+      `<rect x="${solidW}" y="0" width="${stripe.fade}" height="${PIN_HEIGHT}" fill="url(#gFade)" />`;
   }
 
   // Markenzeile bekommt eine eigene kleine Fläche (gleiche Deckkraft).
@@ -672,6 +734,11 @@ export interface PinRenderResult {
   minContrast: number;
   /** Verwendete Schriftstufe (1 = volle Größe). */
   fontScale: number;
+  /** Gesetzte Zeilen — Beleg, dass der Text vollständig untergebracht ist. */
+  titleLineCount: number;
+  subtitleLineCount: number;
+  /** Wortfolge vollständig? (harte Regel — bei `false` gäbe es kein Bild). */
+  wordsComplete: boolean;
   /** Laufzeit-Angaben für den Artefakt-Beleg. */
   sharpVersion: string;
   libvips: string;
@@ -694,7 +761,9 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
   const layout: PinLayoutId = input.layout && isPinLayoutId(input.layout) ? input.layout : 'bottom-left';
 
   // 1) Text-Ebene rendern, messen und — falls nötig — verkleinern, bis sie in
-  //    den sicheren Rand passt. Die Messung ist die Grundlage der Textfläche.
+  //    den sicheren Rand UND (bei breitengebundenen Layouts) in die Textfläche
+  //    passt. Die Messung ist die Grundlage der Textfläche. Gekürzt wird nie:
+  //    passt der Text in keiner Stufe, gibt es kein Bild.
   let geometryUsed: TextGeometry | null = null;
   let textLayer: MeasuredLayer | null = null;
   let fontScale = 1;
@@ -707,7 +776,11 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
         `Text-Overlay zeichnet nichts (${measured.pixels} Pixel) — im Laufzeit-Image fehlt eine Schrift.`,
       );
     }
-    if (boxFitsSafeArea(measured.box)) {
+    const padX = Math.round(28 + g.titleSize * 0.18);
+    const insideStripe = g.spec.stripe
+      ? measured.box.right + padX <= g.spec.stripe.solid - 6
+      : true;
+    if (boxFitsSafeArea(measured.box) && insideStripe) {
       geometryUsed = g;
       textLayer = measured;
       fontScale = scale;
@@ -721,9 +794,30 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
     );
   }
 
-  // 2) Markenzeile messen (eigene Fläche).
-  const brandSvg = brandLineSvg(input, geometryUsed);
-  const brandLayer = brandSvg ? await measureInk(sharp, Buffer.from(brandSvg)) : null;
+  // 1b) Harte Regel: kein Wort darf fehlen. Geprüft wird die tatsächlich
+  //     gesetzte Wortfolge gegen die Eingabe — nicht die Absicht.
+  if (
+    !textIsComplete(input.title || '', geometryUsed.titleLines) ||
+    (input.subtitle ? !textIsComplete(input.subtitle, geometryUsed.subtitleLines) : false)
+  ) {
+    throw new PinRenderError(
+      'text_truncated',
+      'Der Text würde unvollständig gesetzt — es fehlen Wörter. Kein Bild.',
+    );
+  }
+
+  // 2) Markenzeile messen (eigene Fläche) — bei Bedarf verkleinern, nie kürzen.
+  let brandSvg = brandLineSvg(input, geometryUsed);
+  let brandLayer = brandSvg ? await measureInk(sharp, Buffer.from(brandSvg)) : null;
+  if (brandSvg && brandLayer) {
+    const maxBrandWidth = PIN_WIDTH - 120;
+    const brandWidth = brandLayer.box.right - brandLayer.box.left;
+    if (brandWidth > maxBrandWidth) {
+      const smaller = Math.max(14, Math.round(30 * (maxBrandWidth / brandWidth)));
+      brandSvg = brandLineSvg(input, geometryUsed, smaller);
+      brandLayer = brandSvg ? await measureInk(sharp, Buffer.from(brandSvg)) : null;
+    }
+  }
 
   // 3) Fläche aus der gemessenen Textbox — deckend, mit Sicherheitsabstand.
   const textColor = safeHexColor(input.overlay?.textColor, '#ffffff');
@@ -814,6 +908,11 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
     textPixels: textLayer.pixels,
     minContrast: contrast.min,
     fontScale,
+    titleLineCount: geometryUsed.titleLines.length,
+    subtitleLineCount: geometryUsed.subtitleLines.length,
+    wordsComplete:
+      textIsComplete(input.title || '', geometryUsed.titleLines) &&
+      (input.subtitle ? textIsComplete(input.subtitle, geometryUsed.subtitleLines) : true),
     sharpVersion: String(versions.sharp ?? 'unbekannt'),
     libvips: String(versions.vips ?? 'unbekannt'),
     layout,

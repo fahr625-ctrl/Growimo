@@ -97,15 +97,18 @@ export function buildPinDrafts(source: PinSource): PinDraft[] {
   const A = clean(source.audience);
   const M = clean(source.message);
 
-  // Textmengen passend zur Kapazität des jeweiligen Layouts
-  // (Zeichen pro Zeile × Zeilen — siehe LAYOUTS in pin-render.ts).
+  // Textmengen: der Renderer bricht um (auch an Bindestrichen) und verkleinert,
+  // wenn es nicht passt — gekürzt wird beim Setzen nie.
   const pHead = clip(P, 60); // 3 Zeilen à 22
   const pShort = clip(P, 34); // große Typo im Seitenstreifen
   const pSub = clip(P, 68); // 2 Zeilen à 34/36
   const mHead = clip(M, 60);
   const mSub = clip(M, 58);
   const aHead = A ? clip(`Für ${A}`, 52) : pHead;
-  const aSub = clip(A, 44);
+  // Ganze Zielgruppen-Aussage, nicht ein Zeichenfenster: ein 44-Zeichen-Schnitt
+  // ließ den Untertitel mitten im Satz enden („… die klare"). Der Renderer
+  // bricht um und verkleinert, statt zu kürzen.
+  const aSub = A ? clip(`Für ${sentence(A)}`, PIN_SUBLINE_MAX) : '';
 
   const titleFor = (...parts: string[]): string =>
     clip(parts.filter(Boolean).join(' – '), PIN_TITLE_MAX);
