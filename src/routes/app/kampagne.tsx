@@ -52,6 +52,26 @@ import { getBrandProfile } from '~/store/brand';
 /** Schlüssel des Entwurfs im sessionStorage (Foto + Angaben überleben einen Remount). */
 const DRAFT_STORE_KEY = 'growimo.kampagne.entwurf.v1';
 
+/**
+ * Eingabefelder und Auswahlwerte (Owner-Befund 2026-11-15, Android/390 px):
+ * Auf dem Handy waren Feldinhalte und Auswahltexte kaum zu lesen. Deshalb:
+ *   • `bg-white` + `text-gray-900` ausdrücklich — ohne eigene Fläche erbte das
+ *     Feld im dunklen Farbschema die dunkle Seite und blieb mit schwarzer
+ *     Systemschrift auf dunklem Grund stehen.
+ *   • `[color-scheme:light]` — Auswahlliste und Farbwähler des Systems bleiben
+ *     hell, statt dunkel auf dunkel zu rendern.
+ *   • `text-base` (16 px) auf dem Handy: kleinere Schrift zoomt der Browser beim
+ *     Fokussieren hinein und schneidet den Wert ab; ab `sm` wieder kompakt.
+ *   • `min-h-11` (44 px) als gut treffbare Höhe.
+ */
+const FIELD_CLASS =
+  'w-full min-h-11 rounded-lg border border-gray-300 bg-white px-3 py-2 text-base text-gray-900 ' +
+  'placeholder:text-gray-500 [color-scheme:light] focus:border-blue-500 focus:outline-none ' +
+  'focus:ring-1 focus:ring-blue-500 sm:text-sm';
+
+/** Feldbeschriftung: kräftiger Kontrast (gray-700 auf Weiß = 10,3 : 1). */
+const FIELD_LABEL_CLASS = 'mb-1 block text-xs font-semibold text-gray-700';
+
 export const Route = createFileRoute('/app/kampagne')({
   head: () => seoHead({ titleKey: 'meta_app_kampagne_title' }),
   component: KampagnePage,
@@ -677,48 +697,48 @@ function KampagneContent() {
         <h2 className="mb-3 text-sm font-semibold text-gray-900">{t.kampagne_shared_legend}</h2>
 
         <label className="mb-3 block">
-          <span className="mb-1 block text-xs font-medium text-gray-700">{t.kampagne_product}</span>
+          <span className={FIELD_LABEL_CLASS}>{t.kampagne_product}</span>
           <textarea
             value={draft.product}
             onChange={(e) => setField('product', e.target.value)}
             placeholder={t.kampagne_product_ph}
             maxLength={CAMPAIGN_LIMITS.productMax}
             rows={3}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className={FIELD_CLASS}
           />
         </label>
 
         <label className="mb-3 block">
-          <span className="mb-1 block text-xs font-medium text-gray-700">{t.kampagne_audience}</span>
+          <span className={FIELD_LABEL_CLASS}>{t.kampagne_audience}</span>
           <input
             value={draft.audience}
             onChange={(e) => setField('audience', e.target.value)}
             placeholder={t.kampagne_audience_ph}
             maxLength={CAMPAIGN_LIMITS.audienceMax}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className={FIELD_CLASS}
           />
         </label>
 
         <label className="mb-3 block">
-          <span className="mb-1 block text-xs font-medium text-gray-700">{t.kampagne_message}</span>
+          <span className={FIELD_LABEL_CLASS}>{t.kampagne_message}</span>
           <input
             value={draft.message}
             onChange={(e) => setField('message', e.target.value)}
             placeholder={t.kampagne_message_ph}
             maxLength={CAMPAIGN_LIMITS.messageMax}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className={FIELD_CLASS}
           />
         </label>
 
         <label className="block">
-          <span className="mb-1 block text-xs font-medium text-gray-700">{t.kampagne_target_url}</span>
+          <span className={FIELD_LABEL_CLASS}>{t.kampagne_target_url}</span>
           <input
             value={draft.targetUrl}
             onChange={(e) => setField('targetUrl', e.target.value)}
             placeholder={t.kampagne_target_url_ph}
             maxLength={CAMPAIGN_LIMITS.targetUrlMax}
             inputMode="url"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className={FIELD_CLASS}
           />
           <span className="mt-1 block text-xs text-gray-500">{t.kampagne_target_url_hint}</span>
         </label>
@@ -859,29 +879,29 @@ function KampagneContent() {
                     </button>
 
                     <label className="mb-2 block">
-                      <span className="mb-1 block text-xs font-medium text-gray-700">{t.kampagne_pin_overlay}</span>
+                      <span className={FIELD_LABEL_CLASS}>{t.kampagne_pin_overlay}</span>
                       <textarea
                         value={pin.headline}
                         onChange={(e) => updatePin(pin.id, 'headline', e.target.value)}
                         rows={2}
                         maxLength={PIN_HEADLINE_MAX}
-                        className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className={FIELD_CLASS}
                       />
                     </label>
 
                     <label className="mb-2 block">
-                      <span className="mb-1 block text-xs font-medium text-gray-700">{t.kampagne_pin_subline}</span>
+                      <span className={FIELD_LABEL_CLASS}>{t.kampagne_pin_subline}</span>
                       <input
                         value={pin.subline}
                         onChange={(e) => updatePin(pin.id, 'subline', e.target.value)}
                         maxLength={PIN_SUBLINE_MAX}
-                        className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className={FIELD_CLASS}
                       />
                     </label>
 
-                    <div className="mb-2 grid grid-cols-2 gap-2">
+                    <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                       <label className="block">
-                        <span className="mb-1 block text-xs font-medium text-gray-700">{t.kampagne_pin_position}</span>
+                        <span className={FIELD_LABEL_CLASS}>{t.kampagne_pin_position}</span>
                         <select
                           value={position}
                           onChange={(e) =>
@@ -891,7 +911,7 @@ function KampagneContent() {
                               e.target.value === 'top' ? -0.15 : e.target.value === 'bottom' ? 0.15 : 0,
                             )
                           }
-                          className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className={FIELD_CLASS}
                         >
                           <option value="top">{t.kampagne_pin_position_top}</option>
                           <option value="middle">{t.kampagne_pin_position_middle}</option>
@@ -899,20 +919,26 @@ function KampagneContent() {
                         </select>
                       </label>
                       <label className="block">
-                        <span className="mb-1 block text-xs font-medium text-gray-700">{t.kampagne_pin_color}</span>
-                        <input
-                          type="color"
-                          value={pin.textColor}
-                          onChange={(e) => updatePin(pin.id, 'textColor', e.target.value)}
-                          className="h-9 w-full rounded-lg border border-gray-300 bg-white px-1"
-                        />
+                        <span className={FIELD_LABEL_CLASS}>{t.kampagne_pin_color}</span>
+                        <span className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={pin.textColor}
+                            onChange={(e) => updatePin(pin.id, 'textColor', e.target.value)}
+                            className="h-11 w-16 shrink-0 rounded-lg border border-gray-300 bg-white [color-scheme:light]"
+                          />
+                          {/* Der Farbwert ist im Feld selbst nicht ablesbar — hier steht er. */}
+                          <span className="rounded-md border border-gray-200 bg-white px-2 py-1 font-mono text-sm text-gray-900">
+                            {pin.textColor.toUpperCase()}
+                          </span>
+                        </span>
                       </label>
                     </div>
 
                     <label className="mb-2 block">
                       <span className="mb-1 flex items-center justify-between text-xs font-medium text-gray-700">
                         <span>{t.kampagne_pin_title}</span>
-                        <span className="text-gray-400">
+                        <span className="text-gray-500">
                           {pin.title.length}/{PIN_TITLE_MAX}
                         </span>
                       </span>
@@ -920,14 +946,14 @@ function KampagneContent() {
                         value={pin.title}
                         onChange={(e) => updatePin(pin.id, 'title', e.target.value)}
                         maxLength={PIN_TITLE_MAX}
-                        className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className={FIELD_CLASS}
                       />
                     </label>
 
                     <label className="block">
                       <span className="mb-1 flex items-center justify-between text-xs font-medium text-gray-700">
                         <span>{t.kampagne_pin_description}</span>
-                        <span className="text-gray-400">
+                        <span className="text-gray-500">
                           {pin.description.length}/{PIN_DESCRIPTION_MAX}
                         </span>
                       </span>
@@ -936,7 +962,7 @@ function KampagneContent() {
                         onChange={(e) => updatePin(pin.id, 'description', e.target.value)}
                         rows={3}
                         maxLength={PIN_DESCRIPTION_MAX}
-                        className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className={FIELD_CLASS}
                       />
                     </label>
                   </li>
@@ -978,7 +1004,7 @@ function KampagneContent() {
               <label className="mb-2 block">
                 <span className="mb-1 flex items-center justify-between text-xs font-medium text-gray-700">
                   <span>{t.kampagne_etsy_field_title}</span>
-                  <span className="text-gray-400">
+                  <span className="text-gray-500">
                     {etsy.title.length}/{ETSY_TITLE_MAX}
                   </span>
                 </span>
@@ -986,7 +1012,7 @@ function KampagneContent() {
                   value={etsy.title}
                   onChange={(e) => updateEtsy({ title: e.target.value })}
                   maxLength={ETSY_TITLE_MAX}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className={FIELD_CLASS}
                 />
               </label>
               <button
@@ -1000,7 +1026,7 @@ function KampagneContent() {
               <label className="mb-2 block">
                 <span className="mb-1 flex items-center justify-between text-xs font-medium text-gray-700">
                   <span>{t.kampagne_etsy_field_description}</span>
-                  <span className="text-gray-400">
+                  <span className="text-gray-500">
                     {etsy.description.length}/{ETSY_DESCRIPTION_MAX}
                   </span>
                 </span>
@@ -1009,7 +1035,7 @@ function KampagneContent() {
                   onChange={(e) => updateEtsy({ description: e.target.value })}
                   rows={6}
                   maxLength={ETSY_DESCRIPTION_MAX}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className={FIELD_CLASS}
                 />
               </label>
               <button
@@ -1031,7 +1057,7 @@ function KampagneContent() {
                   value={tagText}
                   onChange={(e) => onTagTextChange(e.target.value)}
                   rows={6}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className={FIELD_CLASS}
                 />
                 <span className="mt-1 block text-xs text-gray-500">{t.kampagne_etsy_tags_hint}</span>
               </label>

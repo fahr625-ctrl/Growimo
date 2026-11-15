@@ -86,59 +86,121 @@ export function sentence(text: string): string {
   return /[.!?]$/.test(v) ? v : `${v}.`;
 }
 
+// ── Vollständige Gedanken statt Zeichenfenster (2026-11-15) ──────────────────
+// Owner-Befund: „Für Menschen mit kleinem Bad, die klare Typografie" stand als
+// Pin-Überschrift — die Zielgruppenbeschreibung UND ein halber Satz. Ursache war
+// ein Zeichenfenster (`clip`), das mitten im Gedanken schneidet. Deshalb gibt es
+// für Pin-Texte jetzt zwei Bausteine, die nur an SINNGRENZEN schneiden:
+//   • `clauseClip`   — ganze Teilstücke (Komma/Semikolon/Gedankenstrich),
+//   • `sentenceClip` — ganze Sätze, immer mit Satzzeichen abgeschlossen.
+// Reicht schon das erste Teilstück nicht, wird es TROTZDEM ganz genommen: ein
+// langer vollständiger Gedanke ist besser als ein kurzer halber. Der Renderer
+// bricht um und verkleinert, statt zu kürzen.
+
+/** Grenzen zwischen Teilstücken eines Satzes. */
+const CLAUSE_SEP = /\s*[,;:–—]\s*/;
+
+/** Zerlegt in Teilstücke an Komma, Semikolon, Doppelpunkt, Gedankenstrich. */
+function splitClauses(text: string): string[] {
+  return clean(text)
+    .split(CLAUSE_SEP)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Der längste Anfang aus VOLLSTÄNDIGEN Teilstücken, der in `max` Zeichen passt.
+ * Nie ein halbes Teilstück — notfalls das erste Teilstück ganz.
+ */
+export function clauseClip(text: string, max: number): string {
+  const v = clean(text);
+  if (!v) return '';
+  if (v.length <= max) return trimDangling(v);
+  const parts = splitClauses(v);
+  let out = '';
+  for (const part of parts) {
+    const candidate = out ? `${out}, ${part}` : part;
+    if (candidate.length > max) break;
+    out = candidate;
+  }
+  return out || parts[0] || trimDangling(v);
+}
+
+/**
+ * Ganze Sätze, die in `max` Zeichen passen — immer mit Satzzeichen am Ende.
+ * `keepPeriod: false` für Überschriften (dort steht kein Schlusspunkt).
+ * Passt kein ganzer Satz, bleibt der erste Satz vollständig stehen.
+ */
+export function sentenceClip(text: string, max: number, keepPeriod = true): string {
+  const v = clean(text);
+  if (!v) return '';
+  const full = /[.!?]$/.test(v) ? v : `${v}.`;
+  const take = (s: string) => (keepPeriod ? s : s.replace(/[.!?]+$/, ''));
+  if (full.length <= max) return take(full);
+  const sentences = full.match(/[^.!?]+[.!?]+/g)?.map((s) => s.trim()).filter(Boolean) ?? [full];
+  let out = '';
+  for (const s of sentences) {
+    const candidate = out ? `${out} ${s}` : s;
+    if (candidate.length > max) break;
+    out = candidate;
+  }
+  return take(out || sentences[0]);
+}
+
 /**
  * Fünf Entwürfe: gleiche Quelle, unterschiedliche Layouts UND unterschiedliche
- * Botschaften. Die fünf Paare sind bewusst verschieden:
- *  1 Produkt → Kernbotschaft   2 Kernbotschaft → Produkt   3 Zielgruppe → Botschaft
- *  4 Kurzform (Produkt) → Zielgruppe   5 Kernbotschaft → Zielgruppe
+ * Botschaften. Jede Überschrift ist eine knappe Aussage zu Produkt oder Nutzen,
+ * jeder Untertitel ein vollständiger Satz. Die Zielgruppe steht NIE in der
+ * Überschrift (Owner-Befund 2026-11-15) — höchstens als vollständiger Satz im
+ * Untertitel.
+ *  1 Produkt → Nutzen            2 Nutzen → Zielgruppe
+ *  3 Produkt → Zielgruppe        4 Produkt (Kurzform, ohne Untertitel)
+ *  5 Nutzen ohne Untertitel (reduziert)
  */
 export function buildPinDrafts(source: PinSource): PinDraft[] {
   const P = clean(source.product);
   const A = clean(source.audience);
   const M = clean(source.message);
 
-  // Textmengen: der Renderer bricht um (auch an Bindestrichen) und verkleinert,
-  // wenn es nicht passt — gekürzt wird beim Setzen nie.
-  const pHead = clip(P, 60); // 3 Zeilen à 22
-  const pShort = clip(P, 34); // große Typo im Seitenstreifen
-  const pSub = clip(P, 68); // 2 Zeilen à 34/36
-  const mHead = clip(M, 60);
-  const mSub = clip(M, 58);
-  const aHead = A ? clip(`Für ${A}`, 52) : pHead;
-  // Ganze Zielgruppen-Aussage, nicht ein Zeichenfenster: ein 44-Zeichen-Schnitt
-  // ließ den Untertitel mitten im Satz enden („… die klare"). Der Renderer
-  // bricht um und verkleinert, statt zu kürzen.
-  const aSub = A ? clip(`Für ${sentence(A)}`, PIN_SUBLINE_MAX) : '';
+  // Überschriften: ganze Teilstücke des Nutzertexts, nie ein Zeichenfenster.
+  // „Digitales Gäste-WC-Poster mit Spruch, Schwarz-Weiß-Typografie" ⇒
+  // „Digitales Gäste-WC-Poster mit Spruch" (36 Zeichen, vollständig).
+  const pHead = clauseClip(P, 44);
+  // Nutzen-Überschrift: der ganze Satz aus der Kernbotschaft, ohne Schlusspunkt.
+  const mHead = sentenceClip(M, 56, false);
+  // Untertitel: immer ein vollständiger Satz mit Satzzeichen.
+  const mSub = sentenceClip(M, 68);
+  const aSub = A ? sentenceClip(`Für ${A}`, PIN_SUBLINE_MAX) : '';
 
   const titleFor = (...parts: string[]): string =>
-    clip(parts.filter(Boolean).join(' – '), PIN_TITLE_MAX);
+    clauseClip(parts.filter(Boolean).join(' – '), PIN_TITLE_MAX);
 
   return [
-    // 1 — Produkt-Fokus, klassisch unten links.
+    // 1 — Produkt + Nutzen, klassisch unten links.
     {
       id: 'pin-1',
       layout: 'bottom-left',
       headline: pHead || mHead,
-      subline: mSub || clip(A, 60),
+      subline: mSub || aSub,
       textColor: '#ffffff',
       align: 'left',
       offsetY: 0,
-      title: titleFor(pHead, A ? clip(A, 30) : ''),
+      title: titleFor(pHead, A ? clauseClip(A, 34) : ''),
       description: clip(
         [sentence(P), sentence(M), A ? `Für ${sentence(A)}` : ''].filter(Boolean).join(' '),
         PIN_DESCRIPTION_MAX,
       ),
     },
-    // 2 — Kernbotschaft im Kopfbalken.
+    // 2 — Nutzen im Kopfbalken, Zielgruppe als Satz darunter.
     {
       id: 'pin-2',
       layout: 'top-band',
       headline: mHead || pHead,
-      subline: pSub,
+      subline: aSub || mSub,
       textColor: '#ffffff',
       align: 'left',
       offsetY: 0,
-      title: titleFor(M ? clip(M, 50) : '', pHead),
+      title: titleFor(mHead, pHead),
       description: clip(
         [sentence(M) || sentence(P), sentence(P), A ? `Gedacht für ${sentence(A)}` : '']
           .filter(Boolean)
@@ -146,46 +208,46 @@ export function buildPinDrafts(source: PinSource): PinDraft[] {
         PIN_DESCRIPTION_MAX,
       ),
     },
-    // 3 — Zielgruppe, zentriert in der Karte.
+    // 3 — Produkt in der Karte, Zielgruppe als Satz darunter.
     {
       id: 'pin-3',
       layout: 'center-card',
-      headline: aHead,
-      subline: mSub || pSub,
+      headline: pHead || mHead,
+      subline: aSub || mSub,
       textColor: '#ffffff',
       align: 'center',
       offsetY: 0,
-      title: titleFor(pHead, M ? clip(M, 40) : ''),
+      title: titleFor(pHead, M ? clauseClip(M, 40) : ''),
       description: clip(
         [A ? `Für ${sentence(A)}` : '', sentence(P), sentence(M)].filter(Boolean).join(' '),
         PIN_DESCRIPTION_MAX,
       ),
     },
-    // 4 — Kurzform: große Typografie im Seitenstreifen, wenig Text.
+    // 4 — Kurzform: nur die Produkt-Aussage, große Typografie im Streifen.
     {
       id: 'pin-4',
       layout: 'side-stripe',
-      headline: pShort || clip(M, 30),
-      subline: aSub,
+      headline: pHead || mHead,
+      subline: '',
       textColor: '#ffffff',
       align: 'left',
       offsetY: 0,
-      title: titleFor(pShort, A ? clip(A, 34) : ''),
+      title: titleFor(pHead, A ? clauseClip(A, 34) : ''),
       description: clip(
         [sentence(P), A ? sentence(A) : '', sentence(M)].filter(Boolean).join(' '),
         PIN_DESCRIPTION_MAX,
       ),
     },
-    // 5 — Kernbotschaft + Zielgruppe, reduziert unten.
+    // 5 — Reduziert: nur die Nutzen-Aussage, kein Untertitel.
     {
       id: 'pin-5',
       layout: 'minimal-frame',
       headline: mHead || pHead,
-      subline: A ? clip(`Für ${A}`, 80) : pSub,
+      subline: '',
       textColor: '#ffffff',
       align: 'center',
       offsetY: 0,
-      title: titleFor(M ? clip(M, 45) : pHead, pHead),
+      title: titleFor(mHead, pHead),
       description: clip(
         [sentence(M), sentence(P), A ? `Für ${sentence(A)}` : ''].filter(Boolean).join(' '),
         PIN_DESCRIPTION_MAX,

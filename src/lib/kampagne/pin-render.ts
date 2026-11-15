@@ -99,7 +99,7 @@ export const PIN_LAYOUT_IDS: PinLayoutId[] = [
   'minimal-frame',
 ];
 
-type ScrimKind = 'bottom-band' | 'top-band' | 'center-card' | 'left-stripe' | 'bottom-band-soft';
+type ScrimKind = 'bottom-band' | 'top-band' | 'center-card' | 'bottom-corner' | 'bottom-band-soft';
 type FrameKind = 'inset' | 'rule' | 'none';
 type Anchor = 'top' | 'center' | 'bottom';
 
@@ -115,13 +115,22 @@ interface LayoutSpec {
   frame: FrameKind;
   frameWidth: number;
   /**
+   * Motivschutz (2026-11-15): Die Textfläche darf erst UNTERHALB dieser Höhe
+   * beginnen (Anteil der Pin-Höhe). Damit bleibt die Bildmitte — dort sitzt in
+   * den allermeisten Fotos das Produktmotiv — unverdeckt. Reicht der Platz
+   * nicht, verkleinert der Fit-Lauf die Schrift; gekürzt wird nie.
+   */
+  bandTopFrac?: number;
+  /** Abstand des Textblocks zur Unterkante in px (default 140). */
+  bottomInset?: number;
+  /**
    * Breitengebunden: die Zeichen pro Zeile bleiben beim Verkleinern KONSTANT.
    * Nötig, wenn die Textfläche eine feste Breite hat (Seitenstreifen) — sonst
    * würde kleiner gesetzte Schrift automatisch mehr Zeichen pro Zeile fassen
    * und die Fläche bliebe trotzdem so breit wie das Foto es zulässt.
    */
   widthBound?: boolean;
-  /** Feste Breite der Textfläche (px) — nur bei `left-stripe`. */
+  /** Feste Breite der Textfläche (px) — nur bei `bottom-corner`. */
   stripe?: { solid: number; fade: number };
 }
 
@@ -152,38 +161,40 @@ const LAYOUTS: Record<PinLayoutId, LayoutSpec> = {
     frame: 'rule',
     frameWidth: 8,
   },
-  // 3) Mittlere Karte: zentriert, gerundete Fläche in der Bildmitte.
+  // 3) Karte: gerundete Fläche, zentriert, aber im UNTEREN Bilddrittel — vorher
+  //    lag sie mitten auf dem Produktmotiv (Owner-Befund 2026-11-15).
   'center-card': {
     align: 'center',
-    anchor: 'center',
-    titleSize: 84,
-    subtitleSize: 40,
-    titleChars: 18,
-    subtitleChars: 30,
-    marginX: 96,
+    anchor: 'bottom',
+    titleSize: 60,
+    subtitleSize: 34,
+    titleChars: 21,
+    subtitleChars: 44,
+    marginX: 84,
     scrim: 'center-card',
     frame: 'none',
     frameWidth: 0,
+    bandTopFrac: 0.75,
+    bottomInset: 70,
   },
-  // 4) Seitliche Spalte: große Typo links, Fläche als senkrechter Streifen.
-  //    Der Streifen hat eine FESTE Breite (380 px deckend + 70 px Auslauf =
-  //    45 % der Pin-Breite). Vorher wuchs er mit dem breitesten Wort auf rund
-  //    drei Viertel des Bildes und nahm dem Foto die Hauptrolle. Deshalb wird
-  //    hier breitengebunden umbrochen (auch an Bindestrichen) und die Schrift
-  //    bei Bedarf verkleinert — nicht der Text gekürzt.
+  // 4) Seitenstreifen: schmale Textfläche am linken Rand, jetzt aber nur im
+  //    unteren Viertel (vorher über die volle Höhe — sie nahm dem Foto die
+  //    linke Hälfte und dem Poster die Sichtbarkeit). Die Fläche hat eine FESTE
+  //    Breite (440 px); die Schrift füllt sie aus, statt darüber hinauszuwachsen.
   'side-stripe': {
     align: 'left',
-    anchor: 'center',
+    anchor: 'bottom',
     titleSize: 56,
     subtitleSize: 30,
-    titleChars: 10,
-    subtitleChars: 19,
+    titleChars: 13,
+    subtitleChars: 23,
     marginX: 44,
-    scrim: 'left-stripe',
+    scrim: 'bottom-corner',
     frame: 'rule',
     frameWidth: 10,
-    widthBound: true,
-    stripe: { solid: 380, fade: 70 },
+    stripe: { solid: 440, fade: 0 },
+    bandTopFrac: 0.75,
+    bottomInset: 70,
   },
   // 5) Reduziert: wenig Text, zentriert unten, schmales Band statt Rahmenkarte.
   'minimal-frame': {
@@ -521,7 +532,7 @@ function geometry(input: PinRenderInput, scale = 1): TextGeometry {
 
   let blockTop =
     spec.anchor === 'bottom'
-      ? PIN_HEIGHT - 140 - blockHeight
+      ? PIN_HEIGHT - (spec.bottomInset ?? 140) - blockHeight
       : spec.anchor === 'top'
         ? 150
         : Math.round((PIN_HEIGHT - blockHeight) / 2);
@@ -682,20 +693,15 @@ function scrimLayerSvg(
     body =
       `<rect x="${Math.round(card.x)}" y="${Math.round(card.y)}" width="${Math.round(card.width)}" height="${Math.round(card.height)}" rx="36" ${fill} fill-opacity="${PANEL_OPACITY}" />`;
   } else {
-    // Senkrechter Streifen: FESTE Breite (deckend) + kurzer weicher Auslauf.
-    // Die Breite kommt aus dem Layout, nicht aus dem breitesten Wort — sonst
-    // frisst die Fläche das Foto.
-    const stripe = g.spec.stripe ?? { solid: 380, fade: 70 };
-    // Feste Breite: der Streifen sieht in jedem Pin gleich aus und lässt dem
-    // Foto den Rest. Die Textpassung stellt sicher, dass die Schrift hineinpasst.
+    // Seitenstreifen im unteren Bildviertel: FESTE Breite, Höhe ab der
+    // gemessenen Textbox bis zur Unterkante. Der senkrechte Akzentbalken links
+    // hält den Streifen-Charakter, ohne dem Foto die Mitte zu nehmen.
+    const stripe = g.spec.stripe ?? { solid: 440, fade: 0 };
     const solidW = Math.min(PIN_WIDTH, stripe.solid);
+    const blockTop = Math.max(0, Math.round(panel.y));
     body =
-      `<rect x="0" y="0" width="${solidW}" height="${PIN_HEIGHT}" ${fill} fill-opacity="${PANEL_OPACITY}" />` +
-      `<defs><linearGradient id="gFade" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0%" stop-color="${panelColor}" stop-opacity="${PANEL_OPACITY}" />
-        <stop offset="100%" stop-color="${panelColor}" stop-opacity="0" />
-      </linearGradient></defs>` +
-      `<rect x="${solidW}" y="0" width="${stripe.fade}" height="${PIN_HEIGHT}" fill="url(#gFade)" />`;
+      `<rect x="0" y="${blockTop}" width="${solidW}" height="${PIN_HEIGHT - blockTop}" ${fill} fill-opacity="${PANEL_OPACITY}" />` +
+      `<rect x="0" y="${blockTop}" width="${g.spec.frameWidth}" height="${PIN_HEIGHT - blockTop}" fill="${accent}" />`;
   }
 
   // Markenzeile bekommt eine eigene kleine Fläche (gleiche Deckkraft).
@@ -791,6 +797,8 @@ export interface PinRenderResult {
   libvips: string;
   /** Das tatsächlich verwendete Layout. */
   layout: PinLayoutId;
+  /** Deckende Textfläche (Foto-Koordinaten) — Beleg für den Motivschutz. */
+  panel: Rect;
 }
 
 /**
@@ -828,10 +836,15 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
       );
     }
     const padX = Math.round(28 + g.titleSize * 0.18);
+    const padY = Math.round(26 + g.titleSize * 0.12);
     const insideStripe = g.spec.stripe
       ? measured.box.right + padX <= g.spec.stripe.solid - 6
       : true;
-    if (boxFitsSafeArea(measured.box) && insideStripe) {
+    // Motivschutz: die Fläche (Textbox + Sicherheitsabstand) muss vollständig
+    // unterhalb der Bandgrenze liegen — sonst nächste, kleinere Schriftstufe.
+    const bandTop = g.spec.bandTopFrac ? Math.round(PIN_HEIGHT * g.spec.bandTopFrac) : 0;
+    const insideBand = measured.box.top - padY >= bandTop;
+    if (boxFitsSafeArea(measured.box) && insideStripe && insideBand) {
       geometryUsed = g;
       textLayer = measured;
       fontScale = scale;
@@ -841,7 +854,7 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
   if (!geometryUsed || !textLayer) {
     throw new PinRenderError(
       'text_overflow',
-      'Der Text passt auch verkleinert nicht in den sicheren Rand des Pins.',
+      'Der Text passt auch verkleinert nicht in den sicheren Rand oder in die Textfläche des Pins.',
     );
   }
 
@@ -967,5 +980,6 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
     sharpVersion: String(versions.sharp ?? 'unbekannt'),
     libvips: String(versions.vips ?? 'unbekannt'),
     layout,
+    panel,
   };
 }
