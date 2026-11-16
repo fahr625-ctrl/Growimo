@@ -30,11 +30,15 @@ export function AnalyticsConsent() {
     setVisible(false);
   };
 
+  // Mobilbreite (Owner-Befund 2026-11-16): Der Hinweis steht im Dokumentfluss
+  // UNTER dem Seiteninhalt statt als Overlay — so verdeckt er keine
+  // Formularfelder, bevor er entschieden ist. Ab `md` unverändert: fest unten
+  // links wie bisher. Der Hinweis wird nur ausgeblendet, nie gelöscht.
   return (
     <div
       role="region"
       aria-label={t.consent_analytics_title}
-      className="fixed bottom-3 left-3 z-40 max-w-sm rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-lg backdrop-blur"
+      className="z-40 mx-3 my-3 max-w-none rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-lg backdrop-blur md:fixed md:bottom-3 md:left-3 md:m-0 md:max-w-sm"
     >
       <p className="text-sm font-semibold text-gray-900">{t.consent_analytics_title}</p>
       <p className="mt-1 text-xs text-gray-600">{t.consent_analytics_text}</p>
