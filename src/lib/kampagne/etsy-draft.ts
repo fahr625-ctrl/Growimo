@@ -98,7 +98,8 @@ const NEGATION_TAIL = new Set([
 /**
  * Einzelwörter, die allein als Tag nichts taugen: reine Eigenschafts- und
  * Vergleichswörter („größer", „bunt"). In einer Wendung bleiben sie erlaubt
- * („bunte baddeko").
+ * („bunte baddeko"). `WEAK_STEMS` deckt die gebeugten Formen ab, damit nicht
+ * „kleinem" allein stehen bleibt, weil nur „kleiner" in der Liste stand.
  */
 const WEAK_WORDS = new Set([
   'größer', 'groesser', 'größer', 'kleiner', 'kleines', 'kleine', 'groß', 'gross', 'große',
@@ -108,6 +109,19 @@ const WEAK_WORDS = new Set([
   'langsam', 'langsamer', 'langsames', 'schneller', 'schnelles',
   'bigger', 'smaller', 'cute', 'funny', 'perfect', 'great', 'nice', 'best',
 ]);
+const WEAK_STEMS = new Set([
+  'klein', 'gross', 'groß', 'bunt', 'schön', 'schoen', 'lustig', 'süß', 'suess',
+  'perfekt', 'ideal', 'hochwertig', 'modern', 'einfach', 'schnell', 'günstig', 'guenstig',
+  'toll', 'super', 'echt', 'ganz', 'richtig', 'langsam', 'big', 'small', 'cute',
+  'funny', 'perfect', 'great', 'nice', 'best',
+]);
+
+/** Ist das Wort (auch gebeugt) ein reines Eigenschaftswort? */
+function isWeakWord(word: string): boolean {
+  if (WEAK_WORDS.has(word)) return true;
+  const stem = word.replace(/(?:e|em|en|er|es)$/, '');
+  return stem !== word && WEAK_STEMS.has(stem);
+}
 
 /**
  * Einzelwörter, die allein keinen Tag abgeben, weil sie nichts beschreiben
@@ -177,7 +191,7 @@ function isContentWord(word: string): boolean {
   const bare = word.replace(/-/g, '');
   if (bare.length < 3) return false;
   if (/^[0-9]+$/.test(bare)) return false;
-  if (TAG_STOPWORDS.has(word) || TAG_VERBS.has(word) || WEAK_WORDS.has(word)) return false;
+  if (TAG_STOPWORDS.has(word) || TAG_VERBS.has(word) || isWeakWord(word)) return false;
   return true;
 }
 
@@ -198,6 +212,25 @@ function isPhrase(words: readonly string[]): boolean {
   const last = words[words.length - 1]!;
   if (!isContentWord(first) || !isContentWord(last)) return false;
   return !words.some((word) => TAG_VERBS.has(word) || NEGATION_WORDS.has(word));
+}
+
+/**
+ * Der Kern einer Klausel: führende Füllwörter („Ein frecher Spruch", „die
+ * Baddeko …") und das abschließende Verb („… zum Schmunzeln bringt", „…
+ * mögen") weg. Was übrig bleibt, ist die vollständige Aussage der Klausel —
+ * kein Ausschnitt daraus. Bleibt nichts übrig, gibt die Klausel keinen Tag.
+ */
+function clauseCore(words: readonly string[]): string[] {
+  let start = 0;
+  let end = words.length;
+  for (;;) {
+    const before = `${start}:${end}`;
+    while (start < end && TAG_STOPWORDS.has(words[start]!)) start++;
+    while (end > start && TAG_STOPWORDS.has(words[end - 1]!)) end--;
+    while (end > start && TAG_VERBS.has(words[end - 1]!)) end--;
+    if (`${start}:${end}` === before) break;
+  }
+  return words.slice(start, end);
 }
 
 /**
@@ -227,6 +260,9 @@ export function etsyTagCandidates(source: EtsySource): string[] {
     if (tag.length < 2 || tag.length > ETSY_TAG_MAX_CHARS) return false;
     if (isGenericSingle(tag)) return false;
     if (seen.has(tag)) return false;
+    // Ein Bindestrich-Teil neben seinem längeren Begriff („gäste-wc" neben
+    // „gäste-wc-poster") trägt nichts Eigenes und entfällt.
+    if (tag.includes('-') && !tag.includes(' ') && out.some((t) => t.includes(tag))) return false;
     seen.add(tag);
     out.push(tag);
     return true;
@@ -246,20 +282,22 @@ export function etsyTagCandidates(source: EtsySource): string[] {
 
   const fields = [source.product, source.audience, source.message].map(allClauses);
 
-  /** Die Wendungen einer Klausel: ganze Klausel, Bindestrich-Begriff, dann
-   *  Fenster von drei, dann zwei Wörtern. */
+  /**
+   * Die Wendungen einer Klausel: die VOLLSTÄNDIGE Klausel (ohne führende
+   * Füllwörter und ohne das abschließende Verb) und ein Bindestrich-Begriff.
+   *
+   * Keine verschobenen Wortfenster (Owner-Befund 2026-11-16): „Menschen mit
+   * kleinem Gäste-WC" ergab als Dreier-Fenster „menschen mit kleinem" und als
+   * Zweier-Fenster „kleinem gäste-wc" — Wortfetzen, die niemand sucht. Ein
+   * mehrwortiger Tag entsteht nur noch aus einer ganzen Klausel.
+   */
   const phrasesOf = (words: readonly string[]): string[] => {
     const found: string[] = [];
-    if (isPhrase(words)) found.push(words.join(' '));
+    const core = clauseCore(words);
+    if (isPhrase(core)) found.push(core.join(' '));
     // „Gäste-WC-Poster" ist auch als Einzelwort eine Wendung.
     for (const word of words) {
       if (word.includes('-') && word.replace(/-/g, '').length >= 3) found.push(word);
-    }
-    for (const size of [3, 2]) {
-      for (let i = 0; i + size <= words.length; i++) {
-        const window = words.slice(i, i + size);
-        if (isPhrase(window)) found.push(window.join(' '));
-      }
     }
     return found;
   };
