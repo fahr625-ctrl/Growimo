@@ -336,7 +336,7 @@ function BrandContent() {
                         : 'rounded-xl border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-700 transition-all hover:border-blue-500 hover:text-blue-600'
                     }
                   >
-                    {t[FONT_LABEL_KEYS[id]]}
+                    {t[FONT_LABEL_KEYS[id as keyof typeof FONT_LABEL_KEYS] ?? 'brand_font_sans']}
                   </button>
                 );
               })}
