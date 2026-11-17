@@ -40,7 +40,6 @@
 //   • Text muss den Mindestkontrast erreichen (`contrast_too_low`).
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { createHash } from 'node:crypto';
 import { loadSharp, type SharpFactory } from './sharp-loader';
 import { PIN_FONT_STACKS } from './pin-fonts';
 
@@ -489,6 +488,20 @@ const PROBE_H = 240;
 const fontProbes = new Map<string, FontProbe>();
 const glyphHashes = new Map<string, string>();
 
+// `node:crypto` wird wie `sharp` erst zur Laufzeit geladen und der Modulname
+// erst dort gebildet: pin-render.ts ist über pin-drafts.ts auch aus dem
+// Client-Graphen erreichbar, und ein statischer `node:crypto`-Import bricht
+// `vite build` ab ("createHash is not exported by __vite-browser-external").
+const CRYPTO_MODULE = 'node:crypto';
+let cryptoModule: typeof import('node:crypto') | null = null;
+
+async function sha1Hex(buf: Buffer): Promise<string> {
+  if (!cryptoModule) {
+    cryptoModule = (await import(/* @vite-ignore */ CRYPTO_MODULE)) as typeof import('node:crypto');
+  }
+  return cryptoModule.createHash('sha1').update(buf).digest('hex');
+}
+
 /** Zeichen einer Familie rendern und das Pixelbild hashen (gecacht). */
 async function glyphHash(
   sharp: SharpFactory,
@@ -504,7 +517,7 @@ async function glyphHash(
       `font-size="${PROBE_SIZE}" font-weight="700" fill="#ffffff">${esc(char)}</text></svg>`,
   );
   const layer = await measureInk(sharp, svg);
-  const hash = createHash('sha1').update(layer.raw).digest('hex');
+  const hash = await sha1Hex(layer.raw);
   glyphHashes.set(key, hash);
   return hash;
 }
