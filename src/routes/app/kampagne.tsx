@@ -120,6 +120,9 @@ function KampagneContent() {
   const [pinError, setPinError] = useState<string | null>(null);
   const [brandName, setBrandName] = useState('');
   const [brandColors, setBrandColors] = useState('');
+  // Brand Kit (2026-11-16): Logo + Schriftwahl aus dem Markenprofil
+  const [brandLogo, setBrandLogo] = useState('');
+  const [brandFontId, setBrandFontId] = useState('');
   const [brandAvailable, setBrandAvailable] = useState(false);
   const renderPhotoRef = useRef<{ src: string; out: string } | null>(null);
   const renderTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -151,6 +154,8 @@ function KampagneContent() {
     if (!profile) return;
     setBrandName(profile.brandName ?? '');
     setBrandColors(profile.brandColors ?? '');
+    setBrandLogo(profile.logo ?? '');
+    setBrandFontId(profile.fontId ?? '');
     setBrandAvailable(!!(profile.brandName || profile.brandColors));
   }, []);
 
@@ -159,8 +164,10 @@ function KampagneContent() {
       applied: draft.brandApplied === true,
       colors: brandColors,
       name: brandName,
+      logo: brandLogo,
+      fontId: brandFontId,
     }),
-    [draft.brandApplied, brandColors, brandName],
+    [draft.brandApplied, brandColors, brandName, brandLogo, brandFontId],
   );
 
   const applyPins = useCallback((next: PinDraft[]) => {
@@ -525,6 +532,8 @@ function KampagneContent() {
           applied: record.brandApplied === true,
           colors: brandColors,
           name: brandName,
+          logo: brandLogo,
+          fontId: brandFontId,
         };
         const photoUrl = await ensureRenderPhoto(record.photoDataUrl);
         for (const pin of record.pins) {

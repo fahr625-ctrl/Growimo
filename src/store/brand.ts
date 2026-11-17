@@ -2,6 +2,31 @@
 // In-memory store with localStorage persistence for brand profile.
 // The brand context is automatically injected into every new strategy generation.
 
+/**
+ * Brand Kit (2026-11-16) — kuratierte, lizenzsichere Schriftfamilien.
+ * Bewusst KEIN Font-Upload: jede Familie liegt eingebettet im Server-Renderer,
+ * damit Vorschau, PNG und ZIP dieselbe Schrift zeigen. `''` = keine Wahl.
+ */
+export type BrandFontId = '' | 'sans' | 'serif' | 'mono';
+
+/** Reihenfolge der Auswahl in der Oberfläche. */
+export const BRAND_FONT_IDS: BrandFontId[] = ['sans', 'serif', 'mono'];
+
+/** Ist der gespeicherte Wert eine wählbare Schrift? */
+export function isBrandFontId(value: unknown): value is BrandFontId {
+  return value === '' || value === 'sans' || value === 'serif' || value === 'mono';
+}
+
+/**
+ * Logo-Data-URLs: NUR Rasterformate (PNG/JPEG/WebP). Kein SVG — ein SVG ist
+ * kein Bild, sondern ausführbares Markup und müsste erst gerastert werden.
+ */
+const LOGO_DATA_URL = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
+
+export function isBrandLogo(value: unknown): value is string {
+  return typeof value === 'string' && LOGO_DATA_URL.test(value);
+}
+
 export interface BrandProfile {
   brandName: string;
   // NEU: Website / Online-Präsenz des Unternehmens (optional)
@@ -23,6 +48,18 @@ export interface BrandProfile {
   // NEU: Dinge, die Growimo NIEMALS behaupten darf (optional)
   neverClaim: string;
   brandVoice: string;
+  /**
+   * Brand Kit (2026-11-16) — optionales Logo als Data-URL
+   * (`data:image/png|jpeg|webp;base64,…`, längste Kante ≤ 512 px, ≤ 300 KB).
+   * Leerstring = kein Logo = die Pins sehen aus wie bisher.
+   */
+  logo: string;
+  /**
+   * Brand Kit (2026-11-16) — Schriftwahl. `''` und `'sans'` = die bisherige
+   * Schrift (Liberation Sans); `'serif'`/`'mono'` = eine der kuratierten,
+   * lizenzsicheren Familien. Alt-Profile ohne das Feld rendern unverändert.
+   */
+  fontId: BrandFontId;
   /**
    * Phase 1 (Stabilisierung, C4) — EIN/AUS-Schalter des Markenprofils.
    * `false` = das Profil bleibt gespeichert, wird aber NIRGENDS verwendet
@@ -74,6 +111,12 @@ export function normalizeBrandProfile(profile: Partial<BrandProfile>): BrandProf
     avoidTopics: profile.avoidTopics ?? '',
     neverClaim: profile.neverClaim ?? '',
     brandVoice: profile.brandVoice ?? '',
+    // Brand Kit (2026-11-16): Alt-Profile haben diese Felder nicht ⇒ kein Logo,
+    // keine Schriftwahl ⇒ die Pins bleiben unverändert. Ein unbrauchbarer Wert
+    // (z. B. SVG-Data-URL aus einer älteren Version) wird NICHT gelöscht, sondern
+    // beim Laden als „kein Logo" gelesen.
+    logo: isBrandLogo(profile.logo) ? profile.logo : '',
+    fontId: isBrandFontId(profile.fontId) ? profile.fontId : '',
     // Alt-Profile ohne das Feld bleiben aktiv (keine Verhaltensänderung).
     enabled: profile.enabled !== false,
     lastUpdated: (profile as BrandProfile).lastUpdated ?? '',

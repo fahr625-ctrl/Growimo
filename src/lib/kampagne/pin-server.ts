@@ -22,6 +22,7 @@ import {
 } from './pin-render';
 import { sanitizePinDrafts, type PinDraft } from './pin-drafts';
 import { parseImageDataUrl } from './campaign';
+import { isPinFontId, PIN_FONT_STACKS } from './pin-fonts';
 
 export interface PinBrandInput {
   /** Markenprofil aktiv? (Schalter im UI) */
@@ -30,7 +31,21 @@ export interface PinBrandInput {
   colors?: string | null;
   /** Markenname — erscheint als kleine Zeile auf dem Pin. */
   name?: string | null;
+  /**
+   * Brand Kit 2026-11-16: optionales Logo als Data-URL
+   * (`data:image/png|jpeg|webp;base64,…`). Leerstring/fehlt = kein Logo =
+   * bisheriges Pin. Wirkt nur, wenn `applied` true ist.
+   */
+  logo?: string | null;
+  /**
+   * Brand Kit 2026-11-16: Schriftwahl `'' | 'sans' | 'serif' | 'mono'`.
+   * `''` und `'sans'` = die bisherige Schrift (Liberation Sans).
+   */
+  fontId?: string | null;
 }
+
+/** Logo-Obergrenze (SPEC §1: Data-URL ≤ 300 KB). */
+export const LOGO_MAX_BYTES = 300 * 1024;
 
 export interface RenderedPin {
   id: string;
@@ -55,7 +70,14 @@ export function parseBrandColors(colors: string | null | undefined): {
   return { primary: normalized[0] ?? null, accent: normalized[1] ?? normalized[0] ?? null };
 }
 
-/** Markenprofil für den Renderer bauen — ohne Profil/Farbe bleibt alles neutral. */
+/**
+ * Markenprofil für den Renderer bauen — ohne Profil/Farbe bleibt alles neutral.
+ *
+ * Brand Kit 2026-11-16: Die Schriftwahl wird hier zur CSS-Kette. Sie wird NUR
+ * gesetzt, wenn wirklich eine andere Familie gewählt ist (`serif`/`mono`);
+ * ohne Wahl bleibt `fontFamily` leer und der Renderer nimmt exakt die bisherige
+ * Kette — der Pin bleibt dann Byte für Byte derselbe.
+ */
 export function pinBrandFrom(input: PinBrandInput | null | undefined): {
   brand: PinBrand | null;
   brandLine: string | null;
@@ -63,8 +85,18 @@ export function pinBrandFrom(input: PinBrandInput | null | undefined): {
   if (!input || input.applied !== true) return { brand: null, brandLine: null };
   const { primary, accent } = parseBrandColors(input.colors);
   const name = (input.name ?? '').trim().slice(0, 40);
-  if (!primary) return { brand: null, brandLine: name || null };
-  return { brand: { primary, accent: accent ?? primary }, brandLine: name || null };
+  const fontFamily =
+    isPinFontId(input.fontId) && input.fontId !== 'sans' ? PIN_FONT_STACKS[input.fontId] : null;
+  // Ohne Farbe UND ohne Schriftwahl bleibt das Pin neutral (wie bisher).
+  if (!primary && !fontFamily) return { brand: null, brandLine: name || null };
+  return {
+    brand: {
+      primary: primary ?? null,
+      accent: accent ?? primary ?? null,
+      fontFamily,
+    },
+    brandLine: name || null,
+  };
 }
 
 export class PinServerError extends Error {
@@ -111,6 +143,26 @@ export const renderPinsServer = createServerFn({ method: 'POST' })
     const photoBytes = new Uint8Array(Buffer.from(photo.base64, 'base64'));
     const { brand, brandLine } = pinBrandFrom(data.brand);
 
+    // Brand Kit 2026-11-16: Logo nur, wenn das Markenprofil aktiv ist. Ein
+    // vorhandenes, aber unlesbares Logo ist ein FEHLER — es wird nicht
+    // stillschweigend weggelassen (sonst behauptet das Pin eine Marke, die
+    // nicht darauf ist).
+    let logoBytes: Uint8Array | null = null;
+    const logoRaw = (data.brand?.applied === true ? (data.brand.logo ?? '') : '').trim();
+    if (logoRaw) {
+      const parsedLogo = parseImageDataUrl(logoRaw);
+      if (!parsedLogo) {
+        throw new PinServerError(
+          'invalid_input',
+          'Das Logo ist kein lesbares PNG/JPEG/WebP. Bitte erneut hochladen.',
+        );
+      }
+      if (parsedLogo.bytes > LOGO_MAX_BYTES) {
+        throw new PinServerError('invalid_input', 'Das Logo ist zu groß (höchstens 300 KB).');
+      }
+      logoBytes = new Uint8Array(Buffer.from(parsedLogo.base64, 'base64'));
+    }
+
     // Schrift bereitstellen, BEVOR der erste Text gezeichnet wird: im
     // Laufzeit-Image gibt es keine Systemschriften (Befund 2026-11-15).
     const { ensurePinFonts } = await import('./pin-font');
@@ -129,6 +181,7 @@ export const renderPinsServer = createServerFn({ method: 'POST' })
           overlay: { textColor: draft.textColor, align: draft.align, offsetY: draft.offsetY },
           brandLine,
           brand,
+          logo: logoBytes,
           title: draft.headline,
           subtitle: draft.subline || null,
         });

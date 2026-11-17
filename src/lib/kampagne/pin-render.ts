@@ -40,7 +40,9 @@
 //   • Text muss den Mindestkontrast erreichen (`contrast_too_low`).
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { createHash } from 'node:crypto';
 import { loadSharp, type SharpFactory } from './sharp-loader';
+import { PIN_FONT_STACKS } from './pin-fonts';
 
 export const PIN_WIDTH = 1000;
 export const PIN_HEIGHT = 1500;
@@ -50,7 +52,7 @@ export const PIN_HEIGHT = 1500;
 // darauf ein) — damit der Pin überall gleich aussieht. Die Systemschriften
 // danach sind nur Rückfall für die lokale Entwicklung.
 export const PIN_FONT_STACK =
-  '"Liberation Sans", "DejaVu Sans", "Noto Sans", Arial, Helvetica, sans-serif';
+  PIN_FONT_STACKS.sans;
 
 /** Schriftgröße der Schrift-Prüfung (Tofu-Erkennung). */
 const PROBE_SIZE = 100;
@@ -259,9 +261,9 @@ function hexLuminance(hex: string): number {
 
 export interface PinBrand {
   /** Primärfarbe (Hex, z. B. #1f2937) — Fläche hinter dem Text. */
-  primary: string;
+  primary?: string | null;
   /** Akzentfarbe (Hex) — Rahmen/Trennlinie. */
-  accent: string;
+  accent?: string | null;
   /** Schriftfamilie (nur OFL-Namen), leer = PIN_FONT_STACK. */
   fontFamily?: string | null;
 }
@@ -279,11 +281,15 @@ export interface PinOverlay {
 export interface PinRenderInput {
   /** Originalfoto des Nutzers (JPEG/PNG/WebP). */
   photo: Uint8Array;
-  /** Optionales Logo (PNG mit Transparenz). */
+  /** Optionales Logo (PNG/JPEG/WebP; Transparenz wird übernommen). */
   logo?: Uint8Array | null;
-  /** Logo-Position; default 'bottom-right'. */
+  /**
+   * @deprecated Brand Kit 2026-11-16: Position und Größe sind jetzt fest
+   * (SPEC §3: unten rechts, ≤ 26 % Breite, ≤ 10 % Höhe, 40 px Rand). Die Felder
+   * bleiben nur für ältere Aufrufer stehen und werden nicht mehr ausgewertet.
+   */
   logoPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
-  /** Logo-Breite in px (default 180). */
+  /** @deprecated siehe `logoPosition`. */
   logoWidth?: number;
   /** Eines der fünf Layouts; default 'bottom-left'. */
   layout?: PinLayoutId;
@@ -301,6 +307,7 @@ export class PinRenderError extends Error {
   code:
     | 'no_photo'
     | 'font_missing'
+    | 'logo_unreadable'
     | 'text_overflow'
     | 'text_truncated'
     | 'contrast_too_low'
@@ -455,19 +462,73 @@ function boxFitsSafeArea(box: InkBox): boolean {
 // OB Pixel da sind, sondern ob verschiedene Zeichen VERSCHIEDEN breit sind:
 // mit echter Schrift ist „MMMM" deutlich breiter als „iiii", mit Tofu sind
 // beide gleich breit. Ohne diesen Nachweis gibt es kein Bild.
-let fontProbe: { ratio: number; mmmm: number; iiii: number } | null = null;
+//
+// BRAND KIT 2026-11-16: Die Prüfung läuft jetzt GEGEN DIE GEWÄHLTE FAMILIE
+// (vorher fest gegen Liberation Sans). Zwei Stufen:
+//   (a) Breiten-Verhältnis „MMMM"/„iiii" — erkennt „es gibt überhaupt keine
+//       Schrift". Bei einer Monospace-Familie ist das Verhältnis bauartbedingt
+//       1,0; dort wird (a) übersprungen und (b) entscheidet.
+//   (b) GLYPHEN-ABGLEICH: jedes Zeichen, das wirklich im Text steht, wird
+//       einzeln gerendert und mit der Referenz für „dieses Zeichen gibt es
+//       nicht" (Private-Use U+E000) verglichen. Gleiches Pixelbild ⇒ Tofu ⇒
+//       Fehler. Das ist der Fall, den (a) nicht sehen kann: eine Familie ist da,
+//       aber ein Zeichen fehlt (z. B. außerhalb des beschnittenen Zeichensatzes).
+interface FontProbe {
+  ratio: number;
+  mmmm: number;
+  iiii: number;
+  /** Pixel-Hash des Ersatzzeichens (.notdef) dieser Familie. */
+  notdefHash: string;
+}
 
-/** Prüft, ob die Schriftkette wirklich Glyphen zeichnet (einmal je Prozess). */
-export async function assertFontRenders(sharp: SharpFactory): Promise<void> {
+/** Referenzzeichen: in keiner eingebetteten Schrift vorhanden ⇒ .notdef. */
+const NOTDEF_CHAR = '\uE000';
+const PROBE_W = 600;
+const PROBE_H = 240;
+
+const fontProbes = new Map<string, FontProbe>();
+const glyphHashes = new Map<string, string>();
+
+/** Zeichen einer Familie rendern und das Pixelbild hashen (gecacht). */
+async function glyphHash(
+  sharp: SharpFactory,
+  family: string,
+  char: string,
+): Promise<string> {
+  const key = `${family}\u0000${char}`;
+  const cached = glyphHashes.get(key);
+  if (cached) return cached;
+  const svg = Buffer.from(
+    `<svg width="${PROBE_W}" height="${PROBE_H}" xmlns="http://www.w3.org/2000/svg">` +
+      `<text x="10" y="${Math.round(PROBE_SIZE * 1.6)}" font-family='${esc(family)}' ` +
+      `font-size="${PROBE_SIZE}" font-weight="700" fill="#ffffff">${esc(char)}</text></svg>`,
+  );
+  const layer = await measureInk(sharp, svg);
+  const hash = createHash('sha1').update(layer.raw).digest('hex');
+  glyphHashes.set(key, hash);
+  return hash;
+}
+
+/**
+ * Prüft, ob die Schriftkette wirklich Glyphen zeichnet (einmal je Familie).
+ * Ohne `fontFamily` gilt die Standardkette — dann ist das Verhalten exakt das
+ * bisherige.
+ */
+export async function assertFontRenders(
+  sharp: SharpFactory,
+  fontFamily?: string | null,
+): Promise<FontProbe> {
+  const family = (fontFamily ?? '').trim() || PIN_FONT_STACK;
   // Ein positives Ergebnis gilt für den Prozess. Ein negatives wird NICHT
   // gemerkt: es kann an einer vorübergehenden Lage liegen (Schrift noch nicht
   // abgelegt) und darf die Instanz nicht dauerhaft sperren.
-  if (fontProbe) return;
+  const cached = fontProbes.get(family);
+  if (cached) return cached;
 
   const measure = async (text: string): Promise<number> => {
     const svg = Buffer.from(
-      `<svg width="${PIN_WIDTH}" height="${PROBE_SIZE * 2}" xmlns="http://www.w3.org/2000/svg">` +
-        `<text x="10" y="${Math.round(PROBE_SIZE * 1.4)}" font-family='${esc(PIN_FONT_STACK)}' ` +
+      `<svg width="${PROBE_W}" height="${PROBE_H}" xmlns="http://www.w3.org/2000/svg">` +
+        `<text x="10" y="${Math.round(PROBE_SIZE * 1.6)}" font-family='${esc(family)}' ` +
         `font-size="${PROBE_SIZE}" font-weight="700" fill="#ffffff">${text}</text></svg>`,
     );
     const layer = await measureInk(sharp, svg);
@@ -477,15 +538,52 @@ export async function assertFontRenders(sharp: SharpFactory): Promise<void> {
   const iiii = await measure('iiii');
   // Echte Schrift: „MMMM" mindestens 1,6× so breit wie „iiii" (Liberation Sans
   // ≈ 3,3×). Tofu liegt bei 1,0, weil jedes Zeichen dasselbe Kästchen ist.
+  // Monospace: alle Zeichen gleich breit — dort entscheidet der Glyphen-Abgleich.
+  const monospace = /mono/i.test(family);
   const ratio = iiii > 0 ? mmmm / iiii : 0;
-  if (mmmm > 0 && iiii > 0 && ratio >= 1.6) {
-    fontProbe = { ratio, mmmm, iiii };
-    return;
+  const notdefHash = await glyphHash(sharp, family, NOTDEF_CHAR);
+  const glyphOk = mmmm > 0 && iiii > 0 && (monospace || ratio >= 1.6);
+  if (!glyphOk || (await glyphHash(sharp, family, 'M')) === notdefHash) {
+    throw new PinRenderError(
+      'font_missing',
+      `Schrift zeichnet keine Zeichen (Breiten-Verhältnis MMMM/iiii = ${ratio.toFixed(2)}, Monospace = ${monospace}) — im Laufzeit-Image fehlt die Schrift „${family}".`,
+    );
   }
-  throw new PinRenderError(
-    'font_missing',
-    `Schrift zeichnet keine Zeichen (Breiten-Verhältnis MMMM/iiii = ${ratio.toFixed(2)} statt ≥ 1,6) — im Laufzeit-Image fehlt eine Schrift.`,
-  );
+  const probe: FontProbe = { ratio, mmmm, iiii, notdefHash };
+  fontProbes.set(family, probe);
+  return probe;
+}
+
+/**
+ * Tofu-Prüfung gegen die GEWÄHLTE Familie: jedes Zeichen, das im Pin wirklich
+ * vorkommt, muss in dieser Familie vorhanden sein. Fehlt eines, gibt es KEIN
+ * Bild — ein leeres Kästchen ist ein stiller Textabbruch und damit verboten.
+ */
+export async function assertGlyphsRenderable(
+  sharp: SharpFactory,
+  fontFamily: string | null | undefined,
+  texts: (string | null | undefined)[],
+): Promise<void> {
+  const family = (fontFamily ?? '').trim() || PIN_FONT_STACK;
+  const probe = await assertFontRenders(sharp, family);
+  const chars = new Set<string>();
+  for (const text of texts) {
+    for (const char of Array.from(text ?? '')) {
+      if (/\s/.test(char)) continue;
+      chars.add(char);
+    }
+  }
+  const missing: string[] = [];
+  for (const char of chars) {
+    if ((await glyphHash(sharp, family, char)) === probe.notdefHash) missing.push(char);
+  }
+  if (missing.length > 0) {
+    const list = missing.map((c) => `„${c}" (U+${c.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')})`);
+    throw new PinRenderError(
+      'font_missing',
+      `Die gewählte Schrift „${family}" hat ${missing.length} Zeichen des Textes nicht (${list.join(', ')}) — es entstünde ein leeres Kästchen. Bitte eine andere Schrift wählen oder das Zeichen ersetzen.`,
+    );
+  }
 }
 
 // ── Geometrie ────────────────────────────────────────────────────────────────
@@ -799,6 +897,79 @@ export interface PinRenderResult {
   layout: PinLayoutId;
   /** Deckende Textfläche (Foto-Koordinaten) — Beleg für den Motivschutz. */
   panel: Rect;
+  /** Logoplatzierung im Pin (null = kein Logo) — Beleg für die SPEC-Grenzen. */
+  logo: { top: number; left: number; width: number; height: number } | null;
+}
+
+// ── Logo (Brand Kit 2026-11-16) ──────────────────────────────────────────────
+
+/** Grenzen aus SPEC §3: 26 % der Breite, 10 % der Höhe, 40 px Rand. */
+const LOGO_MAX_WIDTH = Math.round(PIN_WIDTH * 0.26); // 260 px
+const LOGO_MAX_HEIGHT = Math.round(PIN_HEIGHT * 0.1); // 150 px
+const LOGO_MARGIN = 40;
+
+function overlapsInk(rect: Rect, box: InkBox): boolean {
+  return (
+    rect.x < box.right && rect.x + rect.width > box.left && rect.y < box.bottom && rect.y + rect.height > box.top
+  );
+}
+
+/**
+ * Logo auf Pin-Maß bringen und platzieren: unten rechts, 40 px Rand, ÜBER Foto
+ * und Textfläche. Das Seitenverhältnis bleibt erhalten (fit: inside), das Logo
+ * wird nie vergrößert. Kollidiert es mit dem Text oder der Markenzeile, wandert
+ * es nach OBEN aus dem Weg — Lesbarkeit vor Zierde, aber ohne die Ecke zu
+ * verlassen. Ist das Logo nicht lesbar, gibt es einen Fehler (kein stilles
+ * Weglassen).
+ */
+async function placeLogo(
+  sharp: SharpFactory,
+  logo: Uint8Array,
+  obstacles: (InkBox | null)[],
+): Promise<{ png: Buffer; top: number; left: number; width: number; height: number }> {
+  let png: Buffer;
+  try {
+    png = await sharp(Buffer.from(logo))
+      .rotate()
+      .resize({
+        width: LOGO_MAX_WIDTH,
+        height: LOGO_MAX_HEIGHT,
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .png()
+      .toBuffer();
+  } catch (err) {
+    throw new PinRenderError(
+      'logo_unreadable',
+      `Das Logo ist nicht lesbar (${(err as Error).message}). Bitte als PNG, JPEG oder WebP erneut hochladen.`,
+    );
+  }
+  const meta = await sharp(png)
+    .metadata()
+    .catch(() => null);
+  const width = meta?.width ?? 0;
+  const height = meta?.height ?? 0;
+  if (!width || !height) {
+    throw new PinRenderError(
+      'logo_unreadable',
+      'Das Logo hat keine lesbaren Maße. Bitte als PNG, JPEG oder WebP erneut hochladen.',
+    );
+  }
+
+  const left = PIN_WIDTH - width - LOGO_MARGIN;
+  let top = PIN_HEIGHT - height - LOGO_MARGIN;
+  const boxes = obstacles.filter((b): b is InkBox => b !== null);
+  for (let step = 0; step < 8; step++) {
+    const hit = boxes.find((box) => overlapsInk({ x: left, y: top, width, height }, box));
+    if (!hit) break;
+    top = hit.top - height - 16;
+    if (top < LOGO_MARGIN) {
+      top = LOGO_MARGIN;
+      break;
+    }
+  }
+  return { png, top: Math.max(0, Math.round(top)), left: Math.max(0, Math.round(left)), width, height };
 }
 
 /**
@@ -813,10 +984,16 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
   }
   const sharp = await getSharp();
   const versions = (sharp as unknown as { versions?: Record<string, string> }).versions ?? {};
-  // 0) Erst prüfen, dass die Schrift überhaupt Zeichen zeichnet. Ohne diesen
-  //    Nachweis entstünde ein Pin voller leerer Kästchen (Tofu) — ein Bild, das
-  //    wie ein Ergebnis aussieht und keines ist.
-  await assertFontRenders(sharp);
+  // 0) Erst prüfen, dass die Schrift überhaupt Zeichen zeichnet — und zwar
+  //    GEGEN DIE GEWÄHLTE FAMILIE (Brand Kit 2026-11-16). Ohne diesen Nachweis
+  //    entstünde ein Pin voller leerer Kästchen (Tofu) — ein Bild, das wie ein
+  //    Ergebnis aussieht und keines ist. Geprüft wird der ECHTE Text: fehlt
+  //    auch nur ein Zeichen in der Familie, gibt es kein Bild.
+  await assertGlyphsRenderable(sharp, input.brand?.fontFamily, [
+    input.title,
+    input.subtitle,
+    input.brandLine,
+  ]);
   const layout: PinLayoutId = input.layout && isPinLayoutId(input.layout) ? input.layout : 'bottom-left';
 
   // 1) Text-Ebene rendern, messen und — falls nötig — verkleinern, bis sie in
@@ -930,22 +1107,18 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
   ];
   if (brandLayer) layers.push({ input: brandLayer.png, top: 0, left: 0 });
 
+  /** Tatsächliche Logoplatzierung im Pin — Beleg für die SPEC-Grenzen. */
+  let logoPlacement: { top: number; left: number; width: number; height: number } | null = null;
+
+  // 6b) Optionales Logo (Brand Kit 2026-11-16). Regeln der SPEC §3:
+  //     Seitenverhältnis erhalten, höchstens 26 % der Pin-Breite und 10 % der
+  //     Pin-Höhe, Rand 40 px, unten rechts, ÜBER Foto und Textfläche.
+  //     Ein unlesbares Logo ist ein Fehler und wird NICHT stillschweigend
+  //     weggelassen — sonst behauptet der Pin eine Marke, die nicht drauf ist.
   if (input.logo && input.logo.length > 0) {
-    const logoWidth = Math.max(60, Math.min(320, input.logoWidth ?? 180));
-    try {
-      const logoBuf = await sharp(Buffer.from(input.logo))
-        .resize({ width: logoWidth, withoutEnlargement: true })
-        .png()
-        .toBuffer();
-      const meta = await sharp(logoBuf).metadata();
-      const margin = 40;
-      const pos = input.logoPosition ?? 'bottom-right';
-      const left = pos.endsWith('right') && meta.width ? PIN_WIDTH - meta.width - margin : margin;
-      const top = pos.startsWith('top') ? margin : PIN_HEIGHT - (meta.height ?? 0) - margin;
-      layers.push({ input: logoBuf, top: Math.max(0, top), left: Math.max(0, left) });
-    } catch {
-      // Kaputtes Logo darf das Pin nicht verhindern — es entfällt dann nur.
-    }
+    const placed = await placeLogo(sharp, input.logo, [textLayer.box, brandLayer?.box ?? null]);
+    logoPlacement = { top: placed.top, left: placed.left, width: placed.width, height: placed.height };
+    layers.push({ input: placed.png, top: placed.top, left: placed.left });
   }
 
   let png: Buffer;
@@ -981,5 +1154,6 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
     libvips: String(versions.vips ?? 'unbekannt'),
     layout,
     panel,
+    logo: logoPlacement,
   };
 }

@@ -16,22 +16,45 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { PIN_FONT_BOLD_B64, PIN_FONT_REGULAR_B64 } from './pin-font-data';
+import {
+  PIN_FONT_BOLD_B64,
+  PIN_FONT_MONO_BOLD_B64,
+  PIN_FONT_MONO_REGULAR_B64,
+  PIN_FONT_REGULAR_B64,
+  PIN_FONT_SERIF_BOLD_B64,
+  PIN_FONT_SERIF_REGULAR_B64,
+} from './pin-font-data';
+import { PIN_FONT_FAMILY_NAMES, type PinFontId } from './pin-fonts';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 /** Familienname, wie er IN der eingebetteten Datei steht (Liberation Sans). */
-export const PIN_FONT_FAMILY = 'Liberation Sans';
+export const PIN_FONT_FAMILY = PIN_FONT_FAMILY_NAMES.sans;
 
 const BASE = join(tmpdir(), 'growimo-pin-fonts');
 const FONT_DIR = join(BASE, 'fonts');
 const CACHE_DIR = join(BASE, 'cache');
 const CONF = join(BASE, 'fonts.conf');
 
-const FILES = [
-  { name: 'LiberationSans-Regular.ttf', b64: PIN_FONT_REGULAR_B64 },
-  { name: 'LiberationSans-Bold.ttf', b64: PIN_FONT_BOLD_B64 },
+/**
+ * Brand Kit (2026-11-16): alle drei wählbaren Familien liegen im SELBEN
+ * fontconfig-Verzeichnis. Ein Wechsel der Schriftwahl braucht damit keinen
+ * Neustart und keinen zweiten Konfigurationspfad — es wird nur ein anderer
+ * Familienname im SVG gesetzt.
+ */
+const FILES: { name: string; b64: string; fontId: PinFontId }[] = [
+  { name: 'LiberationSans-Regular.ttf', b64: PIN_FONT_REGULAR_B64, fontId: 'sans' },
+  { name: 'LiberationSans-Bold.ttf', b64: PIN_FONT_BOLD_B64, fontId: 'sans' },
+  { name: 'LiberationSerif-Regular.ttf', b64: PIN_FONT_SERIF_REGULAR_B64, fontId: 'serif' },
+  { name: 'LiberationSerif-Bold.ttf', b64: PIN_FONT_SERIF_BOLD_B64, fontId: 'serif' },
+  { name: 'LiberationMono-Regular.ttf', b64: PIN_FONT_MONO_REGULAR_B64, fontId: 'mono' },
+  { name: 'LiberationMono-Bold.ttf', b64: PIN_FONT_MONO_BOLD_B64, fontId: 'mono' },
 ];
+
+/** Dateinamen der eingebetteten Schnitte je Familie (Regular, Bold). */
+export function pinFontFileNames(fontId: PinFontId): string[] {
+  return FILES.filter((f) => f.fontId === fontId).map((f) => f.name);
+}
 
 let prepared: Promise<void> | null = null;
 

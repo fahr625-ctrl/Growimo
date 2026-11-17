@@ -1,6 +1,6 @@
 import { seoHead } from "~/lib/seo";
 import { createFileRoute } from '@tanstack/react-router';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ProtectedRoute } from '~/components/ProtectedRoute';
 import BrandProfileToggle from '~/components/BrandProfileToggle';
 import { useTranslation } from '~/i18n';
@@ -9,8 +9,11 @@ import { toneLabel } from '~/lib/tones';
 import {
   getBrandProfile,
   saveBrandProfile,
+  BRAND_FONT_IDS,
   type BrandProfile,
+  type BrandFontId,
 } from '~/store/brand';
+import { LOGO_ACCEPT, prepareLogo, type LogoErrorCode } from '~/lib/kampagne/logo-client';
 
 export const Route = createFileRoute('/app/brand')({
   head: () => seoHead({ titleKey: 'meta_app_brand_title' }),
@@ -50,9 +53,23 @@ const EMPTY_PROFILE: BrandProfile = {
   avoidTopics: '',
   neverClaim: '',
   brandVoice: '',
+  logo: '',
+  fontId: '',
   enabled: true,
   lastUpdated: '',
 };
+
+const FONT_LABEL_KEYS = {
+  sans: 'brand_font_sans',
+  serif: 'brand_font_serif',
+  mono: 'brand_font_mono',
+} as const;
+
+const LOGO_ERROR_KEYS = {
+  logo_type: 'brand_logo_err_type',
+  logo_unreadable: 'brand_logo_err_unreadable',
+  logo_too_large: 'brand_logo_err_too_large',
+} as const;
 
 function BrandContent() {
   const { t } = useTranslation();
@@ -60,6 +77,26 @@ function BrandContent() {
   const [saved, setSaved] = useState(false);
   const [hasExisting, setHasExisting] = useState(false);
   const [productsInput, setProductsInput] = useState('');
+  // Brand Kit (2026-11-16): Logo-Datei + Meldung
+  const [logoError, setLogoError] = useState<LogoErrorCode | null>(null);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleLogoFile = async (file: File | null | undefined) => {
+    if (!file) return;
+    setLogoError(null);
+    setLogoBusy(true);
+    try {
+      const result = await prepareLogo(file);
+      if (!result.ok) {
+        setLogoError(result.code);
+        return;
+      }
+      setProfile((p) => ({ ...p, logo: result.dataUrl }));
+    } finally {
+      setLogoBusy(false);
+    }
+  };
 
   // Load profile on mount
   useEffect(() => {
@@ -194,6 +231,116 @@ function BrandContent() {
             <p className="mt-1 text-[11px] text-gray-400">
               {t.brand_offerings_hint}
             </p>
+          </div>
+        </div>
+
+        {/* Card 1b: Brand Kit — optionales Logo + Schrift (2026-11-16) */}
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="text-sm font-bold text-gray-800">{t.brand_kit_section}</h2>
+          <p className="mb-5 mt-1 text-[11px] text-gray-400">{t.brand_kit_hint}</p>
+
+          {/* Logo */}
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-gray-600">
+              {t.brand_logo_label}
+            </label>
+            <p className="mb-2 text-[11px] text-gray-400">{t.brand_logo_hint}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => logoInputRef.current?.click()}
+                disabled={logoBusy}
+                className="rounded-xl border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-700 transition-all hover:border-blue-500 hover:text-blue-600 disabled:opacity-50"
+              >
+                {t.brand_logo_upload}
+              </button>
+              {profile.logo ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfile((p) => ({ ...p, logo: '' }));
+                    setLogoError(null);
+                  }}
+                  className="rounded-xl border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-500 transition-all hover:border-red-300 hover:text-red-600"
+                >
+                  {t.brand_logo_remove}
+                </button>
+              ) : null}
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept={LOGO_ACCEPT}
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  e.target.value = '';
+                  void handleLogoFile(file);
+                }}
+              />
+            </div>
+            {logoError ? (
+              <p className="mt-2 text-[11px] font-medium text-red-600">
+                {t[LOGO_ERROR_KEYS[logoError]]}
+              </p>
+            ) : null}
+            {profile.logo ? (
+              <div className="mt-3 flex flex-wrap gap-4">
+                <figure className="m-0">
+                  <div className="flex h-20 w-28 items-center justify-center rounded-lg border border-gray-200 bg-white p-2">
+                    <img
+                      src={profile.logo}
+                      alt={t.brand_logo_preview_light}
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  </div>
+                  <figcaption className="mt-1 text-[10px] text-gray-400">
+                    {t.brand_logo_preview_light}
+                  </figcaption>
+                </figure>
+                <figure className="m-0">
+                  <div className="flex h-20 w-28 items-center justify-center rounded-lg border border-gray-700 bg-gray-900 p-2">
+                    <img
+                      src={profile.logo}
+                      alt={t.brand_logo_preview_dark}
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  </div>
+                  <figcaption className="mt-1 text-[10px] text-gray-400">
+                    {t.brand_logo_preview_dark}
+                  </figcaption>
+                </figure>
+              </div>
+            ) : (
+              <p className="mt-2 text-[11px] text-gray-400">{t.brand_logo_none}</p>
+            )}
+          </div>
+
+          {/* Schrift */}
+          <div className="mt-6">
+            <label className="mb-1.5 block text-xs font-semibold text-gray-600">
+              {t.brand_font_label}
+            </label>
+            <p className="mb-2 text-[11px] text-gray-400">{t.brand_font_hint}</p>
+            <div className="flex flex-wrap gap-2">
+              {BRAND_FONT_IDS.map((id: BrandFontId) => {
+                const active = (profile.fontId || 'sans') === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setProfile((p) => ({ ...p, fontId: id }))}
+                    className={
+                      active
+                        ? 'rounded-xl border border-blue-500 bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700'
+                        : 'rounded-xl border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-700 transition-all hover:border-blue-500 hover:text-blue-600'
+                    }
+                  >
+                    {t[FONT_LABEL_KEYS[id]]}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
