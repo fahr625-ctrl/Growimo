@@ -214,6 +214,152 @@ export function isPinLayoutId(v: unknown): v is PinLayoutId {
   return typeof v === 'string' && v in LAYOUTS;
 }
 
+// ── Bildausschnitt je Layout (2026-11-17) ────────────────────────────────────
+// BEFUND: Bis heute wurde das Foto für ALLE fünf Pins identisch zugeschnitten
+// (`position: 'centre'`). Fünf Pins aus einem Foto sahen dadurch aus wie ein
+// Bild mit fünf Texten. Jedes Layout schneidet jetzt ANDERS zu — als
+// deklarative Tabelle direkt neben der Layout-Spezifikation, damit der
+// Unterschied prüfbar ist (Test: `scripts/kampagne-basisbild-crops-2026-11-17.ts`).
+//
+// `zoom` = Vergrößerung vor dem Beschnitt (1 = das ganze 2:3-Bild),
+// `focus` = an welcher Kante der Beschnitt sitzt. Beides zusammen ergibt
+// einen anderen Bildausschnitt — es wird weiterhin NICHTS erfunden und nichts
+// generiert, nur anders zugeschnitten.
+
+export type PinCropFocus =
+  | 'centre'
+  | 'top'
+  | 'bottom'
+  | 'left'
+  | 'right'
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-right';
+
+export interface PinCrop {
+  /** ≥ 1 und ≤ PIN_CROP_MAX_ZOOM; 1 = volles Bild. */
+  zoom: number;
+  focus: PinCropFocus;
+}
+
+export const PIN_CROP_MAX_ZOOM = 2;
+export const PIN_CROP_MIN_ZOOM = 1;
+
+const PIN_CROP_FOCUSES: PinCropFocus[] = [
+  'centre',
+  'top',
+  'bottom',
+  'left',
+  'right',
+  'top-left',
+  'top-right',
+  'bottom-left',
+  'bottom-right',
+];
+
+export function isPinCropFocus(v: unknown): v is PinCropFocus {
+  return typeof v === 'string' && (PIN_CROP_FOCUSES as readonly string[]).includes(v);
+}
+
+/**
+ * Zuschnitt je Layout. Die Werte sind absichtlich verschieden in BEIDEN
+ * Achsen (Zoom und Anker), damit sich die fünf Pins auch bei einem ruhigen,
+ * gleichmäßigen Foto sichtbar unterscheiden:
+ *   1 unten links  — volles Bild (das Motiv bleibt ganz)
+ *   2 Kopfbalken   — herangezoomt auf die untere Bildhälfte
+ *   3 Mittlere Karte — leicht heran, obere Bildhälfte
+ *   4 Seitenstreifen — stark heran, rechte Bildhälfte
+ *   5 Reduziert    — mittel heran, unten links
+ */
+export const PIN_LAYOUT_CROPS: Record<PinLayoutId, PinCrop> = {
+  'bottom-left': { zoom: 1, focus: 'centre' },
+  'top-band': { zoom: 1.35, focus: 'bottom' },
+  'center-card': { zoom: 1.15, focus: 'top' },
+  'side-stripe': { zoom: 1.6, focus: 'right' },
+  'minimal-frame': { zoom: 1.25, focus: 'bottom-left' },
+};
+
+/** Zuschnitt eines Layouts (unveränderlich kopiert, damit niemand die Tabelle ändert). */
+export function layoutCrop(layout: PinLayoutId): PinCrop {
+  const crop = PIN_LAYOUT_CROPS[layout] ?? PIN_LAYOUT_CROPS['bottom-left'];
+  return { zoom: crop.zoom, focus: crop.focus };
+}
+
+/**
+ * Zuschnitt prüfen und begrenzen (fail-closed). Ein unbrauchbarer Wert fällt
+ * auf den Layout-Standard zurück — nie auf einen erfundenen Ausschnitt.
+ */
+export function normalizeCrop(input: unknown, fallback: PinCrop): PinCrop {
+  const raw = (input ?? null) as Partial<PinCrop> | null;
+  if (!raw || typeof raw !== 'object') return { zoom: fallback.zoom, focus: fallback.focus };
+  const zoomNum = Number(raw.zoom);
+  const zoom = Number.isFinite(zoomNum)
+    ? Math.min(PIN_CROP_MAX_ZOOM, Math.max(PIN_CROP_MIN_ZOOM, Math.round(zoomNum * 100) / 100))
+    : fallback.zoom;
+  const focus = isPinCropFocus(raw.focus) ? raw.focus : fallback.focus;
+  return { zoom, focus };
+}
+
+/** Ankerpunkt als Anteil (0 = linke/obere Kante, 1 = rechte/untere Kante). */
+export function cropAnchor(focus: PinCropFocus): { fx: number; fy: number } {
+  const fx = focus.endsWith('left') ? 0 : focus.endsWith('right') ? 1 : 0.5;
+  const fy = focus.startsWith('top') ? 0 : focus.startsWith('bottom') ? 1 : 0.5;
+  return { fx, fy };
+}
+
+/** Ankerpunkt als `sharp`-Position (für den cover-Beschnitt des Ausgangsformats). */
+function sharpPosition(focus: PinCropFocus): string {
+  switch (focus) {
+    case 'top':
+      return 'north';
+    case 'bottom':
+      return 'south';
+    case 'left':
+      return 'west';
+    case 'right':
+      return 'east';
+    case 'top-left':
+      return 'northwest';
+    case 'top-right':
+      return 'northeast';
+    case 'bottom-left':
+      return 'southwest';
+    case 'bottom-right':
+      return 'southeast';
+    default:
+      return 'centre';
+  }
+}
+
+/**
+ * Foto auf Pin-Maß bringen und dabei den Zuschnitt des Layouts anwenden:
+ * erst auf `zoom ×` vergrößert (cover), dann das 1000 × 1500-Fenster am
+ * Ankerpunkt herausgeschnitten. EXIF-Rotation wird beachtet.
+ */
+export async function cropToPinFrame(
+  sharp: SharpFactory,
+  photo: Uint8Array,
+  crop: PinCrop,
+): Promise<Buffer> {
+  const { fx, fy } = cropAnchor(crop.focus);
+  const zoom = Math.min(PIN_CROP_MAX_ZOOM, Math.max(PIN_CROP_MIN_ZOOM, crop.zoom));
+  const w = Math.round(PIN_WIDTH * zoom);
+  const h = Math.round(PIN_HEIGHT * zoom);
+  const resized = await sharp(Buffer.from(photo))
+    .rotate()
+    .resize(w, h, { fit: 'cover', position: sharpPosition(crop.focus) })
+    .png()
+    .toBuffer();
+  if (w === PIN_WIDTH && h === PIN_HEIGHT) return resized;
+  const left = Math.round((w - PIN_WIDTH) * fx);
+  const top = Math.round((h - PIN_HEIGHT) * fy);
+  return sharp(resized)
+    .extract({ left, top, width: PIN_WIDTH, height: PIN_HEIGHT })
+    .png()
+    .toBuffer();
+}
+
 /** Prüft eine Farbe streng (nur #rgb/#rrggbb) — verhindert SVG-Injection. */
 export function safeHexColor(value: string | null | undefined, fallback: string): string {
   const v = (value ?? '').trim();
@@ -290,6 +436,11 @@ export interface PinRenderInput {
   logoWidth?: number;
   /** Eines der fünf Layouts; default 'bottom-left'. */
   layout?: PinLayoutId;
+  /**
+   * Bildausschnitt (2026-11-17). Fehlt er, gilt der Zuschnitt des Layouts aus
+   * `PIN_LAYOUT_CROPS` — damit schneiden die fünf Pins von sich aus anders zu.
+   */
+  crop?: PinCrop | null;
   /** Bearbeitbares Overlay (Farbe/Ausrichtung/Position). */
   overlay?: PinOverlay | null;
   /** Kleine Markenzeile (nur wenn das Markenprofil aktiv ist). */
@@ -818,6 +969,8 @@ export interface PinRenderResult {
   libvips: string;
   /** Das tatsächlich verwendete Layout. */
   layout: PinLayoutId;
+  /** Der tatsächlich verwendete Bildausschnitt — Beleg, dass er nicht für alle gleich ist. */
+  crop: PinCrop;
   /** Deckende Textfläche (Foto-Koordinaten) — Beleg für den Motivschutz. */
   panel: Rect;
   /** Logoplatzierung im Pin (null = kein Logo) — Beleg für die SPEC-Grenzen. */
@@ -995,12 +1148,12 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
     .png()
     .toBuffer();
 
-  // 4) Foto auf das Pin-Format bringen (EXIF-Rotation beachten, cover-Beschnitt).
-  const base = await sharp(Buffer.from(input.photo))
-    .rotate()
-    .resize(PIN_WIDTH, PIN_HEIGHT, { fit: 'cover', position: 'centre' })
-    .png()
-    .toBuffer();
+  // 4) Foto auf das Pin-Format bringen (EXIF-Rotation beachten) — mit dem
+  //    Zuschnitt DIESES Layouts (2026-11-17). Vorher lag für alle fünf Pins
+  //    derselbe Ausschnitt (`position: 'centre'`) hier, deshalb sahen die fünf
+  //    Pins wie ein Bild mit fünf Texten aus.
+  const crop = normalizeCrop(input.crop, layoutCrop(layout));
+  const base = await cropToPinFrame(sharp, input.photo, crop);
 
   // 5) Hintergrund = Foto + Fläche. Darauf wird der Kontrast GEMESSEN.
   const bgPng = await sharp(base)
@@ -1076,6 +1229,7 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
     sharpVersion: String(versions.sharp ?? 'unbekannt'),
     libvips: String(versions.vips ?? 'unbekannt'),
     layout,
+    crop,
     panel,
     logo: logoPlacement,
   };

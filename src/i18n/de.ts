@@ -2395,7 +2395,7 @@ export const de = {
   kampagne_saving: 'Wird gespeichert …',
   kampagne_save_ok: 'Kampagne gespeichert. Du kannst sie jederzeit wieder öffnen.',
   kampagne_new: 'Neue Kampagne',
-  kampagne_next_hint: 'Nächster Schritt: fünf Pin-Entwürfe aus diesem Foto.',
+  kampagne_next_hint: 'Nächster Schritt: fünf Pin-Entwürfe aus diesem Bild.',
   kampagne_list_title: 'Gespeicherte Kampagnen',
   kampagne_list_empty: 'Noch keine Kampagne gespeichert.',
   kampagne_list_has_photo: 'mit Foto',
@@ -2404,7 +2404,8 @@ export const de = {
   kampagne_opening: 'Wird geöffnet …',
   kampagne_err_product_required: 'Bitte trag das Produkt oder Thema ein.',
   kampagne_err_product_too_long: 'Das Produkt ist zu lang (max. 600 Zeichen).',
-  kampagne_err_photo_required: 'Für Pinterest brauchst du ein eigenes Foto.',
+  kampagne_err_photo_required:
+    'Für Pinterest brauchst du ein Bild — ein eigenes Foto oder ein Grundbild aus deiner Produktidee.',
   kampagne_err_photo_invalid: 'Diese Datei ist kein lesbares Bild (PNG, JPEG oder WebP).',
   kampagne_err_photo_too_large: 'Das Foto ist zu groß (max. 8 MB).',
   kampagne_err_photo_unprocessable:
@@ -2418,7 +2419,7 @@ export const de = {
   kampagne_err_generic: 'Das hat nicht geklappt. Bitte noch einmal versuchen.',
   kampagne_pins_title: 'Fünf Pin-Entwürfe',
   kampagne_pins_hint:
-    'Aus diesem Foto entstehen fünf Entwürfe: fünf Layouts, fünf Botschaften. Jedes Pin ist einzeln bearbeitbar — Text, Position, Farbe, Titel und Beschreibung.',
+    'Aus diesem Bild entstehen fünf Entwürfe: fünf Layouts, fünf Botschaften — und fünf verschiedene Bildausschnitte. Jedes Pin ist einzeln bearbeitbar — Text, Layout, Ausschnitt, Position, Farbe, Titel und Beschreibung.',
   kampagne_pins_generate: 'Fünf Pin-Entwürfe erzeugen',
   kampagne_pins_regenerate: 'Entwürfe neu erzeugen',
   kampagne_pins_generating: 'Entwürfe werden erzeugt …',
@@ -2449,5 +2450,37 @@ export const de = {
   kampagne_layout_center_card: 'Mittlere Karte',
   kampagne_layout_side_stripe: 'Seitenstreifen',
   kampagne_layout_minimal_frame: 'Reduziert',
+  // Grundbild aus der Produktidee (2026-11-17)
+  kampagne_photo_mode_legend: 'Woher kommt das Bild?',
+  kampagne_photo_mode_upload: 'Eigenes Foto hochladen',
+  kampagne_photo_mode_upload_hint: 'Dein Foto, wie es ist — Growimo schneidet es nur zu.',
+  kampagne_photo_mode_ai: 'Bild aus meiner Produktidee erstellen',
+  kampagne_photo_mode_ai_hint:
+    'Aus Produktidee, Zielgruppe und Kernbotschaft entsteht genau ein Grundbild im Format 2:3.',
+  kampagne_ai_generate: 'Grundbild erstellen',
+  kampagne_ai_regenerate: 'Neues Grundbild erstellen',
+  kampagne_ai_busy: 'Grundbild wird erstellt …',
+  kampagne_ai_cost:
+    'Das Grundbild verbraucht 1 Einheit. Die fünf Pins danach kosten nichts — sie werden aus dem Bild gerechnet, nicht neu erzeugt.',
+  kampagne_ai_failed:
+    'Das Grundbild konnte nicht erstellt werden. Bitte noch einmal versuchen oder ein eigenes Foto hochladen.',
+  kampagne_ai_preview_alt: 'Grundbild aus deiner Produktidee',
+  kampagne_ai_crop_title: 'Ausschnitt für alle fünf Pins',
+  kampagne_ai_crop_zoom: 'Zoom',
+  kampagne_ai_crop_focus: 'Position',
+  kampagne_ai_discard: 'Grundbild verwerfen',
+  kampagne_pin_layout: 'Layout',
+  kampagne_pin_crop: 'Bildausschnitt',
+  kampagne_pin_crop_zoom: 'Zoom',
+  kampagne_pin_crop_focus: 'Position',
+  kampagne_crop_focus_centre: 'mittig',
+  kampagne_crop_focus_top: 'oben',
+  kampagne_crop_focus_bottom: 'unten',
+  kampagne_crop_focus_left: 'links',
+  kampagne_crop_focus_right: 'rechts',
+  kampagne_crop_focus_top_left: 'oben links',
+  kampagne_crop_focus_top_right: 'oben rechts',
+  kampagne_crop_focus_bottom_left: 'unten links',
+  kampagne_crop_focus_bottom_right: 'unten rechts',
 
 } as const;
