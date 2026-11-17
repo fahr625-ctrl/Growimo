@@ -11,7 +11,15 @@
 // Titel, Beschreibung) — die hier erzeugten Werte sind der Startpunkt.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { isPinLayoutId, safeHexColor, type PinAlign, type PinLayoutId } from './pin-render';
+import {
+  isPinLayoutId,
+  layoutCrop,
+  normalizeCrop,
+  safeHexColor,
+  type PinAlign,
+  type PinCrop,
+  type PinLayoutId,
+} from './pin-render';
 
 /** Pinterest-Grenzen (belegt 2026-11-11): Titel 100, Beschreibung 800. */
 export const PIN_TITLE_MAX = 100;
@@ -37,6 +45,12 @@ export interface PinDraft {
   title: string;
   /** Pinterest-Beschreibung (≤ 800 Zeichen). */
   description: string;
+  /**
+   * Eigener Bildausschnitt (2026-11-17). `null`/fehlt = der Zuschnitt des
+   * Layouts (`PIN_LAYOUT_CROPS`) gilt. So sind die fünf Pins von sich aus
+   * verschieden, und der Nutzer kann je Pin nachjustieren.
+   */
+  crop?: PinCrop | null;
 }
 
 export interface PinSource {
@@ -291,6 +305,9 @@ export function sanitizePinDrafts(input: unknown, source?: PinSource): PinDraft[
         typeof raw.description === 'string' ? raw.description : (base?.description ?? ''),
         PIN_DESCRIPTION_MAX,
       ),
+      // Zuschnitt: nur prüfen, nie erfinden. Fehlt/ungültig ⇒ null ⇒ der
+      // Zuschnitt des (ggf. neu gewählten) Layouts gilt.
+      crop: raw.crop ? normalizeCrop(raw.crop, layoutCrop(layout)) : null,
     });
   }
   return out;

@@ -178,6 +178,8 @@ export const renderPinsServer = createServerFn({ method: 'POST' })
         result = await renderPinPng({
           photo: photoBytes,
           layout: draft.layout,
+          // 2026-11-17: eigener Ausschnitt je Pin (null ⇒ Zuschnitt des Layouts).
+          crop: draft.crop ?? null,
           overlay: { textColor: draft.textColor, align: draft.align, offsetY: draft.offsetY },
           brandLine,
           brand,

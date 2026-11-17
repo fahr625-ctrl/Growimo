@@ -38,6 +38,13 @@ import {
 } from '~/lib/kampagne/etsy-draft';
 import { ETSY_TAG_MAX_CHARS, sanitizeEtsyTags } from '~/lib/etsy-tags';
 import { downscalePhoto } from '~/lib/kampagne/pin-client';
+import { runImageStream } from '~/lib/image-studio-stream';
+import {
+  BASE_CROP_FOCUSES,
+  buildBaseImagePrompt,
+  canBuildBaseImage,
+  cropBaseImageToPin,
+} from '~/lib/kampagne/base-image';
 import {
   buildZip,
   dataUrlToBytes,
@@ -45,7 +52,14 @@ import {
   pinFileName,
   zipFileName,
 } from '~/lib/kampagne/pin-export';
-import type { PinLayoutId } from '~/lib/kampagne/pin-render';
+import {
+  PIN_LAYOUT_IDS,
+  PIN_CROP_MAX_ZOOM,
+  layoutCrop,
+  type PinCrop,
+  type PinCropFocus,
+  type PinLayoutId,
+} from '~/lib/kampagne/pin-render';
 import { getBrandProfile } from '~/store/brand';
 
 /** Schlüssel des Entwurfs im sessionStorage (Foto + Angaben überleben einen Remount). */
@@ -70,6 +84,19 @@ const FIELD_CLASS =
 
 /** Feldbeschriftung: kräftiger Kontrast (gray-700 auf Weiß = 10,3 : 1). */
 const FIELD_LABEL_CLASS = 'mb-1 block text-xs font-semibold text-gray-700';
+
+/** Alle Ankerpunkte für den Ausschnitt eines einzelnen Pins. */
+const PIN_CROP_FOCUS_OPTIONS: PinCropFocus[] = [
+  'centre',
+  'top',
+  'bottom',
+  'left',
+  'right',
+  'top-left',
+  'top-right',
+  'bottom-left',
+  'bottom-right',
+];
 
 export const Route = createFileRoute('/app/kampagne')({
   head: () => seoHead({ titleKey: 'meta_app_kampagne_title' }),
@@ -128,6 +155,17 @@ function KampagneContent() {
   const renderTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   /** Das Foto, das „Entwürfe neu erzeugen" NIE verliert — nur „Foto entfernen" leert es. */
   const photoRef = useRef<string | null>(null);
+
+  // ── Weg 2: Grundbild aus der Produktidee (2026-11-17) ──────────────────────
+  // GENAU EIN KI-Bild pro Kampagne. Es kostet 1 Einheit; die fünf Pins danach
+  // werden nur gerechnet (0 Einheiten). Der Ausschnitt wird im Browser gesetzt
+  // und vor dem Rendern am echten 2:3-Rahmen gezeigt.
+  const [photoMode, setPhotoMode] = useState<'upload' | 'ai'>('upload');
+  const [baseImage, setBaseImage] = useState<string | null>(null);
+  const [baseCrop, setBaseCrop] = useState<PinCrop>({ zoom: 1, focus: 'centre' });
+  const [baseBusy, setBaseBusy] = useState(false);
+  const [baseProgress, setBaseProgress] = useState<string | null>(null);
+  const [baseError, setBaseError] = useState<string | null>(null);
 
   const needsPhoto = optionNeedsPhoto(draft.option);
   const includesEtsy = optionIncludesEtsy(draft.option);
@@ -354,11 +392,83 @@ function KampagneContent() {
     }
   }, [brandInput, draft.photoDataUrl, ensureRenderPhoto, renderOne]);
 
+  // ── Weg 2: Grundbild aus der Produktidee (2026-11-17) ───────────────────────
+  /**
+   * Der Ausschnitt gilt für alle fünf Pins: das Grundbild wird am echten
+   * 2:3-Rahmen zugeschnitten und DANN gerendert. Jeder Pin schneidet aus
+   * diesem Rahmen zusätzlich seinen eigenen Ausschnitt (PIN_LAYOUT_CROPS).
+   */
+  const applyBaseCrop = useCallback(
+    async (image: string, crop: PinCrop) => {
+      const framed = await cropBaseImageToPin(image, crop);
+      photoRef.current = framed;
+      renderPhotoRef.current = { src: framed, out: framed };
+      setPhotoBytes(0);
+      setDraft((prev) => ({ ...prev, photoDataUrl: framed }));
+      const photoUrl = await ensureRenderPhoto(framed);
+      for (const pin of pinsRef.current) {
+        if (!pin.headline.trim()) continue;
+        await renderOne(pin, photoUrl, brandInput);
+      }
+    },
+    [brandInput, ensureRenderPhoto, renderOne],
+  );
+
+  /** GENAU EIN Bild: ein Aufruf der bestehenden SSE-Route, keine Varianten. */
+  const onGenerateBaseImage = useCallback(async () => {
+    setBaseError(null);
+    if (!draft.product.trim()) {
+      setBaseError('product_required');
+      return;
+    }
+    setBaseBusy(true);
+    setBaseProgress(null);
+    try {
+      const done = await runImageStream({
+        body: {
+          prompt: buildBaseImagePrompt({
+            product: draft.product,
+            audience: draft.audience,
+            message: draft.message,
+          }),
+          aspectRatio: '2:3',
+        },
+        onPartial: (partial) => setBaseProgress(partial.dataUrl),
+      });
+      const crop: PinCrop = { zoom: 1, focus: 'centre' };
+      setBaseImage(done.url);
+      setBaseCrop(crop);
+      await applyBaseCrop(done.url, crop);
+    } catch {
+      setBaseError('failed');
+    } finally {
+      setBaseBusy(false);
+      setBaseProgress(null);
+    }
+  }, [applyBaseCrop, draft.product, draft.audience, draft.message]);
+
+  const onBaseCropChange = useCallback(
+    async (patch: Partial<PinCrop>) => {
+      const next: PinCrop = { ...baseCrop, ...patch };
+      setBaseCrop(next);
+      if (baseImage) await applyBaseCrop(baseImage, next);
+    },
+    [applyBaseCrop, baseCrop, baseImage],
+  );
+
+  const onDiscardBaseImage = () => {
+    setBaseImage(null);
+    setBaseProgress(null);
+    setBaseError(null);
+    setBaseCrop({ zoom: 1, focus: 'centre' });
+    photoRef.current = null;
+    setField('photoDataUrl', null);
+  };
+
   const onToggleBrand = (checked: boolean) => {
     setField('brandApplied', checked);
     void rerenderAll({ applied: checked, colors: brandColors, name: brandName });
   };
-
   // ── Export (PNG je Pin, ZIP für alle) ───────────────────────────────────────
   const [exporting, setExporting] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -579,6 +689,13 @@ function KampagneContent() {
     setPinError(null);
     setCopied(null);
     setCopyFailed(false);
+    // Grundbild-Weg zurücksetzen: kein Bild, kein Ausschnitt, keine Meldung.
+    setBaseImage(null);
+    setBaseProgress(null);
+    setBaseError(null);
+    setBaseCrop({ zoom: 1, focus: 'centre' });
+    setPhotoMode('upload');
+    photoRef.current = null;
     if (fileRef.current) fileRef.current.value = '';
   };
 
@@ -661,6 +778,21 @@ function KampagneContent() {
       'minimal-frame': t.kampagne_layout_minimal_frame,
     };
     return map[layout] ?? layout;
+  };
+
+  const focusLabel = (focus: PinCropFocus): string => {
+    const map: Record<PinCropFocus, string> = {
+      centre: t.kampagne_crop_focus_centre,
+      top: t.kampagne_crop_focus_top,
+      bottom: t.kampagne_crop_focus_bottom,
+      left: t.kampagne_crop_focus_left,
+      right: t.kampagne_crop_focus_right,
+      'top-left': t.kampagne_crop_focus_top_left,
+      'top-right': t.kampagne_crop_focus_top_right,
+      'bottom-left': t.kampagne_crop_focus_bottom_left,
+      'bottom-right': t.kampagne_crop_focus_bottom_right,
+    };
+    return map[focus] ?? focus;
   };
 
   const errorText = (code: string): string => {
@@ -767,42 +899,180 @@ function KampagneContent() {
         </label>
       </section>
 
-      {/* Schritt 3 — Foto (nur Pinterest/Beides) */}
+      {/* Schritt 3 — Bild: eigenes Foto ODER Grundbild aus der Produktidee */}
       {needsPhoto ? (
         <section className="mb-6 rounded-xl border border-gray-200 bg-white p-4">
           <h2 className="mb-1 text-sm font-semibold text-gray-900">{t.kampagne_photo}</h2>
           <p className="mb-3 text-xs text-gray-600">{t.kampagne_photo_hint}</p>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            onChange={(e) => void onPhotoSelected(e.target.files?.[0] ?? null)}
-            className="block w-full text-sm text-gray-700 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-600 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-blue-700"
-          />
-          {draft.photoDataUrl ? (
-            <div className="mt-3">
-              <img
-                src={draft.photoDataUrl}
-                alt={t.kampagne_photo_preview_alt}
-                className="max-h-56 w-auto rounded-lg border border-gray-200"
+
+          {/* Zwei gleichrangige Wege — klar getrennt. */}
+          <p className="mb-2 text-xs font-semibold text-gray-700">{t.kampagne_photo_mode_legend}</p>
+          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setPhotoMode('upload')}
+              aria-pressed={photoMode === 'upload'}
+              className={`rounded-xl border p-3 text-left transition ${
+                photoMode === 'upload'
+                  ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-500'
+                  : 'border-gray-200 bg-white hover:border-gray-300'
+              }`}
+            >
+              <span className="block text-sm font-semibold text-gray-900">
+                {t.kampagne_photo_mode_upload}
+              </span>
+              <span className="mt-1 block text-xs text-gray-600">
+                {t.kampagne_photo_mode_upload_hint}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPhotoMode('ai')}
+              aria-pressed={photoMode === 'ai'}
+              className={`rounded-xl border p-3 text-left transition ${
+                photoMode === 'ai'
+                  ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-500'
+                  : 'border-gray-200 bg-white hover:border-gray-300'
+              }`}
+            >
+              <span className="block text-sm font-semibold text-gray-900">
+                {t.kampagne_photo_mode_ai}
+              </span>
+              <span className="mt-1 block text-xs text-gray-600">
+                {t.kampagne_photo_mode_ai_hint}
+              </span>
+            </button>
+          </div>
+
+          {photoMode === 'upload' ? (
+            <>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(e) => void onPhotoSelected(e.target.files?.[0] ?? null)}
+                className="block w-full text-sm text-gray-700 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-600 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-blue-700"
               />
-              <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
-                {photoBytes > 0 && <span>{Math.round(photoBytes / 1024)} KB</span>}
-                <button
-                  type="button"
-                  onClick={() => {
-                    photoRef.current = null;
-                    setField('photoDataUrl', null);
-                    setPhotoBytes(0);
-                    if (fileRef.current) fileRef.current.value = '';
-                  }}
-                  className="text-blue-600 underline"
+              {draft.photoDataUrl && !baseImage ? (
+                <div className="mt-3">
+                  <img
+                    src={draft.photoDataUrl}
+                    alt={t.kampagne_photo_preview_alt}
+                    className="max-h-56 w-auto rounded-lg border border-gray-200"
+                  />
+                  <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
+                    {photoBytes > 0 && <span>{Math.round(photoBytes / 1024)} KB</span>}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        photoRef.current = null;
+                        setField('photoDataUrl', null);
+                        setPhotoBytes(0);
+                        if (fileRef.current) fileRef.current.value = '';
+                      }}
+                      className="text-blue-600 underline"
+                    >
+                      {t.kampagne_photo_remove}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <>
+              {/* Kosten ehrlich am Knopf: 1 Einheit fürs Grundbild, 0 für die Pins. */}
+              <p className="mb-2 text-xs text-gray-600">{t.kampagne_ai_cost}</p>
+              <button
+                type="button"
+                onClick={() => void onGenerateBaseImage()}
+                disabled={baseBusy || !canBuildBaseImage(draft)}
+                className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-60"
+              >
+                {baseBusy
+                  ? t.kampagne_ai_busy
+                  : baseImage
+                    ? t.kampagne_ai_regenerate
+                    : t.kampagne_ai_generate}
+              </button>
+
+              {baseError && (
+                <div
+                  role="alert"
+                  className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
                 >
-                  {t.kampagne_photo_remove}
-                </button>
-              </div>
-            </div>
-          ) : null}
+                  {baseError === 'product_required'
+                    ? t.kampagne_err_product_required
+                    : t.kampagne_ai_failed}
+                </div>
+              )}
+
+              {/* Vorschau am ECHTEN 2:3-Rahmen, Ausschnitt einstellbar. */}
+              {(baseImage || baseProgress) && (
+                <div className="mt-4">
+                  <div className="flex flex-wrap items-start gap-4">
+                    <div className="w-40 shrink-0 overflow-hidden rounded-lg border border-gray-300 bg-gray-50">
+                      <div className="aspect-[2/3] w-full">
+                        <img
+                          src={draft.photoDataUrl ?? baseProgress ?? baseImage ?? ''}
+                          alt={t.kampagne_ai_preview_alt}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="mb-2 text-xs font-semibold text-gray-700">
+                        {t.kampagne_ai_crop_title}
+                      </p>
+                      <label className="mb-2 block">
+                        <span className="mb-1 flex items-center justify-between text-xs font-medium text-gray-700">
+                          <span>{t.kampagne_ai_crop_zoom}</span>
+                          <span className="text-gray-500">{baseCrop.zoom.toFixed(2)}×</span>
+                        </span>
+                        <input
+                          type="range"
+                          min={1}
+                          max={PIN_CROP_MAX_ZOOM}
+                          step={0.05}
+                          value={baseCrop.zoom}
+                          onChange={(e) =>
+                            void onBaseCropChange({ zoom: Number(e.target.value) })
+                          }
+                          disabled={!baseImage || baseBusy}
+                          className="w-full"
+                        />
+                      </label>
+                      <label className="mb-2 block">
+                        <span className={FIELD_LABEL_CLASS}>{t.kampagne_ai_crop_focus}</span>
+                        <select
+                          value={baseCrop.focus}
+                          onChange={(e) =>
+                            void onBaseCropChange({ focus: e.target.value as PinCropFocus })
+                          }
+                          disabled={!baseImage || baseBusy}
+                          className={FIELD_CLASS}
+                        >
+                          {BASE_CROP_FOCUSES.map((focus) => (
+                            <option key={focus} value={focus}>
+                              {focusLabel(focus)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      {baseImage && (
+                        <button
+                          type="button"
+                          onClick={onDiscardBaseImage}
+                          className="text-xs text-blue-600 underline"
+                        >
+                          {t.kampagne_ai_discard}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </section>
       ) : (
         <p className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
@@ -879,6 +1149,9 @@ function KampagneContent() {
               {pins.map((pin) => {
                 const isRendering = renderingIds.includes(pin.id);
                 const position = pin.offsetY < -0.05 ? 'top' : pin.offsetY > 0.05 ? 'bottom' : 'middle';
+                // Ausschnitt: eigener Wert, sonst der des Layouts (dann sind die
+                // fünf Pins schon von sich aus verschieden).
+                const pinCrop: PinCrop = pin.crop ?? layoutCrop(pin.layout);
                 return (
                   <li key={pin.id} className="rounded-xl border border-gray-200 p-3">
                     <div className="mb-2 flex items-center justify-between gap-2">
@@ -925,6 +1198,62 @@ function KampagneContent() {
                         onChange={(e) => updatePin(pin.id, 'subline', e.target.value)}
                         maxLength={PIN_SUBLINE_MAX}
                         className={FIELD_CLASS}
+                      />
+                    </label>
+
+                    <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <label className="block">
+                        <span className={FIELD_LABEL_CLASS}>{t.kampagne_pin_layout}</span>
+                        <select
+                          value={pin.layout}
+                          onChange={(e) =>
+                            updatePin(pin.id, 'layout', e.target.value as PinLayoutId)
+                          }
+                          className={FIELD_CLASS}
+                        >
+                          {PIN_LAYOUT_IDS.map((id) => (
+                            <option key={id} value={id}>
+                              {layoutLabel(id)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block">
+                        <span className={FIELD_LABEL_CLASS}>{t.kampagne_pin_crop_focus}</span>
+                        <select
+                          value={pinCrop.focus}
+                          onChange={(e) =>
+                            updatePin(pin.id, 'crop', {
+                              ...pinCrop,
+                              focus: e.target.value as PinCropFocus,
+                            })
+                          }
+                          className={FIELD_CLASS}
+                        >
+                          {PIN_CROP_FOCUS_OPTIONS.map((focus) => (
+                            <option key={focus} value={focus}>
+                              {focusLabel(focus)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+
+                    <label className="mb-2 block">
+                      <span className="mb-1 flex items-center justify-between text-xs font-medium text-gray-700">
+                        <span>{t.kampagne_pin_crop_zoom}</span>
+                        <span className="text-gray-500">{pinCrop.zoom.toFixed(2)}×</span>
+                      </span>
+                      <input
+                        type="range"
+                        min={1}
+                        max={PIN_CROP_MAX_ZOOM}
+                        step={0.05}
+                        value={pinCrop.zoom}
+                        onChange={(e) =>
+                          updatePin(pin.id, 'crop', { ...pinCrop, zoom: Number(e.target.value) })
+                        }
+                        className="w-full"
                       />
                     </label>
 
