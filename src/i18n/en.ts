@@ -2206,7 +2206,7 @@ export const en: EnShape = {
   lp_hero_card_desc:
     'Hand-poured soy wax candles, three scents to choose from. For anyone who likes it cosy at home.',
   lp_hero_card_meta: 'Description and keywords come with it.',
-  lp_hero_card_image_note: 'Pin image: in development',
+  lp_hero_card_image_note: 'Pin image: five editable drafts from your own photo, in the campaign',
 
   lp_features_headline: 'Three features. Three finished results.',
   lp_features_sub:
@@ -2214,7 +2214,7 @@ export const en: EnShape = {
   lp_feature_pinterest_title: 'Pinterest',
   lp_feature_pinterest_desc:
     'SEO title, description and keywords for one pin — fully written, ready to copy.',
-  lp_feature_pinterest_status: 'Copy ready · pin image in development',
+  lp_feature_pinterest_status: 'Copy ready · pin images in the campaign',
   lp_feature_etsy_title: 'Etsy',
   lp_feature_etsy_desc: 'Listing title, sales-oriented description and exactly 13 valid tags.',
   lp_feature_etsy_status: 'Copy ready · mockup in development',
@@ -2236,7 +2236,7 @@ export const en: EnShape = {
     'Hand-poured soy wax candles in a jar, three scents to choose from. Cosy for autumn and winter evenings, also a gift. Discover them in the shop now.',
   lp_ex_pin_kw_label: 'Keywords',
   lp_ex_pin_kw: 'soy wax candles·candles in a jar·autumn scent·gift idea·handmade candles',
-  lp_ex_pin_soon: 'Pin image coming — the copy is already yours.',
+  lp_ex_pin_soon: 'Pin image: the campaign turns your own photo into five drafts.',
 
   lp_ex_etsy_label: 'Etsy · listing copy',
   lp_ex_etsy_title_label: 'Title',
@@ -2270,9 +2270,29 @@ export const en: EnShape = {
   lp_how_step3_title: 'Copy the result',
   lp_how_step3_text: 'You get text you can use right away — not a to-do list.',
 
+  // ── Campaign (landing page, 2026-11-17) ────────────────────────────────────
+  lp_kar_headline: 'The campaign: one photo, five finished pins',
+  lp_kar_sub:
+    'You upload your own photo and give your product and a target link. Growimo builds three options from it: five Pinterest pins, one Etsy draft, or both.',
+  lp_kar_p1_title: 'Five pin drafts from your photo',
+  lp_kar_p1_text:
+    'Every pin has its own layout, an editable text field, its own title and its own description. Change the text and the pin is rendered again.',
+  lp_kar_p2_title: 'One Etsy draft — or both',
+  lp_kar_p2_text:
+    'The Etsy draft is built from your product details and every field can be copied on its own. Before you start you choose: Pinterest only, Etsy only, or both.',
+  lp_kar_p3_title: 'PNG per pin and a ZIP for all',
+  lp_kar_p3_text:
+    'Download each pin on its own as a PNG at 1000 × 1500 px, or all five together as a ZIP. The file is byte for byte the image from the preview.',
+  lp_kar_p4_title: 'Logo and font from your brand profile',
+  lp_kar_p4_text:
+    'In the brand profile you store your logo and a font (Standard, Serif or Mono). Both are applied to all five pins; if the logo would overlap the text, it moves up.',
+  lp_kar_note_title: 'No direct Pinterest upload yet',
+  lp_kar_note_text:
+    'Growimo does not publish anything for you. You download the PNG files and post them on Pinterest yourself — title, description and keywords you copy from the draft.',
+
   lp_soon_headline: 'What is still in development',
   lp_soon_pinterest:
-    'The pin image for the Pinterest copy. Until it is done you get the copy — no image.',
+    'Publishing straight to Pinterest. Until then you download the pin PNGs and post them yourself.',
   lp_soon_etsy:
     'The mockup for the Etsy listing. A mockup is not a real product photo and does not replace one.',
   lp_soon_note:
@@ -2284,7 +2304,7 @@ export const en: EnShape = {
     'Three finished pieces of content: pin copy for Pinterest, an Etsy listing with 13 tags and a TikTok script. Each one is text to copy, not advice.',
   lp_faq_q2: 'Do I get a finished pin image?',
   lp_faq_a2:
-    'Not yet — the image is in development. Right now you get title, description and keywords for your pin.',
+    'Yes, through the campaign: your own photo becomes five editable pin drafts as PNG at 1000 × 1500 px — single files or all five as a ZIP. Nothing is published automatically; you download the images and post them on Pinterest yourself.',
   lp_faq_q3: 'Is the Etsy mockup finished?',
   lp_faq_a3:
     'Not yet, it is in development. For handmade products Etsy requires a real product photo — a mockup is an addition, not a replacement.',
@@ -2293,6 +2313,9 @@ export const en: EnShape = {
     'No. You get a script you can act on, with timings, spoken lines, overlays and hashtags. You shoot the video yourself.',
   lp_faq_q5: 'Do I need prior experience?',
   lp_faq_a5: 'No. You describe your product in one sentence and pick a feature.',
+  lp_faq_q7: 'Does Growimo publish the pins on Pinterest?',
+  lp_faq_a7:
+    'No. You get the pins as a download and post them on Pinterest yourself. The Etsy draft and the TikTok script are copy you paste as well — Growimo posts nothing automatically.',
   lp_faq_q6: 'Can I try Growimo for free?',
   lp_faq_a6:
     'Yes. Sign-up is free and you get a free allowance of generations, enough to try all three features.',
@@ -2302,7 +2325,7 @@ export const en: EnShape = {
   lp_cta_button: 'Start for free',
 
   lp_footer_description:
-    'Growimo turns one product idea into three finished pieces of content: pin copy for Pinterest, an Etsy listing and a TikTok script.',
+    'Growimo turns one product idea into finished content: five pin images from your own photo, pin copy for Pinterest, an Etsy listing and a TikTok script.',
   lp_footer_disclaimer:
     'AI-generated copy can contain mistakes. Check it before you publish.',
 

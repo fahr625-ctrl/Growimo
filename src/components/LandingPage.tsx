@@ -34,6 +34,14 @@ function ClockIcon({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
+function InfoIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
 // ── Shared UI primitives ────────────────────────────────────────────────────────
 
 function SectionContainer({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -232,10 +240,10 @@ function HeroSection() {
               <p className="mt-3 text-sm leading-relaxed text-gray-500">{t.lp_hero_card_desc}</p>
               <p className="mt-3 text-xs text-gray-400">{t.lp_hero_card_meta}</p>
 
-              {/* Ehrlicher Platzhalter statt eines erfundenen Pin-Bildes */}
-              <div className="mt-5 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/70 px-4 py-6 text-xs font-medium text-gray-400">
-                <ClockIcon className="h-4 w-4" />
-                {t.lp_hero_card_image_note}
+              {/* Kein erfundenes Beispielbild — nur was wirklich geliefert wird */}
+              <div className="mt-5 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-4 text-xs font-medium text-emerald-800">
+                <CheckIcon className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                <span>{t.lp_hero_card_image_note}</span>
               </div>
             </div>
           </div>
@@ -445,6 +453,51 @@ function ExamplesSection() {
   );
 }
 
+// ── KAMPAGNE ────────────────────────────────────────────────────────────────────
+
+function KampagneSection() {
+  const { t } = useTranslation();
+
+  const points = [
+    { title: t.lp_kar_p1_title, text: t.lp_kar_p1_text },
+    { title: t.lp_kar_p2_title, text: t.lp_kar_p2_text },
+    { title: t.lp_kar_p3_title, text: t.lp_kar_p3_text },
+    { title: t.lp_kar_p4_title, text: t.lp_kar_p4_text },
+  ];
+
+  return (
+    <section id="kampagne" className="py-20 sm:py-28">
+      <SectionContainer>
+        <div className="mx-auto max-w-2xl text-center">
+          <SectionHeading>{t.lp_kar_headline}</SectionHeading>
+          <p className="mt-4 text-base text-gray-500 sm:text-lg">{t.lp_kar_sub}</p>
+        </div>
+
+        <div className="mt-12 grid gap-5 sm:grid-cols-2">
+          {points.map((point) => (
+            <div key={point.title} className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <h3 className="flex items-start gap-2 text-base font-bold leading-snug text-gray-900">
+                <CheckIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-500" />
+                <span>{point.title}</span>
+              </h3>
+              <p className="mt-2 pl-7 text-sm leading-relaxed text-gray-500">{point.text}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Ehrlich benannt: kein automatisches Veröffentlichen */}
+        <div className="mx-auto mt-6 max-w-3xl rounded-2xl border border-blue-200 bg-blue-50/70 p-6 sm:p-8">
+          <p className="flex items-center gap-2 text-sm font-bold text-gray-900">
+            <InfoIcon className="h-4 w-4 flex-shrink-0 text-blue-600" />
+            {t.lp_kar_note_title}
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-gray-700">{t.lp_kar_note_text}</p>
+        </div>
+      </SectionContainer>
+    </section>
+  );
+}
+
 // ── SO FUNKTIONIERT'S ───────────────────────────────────────────────────────────
 
 function HowItWorksSection() {
@@ -525,6 +578,7 @@ function FaqSection() {
     { q: t.lp_faq_q4, a: t.lp_faq_a4 },
     { q: t.lp_faq_q5, a: t.lp_faq_a5 },
     { q: t.lp_faq_q6, a: t.lp_faq_a6 },
+    { q: t.lp_faq_q7, a: t.lp_faq_a7 },
   ];
 
   return (
@@ -653,6 +707,7 @@ export default function LandingPage() {
       <HeroSection />
       <FeaturesSection />
       <ExamplesSection />
+      <KampagneSection />
       <HowItWorksSection />
       <SoonSection />
       <FaqSection />
