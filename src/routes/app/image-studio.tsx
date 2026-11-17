@@ -46,7 +46,12 @@ import { persistGallery, readGallery } from '~/lib/image-gallery';
 import { imageDownloadFilename } from '~/lib/image-download';
 // Option 1 (Bild-Latenz, Owner-Freigabe 2026-10-07) — SSE-Client: echte
 // Zwischenbilder der Route /api/image/stream (Partial Images von gpt-image-2).
-import { runStudioImage } from '~/lib/image-studio-stream';
+import { ImageStreamBusyError, runStudioImage } from '~/lib/image-studio-stream';
+// Fix 2026-11-17 (3): Die Kontingent-Anzeige (Sidebar) liest denselben
+// Server-Wert wie Banner und Vorab-Prüfungen — nach einem erfolgreichen Lauf
+// muss sie neu geladen werden, sonst zeigt sie bis zur Navigation den alten
+// Stand (live gemessen: DB 3→2, Sidebar weiter „3 von 3").
+import { refreshUsage } from '~/lib/usage-client';
 // K4-B (UI-Anbindung, Owner-Auftrag 2026-10-19) — die Galerie zeigte bisher NUR
 // sessionStorage-Aufnahmen; die dauerhaft gespeicherten Originale aus
 // `generated_images` + Blob wurden auf keiner Seite gelistet. Jetzt: Meta-Liste
@@ -128,6 +133,11 @@ const templates = [
   ['9:16', 'image_studio_template_tiktok', 'image_studio_prompt_base_tiktok'],
 ] as const;
 const aspectClass = (ratio: string) => ratio === '2:3' ? 'aspect-[2/3]' : ratio === '4:3' ? 'aspect-[4/3]' : ratio === '16:9' ? 'aspect-video' : ratio === '9:16' ? 'aspect-[9/16]' : 'aspect-square';
+
+// Fix 2026-11-17 (4) — ab dieser Wartezeit ohne Zwischenbild sagt die Lade-Karte
+// ehrlich, dass noch keins vom Anbieter angekommen ist (statt nur Sekunden zu
+// zählen). Bewusst kein Versprechen über die Ursache — nur die Tatsache.
+const STREAM_WAIT_HINT_SECONDS = 20;
 
 // Distinct variation directions. Each one explicitly instructs a different
 // combination of composition/perspective/lighting/depth-of-field while the
@@ -237,6 +247,17 @@ function ImageStudioContent() {
   // ist die ehrliche Variante: der Hinweis erscheint nur, wenn wirklich ein
   // verfeinerter Zwischenstand da ist (nicht beim fail-closed-Fallback).
   const [streamPreview, setStreamPreview] = useState<string | null>(null);
+  // Fix 2026-11-17 (4) — ehrliche Fortschritts-Anzeige: Was kam WIRKLICH an?
+  // `partialClockRef` zählt die Zwischenbilder und merkt sich, wann das erste
+  // eintraf (ms nach Klick). `runReport` hält das Ergebnis des letzten Laufs,
+  // damit die UI danach sagen kann: „kein Zwischenbild" oder „erst am Ende".
+  const partialClockRef = useRef<{ count: number; firstAt: number | null }>({ count: 0, firstAt: null });
+  const [runReport, setRunReport] = useState<{ partials: number; firstPartialMs: number | null; durationMs: number } | null>(null);
+  // Fix 2026-11-17 (1) — Doppelklick-Schutz SYNCHRON. `loading` ist React-State
+  // und wird erst beim nächsten Render true; ein zweiter Klick 2 ms später sah
+  // ihn noch als false und startete einen zweiten Auftrag (live gemessen: zwei
+  // Requests, beide 429, kein Bild, keine Meldung). Das Ref ist sofort gesetzt.
+  const runLockRef = useRef(false);
   const [busy, setBusy] = useState<{ id: string; action: 'variation' | 'regenerate' } | null>(null);
   const [cardError, setCardError] = useState<{ id: string; message: string } | null>(null);
   const [uploads, setUploads] = useState<UploadEntry[]>([]);
@@ -354,6 +375,9 @@ function ImageStudioContent() {
     extraLockLines: Array<string | undefined> = [],
   ) => {
     if (!text.trim()) return;
+    // Fix 2026-11-17 (1): synchroner Riegel — `loading` allein reicht nicht
+    // (siehe runLockRef). Gibt sofort zurück, ohne einen zweiten Auftrag.
+    if (runLockRef.current) return;
     // Schritt 3 (Punkt 3): Referenz prüfen, harte Treue-Bausteine anhängen und
     // den Modus FESTHALTEN — „Variation" ohne Referenz gibt es nicht mehr.
     // Bildvariations-Fix (Owner 2026-10-12): Bei JEDER Referenz laufen jetzt zwei
@@ -365,8 +389,12 @@ function ImageStudioContent() {
       [t.image_studio_prompt_reference_lock, t.image_studio_prompt_reference_text_lock, ...extraLockLines],
       Boolean(reference),
     );
+    runLockRef.current = true;
     setLoading(true); setError(false); setErrorKind(null); setUsageError(null);
     setLastRunMode(reference ? 'edit' : 'generate');
+    // Fix 2026-11-17 (4): Zähler für die ehrliche Fortschritts-Anzeige zurücksetzen.
+    partialClockRef.current = { count: 0, firstAt: null };
+    setRunReport(null);
     // Admin-Analytics MVP Phase 1 (additive): image generation started/finished.
     const imageStart = Date.now();
     try { trackAnalytics('generation_started', { channel: 'image', status: 'started' }); } catch { /* never block */ }
@@ -383,12 +411,46 @@ function ImageStudioContent() {
     const guard = guardImageRun((signal) => runStudioImage({
       body: { prompt: finalPrompt, aspectRatio: selectedRatio, referenceImageData: reference, projectId: studioProjectId(selectedProject) },
       fallback: (s) => generateImageServer({ data: { prompt: finalPrompt, aspectRatio: selectedRatio, referenceImageData: reference, projectId: studioProjectId(selectedProject) }, signal: s }),
-      onPartial: (partial) => setStreamPreview(partial.dataUrl),
+      // Fix 2026-11-17 (4): JEDES ankommende Zwischenbild geht sofort in die
+      // Vorschau; zusätzlich wird gezählt, WANN das erste eintraf — damit die
+      // Anzeige danach ehrlich sagen kann, ob überhaupt eins kam.
+      onPartial: (partial) => {
+        const clock = partialClockRef.current;
+        clock.count += 1;
+        if (clock.firstAt === null) clock.firstAt = Date.now() - imageStart;
+        setStreamPreview(partial.dataUrl);
+      },
       signal,
     }));
     runGuardRef.current = guard;
-    try { const result = await guard.promise; addImage({ id: result.imageId ?? crypto.randomUUID(), url: result.url, prompt: finalPrompt, aspectRatio: selectedRatio, createdAt: new Date(), saved: result.saved === true }); void savedImages.refresh(); track('image_generated', user?.id, { aspectRatio: selectedRatio, mode: reference ? 'edit' : 'generate' }); try { trackAnalytics('generation_finished', { channel: 'image', status: 'done', durationMs: Date.now() - imageStart }); } catch { /* never block */ } }
-    catch (e) { const reason = guard.reason(); setErrorKind(reason ?? 'generic'); setUsageError(reason ? null : friendlyServerError(e)); setError(true); try { const cls = classifyGenerationError(e, reason); trackAnalytics('generation_finished', { channel: 'image', status: 'error', durationMs: Date.now() - imageStart, errorCategory: cls.category, errorCode: cls.code }); } catch { /* never block */ } } finally { runGuardRef.current = null; setLoading(false); setStreamPreview(null); }
+    try {
+      const result = await guard.promise;
+      addImage({ id: result.imageId ?? crypto.randomUUID(), url: result.url, prompt: finalPrompt, aspectRatio: selectedRatio, createdAt: new Date(), saved: result.saved === true });
+      void savedImages.refresh();
+      // Fix 2026-11-17 (3): Kontingent-Anzeige sofort nachziehen (die DB hat
+      // den Verbrauch schon gebucht; ohne Refresh blieb die Sidebar stehen).
+      refreshUsage();
+      // Fix 2026-11-17 (4): Was kam in diesem Lauf wirklich an?
+      setRunReport({ partials: result.partials, firstPartialMs: partialClockRef.current.firstAt, durationMs: Date.now() - imageStart });
+      track('image_generated', user?.id, { aspectRatio: selectedRatio, mode: reference ? 'edit' : 'generate' }); try { trackAnalytics('generation_finished', { channel: 'image', status: 'done', durationMs: Date.now() - imageStart }); } catch { /* never block */ }
+    }
+    catch (e) {
+      const reason = guard.reason();
+      setErrorKind(reason ?? 'generic');
+      // Fix 2026-11-17 (2): Ein 429 der Route („Stream already running") war
+      // bisher stille Stille — jetzt eine klare, deutsche Meldung.
+      setUsageError(
+        reason
+          ? null
+          : e instanceof ImageStreamBusyError
+            ? (e.reason === 'busy'
+              ? t.image_studio_error_stream_busy
+              : (friendlyServerError(e) ?? t.image_studio_error_stream_busy_generic))
+            : friendlyServerError(e),
+      );
+      setError(true);
+      try { const cls = classifyGenerationError(e, reason); trackAnalytics('generation_finished', { channel: 'image', status: 'error', durationMs: Date.now() - imageStart, errorCategory: cls.category, errorCode: cls.code }); } catch { /* never block */ }
+    } finally { runGuardRef.current = null; runLockRef.current = false; setLoading(false); setStreamPreview(null); }
   };
   // Per-card gallery action (Variation / Neu generieren): shows immediate
   // feedback on the card itself, keeps the original image, prepends the new
@@ -416,6 +478,13 @@ function ImageStudioContent() {
     );
     if (finalPrompt) variationCounter.current += 1;
     if (!finalPrompt) return;
+    // Fix 2026-11-17 (1): derselbe synchrone Riegel wie in generate() — eine
+    // Karten-Aktion darf nie parallel zu einem laufenden Auftrag starten.
+    if (runLockRef.current) {
+      setCardError({ id: image.id, message: t.image_studio_error_stream_busy });
+      return;
+    }
+    runLockRef.current = true;
     setBusy({ id: image.id, action });
     setCardError(null);
     setLastRunMode(reference ? 'edit' : 'generate');
@@ -437,11 +506,22 @@ function ImageStudioContent() {
       const result = await guard.promise;
       addImage({ id: result.imageId ?? crypto.randomUUID(), url: result.url, prompt: finalPrompt, aspectRatio: image.aspectRatio, createdAt: new Date(), saved: result.saved === true });
       void savedImages.refresh();
+      // Fix 2026-11-17 (3): Kontingent-Anzeige nachziehen (siehe generate()).
+      refreshUsage();
       track('image_generated', user?.id, { aspectRatio: image.aspectRatio, action, mode: reference ? 'edit' : 'generate' });
       try { trackAnalytics('generation_finished', { channel: 'image', status: 'done', durationMs: Date.now() - cardStart }); } catch { /* never block */ }
     } catch (e) {
       const reason = guard.reason();
-      setUsageError(reason ? null : friendlyServerError(e));
+      // Fix 2026-11-17 (2): 429 der Route ehrlich benennen statt stiller Stille.
+      setUsageError(
+        reason
+          ? null
+          : e instanceof ImageStreamBusyError
+            ? (e.reason === 'busy'
+              ? t.image_studio_error_stream_busy
+              : (friendlyServerError(e) ?? t.image_studio_error_stream_busy_generic))
+            : friendlyServerError(e),
+      );
       setCardError({
         id: image.id,
         message: reason === 'timeout'
@@ -451,6 +531,7 @@ function ImageStudioContent() {
       try { const cls = classifyGenerationError(e, reason); trackAnalytics('generation_finished', { channel: 'image', status: 'error', durationMs: Date.now() - cardStart, errorCategory: cls.category, errorCode: cls.code }); } catch { /* never block */ }
     } finally {
       runGuardRef.current = null;
+      runLockRef.current = false;
       setBusy(null);
       setStreamPreview(null);
     }
@@ -566,7 +647,8 @@ function ImageStudioContent() {
   // Fix B — Format der Vorlage übernehmen (nicht mehr hart '1:1'); ist es nicht
   // bestimmbar (unlesbares Bild), bleibt 1:1 der ehrliche Rückfall.
   const runUploadVariation = async (file: UploadEntry) => {
-    if (loading) return;
+    // Fix 2026-11-17 (1): auch hier der synchrone Riegel (loading ist nicht synchron).
+    if (loading || runLockRef.current) return;
     const change = (file.changeRequest ?? '').trim();
     // Fix C: Pflichtfeld — ohne Änderungswunsch wird gar nicht erst gestartet.
     if (!change) return;
@@ -599,7 +681,7 @@ function ImageStudioContent() {
     <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"><h2 className="text-lg font-bold text-gray-900">{t.image_studio_from_strategy}</h2><select value={selectedProject} onChange={(e) => setSelectedProject(e.target.value)} className="mt-3 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"><option value="">{t.image_studio_select_project}</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}</select>{strategyPrompts.length > 0 && <><p className="mt-4 text-sm font-semibold text-gray-700">{t.image_studio_prompts_generated}</p><div className="mt-2 flex flex-wrap gap-2">{strategyPrompts.map((p) => <button key={p} onClick={() => setPrompt(p)} className="rounded-full bg-blue-50 px-3 py-2 text-left text-xs text-blue-700 transition hover:bg-blue-100">{p}</button>)}</div></>}</section>
     {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{usageError ?? errorText} <button onClick={() => void generate(prompt, ratio, strategyReference)} className="ml-3 font-bold underline">{t.analysis_retry}</button></div>}
     {(strategyReference || lastRunMode === 'edit') && <p data-testid="image-studio-reference-hint" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs text-emerald-800">{t.image_studio_reference_sent_hint}</p>}
-    <section><h2 className="mb-4 text-xl font-bold text-gray-900">{t.image_studio_gallery_title}</h2>{savedStatus && <p data-testid="image-gallery-saved-status" className="mb-4 text-xs font-semibold text-gray-500">{savedStatus}</p>}{savedImages.result?.kind === 'storage_unavailable' && <p data-testid="image-gallery-storage-unavailable" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">{t.image_studio_saved_unavailable}</p>}{savedImages.failed && <div data-testid="image-gallery-load-error" className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs text-red-700"><p className="font-semibold">{t.image_studio_saved_load_failed}</p><button type="button" data-testid="image-gallery-load-retry" onClick={savedImages.refresh} className="mt-2 rounded-lg border border-red-300 bg-white px-3 py-1 font-semibold text-red-700 hover:bg-red-100">{t.image_studio_saved_load_retry}</button></div>}{savedImages.result?.kind === 'ok' && !savedImages.result.report.storageConfigured && <p data-testid="image-gallery-storage-not-configured" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">{t.image_studio_saved_not_configured}</p>}{savedWarning && <p data-testid="image-gallery-storage-warning" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">{savedWarning}</p>}{savedDownloadError && <p data-testid="image-gallery-saved-download-error" className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs text-red-700">{t.image_studio_saved_download_failed}</p>}{restoredCount > 0 && <p data-testid="image-gallery-restored-hint" className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs text-blue-800">{t.image_studio_gallery_restored_hint.replace('%s', String(restoredCount))}</p>}{freshImagesInThisMount && <p data-testid="image-gallery-session-hint" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">{t.image_studio_gallery_session_hint}</p>}{generatedCount > IMAGE_GALLERY_MAX && <p data-testid="image-gallery-cap-hint" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">{t.image_studio_gallery_cap_hint.replace('%s', String(IMAGE_GALLERY_MAX))}</p>}{images.length === 0 && savedOnly.length === 0 && !loading && !savedImages.failed ? <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center text-sm text-gray-500">{t.image_studio_empty}</div> : <div className="grid grid-cols-1 gap-6 md:grid-cols-2">{loading && <article className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"><div className={`relative ${aspectClass(ratio)} bg-gray-100`}>{streamPreview ? <img data-testid="image-studio-stream-preview" src={streamPreview} alt={t.image_studio_streaming_refining} className="h-full w-full object-cover" /> : <div className="h-full w-full animate-pulse bg-gray-200" />}{streamPreview && <span data-testid="image-studio-stream-badge" className="absolute right-3 top-3 rounded-full bg-blue-600/90 px-3 py-1 text-xs font-bold text-white">{t.image_studio_streaming_preview_badge}</span>}</div><p className="px-4 py-4 text-sm font-semibold text-gray-500"><span>{t.image_studio_generating}</span> · {elapsed}s</p>{streamPreview && <p data-testid="image-studio-stream-hint" className="border-t border-blue-100 bg-blue-50 px-4 py-2.5 text-xs font-semibold text-blue-700">{t.image_studio_streaming_refining}</p>}</article>}{images.map((image) => <article key={image.id} className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md"><div className={`relative ${aspectClass(image.aspectRatio)} bg-gray-100`}><img src={image.url} alt={image.prompt} className="h-full w-full object-cover" /><span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-gray-700">{image.aspectRatio}</span>{image.saved === true || savedIdSet.has(image.id) ? <span data-testid="image-saved-badge" title={t.image_studio_saved_badge_hint} className="absolute right-3 top-14 rounded-full bg-emerald-600/90 px-3 py-1 text-xs font-bold text-white">✓ {t.image_studio_saved_badge}</span> : null}{image.preview && <span data-testid="image-preview-badge" title={t.image_studio_gallery_preview_hint} className="absolute right-3 top-3 rounded-full bg-amber-500/90 px-3 py-1 text-xs font-bold text-white">⚠ {t.image_studio_gallery_preview_badge}</span>}</div>{cardError?.id === image.id && <div className="border-t border-red-200 bg-red-50 px-4 py-2.5 text-xs font-semibold text-red-700">{cardError.message}</div>}<div className="grid grid-cols-2 gap-2 p-4"><button onClick={() => download(image)} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200">⬇ {image.preview ? t.image_studio_download_preview : t.image_studio_download}</button><button onClick={() => void copy(image.prompt)} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200">📋 {t.image_studio_copy_prompt}</button><button onClick={() => void runCardAction(image, 'regenerate')} disabled={busy?.id === image.id} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200 disabled:opacity-60">{busy?.id === image.id && busy.action === 'regenerate' ? <span className="inline-block animate-spin">◌</span> : '🔄'} {busy?.id === image.id && busy.action === 'regenerate' ? t.image_studio_regenerate_generating : t.image_studio_regenerate}</button><button onClick={() => void runCardAction(image, 'variation')} disabled={busy?.id === image.id} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200 disabled:opacity-60">{busy?.id === image.id && busy.action === 'variation' ? <span className="inline-block animate-spin">◌</span> : '✨'} {busy?.id === image.id && busy.action === 'variation' ? t.image_studio_variation_generating : t.image_studio_variation}</button></div></article>)}{savedOnly.map((entry, index) => <SavedImageCard key={entry.key} entry={entry} autoLoad={index < SAVED_PREVIEW_AUTOLOAD} onDownloadError={() => setSavedDownloadError(true)} testId="image-gallery-saved-card" />)}</div>}</section>
+    <section><h2 className="mb-4 text-xl font-bold text-gray-900">{t.image_studio_gallery_title}</h2>{savedStatus && <p data-testid="image-gallery-saved-status" className="mb-4 text-xs font-semibold text-gray-500">{savedStatus}</p>}{savedImages.result?.kind === 'storage_unavailable' && <p data-testid="image-gallery-storage-unavailable" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">{t.image_studio_saved_unavailable}</p>}{savedImages.failed && <div data-testid="image-gallery-load-error" className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs text-red-700"><p className="font-semibold">{t.image_studio_saved_load_failed}</p><button type="button" data-testid="image-gallery-load-retry" onClick={savedImages.refresh} className="mt-2 rounded-lg border border-red-300 bg-white px-3 py-1 font-semibold text-red-700 hover:bg-red-100">{t.image_studio_saved_load_retry}</button></div>}{savedImages.result?.kind === 'ok' && !savedImages.result.report.storageConfigured && <p data-testid="image-gallery-storage-not-configured" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">{t.image_studio_saved_not_configured}</p>}{savedWarning && <p data-testid="image-gallery-storage-warning" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">{savedWarning}</p>}{savedDownloadError && <p data-testid="image-gallery-saved-download-error" className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs text-red-700">{t.image_studio_saved_download_failed}</p>}{restoredCount > 0 && <p data-testid="image-gallery-restored-hint" className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs text-blue-800">{t.image_studio_gallery_restored_hint.replace('%s', String(restoredCount))}</p>}{freshImagesInThisMount && <p data-testid="image-gallery-session-hint" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">{t.image_studio_gallery_session_hint}</p>}{generatedCount > IMAGE_GALLERY_MAX && <p data-testid="image-gallery-cap-hint" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">{t.image_studio_gallery_cap_hint.replace('%s', String(IMAGE_GALLERY_MAX))}</p>}{runReport && (runReport.partials === 0 || (runReport.firstPartialMs ?? 0) >= runReport.durationMs - 3000) && <p data-testid="image-studio-stream-report" className="mb-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-xs text-gray-600">{runReport.partials === 0 ? t.image_studio_stream_report_none.replace('%s', String(Math.round(runReport.durationMs / 1000))) : t.image_studio_stream_report_late.replace('%s', String(Math.round((runReport.firstPartialMs ?? 0) / 1000)))}</p>}{images.length === 0 && savedOnly.length === 0 && !loading && !savedImages.failed ? <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center text-sm text-gray-500">{t.image_studio_empty}</div> : <div className="grid grid-cols-1 gap-6 md:grid-cols-2">{loading && <article className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"><div className={`relative ${aspectClass(ratio)} bg-gray-100`}>{streamPreview ? <img data-testid="image-studio-stream-preview" src={streamPreview} alt={t.image_studio_streaming_refining} className="h-full w-full object-cover" /> : <div className="h-full w-full animate-pulse bg-gray-200" />}{streamPreview && <span data-testid="image-studio-stream-badge" className="absolute right-3 top-3 rounded-full bg-blue-600/90 px-3 py-1 text-xs font-bold text-white">{t.image_studio_streaming_preview_badge}</span>}</div><p className="px-4 py-4 text-sm font-semibold text-gray-500"><span>{t.image_studio_generating}</span> · {elapsed}s</p>{streamPreview && <p data-testid="image-studio-stream-hint" className="border-t border-blue-100 bg-blue-50 px-4 py-2.5 text-xs font-semibold text-blue-700">{t.image_studio_streaming_refining}</p>}{!streamPreview && elapsed >= STREAM_WAIT_HINT_SECONDS && <p data-testid="image-studio-stream-waiting" className="border-t border-amber-100 bg-amber-50 px-4 py-2.5 text-xs font-semibold text-amber-800">{t.image_studio_stream_waiting.replace('%s', String(elapsed))}</p>}</article>}{images.map((image) => <article key={image.id} className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md"><div className={`relative ${aspectClass(image.aspectRatio)} bg-gray-100`}><img src={image.url} alt={image.prompt} className="h-full w-full object-cover" /><span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-gray-700">{image.aspectRatio}</span>{image.saved === true || savedIdSet.has(image.id) ? <span data-testid="image-saved-badge" title={t.image_studio_saved_badge_hint} className="absolute right-3 top-14 rounded-full bg-emerald-600/90 px-3 py-1 text-xs font-bold text-white">✓ {t.image_studio_saved_badge}</span> : null}{image.preview && <span data-testid="image-preview-badge" title={t.image_studio_gallery_preview_hint} className="absolute right-3 top-3 rounded-full bg-amber-500/90 px-3 py-1 text-xs font-bold text-white">⚠ {t.image_studio_gallery_preview_badge}</span>}</div>{cardError?.id === image.id && <div className="border-t border-red-200 bg-red-50 px-4 py-2.5 text-xs font-semibold text-red-700">{cardError.message}</div>}<div className="grid grid-cols-2 gap-2 p-4"><button onClick={() => download(image)} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200">⬇ {image.preview ? t.image_studio_download_preview : t.image_studio_download}</button><button onClick={() => void copy(image.prompt)} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200">📋 {t.image_studio_copy_prompt}</button><button onClick={() => void runCardAction(image, 'regenerate')} disabled={busy?.id === image.id} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200 disabled:opacity-60">{busy?.id === image.id && busy.action === 'regenerate' ? <span className="inline-block animate-spin">◌</span> : '🔄'} {busy?.id === image.id && busy.action === 'regenerate' ? t.image_studio_regenerate_generating : t.image_studio_regenerate}</button><button onClick={() => void runCardAction(image, 'variation')} disabled={busy?.id === image.id} className="rounded-lg border border-gray-200 bg-white px-2 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-gray-200 disabled:opacity-60">{busy?.id === image.id && busy.action === 'variation' ? <span className="inline-block animate-spin">◌</span> : '✨'} {busy?.id === image.id && busy.action === 'variation' ? t.image_studio_variation_generating : t.image_studio_variation}</button></div></article>)}{savedOnly.map((entry, index) => <SavedImageCard key={entry.key} entry={entry} autoLoad={index < SAVED_PREVIEW_AUTOLOAD} onDownloadError={() => setSavedDownloadError(true)} testId="image-gallery-saved-card" />)}</div>}</section>
     <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"><h2 className="text-lg font-bold text-gray-900">{t.image_studio_upload_title}</h2><label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/50 p-8 text-center transition hover:bg-blue-50"><span className="text-3xl">⬆️</span><span className="mt-2 text-sm font-semibold text-blue-700">{t.image_studio_upload_dropzone}</span><input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} /></label>{uploads.length > 0 && <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">{uploads.map((file) => <div key={file.url} className="overflow-hidden rounded-xl border" data-testid="upload-card"><img src={file.url} className="aspect-square w-full object-cover" alt={file.name} /><p className="truncate p-2 text-xs text-gray-600">{file.name}</p>{file.status === 'ready' ? <div className="m-2 space-y-1.5"><label className="block text-[10px] font-bold uppercase tracking-wide text-gray-500" data-testid="upload-change-label">{t.image_studio_upload_change_label}<textarea data-testid="upload-change-request" rows={2} value={file.changeRequest ?? ''} onChange={(e) => setUploadChangeRequest(file.url, e.target.value)} placeholder={t.image_studio_upload_change_placeholder} className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-1 text-xs font-normal normal-case tracking-normal text-gray-800 outline-none focus:border-blue-400" /></label>{uploadChangeMissing(file) && <p data-testid="upload-change-required" className="text-[10px] font-semibold leading-snug text-amber-700">{t.image_studio_upload_change_required}</p>}<button type="button" data-testid="upload-variation-btn" disabled={loading || uploadChangeMissing(file)} onClick={() => void runUploadVariation(file)} className="w-full rounded-lg bg-blue-600 px-2 py-1 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">✨ {t.image_studio_upload_variation_btn}</button><p data-testid="upload-reference-active" className="text-[10px] leading-snug text-emerald-700">{t.image_studio_upload_reference_active.replace('%s', file.aspectRatio ?? '1:1')}</p></div> : <><button type="button" data-testid="upload-variation-btn" disabled className="m-2 cursor-not-allowed rounded-lg bg-gray-300 px-2 py-1 text-xs font-semibold text-white">✨ {t.image_studio_variation}</button><p className="mx-2 mb-2 text-[10px] leading-snug text-gray-500" data-testid="upload-no-reference">{file.status === 'reading' ? t.image_studio_upload_reading : t.image_studio_upload_reference_missing}</p></>}</div>)}</div>}</section>
   </div>;
 }

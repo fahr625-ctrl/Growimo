@@ -537,7 +537,11 @@ const studio = read('src/routes/app/image-studio.tsx');
 check('D7 Client rendert das Zwischenbild in der Vorschau',
   studio.includes('data-testid="image-studio-stream-preview"') && studio.includes('src={streamPreview}'));
 check('D8 Client-Handler verarbeitet das partial-Event',
-  studio.includes('onPartial: (partial) => setStreamPreview(partial.dataUrl)') && studio.includes('runStudioImage('));
+  // Fix 2026-11-17 (4): der Handler zählt jetzt zusätzlich, wann das erste
+  // Zwischenbild ankam — die Vorschau wird unverändert sofort gesetzt.
+  studio.includes('onPartial: (partial) =>') &&
+  studio.includes('setStreamPreview(partial.dataUrl)') &&
+  studio.includes('runStudioImage('));
 check('D9 Streaming-Hinweis wird nur mit Zwischenbild gezeigt',
   studio.includes('data-testid="image-studio-stream-hint"') && studio.includes('{streamPreview && <p data-testid="image-studio-stream-hint"'));
 check('D10 Timeout-Text bleibt dynamisch (%s + Konstante)',

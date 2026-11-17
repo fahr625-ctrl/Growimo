@@ -58,6 +58,28 @@ export class ImageStreamServerError extends Error {
 }
 
 /**
+ * Die Route hat den Lauf mit 429 abgelehnt — es läuft schon einer
+ * (`Stream already running`) oder die Drossel greift.
+ *
+ * WICHTIG (Fix 2026-11-17): Diese Klasse ist bewusst KEIN
+ * `ImageStreamUnavailableError`. Vorher fiel ein 429 in den ServerFn-Rückfall —
+ * also in einen zweiten (bezahlbaren) Lauf, obwohl der Server den ersten noch
+ * gar nicht beendet hatte; der Nutzer sah am Ende weder Bild noch Meldung.
+ * Jetzt wird der 429 durchgereicht und die UI sagt ehrlich, was los ist.
+ */
+export class ImageStreamBusyError extends Error {
+  readonly status: number;
+  /** `busy` = ein Lauf ist aktiv; `rate` = Drossel/Limit des Servers. */
+  readonly reason: 'busy' | 'rate';
+  constructor(message: string, status = 429, reason: 'busy' | 'rate' = 'busy') {
+    super(message);
+    this.name = 'ImageStreamBusyError';
+    this.status = status;
+    this.reason = reason;
+  }
+}
+
+/**
  * Ein SSE-Block → Event. Kommentarzeilen (`: heartbeat`) und alles, was kein
  * bekanntes Event ist, ergeben `null` (wird übersprungen) — fail-closed, damit
  * ein unbekanntes Event nie als Teilbild interpretiert wird.
@@ -147,7 +169,26 @@ export async function runImageStream(args: RunImageStreamArgs): Promise<ImageStr
     try {
       const text = await response.text();
       if (text && text.length < 300) detail = text;
-    } catch {
+      // 429 (Fix 2026-11-17): Der Server hat den Lauf abgelehnt, weil schon
+      // einer läuft (`Stream already running`) oder die Drossel greift. Das ist
+      // KEIN „Route nicht verfügbar" — ein Rückfall würde einen zweiten Auftrag
+      // starten. Deshalb eigene Klasse mit der Server-Meldung.
+      if (response.status === 429) {
+        let serverMessage = text;
+        try {
+          const parsed = JSON.parse(text) as { error?: unknown };
+          if (typeof parsed?.error === 'string' && parsed.error) serverMessage = parsed.error;
+        } catch {
+          /* kein JSON — der Rohtext bleibt die Meldung */
+        }
+        throw new ImageStreamBusyError(
+          serverMessage || 'Stream already running',
+          429,
+          /already running/i.test(serverMessage) ? 'busy' : 'rate',
+        );
+      }
+    } catch (err) {
+      if (err instanceof ImageStreamBusyError) throw err;
       /* Body nicht lesbar — Status genügt */
     }
     throw new ImageStreamUnavailableError(detail, response.status);
@@ -201,6 +242,12 @@ export interface StudioImageRunResult {
   url: string;
   /** true = mindestens ein Zwischenbild kam an (Streaming hat funktioniert). */
   streamed: boolean;
+  /**
+   * Anzahl der wirklich angekommenen Zwischenbilder (0 = keins).
+   * Fix 2026-11-17: Die UI kann damit ehrlich sagen, ob in diesem Lauf ein
+   * Zwischenbild ankam oder nur das Endbild — vorher war das unsichtbar.
+   */
+  partials: number;
   /** true = klassisch generiert (Server-Fallback bzw. ServerFn-Rückfall). */
   usedFallback: boolean;
   mode: string;
@@ -280,6 +327,7 @@ export async function runStudioImage(args: {
     return {
       url: result.url,
       streamed: !result.usedFallback && result.partials > 0,
+      partials: result.partials,
       usedFallback: result.usedFallback,
       mode: result.mode,
       saved: result.saved,
@@ -287,12 +335,17 @@ export async function runStudioImage(args: {
       imageId: result.imageId,
     };
   } catch (err) {
+    // Fix 2026-11-17: Ein 429 (`Stream already running` / Drossel) fällt NICHT
+    // in den Rückfall — der Server hat den Lauf abgelehnt, ein zweiter Aufruf
+    // wäre genau der Doppelauftrag, den wir verhindern wollen. Die UI bekommt
+    // die ehrliche Meldung.
+    if (err instanceof ImageStreamBusyError) throw err;
     if (!(err instanceof ImageStreamUnavailableError) || partialCount > 0) throw err;
     const fallback = await args.fallback(args.signal);
     const saved = await persistFallbackResult(fallback.url, {
       ...args.body,
       projectId: args.projectId ?? args.body.projectId,
     }, args.fetchImpl ?? fetch);
-    return { url: fallback.url, streamed: false, usedFallback: true, mode: 'generate', ...saved };
+    return { url: fallback.url, streamed: false, partials: 0, usedFallback: true, mode: 'generate', ...saved };
   }
 }

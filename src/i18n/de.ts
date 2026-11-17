@@ -755,6 +755,13 @@ export const de = {
   // Beim fail-closed-Fallback (usedFallback) bleibt es beim normalen Warten.
   image_studio_streaming_refining: 'Bild wird in Echtzeit verfeinert…',
   image_studio_streaming_preview_badge: 'Live-Vorschau',
+  // Fix 2026-11-17 (4) — ehrliche Fortschritts-Anzeige: %s = Sekunden.
+  image_studio_stream_waiting: 'Noch kein Zwischenbild vom Anbieter angekommen (bisher %s s). Der Auftrag läuft weiter — das fertige Bild erscheint automatisch am Ende.',
+  image_studio_stream_report_none: 'Dieser Lauf kam ohne Zwischenbild an: Der Anbieter hat in diesem Lauf keins geschickt (Endbild vollständig, %s s).',
+  image_studio_stream_report_late: 'Die Zwischenbilder kamen erst kurz vor dem Endergebnis an (erstes nach %s s) — die Wartezeit lag also nicht am Bild, sondern an der Übertragung.',
+  // Fix 2026-11-17 (2) — 429 der Streaming-Route ehrlich benennen.
+  image_studio_error_stream_busy: 'Es läuft bereits ein Bild-Auftrag. Bitte warte, bis er fertig ist — es wurde kein zweiter Auftrag gestartet.',
+  image_studio_error_stream_busy_generic: 'Der Server hat den Auftrag abgelehnt (zu viele Anfragen). Bitte einen Moment warten und erneut versuchen.',
   // Phase 3.3d — Rückweg zur TikTok-Idee (Ergebnis bleibt erhalten).
   image_studio_back_to_tiktok: 'Zurück zur TikTok-Idee',
   // Phase 3.4 — Galerie-Begrenzung (%s = Anzahl sichtbarer Bilder).

@@ -752,6 +752,13 @@ export const en: EnShape = {
   // (usedFallback) the normal waiting state stays.
   image_studio_streaming_refining: 'Image is being refined in real time…',
   image_studio_streaming_preview_badge: 'Live preview',
+  // Fix 2026-11-17 (4) — honest progress display: %s = seconds.
+  image_studio_stream_waiting: 'No intermediate image from the provider yet (%s s so far). The run continues — the finished image appears automatically at the end.',
+  image_studio_stream_report_none: 'This run arrived without an intermediate image: the provider sent none (final image complete, %s s).',
+  image_studio_stream_report_late: 'The intermediate images arrived only just before the final result (first one after %s s) — the wait was in the transfer, not the image.',
+  // Fix 2026-11-17 (2) — name the stream route’s 429 honestly.
+  image_studio_error_stream_busy: 'An image job is already running. Please wait until it finishes — no second job was started.',
+  image_studio_error_stream_busy_generic: 'The server rejected the job (too many requests). Please wait a moment and try again.',
   // Phase 3.3d — way back to the TikTok idea (result stays).
   image_studio_back_to_tiktok: 'Back to the TikTok idea',
   // Phase 3.4 — gallery cap (%s = number of visible images).
