@@ -253,6 +253,16 @@ function KampagneContent() {
 
   const onGeneratePins = useCallback(async () => {
     setPinError(null);
+    // BEFUND 2026-11-17 (preview.growimo.app): ohne Produktangabe baut
+    // buildPinDrafts fünf Entwürfe mit LEEREM Overlay-Text. Der Server bricht
+    // dann fail-closed ab (`invalid_input`) — und die Seite zeigte dafür
+    // „Die Vorschau konnte nicht gerendert werden", obwohl nichts zu rendern
+    // war. Deshalb: erst prüfen, dann rendern. Ohne Text entsteht kein Pin
+    // (kein stiller Textabbruch) — aber es steht dann auch da, was fehlt.
+    if (!draft.product.trim()) {
+      setPinError('product_required');
+      return;
+    }
     // Das Foto kommt aus dem Ref: „neu erzeugen" arbeitet aus DEMSELBEN Foto,
     // auch wenn das Feld zwischendurch leer wäre — und stellt es wieder her.
     const src = draft.photoDataUrl ?? photoRef.current;
@@ -311,6 +321,7 @@ function KampagneContent() {
       if (!src || pinsRef.current.length === 0) return;
       const photoUrl = await ensureRenderPhoto(src);
       for (const pin of pinsRef.current) {
+        if (!pin.headline.trim()) continue;
         await renderOne(pin, photoUrl, brand);
       }
     },
@@ -320,6 +331,14 @@ function KampagneContent() {
   /** Nach einem Fehlschlag: alle Karten erneut rendern — mit DEMSELBEN Foto. */
   const retryRenders = useCallback(async () => {
     setPinError(null);
+    // Ohne Text gibt es nichts zu rendern: der Server würde jeden Entwurf
+    // fail-closed ablehnen und die Seite zeigte wieder „konnte nicht
+    // gerendert werden". Stattdessen sagen, was fehlt.
+    const withText = pinsRef.current.filter((pin) => pin.headline.trim());
+    if (withText.length === 0) {
+      setPinError('product_required');
+      return;
+    }
     const src = draft.photoDataUrl ?? photoRef.current;
     if (!src) {
       setPinError('photo_required');
@@ -330,7 +349,7 @@ function KampagneContent() {
       setDraft((prev) => (prev.photoDataUrl ? prev : { ...prev, photoDataUrl: src }));
     }
     const photoUrl = await ensureRenderPhoto(src);
-    for (const pin of pinsRef.current) {
+    for (const pin of withText) {
       await renderOne(pin, photoUrl, brandInput);
     }
   }, [brandInput, draft.photoDataUrl, ensureRenderPhoto, renderOne]);
@@ -833,7 +852,13 @@ function KampagneContent() {
 
           {pinError && (
             <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-              <p>{pinError === 'photo_required' ? t.kampagne_err_photo_required : t.kampagne_pin_render_failed}</p>
+              <p>
+                {pinError === 'photo_required'
+                  ? t.kampagne_err_photo_required
+                  : pinError === 'product_required'
+                    ? t.kampagne_err_product_required
+                    : t.kampagne_pin_render_failed}
+              </p>
               {pinError === 'render' && (
                 <button
                   type="button"
