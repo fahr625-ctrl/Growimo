@@ -13,6 +13,7 @@ import BrandBadge from '~/components/BrandBadge';
 import { ScoreCard } from '~/components/ScoreCard';
 import { tempAssetId } from '~/components/AssetFeedback';
 import { VariantPicker } from '~/components/VariantPicker';
+import { PinImageFromText } from '~/components/PinImageFromText';
 import { showAbVariantsFor } from '~/lib/ui-neuausrichtung';
 import { useTranslation } from '~/i18n';
 import { saveProject, updateChannel } from '~/store/projects';
@@ -795,6 +796,16 @@ function QuickGeneratorContent({
                   productIdea={productIdea}
                   strategyContext={strategyContext}
                   onAdopt={handleAdoptVariant}
+                />
+              )}
+              {/* Pin-Bild aus dem fertigen Pin-Text (2026-11-17): EIN KI-Bild als
+                  Hintergrund (keine Neueingabe), Text + Layout aus dem
+                  deterministischen Renderer, PNG-Download. */}
+              {result.contentType === 'pinterest_pin' && (
+                <PinImageFromText
+                  title={result.title}
+                  description={result.body}
+                  productIdea={productIdea}
                 />
               )}
               {savedProjectId && (

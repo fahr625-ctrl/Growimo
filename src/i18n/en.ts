@@ -2430,6 +2430,20 @@ export const en: EnShape = {
   kampagne_pin_title: 'Pinterest title',
   kampagne_pin_description: 'Description',
   kampagne_export_png: 'Download PNG',
+  pinimg_create: 'Create pin image',
+  pinimg_working: 'Creating pin image …',
+  pinimg_hint:
+    'The image is built from this finished pin text — nothing to type again. One image = one unit.',
+  pinimg_layout: 'Layout',
+  pinimg_apply: 'Apply & re-render',
+  pinimg_preview_alt: 'Preview of the pin image',
+  pinimg_error_image: 'The image could not be created. Nothing was changed.',
+  pinimg_error_unavailable: 'The image service is not reachable right now. Please try again.',
+  pinimg_error_render:
+    'This image could not become a pin — the text does not fit or the contrast is too low.',
+  pinimg_error_text_required: 'Please enter the text for the pin.',
+  pinimg_error_no_input:
+    'There is no pin text yet to build an image from. Please generate the Pinterest text first.',
   kampagne_export_zip: 'All five as ZIP',
   kampagne_export_busy: 'Downloading …',
   kampagne_export_failed: 'The download did not work. Please try again — the preview is unchanged.',
