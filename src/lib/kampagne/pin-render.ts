@@ -41,7 +41,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { loadSharp, type SharpFactory } from './sharp-loader';
-import { PIN_FONT_STACKS } from './pin-fonts';
+import { PIN_FONT_FAMILY_NAMES, PIN_FONT_STACKS, type PinFontId } from './pin-fonts';
+import { PIN_FONT_COVERAGE, missingGlyphs, pinFontIdFromFamily } from './pin-font-coverage';
 
 export const PIN_WIDTH = 1000;
 export const PIN_HEIGHT = 1500;
@@ -52,9 +53,6 @@ export const PIN_HEIGHT = 1500;
 // danach sind nur Rückfall für die lokale Entwicklung.
 export const PIN_FONT_STACK =
   PIN_FONT_STACKS.sans;
-
-/** Schriftgröße der Schrift-Prüfung (Tofu-Erkennung). */
-const PROBE_SIZE = 100;
 
 /** Mindestkontrast Text ↔ Hintergrund (WCAG AA, normaler Text). */
 export const MIN_TEXT_CONTRAST = 4.5;
@@ -453,151 +451,63 @@ function boxFitsSafeArea(box: InkBox): boolean {
   );
 }
 
-// ── Schrift-Prüfung (Tofu-Erkennung) ─────────────────────────────────────────
+// ── Schrift-Prüfung: Glyphen-Coverage, KEINE Pixel ──────────────────────────
 // BEFUND 2026-11-15: Ohne Schrift zeichnet librsvg für JEDES Zeichen dasselbe
-// leere Kästchen. Solche Pixel sind „Text" im Sinne der alten Prüfung — der Pin
-// ging also als gerendert durch und war doch unlesbar (Beleg:
-// /home/team/shared/kampagne-schrift-2026-11-15/). Diese Prüfung misst nicht,
-// OB Pixel da sind, sondern ob verschiedene Zeichen VERSCHIEDEN breit sind:
-// mit echter Schrift ist „MMMM" deutlich breiter als „iiii", mit Tofu sind
-// beide gleich breit. Ohne diesen Nachweis gibt es kein Bild.
+// leere Kästchen — „Text" im Sinne einer Pixelzählung, und doch unlesbar.
 //
-// BRAND KIT 2026-11-16: Die Prüfung läuft jetzt GEGEN DIE GEWÄHLTE FAMILIE
-// (vorher fest gegen Liberation Sans). Zwei Stufen:
-//   (a) Breiten-Verhältnis „MMMM"/„iiii" — erkennt „es gibt überhaupt keine
-//       Schrift". Bei einer Monospace-Familie ist das Verhältnis bauartbedingt
-//       1,0; dort wird (a) übersprungen und (b) entscheidet.
-//   (b) GLYPHEN-ABGLEICH: jedes Zeichen, das wirklich im Text steht, wird
-//       einzeln gerendert und mit der Referenz für „dieses Zeichen gibt es
-//       nicht" (Private-Use U+E000) verglichen. Gleiches Pixelbild ⇒ Tofu ⇒
-//       Fehler. Das ist der Fall, den (a) nicht sehen kann: eine Familie ist da,
-//       aber ein Zeichen fehlt (z. B. außerhalb des beschnittenen Zeichensatzes).
-interface FontProbe {
-  ratio: number;
-  mmmm: number;
-  iiii: number;
-  /** Pixel-Hash des Ersatzzeichens (.notdef) dieser Familie. */
-  notdefHash: string;
-}
-
-/** Referenzzeichen: in keiner eingebetteten Schrift vorhanden ⇒ .notdef. */
-const NOTDEF_CHAR = '\uE000';
-const PROBE_W = 600;
-const PROBE_H = 240;
-
-const fontProbes = new Map<string, FontProbe>();
-const glyphHashes = new Map<string, string>();
-
-// `node:crypto` wird wie `sharp` erst zur Laufzeit geladen und der Modulname
-// erst dort gebildet: pin-render.ts ist über pin-drafts.ts auch aus dem
-// Client-Graphen erreichbar, und ein statischer `node:crypto`-Import bricht
-// `vite build` ab ("createHash is not exported by __vite-browser-external").
-const CRYPTO_MODULE = 'node:crypto';
-let cryptoModule: typeof import('node:crypto') | null = null;
-
-async function sha1Hex(buf: Buffer): Promise<string> {
-  if (!cryptoModule) {
-    cryptoModule = (await import(/* @vite-ignore */ CRYPTO_MODULE)) as typeof import('node:crypto');
-  }
-  return cryptoModule.createHash('sha1').update(buf).digest('hex');
-}
-
-/** Zeichen einer Familie rendern und das Pixelbild hashen (gecacht). */
-async function glyphHash(
-  sharp: SharpFactory,
-  family: string,
-  char: string,
-): Promise<string> {
-  const key = `${family}\u0000${char}`;
-  const cached = glyphHashes.get(key);
-  if (cached) return cached;
-  const svg = Buffer.from(
-    `<svg width="${PROBE_W}" height="${PROBE_H}" xmlns="http://www.w3.org/2000/svg">` +
-      `<text x="10" y="${Math.round(PROBE_SIZE * 1.6)}" font-family='${esc(family)}' ` +
-      `font-size="${PROBE_SIZE}" font-weight="700" fill="#ffffff">${esc(char)}</text></svg>`,
-  );
-  const layer = await measureInk(sharp, svg);
-  const hash = await sha1Hex(layer.raw);
-  glyphHashes.set(key, hash);
-  return hash;
-}
+// BEFUND 2026-11-17 (SPEC §9): Die damalige Folgerung, fehlende Zeichen über
+// einen Pixelvergleich mit dem Ersatzzeichen (.notdef) zu erkennen, kann nicht
+// greifen: Pango schreibt den Codepoint INS Kästchen. Jedes fehlende Zeichen
+// sieht damit anders aus als .notdef und galt als vorhanden — sechs von sechs
+// Pins gingen mit sichtbarem Kästchen durch.
+//
+// Jetzt wird nicht gemessen, sondern GELESEN: pin-font-coverage.ts enthält die
+// belegten Codepoints der eingebetteten Schrift, erzeugt aus genau den Bytes,
+// die fontconfig bekommt. Jedes Zeichen von Titel, Untertitel und Markenzeile
+// wird gegen die Coverage der GEWÄHLTEN Familie geprüft; fehlt eins, gibt es
+// kein Bild (`font_missing`, mit Zeichen und U+Nummer).
 
 /**
- * Prüft, ob die Schriftkette wirklich Glyphen zeichnet (einmal je Familie).
- * Ohne `fontFamily` gilt die Standardkette — dann ist das Verhalten exakt das
- * bisherige.
+ * Deterministische Vorprüfung ohne Pixel: ist die eingebettete Schrift in
+ * diesem Prozess überhaupt bereitgestellt? `pin-font.ts` legt sie ab und setzt
+ * `FONTCONFIG_FILE` — fehlt die Variable, würde Pango Kästchen zeichnen.
  */
-export async function assertFontRenders(
-  sharp: SharpFactory,
-  fontFamily?: string | null,
-): Promise<FontProbe> {
-  const family = (fontFamily ?? '').trim() || PIN_FONT_STACK;
-  // Ein positives Ergebnis gilt für den Prozess. Ein negatives wird NICHT
-  // gemerkt: es kann an einer vorübergehenden Lage liegen (Schrift noch nicht
-  // abgelegt) und darf die Instanz nicht dauerhaft sperren.
-  const cached = fontProbes.get(family);
-  if (cached) return cached;
-
-  const measure = async (text: string): Promise<number> => {
-    const svg = Buffer.from(
-      `<svg width="${PROBE_W}" height="${PROBE_H}" xmlns="http://www.w3.org/2000/svg">` +
-        `<text x="10" y="${Math.round(PROBE_SIZE * 1.6)}" font-family='${esc(family)}' ` +
-        `font-size="${PROBE_SIZE}" font-weight="700" fill="#ffffff">${text}</text></svg>`,
-    );
-    const layer = await measureInk(sharp, svg);
-    return layer.box.right - layer.box.left + (layer.pixels > 0 ? 1 : 0);
-  };
-  const mmmm = await measure('MMMM');
-  const iiii = await measure('iiii');
-  // Echte Schrift: „MMMM" mindestens 1,6× so breit wie „iiii" (Liberation Sans
-  // ≈ 3,3×). Tofu liegt bei 1,0, weil jedes Zeichen dasselbe Kästchen ist.
-  // Monospace: alle Zeichen gleich breit — dort entscheidet der Glyphen-Abgleich.
-  const monospace = /mono/i.test(family);
-  const ratio = iiii > 0 ? mmmm / iiii : 0;
-  const notdefHash = await glyphHash(sharp, family, NOTDEF_CHAR);
-  const glyphOk = mmmm > 0 && iiii > 0 && (monospace || ratio >= 1.6);
-  if (!glyphOk || (await glyphHash(sharp, family, 'M')) === notdefHash) {
+function assertFontPrepared(fontId: PinFontId): void {
+  if (PIN_FONT_COVERAGE[fontId].size === 0) {
     throw new PinRenderError(
       'font_missing',
-      `Schrift zeichnet keine Zeichen (Breiten-Verhältnis MMMM/iiii = ${ratio.toFixed(2)}, Monospace = ${monospace}) — im Laufzeit-Image fehlt die Schrift „${family}".`,
+      `Für die Schrift „${PIN_FONT_FAMILY_NAMES[fontId]}" ist keine Glyphen-Coverage hinterlegt — es wird nichts geraten.`,
     );
   }
-  const probe: FontProbe = { ratio, mmmm, iiii, notdefHash };
-  fontProbes.set(family, probe);
-  return probe;
+  if (!(process.env.FONTCONFIG_FILE ?? '').trim()) {
+    throw new PinRenderError(
+      'font_missing',
+      `Die eingebettete Schrift „${PIN_FONT_FAMILY_NAMES[fontId]}" ist nicht bereitgestellt (FONTCONFIG_FILE fehlt) — es entstünden leere Kästchen.`,
+    );
+  }
 }
 
 /**
- * Tofu-Prüfung gegen die GEWÄHLTE Familie: jedes Zeichen, das im Pin wirklich
- * vorkommt, muss in dieser Familie vorhanden sein. Fehlt eines, gibt es KEIN
- * Bild — ein leeres Kästchen ist ein stiller Textabbruch und damit verboten.
+ * Prüft JEDES Zeichen des Pins gegen die Coverage der gewählten Familie.
+ * Leerraum und Zeilenumbrüche sind kein Fehler, Ersatzzeichen (U+FFFD) gelten
+ * als gewollt. Fehlt ein Zeichen: `font_missing`, kein Bild.
  */
-export async function assertGlyphsRenderable(
-  sharp: SharpFactory,
+export function assertGlyphsRenderable(
   fontFamily: string | null | undefined,
   texts: (string | null | undefined)[],
-): Promise<void> {
-  const family = (fontFamily ?? '').trim() || PIN_FONT_STACK;
-  const probe = await assertFontRenders(sharp, family);
-  const chars = new Set<string>();
-  for (const text of texts) {
-    for (const char of Array.from(text ?? '')) {
-      if (/\s/.test(char)) continue;
-      chars.add(char);
-    }
-  }
-  const missing: string[] = [];
-  for (const char of chars) {
-    if ((await glyphHash(sharp, family, char)) === probe.notdefHash) missing.push(char);
-  }
+): void {
+  const fontId = pinFontIdFromFamily(fontFamily);
+  assertFontPrepared(fontId);
+  const missing = missingGlyphs(fontId, texts);
   if (missing.length > 0) {
-    const list = missing.map((c) => `„${c}" (U+${c.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')})`);
+    const list = missing.map((m) => `„${m.char}" (${m.label})`).join(', ');
     throw new PinRenderError(
       'font_missing',
-      `Die gewählte Schrift „${family}" hat ${missing.length} Zeichen des Textes nicht (${list.join(', ')}) — es entstünde ein leeres Kästchen. Bitte eine andere Schrift wählen oder das Zeichen ersetzen.`,
+      `Die gewählte Schrift „${PIN_FONT_FAMILY_NAMES[fontId]}" hat ${missing.length} Zeichen des Textes nicht (${list}) — es entstünde ein leeres Kästchen. Bitte eine andere Schrift wählen oder das Zeichen ersetzen.`,
     );
   }
 }
+
 
 // ── Geometrie ────────────────────────────────────────────────────────────────
 
@@ -1002,7 +912,7 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
   //    entstünde ein Pin voller leerer Kästchen (Tofu) — ein Bild, das wie ein
   //    Ergebnis aussieht und keines ist. Geprüft wird der ECHTE Text: fehlt
   //    auch nur ein Zeichen in der Familie, gibt es kein Bild.
-  await assertGlyphsRenderable(sharp, input.brand?.fontFamily, [
+  assertGlyphsRenderable(input.brand?.fontFamily, [
     input.title,
     input.subtitle,
     input.brandLine,

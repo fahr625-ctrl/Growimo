@@ -11,8 +11,9 @@
 // Reihenfolge ist wichtig: `FONTCONFIG_FILE` muss gesetzt sein, BEVOR librsvg
 // zum ersten Mal Text zeichnet (fontconfig liest seine Konfiguration einmal).
 // Deshalb ruft der Server-Handler `ensurePinFonts()` vor dem ersten Rendern auf.
-// Ob es wirklich gewirkt hat, prüft danach `assertFontRenders()` in pin-render.ts
-// — diese Datei behauptet nichts, sie bereitet nur vor.
+// Ob es wirklich gewirkt hat, prüft danach `assertGlyphsRenderable()` in
+// pin-render.ts gegen die Glyphen-Coverage aus pin-font-coverage.ts — diese
+// Datei behauptet nichts, sie bereitet nur vor.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
