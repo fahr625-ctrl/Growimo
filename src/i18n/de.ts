@@ -2437,6 +2437,23 @@ export const de = {
   kampagne_pin_title: 'Pinterest-Titel',
   kampagne_pin_description: 'Beschreibung',
   kampagne_export_png: 'PNG herunterladen',
+  // Pin-Bild aus dem fertigen Pin-Text (2026-11-17): EIN KI-Bild als
+  // Hintergrund, Text + Layout aus dem deterministischen Renderer.
+  pinimg_create: 'Pin-Bild erstellen',
+  pinimg_working: 'Pin-Bild wird erzeugt …',
+  pinimg_hint:
+    'Das Bild entsteht aus diesem fertigen Pin-Text — du musst nichts neu eingeben. Ein Bild = eine Einheit.',
+  pinimg_layout: 'Layout',
+  pinimg_apply: 'Übernehmen & neu rendern',
+  pinimg_preview_alt: 'Vorschau des Pin-Bildes',
+  pinimg_error_image: 'Das Bild konnte nicht erzeugt werden. Es wurde nichts geändert.',
+  pinimg_error_unavailable:
+    'Der Bild-Dienst ist gerade nicht erreichbar. Bitte noch einmal versuchen.',
+  pinimg_error_render:
+    'Aus diesem Bild konnte kein Pin werden — der Text passt nicht darauf oder der Kontrast ist zu niedrig.',
+  pinimg_error_text_required: 'Bitte trag den Text auf dem Pin ein.',
+  pinimg_error_no_input:
+    'Es gibt noch keinen Pin-Text, aus dem ein Bild entstehen kann. Bitte erst den Pinterest-Text erzeugen.',
   kampagne_export_zip: 'Alle fünf als ZIP',
   kampagne_export_busy: 'Wird geladen …',
   kampagne_export_failed:
