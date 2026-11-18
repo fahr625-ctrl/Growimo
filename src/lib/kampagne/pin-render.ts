@@ -43,6 +43,7 @@
 import { loadSharp, type SharpFactory } from './sharp-loader';
 import { PIN_FONT_FAMILY_NAMES, PIN_FONT_STACKS, type PinFontId } from './pin-fonts';
 import { PIN_FONT_COVERAGE, missingGlyphs, pinFontIdFromFamily } from './pin-font-coverage';
+import { findResidualEscape } from '~/lib/text-normalize';
 
 export const PIN_WIDTH = 1000;
 export const PIN_HEIGHT = 1500;
@@ -305,6 +306,7 @@ export class PinRenderError extends Error {
     | 'no_photo'
     | 'font_missing'
     | 'logo_unreadable'
+    | 'text_escaped'
     | 'text_overflow'
     | 'text_truncated'
     | 'contrast_too_low'
@@ -904,6 +906,19 @@ async function placeLogo(
 export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResult> {
   if (!input.photo || input.photo.length === 0) {
     throw new PinRenderError('no_photo', 'Kein Foto übergeben.');
+  }
+  // 0a) Fail-closed-Riegel (2026-11-18, Befund „… einzigartig\""): Steckt noch
+  //     ein Escape-Rest (Backslash) im Text, wird er NICHT ins Bild gezeichnet.
+  //     Der Renderer setzt die Zeichen wörtlich — der Nutzer bekäme den
+  //     Backslash mitgeliefert, ohne es zu merken. Also: kein Bild, klare
+  //     Meldung. Die Reparatur passiert vorher in `normalizeModelText`; was
+  //     danach noch übrig ist, ist nicht vertrauenswürdig.
+  const escaped = findResidualEscape([input.title, input.subtitle, input.brandLine]);
+  if (escaped !== null) {
+    throw new PinRenderError(
+      'text_escaped',
+      `Der Text enthält einen Escape-Rest (Backslash) und wird nicht ins Bild gesetzt: ${escaped.slice(0, 80)}`,
+    );
   }
   const sharp = await getSharp();
   const versions = (sharp as unknown as { versions?: Record<string, string> }).versions ?? {};

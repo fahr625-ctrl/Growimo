@@ -4,6 +4,7 @@ import { SELF_REFERENCE_CONSTRAINT } from '../context-loyalty';
 import { FACT_PROTECTION_CONSTRAINT } from '../fact-guard';
 import { GenerationQualityError, isRefusalText } from '~/lib/result-quality';
 import { etsyTagFallbacks, sanitizeEtsyTags } from '~/lib/etsy-tags';
+import { normalizeModelText } from '~/lib/text-normalize';
 
 const NO_INVENT_CONSTRAINT = `⚠️ WICHTIG: Verwende AUSSCHLIESSLICH die vom Nutzer bereitgestellten Produktinformationen. Erfinde KEINE Größen, Materialien, Preise, Farben, Versanddetails oder andere Produktspezifikationen, die nicht in den Produktdetails genannt werden. Wenn eine Information nicht verfügbar ist, formuliere allgemein oder lasse sie weg — aber erfinde sie nicht.`;
 
@@ -604,7 +605,11 @@ Ein Trend, der NOCH NICHT Mainstream ist, aber in 6–12 Monaten relevant wird. 
 
 /** Exported for the F2 auto-improve loop, which re-parses improved output with the same structure contract as generation. */
 export function parseResponse(contentType: ContentType, text: string): ContentResult {
-  const trimmed = text.trim();
+  // 2026-11-18 (Befund „… einzigartig\""): Die Modellantwort kommt als Klartext
+  // an, kann aber JSON-Escapes enthalten (`\"`). Der Backslash landete bisher
+  // unverändert im Titel — im Pin-Bild UND im kopierbaren Pinterest-Text.
+  // Deshalb wird der Text direkt nach dem Auslesen einmal normalisiert.
+  const trimmed = normalizeModelText(text).trim();
 
   // Pinterest: extract structured sections
   if (contentType === 'pinterest_pin') {
