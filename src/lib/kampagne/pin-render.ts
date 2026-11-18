@@ -1100,40 +1100,13 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
   //    den sicheren Rand UND (bei breitengebundenen Layouts) in die Textfläche
   //    passt. Die Messung ist die Grundlage der Textfläche. Gekürzt wird nie:
   //    passt der Text in keiner Stufe, gibt es kein Bild.
-  let geometryUsed: TextGeometry | null = null;
-  let textLayer: MeasuredLayer | null = null;
-  let fontScale = 1;
-  for (const scale of FIT_SCALES) {
-    const g = geometry({ ...input, layout }, scale);
-    const measured = await measureInk(sharp, Buffer.from(textLayerSvg(input, g)));
-    if (measured.pixels < 200) {
-      throw new PinRenderError(
-        'font_missing',
-        `Text-Overlay zeichnet nichts (${measured.pixels} Pixel) — im Laufzeit-Image fehlt eine Schrift.`,
-      );
-    }
-    const padX = Math.round(28 + g.titleSize * 0.18);
-    const padY = Math.round(26 + g.titleSize * 0.12);
-    const insideStripe = g.spec.stripe
-      ? measured.box.right + padX <= g.spec.stripe.solid - 6
-      : true;
-    // Motivschutz: die Fläche (Textbox + Sicherheitsabstand) muss vollständig
-    // unterhalb der Bandgrenze liegen — sonst nächste, kleinere Schriftstufe.
-    const bandTop = g.spec.bandTopFrac ? Math.round(PIN_HEIGHT * g.spec.bandTopFrac) : 0;
-    const insideBand = measured.box.top - padY >= bandTop;
-    if (boxFitsSafeArea(measured.box) && insideStripe && insideBand) {
-      geometryUsed = g;
-      textLayer = measured;
-      fontScale = scale;
-      break;
-    }
-  }
-  if (!geometryUsed || !textLayer) {
-    throw new PinRenderError(
-      'text_overflow',
-      'Der Text passt auch verkleinert nicht in den sicheren Rand oder in die Textfläche des Pins.',
-    );
-  }
+  //    DIESELBE Funktion prüft seit 2026-11-18 auch VOR dem KI-Aufruf
+  //    (`checkPinTextFit`) — Prüfung und Bild können nicht auseinanderlaufen.
+  const fit = await fitTextLayer(sharp, { ...input, layout });
+  if (!fit.ok) throw new PinRenderError(fit.code, fit.message);
+  const geometryUsed = fit.geometry;
+  const textLayer = fit.layer;
+  const fontScale = fit.scale;
 
   // 1b) Harte Regel: kein Wort darf fehlen. Geprüft wird die tatsächlich
   //     gesetzte Wortfolge gegen die Eingabe — nicht die Absicht.
@@ -1257,4 +1230,216 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
     panel,
     logo: logoPlacement,
   };
+}
+
+
+// ── Gemeinsame Text-Passungs-Prüfung (2026-11-18) ────────────────────────────
+// ANLASS: 3 von 4 Läufen des Knopfs „Pin-Bild erstellen" lieferten kein Bild
+// (`text_overflow`), obwohl das KI-Bild bereits erzeugt und bezahlt war.
+//
+// Deshalb läuft DIESER Mess-Lauf jetzt VOR dem KI-Aufruf. Es ist derselbe, den
+// `renderPinPng` beim Setzen des Textes ausführt (`fitTextLayer`) — es gibt
+// kein zweites, abweichendes Verfahren, das auseinanderlaufen könnte.
+//
+// Die Prüfung erzeugt KEIN Bild, kostet nichts und bucht keine Einheit.
+
+/** Text-Felder, die die Passung bestimmen (Foto/Kontrast spielen keine Rolle). */
+export type PinTextInput = Pick<
+  PinRenderInput,
+  'title' | 'subtitle' | 'layout' | 'brand' | 'brandLine' | 'overlay'
+>;
+
+export type PinTextFitCode =
+  | 'ok'
+  | 'text_overflow'
+  | 'text_escaped'
+  | 'font_missing'
+  | 'text_truncated';
+
+export interface PinTextFitInput {
+  title: string;
+  subtitle?: string | null;
+  layout: PinLayoutId;
+  brand?: PinBrand | null;
+  brandLine?: string | null;
+}
+
+export interface PinTextFitResult {
+  /** Passt der Text auf das gewählte Layout? */
+  fits: boolean;
+  code: PinTextFitCode;
+  /** Klartext-Grund (derselbe Wortlaut wie der Renderer-Fehler), sonst null. */
+  message: string | null;
+  /** Schriftstufe, auf der der Text passt (1 = volle Größe). */
+  scale: number | null;
+  titleLineCount: number;
+  /** Der tatsächlich geprüfte Text (Escape-Reste aufgelöst). */
+  checkedTitle: string;
+  /**
+   * Kürzungsvorschlag: die LÄNGSTE Fassung an Wortgrenze, die nachweislich
+   * passt — deterministisch bestimmt, ohne KI-Aufruf. null = kein Vorschlag
+   * möglich (einzelnes Wort, oder selbst ein Wort passt nicht).
+   */
+  suggestion: string | null;
+}
+
+type FitOutcome =
+  | { ok: true; geometry: TextGeometry; layer: MeasuredLayer; scale: number }
+  | { ok: false; code: 'font_missing' | 'text_overflow'; message: string };
+
+/**
+ * Der eine Mess-Lauf: sucht die größte Schriftstufe, auf der der Text in den
+ * sicheren Rand UND in die Textfläche des Layouts passt. Gibt bei „passt nicht"
+ * den Grund zurück, statt zu werfen — damit die Vorabprüfung ihn anzeigen kann.
+ */
+async function fitTextLayer(sharp: SharpFactory, input: PinTextInput): Promise<FitOutcome> {
+  for (const scale of FIT_SCALES) {
+    const g = geometry({ ...input, layout: input.layout } as PinRenderInput, scale);
+    const measured = await measureInk(sharp, Buffer.from(textLayerSvg(input as PinRenderInput, g)));
+    if (measured.pixels < 200) {
+      return {
+        ok: false,
+        code: 'font_missing',
+        message: `Text-Overlay zeichnet nichts (${measured.pixels} Pixel) — im Laufzeit-Image fehlt eine Schrift.`,
+      };
+    }
+    const padX = Math.round(28 + g.titleSize * 0.18);
+    const padY = Math.round(26 + g.titleSize * 0.12);
+    const insideStripe = g.spec.stripe ? measured.box.right + padX <= g.spec.stripe.solid - 6 : true;
+    // Motivschutz: die Fläche (Textbox + Sicherheitsabstand) muss vollständig
+    // unterhalb der Bandgrenze liegen — sonst nächste, kleinere Schriftstufe.
+    const bandTop = g.spec.bandTopFrac ? Math.round(PIN_HEIGHT * g.spec.bandTopFrac) : 0;
+    const insideBand = measured.box.top - padY >= bandTop;
+    if (boxFitsSafeArea(measured.box) && insideStripe && insideBand) {
+      return { ok: true, geometry: g, layer: measured, scale };
+    }
+  }
+  return {
+    ok: false,
+    code: 'text_overflow',
+    message:
+      'Der Text passt auch verkleinert nicht in den sicheren Rand oder in die Textfläche des Pins.',
+  };
+}
+
+/** Passt dieser Text vollständig gesetzt (kein Wort verloren) aufs Layout? */
+async function textFitsCompletely(sharp: SharpFactory, input: PinTextInput): Promise<boolean> {
+  const outcome = await fitTextLayer(sharp, input);
+  if (!outcome.ok) return false;
+  return (
+    textIsComplete(input.title || '', outcome.geometry.titleLines) &&
+    (input.subtitle ? textIsComplete(input.subtitle, outcome.geometry.subtitleLines) : true)
+  );
+}
+
+/**
+ * Kürzungsvorschlag: längste Fassung des Titels, die an einer WORTGRENZE endet
+ * und nachweislich passt. Binärsuche; das Ergebnis wird zum Schluss noch einmal
+ * gemessen — der zurückgegebene Text passt also immer selbst.
+ */
+async function longestFittingPrefix(
+  sharp: SharpFactory,
+  input: PinTextInput,
+): Promise<string | null> {
+  const words = (input.title || '').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+  if (words.length < 2) return null;
+  let lo = 1;
+  let hi = words.length - 1;
+  let best = 0;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const candidate = words.slice(0, mid).join(' ');
+    if (await textFitsCompletely(sharp, { ...input, title: candidate })) {
+      best = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  if (best < 1) return null;
+  const raw = words.slice(0, best).join(' ');
+  // Ein Satzzeichen/Bindestrich am Ende ist kein Inhalt — weg damit, aber nur
+  // wenn die gekürzte Fassung danach nachweislich weiterhin passt.
+  const trimmed = raw.replace(/[\s,;:.–—-]+$/u, '').trim();
+  if (trimmed && trimmed !== raw && (await textFitsCompletely(sharp, { ...input, title: trimmed }))) {
+    return trimmed;
+  }
+  return raw;
+}
+
+/**
+ * Vorabprüfung des Pin-Textes gegen das GEWÄHLTE Layout — VOR jedem KI-Aufruf.
+ * Prüft in derselben Reihenfolge wie `renderPinPng`: Escape-Reste, Schrift-
+ * Coverage, Passung, Wortvollständigkeit. Kein Bild, keine Einheit, keine Kosten.
+ */
+export async function checkPinTextFit(input: PinTextFitInput): Promise<PinTextFitResult> {
+  const layout: PinLayoutId = isPinLayoutId(input.layout) ? input.layout : 'bottom-left';
+  const title = resolveEscapes(input.title) ?? '';
+  const subtitle = resolveEscapes(input.subtitle);
+  const brandLine = resolveEscapes(input.brandLine);
+  const brand = input.brand ?? null;
+  const base: PinTextInput = { title, subtitle, brandLine, brand, layout };
+
+  const blocked = (
+    code: PinTextFitCode,
+    message: string | null,
+    suggestion: string | null = null,
+  ): PinTextFitResult => ({
+    fits: false,
+    code,
+    message,
+    scale: null,
+    titleLineCount: 0,
+    checkedTitle: title,
+    suggestion,
+  });
+
+  if (!title.trim()) return blocked('text_overflow', 'Der Pin hat keinen Text.');
+
+  // Escape-Reste: derselbe fail-closed-Riegel wie im Renderer.
+  const escaped = findResidualEscape([title, subtitle, brandLine]);
+  if (escaped !== null) {
+    return blocked(
+      'text_escaped',
+      `Der Text enthält einen Escape-Rest (Backslash) und wird nicht ins Bild gesetzt: ${escaped.slice(0, 80)}`,
+    );
+  }
+
+  // Die Schrift wird vom Aufrufer bereitgestellt (pin-server.ts, im Handler —
+  // ein Import von pin-font hier würde die Client-Bündelung mit node:fs
+  // brechen). `assertGlyphsRenderable` prüft, dass sie wirklich da ist.
+  const sharp = await getSharp();
+
+  // Schrift-Coverage: fehlt ein Zeichen, entstünden leere Kästchen.
+  try {
+    assertGlyphsRenderable(brand?.fontFamily, [title, subtitle, brandLine]);
+  } catch (err) {
+    return blocked('font_missing', (err as Error).message);
+  }
+
+  const outcome = await fitTextLayer(sharp, base);
+  if (outcome.ok) {
+    const complete =
+      textIsComplete(title, outcome.geometry.titleLines) &&
+      (subtitle ? textIsComplete(subtitle, outcome.geometry.subtitleLines) : true);
+    if (!complete) {
+      return blocked(
+        'text_truncated',
+        'Der Text würde unvollständig gesetzt — es fehlen Wörter. Kein Bild.',
+      );
+    }
+    return {
+      fits: true,
+      code: 'ok',
+      message: null,
+      scale: outcome.scale,
+      titleLineCount: outcome.geometry.titleLines.length,
+      checkedTitle: title,
+      suggestion: null,
+    };
+  }
+
+  const suggestion =
+    outcome.code === 'text_overflow' ? await longestFittingPrefix(sharp, base) : null;
+  return blocked(outcome.code, outcome.message, suggestion);
 }

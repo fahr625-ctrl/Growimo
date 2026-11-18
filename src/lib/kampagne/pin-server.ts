@@ -16,9 +16,12 @@ import {
   PIN_HEIGHT,
   PIN_WIDTH,
   PinRenderError,
+  checkPinTextFit,
+  isPinLayoutId,
   renderPinPng,
   type PinBrand,
   type PinLayoutId,
+  type PinTextFitCode,
 } from './pin-render';
 import { sanitizePinDrafts, type PinDraft } from './pin-drafts';
 import { parseImageDataUrl } from './campaign';
@@ -121,6 +124,60 @@ export interface RenderPinsResult {
   width: number;
   height: number;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Vorabprüfung des Pin-Textes (2026-11-18)
+// ─────────────────────────────────────────────────────────────────────────────
+// Der Renderer verwirft einen Text, der nicht aufs Layout passt — bisher erst
+// NACH dem bezahlten KI-Bild. Diese Prüfung fährt denselben Mess-Lauf
+// (`checkPinTextFit` → `fitTextLayer`) VOR dem Aufruf von `/api/image/stream`.
+// Sie erzeugt kein Bild, kostet nichts und bucht KEINE Einheit.
+
+export interface PinTextCheckInput {
+  /** Text, der auf dem Pin stehen soll (Überschrift). */
+  title: string;
+  /** Gewähltes Layout — die Passung hängt am Layout. */
+  layout: string;
+  brand?: PinBrandInput | null;
+}
+
+export interface PinTextCheckResult {
+  fits: boolean;
+  code: PinTextFitCode;
+  message: string | null;
+  /** Kürzungsvorschlag (längste Fassung an Wortgrenze, die passt) oder null. */
+  suggestion: string | null;
+  /** Der geprüfte Text (Escape-Reste aufgelöst). */
+  checkedTitle: string;
+  scale: number | null;
+}
+
+export const checkPinTextServer = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => input as PinTextCheckInput)
+  .handler(async ({ data }): Promise<PinTextCheckResult> => {
+    // Nur mit gültiger Session — die Messung ist CPU-Arbeit, kein offener Dienst.
+    const { requireUserIdFromServerFn } = await import('~/lib/usage-guard');
+    await requireUserIdFromServerFn();
+
+    const title = typeof data?.title === 'string' ? data.title : '';
+    const layout: PinLayoutId = isPinLayoutId(data?.layout) ? data.layout : 'bottom-left';
+    const { brand, brandLine } = pinBrandFrom(data?.brand);
+
+    // Schrift bereitstellen, BEVOR gemessen wird (im Laufzeit-Image gibt es
+    // keine Systemschriften) — genau wie beim Rendern.
+    const { ensurePinFonts } = await import('./pin-font');
+    await ensurePinFonts();
+
+    const fit = await checkPinTextFit({ title, subtitle: null, layout, brand, brandLine });
+    return {
+      fits: fit.fits,
+      code: fit.code,
+      message: fit.message,
+      suggestion: fit.suggestion,
+      checkedTitle: fit.checkedTitle,
+      scale: fit.scale,
+    };
+  });
 
 /**
  * Rendert die übergebenen Pin-Entwürfe. Fail-closed: ohne lesbares Foto oder

@@ -11,11 +11,22 @@
 //      1000 × 1500-PNG darauf (deterministisch, fünf Layouts, Logo/Schrift aus
 //      dem Markenprofil). KEIN zweiter Modell-Call, keine Kosten fürs Rendern.
 //
+// VORABPRÜFUNG (2026-11-18): 3 von 4 Läufen lieferten kein Bild, weil der
+// Renderer den Text erst NACH dem bezahlten KI-Bild verwarf (`text_overflow`).
+// Jetzt prüft `checkPinTextServer` den Text gegen das GEWÄHLTE Layout, BEVOR
+// `/api/image/stream` überhaupt aufgerufen wird — mit demselben Mess-Lauf, den
+// der Renderer benutzt. Passt der Text nicht: kein Request, keine Einheit, und
+// sofort ein Kürzungsvorschlag (übernehmen oder selbst bearbeiten). Der Knopf
+// bleibt gesperrt, solange der Text nicht passt, und sagt warum.
+//
+// Ein bereits erzeugtes Bild bleibt erhalten: der Text lässt sich ändern und
+// ohne neuen KI-Aufruf neu rendern (kostet keine Einheit).
+//
 // Bearbeitbar: Überschrift, Layout. Download: PNG. Der Doppelklick-Riegel
 // verhindert zwei bezahlte Läufe für dasselbe Bild.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from '~/i18n';
 import { PIN_LAYOUT_IDS, type PinLayoutId } from '~/lib/kampagne/pin-render';
 import {
@@ -25,7 +36,11 @@ import {
   clip,
   type PinDraft,
 } from '~/lib/kampagne/pin-drafts';
-import { renderPinsServer, type PinBrandInput } from '~/lib/kampagne/pin-server';
+import {
+  checkPinTextServer,
+  renderPinsServer,
+  type PinBrandInput,
+} from '~/lib/kampagne/pin-server';
 import { buildPinImagePrompt } from '~/lib/kampagne/pin-image-prompt';
 import {
   ImageStreamServerError,
@@ -66,6 +81,24 @@ function brandInput(): PinBrandInput {
   };
 }
 
+/**
+ * Ergebnis der Vorabprüfung. `checking` sperrt den Knopf (noch nicht geprüft),
+ * `blocked` sperrt ihn mit Grund + Kürzungsvorschlag, `unknown` heißt: die
+ * Prüfung selbst war nicht erreichbar — dann entscheidet der Klick (dort wird
+ * erneut geprüft, und ohne Ergebnis wird nichts erzeugt).
+ */
+type FitState =
+  | { status: 'checking' }
+  | { status: 'ok'; text: string; layout: PinLayoutId }
+  | { status: 'unknown' }
+  | {
+      status: 'blocked';
+      text: string;
+      layout: PinLayoutId;
+      message: string | null;
+      suggestion: string | null;
+    };
+
 export function PinImageFromText({ title, description, productIdea }: PinImageFromTextProps) {
   const { t } = useTranslation();
   const [headline, setHeadline] = useState(() => clip(title, PIN_HEADLINE_MAX));
@@ -74,8 +107,11 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
   const [partial, setPartial] = useState<string | null>(null);
   const [png, setPng] = useState<string | null>(null);
   const [renderedHeadline, setRenderedHeadline] = useState('');
-  const [busy, setBusy] = useState<'image' | 'render' | null>(null);
+  const [busy, setBusy] = useState<'check' | 'image' | 'render' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fit, setFit] = useState<FitState>({ status: 'checking' });
+  const [suggestionHidden, setSuggestionHidden] = useState(false);
+  const headlineRef = useRef<HTMLInputElement | null>(null);
 
   const draft = useMemo<PinDraft>(
     () => ({
@@ -91,6 +127,49 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
     }),
     [headline, layout, title, description],
   );
+
+  /**
+   * Vorabprüfung gegen das gewählte Layout — derselbe Mess-Lauf wie im
+   * Renderer, ohne KI-Aufruf, ohne Einheit. Gibt den Zustand zurück, damit der
+   * Klick-Pfad dasselbe Ergebnis benutzen kann (kein zweiter Weg).
+   */
+  const checkText = useCallback(
+    async (text: string, layoutId: PinLayoutId): Promise<FitState> => {
+      try {
+        const res = await checkPinTextServer({
+          data: { title: text, layout: layoutId, brand: brandInput() },
+        });
+        if (res.fits) return { status: 'ok', text, layout: layoutId };
+        return {
+          status: 'blocked',
+          text,
+          layout: layoutId,
+          message: res.message,
+          suggestion: res.suggestion,
+        };
+      } catch {
+        return { status: 'unknown' };
+      }
+    },
+    [],
+  );
+
+  // Bei jeder Text-/Layout-Änderung prüfen (kurz entprellt: Tippen soll nicht
+  // bei jedem Zeichen eine Messung auslösen).
+  useEffect(() => {
+    const text = clip(headline, PIN_HEADLINE_MAX);
+    let cancelled = false;
+    setFit({ status: 'checking' });
+    const timer = setTimeout(() => {
+      void checkText(text, layout).then((next) => {
+        if (!cancelled) setFit(next);
+      });
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [headline, layout, checkText]);
 
   /** Deterministischer Renderer — kostet nichts, daher bei jeder Änderung erlaubt. */
   const renderPin = useCallback(
@@ -108,22 +187,27 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
         return true;
       } catch (err) {
         // Ehrlich: das Bild ist erzeugt (und gebucht), der Text passt aber nicht
-        // darauf — es gibt KEIN halbes Pin und keine stille Kürzung.
+        // darauf — es gibt KEIN halbes Pin und keine stille Kürzung. Das Bild
+        // bleibt erhalten und wird neu gerendert, sobald der Text passt: das
+        // kostet keine weitere Einheit (kein KI-Aufruf).
         setError(
-          `${t.pinimg_error_render} (${err instanceof Error ? err.message : 'render_failed'})`,
+          `${t.pinimg_error_keep} (${err instanceof Error ? err.message : 'render_failed'})`,
         );
+        // Warum es nicht passte — mit Kürzungsvorschlag, ohne KI-Aufruf.
+        setFit(await checkText(next.headline, next.layout));
         return false;
       } finally {
         setBusy(null);
       }
     },
-    [t],
+    [t, checkText],
   );
 
   const create = useCallback(async () => {
     // Doppelklick-Riegel: ein bezahlter Lauf für ein Bild.
     if (busy) return;
-    if (!headline.trim()) {
+    const text = clip(headline, PIN_HEADLINE_MAX);
+    if (!text.trim()) {
       setError(t.pinimg_error_text_required);
       return;
     }
@@ -132,6 +216,27 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
       setError(t.pinimg_error_no_input);
       return;
     }
+
+    // 1) VORABPRÜFUNG — VOR jedem KI-Aufruf. Passt der Text nicht: kein
+    //    Request auf /api/image/stream, keine Einheit, nur Grund + Vorschlag.
+    if (!(fit.status === 'ok' && fit.text === text && fit.layout === layout)) {
+      setBusy('check');
+      const next = await checkText(text, layout);
+      setBusy(null);
+      setFit(next);
+      if (next.status === 'blocked') {
+        setError(null);
+        setSuggestionHidden(false);
+        return;
+      }
+      if (next.status === 'unknown') {
+        // Ohne Prüfung kein bezahlter Lauf — sonst wäre die Einheit weg, ohne
+        // dass jemand weiß, ob das Bild überhaupt entstehen kann.
+        setError(t.pincheck_error);
+        return;
+      }
+    }
+
     setError(null);
     setPng(null);
     setPartial(null);
@@ -142,7 +247,7 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
         onPartial: (p) => setPartial(p.dataUrl),
       });
       // Das Bild ist erzeugt und gebucht — der Zähler wird sofort nachgezogen,
-      // auch wenn das Rendern danach scheitert.
+      // auch wenn das Rendern danach scheitert. Das Bild bleibt erhalten.
       refreshUsage();
       setPhoto(done.url);
       await renderPin(done.url, draft);
@@ -158,7 +263,7 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
       setPartial(null);
       setBusy(null);
     }
-  }, [busy, headline, title, description, productIdea, draft, renderPin, t]);
+  }, [busy, headline, title, description, productIdea, draft, renderPin, t, fit, layout, checkText]);
 
   const applyHeadline = useCallback(() => {
     if (!photo || busy) return;
@@ -168,36 +273,145 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
   const chooseLayout = useCallback(
     (id: PinLayoutId) => {
       setLayout(id);
+      setSuggestionHidden(false);
       if (!photo) return;
       void renderPin(photo, { ...draft, layout: id });
     },
     [photo, draft, renderPin],
   );
 
-  const dirty = png !== null && draft.headline !== renderedHeadline;
+  /** Kürzungsvorschlag übernehmen — danach prüft die Vorabprüfung erneut. */
+  const acceptSuggestion = useCallback(() => {
+    if (fit.status !== 'blocked' || !fit.suggestion) return;
+    setHeadline(fit.suggestion);
+    setSuggestionHidden(true);
+    setError(null);
+  }, [fit]);
+
+  const chooseSelf = useCallback(() => {
+    setSuggestionHidden(true);
+    headlineRef.current?.focus();
+  }, []);
+
+  const dirty = (png !== null || photo !== null) && draft.headline !== renderedHeadline;
+  const blocked = fit.status === 'blocked';
+  const checking = busy === 'check' || fit.status === 'checking';
 
   return (
-    <div className="flex w-full flex-wrap items-center gap-3">
-      <button
-        type="button"
-        data-testid="pin-image-create"
-        onClick={() => void create()}
-        disabled={busy !== null}
-        className="inline-flex items-center gap-2 rounded-xl border border-purple-300 bg-white px-5 py-2.5 text-sm font-semibold text-purple-700 shadow-sm transition-all hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        🖼️ {busy === 'image' ? t.pinimg_working : t.pinimg_create}
-      </button>
-      {png === null && busy === null && (
-        <span className="text-xs text-gray-500">{t.pinimg_hint}</span>
+    <div className="flex w-full flex-col gap-3">
+      <div className="flex w-full flex-wrap items-center gap-3">
+        <button
+          type="button"
+          data-testid="pin-image-create"
+          onClick={() => void create()}
+          disabled={busy !== null || checking || blocked}
+          className="inline-flex items-center gap-2 rounded-xl border border-purple-300 bg-white px-5 py-2.5 text-sm font-semibold text-purple-700 shadow-sm transition-all hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          🖼️ {busy === 'image' ? t.pinimg_working : t.pinimg_create}
+        </button>
+        {png === null && busy === null && (
+          <span className="text-xs text-gray-500">{t.pinimg_hint}</span>
+        )}
+      </div>
+
+      {/* Vorabprüfung: Grund und Kürzungsvorschlag — VOR dem KI-Aufruf sichtbar. */}
+      {checking && (
+        <p data-testid="pin-text-checking" className="text-xs text-gray-500">
+          {t.pincheck_checking}
+        </p>
+      )}
+      {blocked && (
+        <div
+          data-testid="pin-text-block"
+          className="w-full rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+        >
+          <p className="font-semibold">{t.pincheck_blocked}</p>
+          {fit.message && (
+            <p data-testid="pin-text-block-reason" className="mt-1">
+              {fit.message}
+            </p>
+          )}
+          {fit.suggestion && !suggestionHidden && (
+            <div className="mt-2" data-testid="pin-text-suggestion-box">
+              <p>{t.pincheck_suggestion_label}</p>
+              <p data-testid="pin-text-suggestion" className="mt-1 italic">
+                „{fit.suggestion}"
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  data-testid="pin-text-suggestion-accept"
+                  onClick={acceptSuggestion}
+                  disabled={busy !== null}
+                  className="rounded-lg bg-amber-600 px-3 py-1.5 font-semibold text-white shadow-sm hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {t.pincheck_accept}
+                </button>
+                <button
+                  type="button"
+                  data-testid="pin-text-suggestion-edit"
+                  onClick={chooseSelf}
+                  className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 font-semibold text-amber-800 hover:bg-amber-100"
+                >
+                  {t.pincheck_edit_self}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
-      {(partial || png) && (
+      {/* Text + Layout: immer bedienbar — „selbst bearbeiten" geht auch ohne Bild. */}
+      <div className="flex w-full flex-wrap items-end gap-3">
+        <label className="min-w-[240px] flex-1">
+          <span className="mb-1 block text-xs font-semibold text-gray-700">
+            {t.kampagne_pin_overlay}
+          </span>
+          <input
+            ref={headlineRef}
+            type="text"
+            data-testid="pin-image-headline"
+            value={headline}
+            maxLength={PIN_HEADLINE_MAX}
+            onChange={(e) => {
+              setHeadline(e.target.value);
+              setSuggestionHidden(false);
+            }}
+            disabled={busy !== null}
+            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+          />
+        </label>
+
+        <div>
+          <span className="mb-1 block text-xs font-semibold text-gray-700">{t.pinimg_layout}</span>
+          <div className="flex flex-wrap gap-2">
+            {PIN_LAYOUT_IDS.map((id) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => chooseLayout(id)}
+                disabled={busy !== null}
+                aria-pressed={layout === id}
+                className={`h-8 w-8 rounded-lg text-xs font-semibold transition-all ${
+                  layout === id
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                } disabled:cursor-not-allowed disabled:opacity-60`}
+              >
+                {LAYOUT_LABELS[id]}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {(partial || png || photo) && (
         <div className="w-full rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-start gap-4">
             <div className="w-[180px] shrink-0">
               <img
-                src={png ?? partial ?? ''}
-                alt={t.pinimg_preview_alt}
+                src={png ?? partial ?? photo ?? ''}
+                alt={png ? t.pinimg_preview_alt : t.pinimg_photo_alt}
                 className="w-full rounded-lg border border-gray-200"
               />
               <p className="mt-1 text-center text-[11px] text-gray-500">
@@ -206,52 +420,13 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
             </div>
 
             <div className="min-w-[220px] flex-1 space-y-3">
-              <label className="block">
-                <span className="mb-1 block text-xs font-semibold text-gray-700">
-                  {t.kampagne_pin_overlay}
-                </span>
-                <input
-                  type="text"
-                  data-testid="pin-image-headline"
-                  value={headline}
-                  maxLength={PIN_HEADLINE_MAX}
-                  onChange={(e) => setHeadline(e.target.value)}
-                  disabled={busy !== null}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
-                />
-              </label>
-
-              <div>
-                <span className="mb-1 block text-xs font-semibold text-gray-700">
-                  {t.pinimg_layout}
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {PIN_LAYOUT_IDS.map((id) => (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => chooseLayout(id)}
-                      disabled={busy !== null}
-                      aria-pressed={layout === id}
-                      className={`h-8 w-8 rounded-lg text-xs font-semibold transition-all ${
-                        layout === id
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      } disabled:cursor-not-allowed disabled:opacity-60`}
-                    >
-                      {LAYOUT_LABELS[id]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               <div className="flex flex-wrap items-center gap-3">
                 {dirty && (
                   <button
                     type="button"
                     data-testid="pin-image-apply"
                     onClick={applyHeadline}
-                    disabled={busy !== null}
+                    disabled={busy !== null || checking || blocked}
                     className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {t.pinimg_apply}
@@ -268,21 +443,21 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
                   </a>
                 )}
               </div>
+
+              {error && (
+                <p
+                  data-testid="pin-image-error"
+                  className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800"
+                >
+                  {error}
+                </p>
+              )}
             </div>
           </div>
-
-          {error && (
-            <p
-              data-testid="pin-image-error"
-              className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800"
-            >
-              {error}
-            </p>
-          )}
         </div>
       )}
 
-      {error && !partial && !png && (
+      {error && !partial && !png && !photo && (
         <p
           data-testid="pin-image-error"
           className="w-full rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800"

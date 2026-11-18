@@ -2470,6 +2470,20 @@ export const de = {
   pinimg_error_text_required: 'Bitte trag den Text auf dem Pin ein.',
   pinimg_error_no_input:
     'Es gibt noch keinen Pin-Text, aus dem ein Bild entstehen kann. Bitte erst den Pinterest-Text erzeugen.',
+  // Vorabprüfung des Pin-Textes (2026-11-18): der Text wird VOR dem KI-Aufruf
+  // gegen das gewählte Layout geprüft — kein Request, keine Einheit.
+  pinimg_photo_alt: 'Erzeugtes Hintergrundbild, Text noch nicht gesetzt',
+  pinimg_error_keep:
+    'Aus diesem Bild konnte kein Pin werden. Das erzeugte Bild bleibt erhalten — du kannst den Text ändern und neu rendern, das kostet keine weitere Einheit.',
+  pincheck_checking: 'Text wird geprüft …',
+  pincheck_blocked:
+    'Der Text passt nicht auf dieses Layout — es wird kein Bild erzeugt und keine Einheit verbraucht.',
+  pincheck_suggestion_label: 'Kürzungsvorschlag (passt auf dieses Layout):',
+  pincheck_accept: 'Vorschlag übernehmen',
+  pincheck_edit_self: 'Selbst bearbeiten',
+  pincheck_error:
+    'Die Prüfung des Textes war gerade nicht möglich. Bitte noch einmal versuchen — es wurde nichts erzeugt und keine Einheit verbraucht.',
+
   kampagne_export_zip: 'Alle fünf als ZIP',
   kampagne_export_busy: 'Wird geladen …',
   kampagne_export_failed:

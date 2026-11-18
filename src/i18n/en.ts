@@ -2453,6 +2453,20 @@ export const en: EnShape = {
   pinimg_error_text_required: 'Please enter the text for the pin.',
   pinimg_error_no_input:
     'There is no pin text yet to build an image from. Please generate the Pinterest text first.',
+  // Text pre-check (2026-11-18): checked against the chosen layout BEFORE the
+  // AI call — no request, no unit.
+  pinimg_photo_alt: 'Generated background image, text not applied yet',
+  pinimg_error_keep:
+    'No pin could be made from this image. The generated image is kept — you can change the text and re-render, which costs no further unit.',
+  pincheck_checking: 'Checking the text …',
+  pincheck_blocked:
+    'The text does not fit this layout — no image is created and no unit is used.',
+  pincheck_suggestion_label: 'Shortened version that fits this layout:',
+  pincheck_accept: 'Use suggestion',
+  pincheck_edit_self: 'Edit it myself',
+  pincheck_error:
+    'The text could not be checked right now. Please try again — nothing was created and no unit was used.',
+
   kampagne_export_zip: 'All five as ZIP',
   kampagne_export_busy: 'Downloading …',
   kampagne_export_failed: 'The download did not work. Please try again — the preview is unchanged.',
