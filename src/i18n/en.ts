@@ -484,6 +484,14 @@ export const en: EnShape = {
   results_quality_failed_body:
     'No usable result was produced for these channels: %s. Nothing was shown as successful and nothing was saved as completed.',
   results_retry_failed: 'Generate again',
+  // No AI provider configured (2026-11-17): a separate, honest notice instead of
+  // "No usable result". The cause is missing setup, not the user's input;
+  // technical details stay in the console.
+  results_provider_missing_title: 'The AI service is not set up here',
+  results_provider_missing_body:
+    'The generation could not start because no AI provider is configured in this environment. Your input was not the cause — retrying with the same text will not change it.',
+  results_provider_missing_operator_hint:
+    'Note for the operator: this environment has no AI key (OPENAI_API_KEY; the server log shows "Configured providers: 0"). Set the key in this environment\'s variables and deploy again.',
   strategy_open_module: 'Open module',
   results_new: 'Create content',
   results_view_project: 'View project',

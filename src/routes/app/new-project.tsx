@@ -26,6 +26,13 @@ import {
   type StrategyTileConfig,
 } from '~/ai/strategy-tiles';
 import { checkResultQuality, type QualityCheck } from '~/lib/result-quality';
+// Belegter Fall 2026-11-17: fehlt der KI-Schlüssel, ist das KEIN Qualitätsfehler.
+// Eigene Erkennung + eigene Meldung (kein „Kein brauchbares Ergebnis").
+import {
+  PROVIDER_NOT_CONFIGURED_CODE,
+  isProviderNotConfigured,
+  isProviderNotConfiguredMessage,
+} from '~/lib/provider-not-configured';
 import { SHOW_STRATEGY_SCORE_TEXTS } from '~/lib/ui-neuausrichtung';
 import { TONES, toneLabel } from '~/lib/tones';
 import { formatDate } from '~/lib/date';
@@ -265,6 +272,8 @@ function NewProjectContent() {
   // NICHT bestanden hat (Absage/unvollständig). Sie werden nicht als Erfolg
   // angezeigt, nicht gespeichert und können gezielt neu erzeugt werden.
   const [failedTypes, setFailedTypes] = useState<ContentType[]>([]);
+  /** Kein KI-Anbieter eingerichtet (fehlender Schlüssel) — eigener Hinweis. */
+  const [providerMissing, setProviderMissing] = useState(false);
 
 
   // ── Cycle loading messages ────────────────────────────────────────────────
@@ -444,6 +453,7 @@ function NewProjectContent() {
     setErrorMessage(null);
     setQuotaNotice(false);
     setFailedTypes([]);
+    setProviderMissing(false);
 
     // Check usage limits
     // R4-Fix (2026-10-22): Der Client-Spiegel (`canGenerate`, gespeist aus dem
@@ -545,6 +555,15 @@ function NewProjectContent() {
             // der Konsole landen — der Nutzer bekommt den sichtbaren Abo-Hinweis.
             if (event.code === 'USAGE_LIMIT' || isQuotaExhaustedMessage(event.message)) {
               setQuotaNotice(true);
+            }
+            // Fehlt der KI-Schlüssel, ist die Ursache NICHT die Eingabe des
+            // Nutzers: eigener Hinweis statt „Kein brauchbares Ergebnis".
+            // Technische Details bleiben in der Konsole (nächste Zeile).
+            if (
+              event.code === PROVIDER_NOT_CONFIGURED_CODE ||
+              isProviderNotConfiguredMessage(event.message)
+            ) {
+              setProviderMissing(true);
             }
             // Phase 1: Der Kanal wird als fehlgeschlagen geführt (stepId =
             // "channel:<contentType>") — er erscheint NICHT als Erfolg und kann
@@ -717,7 +736,12 @@ function NewProjectContent() {
       // „Unbekannter Fehler", wenn eine Meldung existiert.
       // R4 (Owner 2026-10-22): Kontingent-Fehler bekommen den sichtbaren
       // Abo-Hinweis statt einer Fehlermeldung.
-      if (isQuotaExhaustedError(error)) {
+      if (isProviderNotConfigured(error)) {
+        // Ehrlich: hier ist der KI-Dienst nicht eingerichtet. Keine rohe
+        // Servermeldung im UI — der i18n-Hinweis nennt Ursache und Betreiber-Weg.
+        setProviderMissing(true);
+        setErrorMessage(null);
+      } else if (isQuotaExhaustedError(error)) {
         setQuotaNotice(true);
         setErrorMessage(null);
       } else {
@@ -861,6 +885,7 @@ function NewProjectContent() {
           savedProjectId={savedProjectId}
           errorMessage={errorMessage}
           failedTypes={failedTypes}
+          providerMissing={providerMissing}
           onRetryFailed={() => handleGenerate(failedTypes)}
           stepStatus={stepStatus}
           streamOrder={streamOrder}
@@ -1273,6 +1298,7 @@ function Step2Results({
   savedProjectId,
   errorMessage,
   failedTypes,
+  providerMissing,
   onRetryFailed,
   stepStatus,
   streamOrder,
@@ -1298,6 +1324,8 @@ function Step2Results({
   errorMessage: string | null;
   /** Phase 1: Kanäle ohne brauchbares Ergebnis (Absage/unvollständig/fehlend). */
   failedTypes: ContentType[];
+  /** Kein KI-Anbieter eingerichtet (fehlender Schlüssel) — eigener Hinweis. */
+  providerMissing: boolean;
   /** Phase 1: „Erneut generieren" — nur für die fehlgeschlagenen Kanäle. */
   onRetryFailed: () => void;
   stepStatus: Record<string, StreamStepState>;
@@ -1367,7 +1395,7 @@ function Step2Results({
           Prüfung. Kanäle ohne brauchbares Ergebnis werden hier ehrlich benannt
           und können gezielt neu erzeugt werden (nur diese Kanäle — kein zweiter
           Verbrauch für bereits gute Ergebnisse). */}
-      {!isLoading && failedTypes.length > 0 && (
+      {!isLoading && failedTypes.length > 0 && !providerMissing && (
         <div
           role="alert"
           data-testid="quality-failed-banner"
@@ -1389,6 +1417,24 @@ function Step2Results({
           >
             🔄 {t.results_retry_failed}
           </button>
+        </div>
+      )}
+
+      {/* Kein KI-Anbieter eingerichtet (2026-11-17): Der Nutzer bekam hier
+          bisher „Kein brauchbares Ergebnis" und musste annehmen, sein Prompt
+          sei schuld. Jetzt: Ursache im Klartext, Betreiber-Hinweis als eigene
+          Zeile, technische Details weiterhin nur in der Konsole. */}
+      {!isLoading && providerMissing && (
+        <div
+          role="alert"
+          data-testid="provider-missing-banner"
+          className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900"
+        >
+          <p className="font-semibold">{t.results_provider_missing_title}</p>
+          <p className="mt-1">{t.results_provider_missing_body}</p>
+          <p className="mt-2 rounded-lg bg-amber-100/70 px-3 py-2 text-xs text-amber-900">
+            {t.results_provider_missing_operator_hint}
+          </p>
         </div>
       )}
 

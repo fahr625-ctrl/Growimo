@@ -482,6 +482,14 @@ export const de = {
   results_quality_failed_body:
     'Für diese Kanäle liegt kein verwendbares Ergebnis vor: %s. Es wurde nichts als Erfolg angezeigt und nichts als abgeschlossen gespeichert.',
   results_retry_failed: 'Erneut generieren',
+  // Kein KI-Anbieter eingerichtet (2026-11-17): eigener, ehrlicher Hinweis statt
+  // „Kein brauchbares Ergebnis". Die Ursache ist eine fehlende Einrichtung, nicht
+  // die Eingabe des Nutzers; die technischen Details bleiben in der Konsole.
+  results_provider_missing_title: 'Der KI-Dienst ist hier nicht eingerichtet',
+  results_provider_missing_body:
+    'Die Generierung konnte gar nicht starten, weil in dieser Umgebung kein KI-Anbieter hinterlegt ist. Deine Eingabe war nicht die Ursache — ein erneuter Versuch mit demselben Text ändert daran nichts.',
+  results_provider_missing_operator_hint:
+    'Hinweis für den Betreiber: In dieser Umgebung fehlt der KI-Schlüssel (OPENAI_API_KEY; im Server-Protokoll steht „Configured providers: 0"). Schlüssel in den Umgebungsvariablen dieser Umgebung setzen und neu deployen.',
   strategy_open_module: 'Zum Modul',
   results_new: 'Inhalte erstellen',
   results_view_project: 'Projekt ansehen',

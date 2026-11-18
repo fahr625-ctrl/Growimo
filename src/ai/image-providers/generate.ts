@@ -7,6 +7,10 @@ import {
   type ImageRunMode,
 } from './reference';
 import type { ImageAspectRatio } from './types';
+import {
+  PROVIDER_NOT_CONFIGURED_MARKER,
+  ProviderNotConfiguredError,
+} from '~/lib/provider-not-configured';
 
 // gpt-image-2 is the working model for this API key (dall-e-3/dall-e-2 no longer
 // exist on the endpoint). Two paths:
@@ -120,7 +124,14 @@ export async function generateImage(
 ): Promise<{ url: string }> {
   const ratio = aspectRatio as ImageAspectRatio;
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error('[image-generation] OPENAI_API_KEY is not configured');
+  // Gleiche Ursache wie im Text-Pfad (src/lib/provider-not-configured.ts):
+  // fehlt der Schlüssel, ist der Dienst hier nicht eingerichtet — kein
+  // Qualitätsfehler. Typisiert, damit der gemeinsame Fehlerpfad ihn erkennt.
+  if (!apiKey) {
+    throw new ProviderNotConfiguredError(
+      `${PROVIDER_NOT_CONFIGURED_MARKER} [image-generation] OPENAI_API_KEY is not configured`,
+    );
+  }
   const client = new OpenAI({ apiKey });
   const size = SIZES[ratio] ?? '1024x1024';
   const mode = imageRunMode(referenceImageData);
@@ -246,7 +257,14 @@ export async function generateImageStreaming(
 ): Promise<ImageStreamOutcome> {
   const ratio = aspectRatio as ImageAspectRatio;
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error('[image-generation] OPENAI_API_KEY is not configured');
+  // Gleiche Ursache wie im Text-Pfad (src/lib/provider-not-configured.ts):
+  // fehlt der Schlüssel, ist der Dienst hier nicht eingerichtet — kein
+  // Qualitätsfehler. Typisiert, damit der gemeinsame Fehlerpfad ihn erkennt.
+  if (!apiKey) {
+    throw new ProviderNotConfiguredError(
+      `${PROVIDER_NOT_CONFIGURED_MARKER} [image-generation] OPENAI_API_KEY is not configured`,
+    );
+  }
   const client = new OpenAI({ apiKey });
   const size = SIZES[ratio] ?? '1024x1024';
   const mode = imageRunMode(referenceImageData);

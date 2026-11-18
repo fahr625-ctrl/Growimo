@@ -1,6 +1,7 @@
 import type { AIConfig, ContentRequest, ContentResult } from './types';
 import type { QualityCheck } from '~/lib/result-quality';
 import { getConfiguredProviders } from './providers/index';
+import { ProviderNotConfiguredError } from '~/lib/provider-not-configured';
 
 /**
  * Runs one provider call (explicit config first, then the configured provider).
@@ -27,9 +28,12 @@ async function runProvider(
     console.log('[generate] Using provider:', configured[0].name);
     return configured[0].generate(request, providerConfig);
   }
-  throw new Error(
-    'Kein KI-Anbieter konfiguriert. Bitte OPENAI_API_KEY in den Umgebungsvariablen setzen, um Inhalte zu generieren.',
-  );
+  // Belegter Fall 2026-11-17 (Vorschau ohne OPENAI_API_KEY): Das ist KEINE
+  // Qualitätsfrage und darf dem Nutzer nicht als „Kein brauchbares Ergebnis"
+  // erscheinen. Typisierter Fehler mit eigenem Code — der Client erkennt ihn
+  // über `code`/Marker und zeigt die Betreiber-Meldung statt der
+  // Qualitäts-Meldung. Die technische Ursache bleibt in der Konsole.
+  throw new ProviderNotConfiguredError();
 }
 
 /**
