@@ -43,7 +43,7 @@
 import { loadSharp, type SharpFactory } from './sharp-loader';
 import { PIN_FONT_FAMILY_NAMES, PIN_FONT_STACKS, type PinFontId } from './pin-fonts';
 import { PIN_FONT_COVERAGE, missingGlyphs, pinFontIdFromFamily } from './pin-font-coverage';
-import { findResidualEscape } from '~/lib/text-normalize';
+import { findResidualEscape, resolveEscapes } from '~/lib/text-normalize';
 
 export const PIN_WIDTH = 1000;
 export const PIN_HEIGHT = 1500;
@@ -907,12 +907,21 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
   if (!input.photo || input.photo.length === 0) {
     throw new PinRenderError('no_photo', 'Kein Foto übergeben.');
   }
-  // 0a) Fail-closed-Riegel (2026-11-18, Befund „… einzigartig\""): Steckt noch
-  //     ein Escape-Rest (Backslash) im Text, wird er NICHT ins Bild gezeichnet.
-  //     Der Renderer setzt die Zeichen wörtlich — der Nutzer bekäme den
+  // 0a) Escape-Reste (2026-11-18, Befund „… einzigartig\"" und mehrfach escaped):
+  //     Ein Backslash, der UNMITTELBAR vor einem Anführungszeichen steht, ist
+  //     ein Escape-Rest ohne Wortinhalt — er wird entfernt, das Bild entsteht
+  //     (nichts geht verloren). Was danach noch an Backslashes übrig ist
+  //     (mitten im Wort, vor einem Leerzeichen), ist NICHT vertrauenswürdig:
+  //     der Renderer setzt die Zeichen wörtlich, der Nutzer bekäme den
   //     Backslash mitgeliefert, ohne es zu merken. Also: kein Bild, klare
-  //     Meldung. Die Reparatur passiert vorher in `normalizeModelText`; was
-  //     danach noch übrig ist, ist nicht vertrauenswürdig.
+  //     Meldung (fail-closed). Die volle Reparatur passiert vorher in
+  //     `normalizeModelText`.
+  input = {
+    ...input,
+    title: resolveEscapes(input.title) ?? '',
+    subtitle: resolveEscapes(input.subtitle),
+    brandLine: resolveEscapes(input.brandLine),
+  };
   const escaped = findResidualEscape([input.title, input.subtitle, input.brandLine]);
   if (escaped !== null) {
     throw new PinRenderError(
