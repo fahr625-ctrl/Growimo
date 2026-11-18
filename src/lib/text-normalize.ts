@@ -9,15 +9,27 @@
 // stehen), nicht im Renderer. Betroffen war nicht nur das Bild, sondern auch
 // der kopierbare Pinterest-Text: ein Nutzer hätte den Backslash mitkopiert.
 //
-// Deshalb zwei Stufen, und beide sind absichtlich getrennt:
-//   1. `normalizeModelText` — repariert die harmlose Form GENAU EINMAL
-//      (`\"` → `"`, literale `\n`/`\t` → echte Zeichen) und schließt ein
-//      offenes deutsches Anführungszeichen am Satzende.
-//   2. `hasResidualEscape` — bleibt danach noch ein Backslash stehen, ist der
-//      Text NICHT vertrauenswürdig. Er wird nicht weiter „geputzt": der
-//      Renderer verweigert das Bild (`PinRenderError` mit `text_escaped`).
-//      Fail-closed statt stiller Reparatur, weil ein Backslash in einem
-//      Pin-Titel nie eine gewollte Schreibweise ist.
+// Nachtrag (Vorschau, Ablauf 1 mit dem ersten Fix, 2026-11-18): Die Antwort kam
+// diesmal MEHRFACH escaped an — im Titel standen DREI Backslashes vor dem
+// schließenden Anführungszeichen. Ein einzelner Durchlauf löst nur eine Ebene
+// auf, danach blieb ein Backslash stehen und der Renderer verweigerte das Bild
+// (`text_escaped`), obwohl der Inhalt völlig in Ordnung war.
+//
+// Deshalb drei Stufen, absichtlich getrennt:
+//   1. `normalizeModelText` — löst Escape-Reste WIEDERHOLT auf (`\"` → `"`,
+//      literale `\n`/`\t` → echte Zeichen), höchstens `MAX_ESCAPE_PASSES`
+//      Durchläufe und Abbruch, sobald sich nichts mehr ändert. Danach wird ein
+//      Backslash, der unmittelbar vor einem Anführungszeichen steht, entfernt
+//      (`resolveEscapes`): das ist ein Escape-Rest und kein Wortinhalt —
+//      es geht nichts verloren, also kein Grund, dem Nutzer das Bild zu
+//      verweigern. Zuletzt wird ein offenes deutsches Anführungszeichen
+//      geschlossen.
+//   2. `hasResidualEscape` — bleibt danach noch ein Backslash stehen (mitten im
+//      Wort, vor einem Leerzeichen, hinter einem Buchstaben), ist der Text
+//      NICHT vertrauenswürdig. Er wird nicht weiter „geputzt": der Renderer
+//      verweigert das Bild (`PinRenderError` mit `text_escaped`). Fail-closed
+//      statt stiller Reparatur, weil ein Backslash mitten im Wort nie eine
+//      gewollte Schreibweise ist.
 //
 // Reines Modul ohne Abhängigkeiten — nutzbar in Server-Pfad (Parser, Renderer)
 // und in Tests.
@@ -32,6 +44,50 @@ const CLOSERS = /["“”]/g;
  * Satzpunkt steht es DAHINTER („Text.") — deshalb wird sonst einfach angehängt.
  */
 const CLAUSE_END = /[,;:]$/;
+
+/**
+ * Wie oft Escape-Reste höchstens aufgelöst werden. Drei Durchläufe decken
+ * einfach, doppelt und dreifach escaped ab; danach bricht die Schleife ab,
+ * sobald sich nichts mehr ändert (und spätestens hier, damit ein Text mit
+ * sehr vielen Backslashes nicht endlos weiterläuft).
+ */
+export const MAX_ESCAPE_PASSES = 3;
+
+/** Ein Escape vor Anführungszeichen oder Backslash (`\"`, `\'`, `\\`, …). */
+const ESCAPED_CHAR = /\\(["'`\\])/g;
+/**
+ * Ein Backslash UNMITTELBAR vor einem Anführungszeichen. Das ist ein
+ * Escape-Rest ohne Wortinhalt — er wird entfernt, statt das Bild zu verweigern.
+ */
+const QUOTE_ESCAPE = /\\(?=["'`„“”])/g;
+
+/**
+ * Löst Escape-Reste auf: WIEDERHOLT (`\\"` → `\"` → `"`, literale `\n`/`\t` →
+ * echte Zeichen), höchstens `MAX_ESCAPE_PASSES` Durchläufe, Abbruch sobald sich
+ * nichts mehr ändert. Danach wird ein Backslash, der unmittelbar vor einem
+ * Anführungszeichen steht, entfernt: das ist ein Escape-Rest ohne Wortinhalt —
+ * es geht nichts verloren, also kein Grund, dem Nutzer das Bild zu verweigern.
+ * Backslashes mitten im Wort bleiben stehen (darüber entscheidet der Riegel).
+ * `null`/`undefined` bleiben `null` (der Renderer unterscheidet „kein
+ * Untertitel" von „leerer Untertitel").
+ */
+export function resolveEscapes(text: string): string;
+export function resolveEscapes(text: string | null | undefined): string | null;
+export function resolveEscapes(text: string | null | undefined): string | null {
+  if (text === null || text === undefined) return null;
+  let out = text;
+  for (let pass = 0; pass < MAX_ESCAPE_PASSES; pass++) {
+    const next = out
+      // Erst die Backslash-Paare (`\\` → `\`), damit aus `\\n` im nächsten
+      // Schritt ein echter Zeilenumbruch wird.
+      .replace(ESCAPED_CHAR, '$1')
+      .replace(/\\r\\n|\\n/g, '\n')
+      .replace(/\\t/g, ' ');
+    if (next === out) break;
+    out = next;
+  }
+  return out.replace(QUOTE_ESCAPE, '');
+}
 
 /**
  * Ein offenes deutsches Anführungszeichen je Zeile sauber schließen.
@@ -58,16 +114,11 @@ function closeGermanQuotes(line: string): string {
  */
 export function normalizeModelText(text: string | null | undefined): string {
   if (!text) return '';
-  let out = text;
-  // 1) Literale Steuer-Escapes aus einer JSON-/JS-Quelle.
-  out = out.replace(/\\r\\n|\\n/g, '\n').replace(/\\t/g, ' ');
-  // 2) Escape vor Anführungszeichen/Backslash — GENAU EIN Durchlauf. Ein
-  //    zweiter Durchlauf würde `\\"` stillschweigend zu `"` machen; genau das
-  //    soll der Riegel unten verhindern.
-  out = out.replace(/\\(["'`\\])/g, '$1');
-  // 3) Offene deutsche Anführungszeichen je Zeile schließen.
-  out = out.split('\n').map(closeGermanQuotes).join('\n');
-  return out;
+  // 1) Escape-Reste wiederholt auflösen (ein-, zwei-, dreifach escaped) und
+  //    einen Backslash vor einem Anführungszeichen entfernen.
+  // 2) Offene deutsche Anführungszeichen je Zeile schließen.
+  const out = resolveEscapes(text) ?? '';
+  return out.split('\n').map(closeGermanQuotes).join('\n');
 }
 
 /**
