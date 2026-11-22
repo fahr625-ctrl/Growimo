@@ -37,7 +37,9 @@ import {
   type PinDraft,
 } from '~/lib/kampagne/pin-drafts';
 import {
+  PIN_RENDER_BODY_LIMIT_BYTES,
   checkPinTextServer,
+  estimatePinRenderBodyBytes,
   renderPinsServer,
   type PinBrandInput,
 } from '~/lib/kampagne/pin-server';
@@ -104,6 +106,15 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
   const [headline, setHeadline] = useState(() => clip(title, PIN_HEADLINE_MAX));
   const [layout, setLayout] = useState<PinLayoutId>('bottom-left');
   const [photo, setPhoto] = useState<string | null>(null);
+  /**
+   * 2026-11-22: Das erzeugte Bild wird nur noch REFERENZIERT, nicht mehr durch
+   * den Request-Body geschickt (ein 3,78-MB-PNG als Data-URL sprengte das
+   * 4,5-MB-Limit von Vercel ⇒ HTTP 413, bevor der Renderer lief). `imageId` ist
+   * die `generated_images.id` des gespeicherten Originals; `photo` bleibt für
+   * die Anzeige im Browser.
+   */
+  const [photoId, setPhotoId] = useState<string | null>(null);
+  const photoSourceRef = useRef<{ dataUrl: string; imageId: string | null } | null>(null);
   const [partial, setPartial] = useState<string | null>(null);
   const [png, setPng] = useState<string | null>(null);
   const [renderedHeadline, setRenderedHeadline] = useState('');
@@ -171,15 +182,34 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
     };
   }, [headline, layout, checkText]);
 
-  /** Deterministischer Renderer — kostet nichts, daher bei jeder Änderung erlaubt. */
+  /**
+   * Deterministischer Renderer — kostet nichts, daher bei jeder Änderung erlaubt.
+   *
+   * 2026-11-22: Der Aufruf trägt nur die Bild-REFERENZ (Body wenige hundert
+   * Bytes); der Server lädt das gespeicherte Original selbst. Nur wenn das Bild
+   * nicht dauerhaft gespeichert wurde, geht der Data-URL-Rückfall raus — und
+   * zwar nur, wenn er unter dem gemessenen Body-Limit bleibt. Sonst Klartext
+   * statt stillem 413.
+   */
   const renderPin = useCallback(
-    async (photoUrl: string, next: PinDraft): Promise<boolean> => {
+    async (next: PinDraft): Promise<boolean> => {
+      const src = photoSourceRef.current;
+      if (!src) return false;
       setBusy('render');
       setError(null);
+      const payload = {
+        ...(src.imageId ? { imageId: src.imageId } : { photoDataUrl: src.dataUrl }),
+        brand: brandInput(),
+        pins: [next],
+      };
+      if (estimatePinRenderBodyBytes(payload) > PIN_RENDER_BODY_LIMIT_BYTES) {
+        // Das Bild bleibt (es liegt im Browser) — nur das Rendern geht so nicht.
+        setError(t.pinimg_error_body_too_large);
+        setBusy(null);
+        return false;
+      }
       try {
-        const res = await renderPinsServer({
-          data: { photoDataUrl: photoUrl, brand: brandInput(), pins: [next] },
-        });
+        const res = await renderPinsServer({ data: payload });
         const first = res.pins[0];
         if (!first) throw new Error('render_failed');
         setPng(first.dataUrl);
@@ -190,9 +220,13 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
         // darauf — es gibt KEIN halbes Pin und keine stille Kürzung. Das Bild
         // bleibt erhalten und wird neu gerendert, sobald der Text passt: das
         // kostet keine weitere Einheit (kein KI-Aufruf).
-        setError(
-          `${t.pinimg_error_keep} (${err instanceof Error ? err.message : 'render_failed'})`,
-        );
+        const detail = err instanceof Error ? err.message : 'render_failed';
+        // Ein 413 ist kein „der Text passt nicht" — er wird als das benannt, was er ist.
+        if (/413|entity too large|payload too large/i.test(detail)) {
+          setError(`${t.pinimg_error_body_too_large} (${detail})`);
+        } else {
+          setError(`${t.pinimg_error_keep} (${detail})`);
+        }
         // Warum es nicht passte — mit Kürzungsvorschlag, ohne KI-Aufruf.
         setFit(await checkText(next.headline, next.layout));
         return false;
@@ -249,8 +283,12 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
       // Das Bild ist erzeugt und gebucht — der Zähler wird sofort nachgezogen,
       // auch wenn das Rendern danach scheitert. Das Bild bleibt erhalten.
       refreshUsage();
+      // 2026-11-22: Data-URL nur für die Anzeige, der Render-Aufruf nimmt die
+      // Referenz (`done.imageId`) — so bleibt der Body klein, egal wie groß das Bild ist.
+      photoSourceRef.current = { dataUrl: done.url, imageId: done.imageId ?? null };
       setPhoto(done.url);
-      await renderPin(done.url, draft);
+      setPhotoId(done.imageId ?? null);
+      await renderPin(draft);
     } catch (err) {
       if (err instanceof ImageStreamUnavailableError) {
         setError(t.pinimg_error_unavailable);
@@ -267,7 +305,7 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
 
   const applyHeadline = useCallback(() => {
     if (!photo || busy) return;
-    void renderPin(photo, draft);
+    void renderPin(draft);
   }, [photo, busy, draft, renderPin]);
 
   const chooseLayout = useCallback(
@@ -275,7 +313,7 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
       setLayout(id);
       setSuggestionHidden(false);
       if (!photo) return;
-      void renderPin(photo, { ...draft, layout: id });
+      void renderPin({ ...draft, layout: id });
     },
     [photo, draft, renderPin],
   );
@@ -412,6 +450,7 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
               <img
                 src={png ?? partial ?? photo ?? ''}
                 alt={png ? t.pinimg_preview_alt : t.pinimg_photo_alt}
+                data-photo-image-id={photoId ?? ''}
                 className="w-full rounded-lg border border-gray-200"
               />
               <p className="mt-1 text-center text-[11px] text-gray-500">

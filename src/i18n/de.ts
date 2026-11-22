@@ -2475,6 +2475,8 @@ export const de = {
   pinimg_photo_alt: 'Erzeugtes Hintergrundbild, Text noch nicht gesetzt',
   pinimg_error_keep:
     'Aus diesem Bild konnte kein Pin werden. Das erzeugte Bild bleibt erhalten — du kannst den Text ändern und neu rendern, das kostet keine weitere Einheit.',
+  pinimg_error_body_too_large:
+    'Der Render-Aufruf war zu gro\u00df: das Bild wurde als Data-URL mitgeschickt und \u00fcberschreitet die Grenze von 4,5 MB. Es wurde nichts ver\u00e4ndert und keine Einheit verbraucht \u2014 bitte das Bild erneut erzeugen, dann l\u00e4uft es \u00fcber die Bild-Referenz.',
   pincheck_checking: 'Text wird geprüft …',
   pincheck_blocked:
     'Der Text passt nicht auf dieses Layout — es wird kein Bild erzeugt und keine Einheit verbraucht.',

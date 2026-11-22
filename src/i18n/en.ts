@@ -2458,6 +2458,8 @@ export const en: EnShape = {
   pinimg_photo_alt: 'Generated background image, text not applied yet',
   pinimg_error_keep:
     'No pin could be made from this image. The generated image is kept — you can change the text and re-render, which costs no further unit.',
+  pinimg_error_body_too_large:
+    'The render request was too large: the image was sent as a data URL and exceeds the 4.5 MB limit. Nothing was changed and no unit was used \u2014 please create the image again, it then runs via the image reference.',
   pincheck_checking: 'Checking the text …',
   pincheck_blocked:
     'The text does not fit this layout — no image is created and no unit is used.',

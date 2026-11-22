@@ -50,6 +50,26 @@ export interface PinBrandInput {
 /** Logo-Obergrenze (SPEC §1: Data-URL ≤ 300 KB). */
 export const LOGO_MAX_BYTES = 300 * 1024;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Bilder NICHT mehr im Request-Body (2026-11-22)
+// ─────────────────────────────────────────────────────────────────────────────
+// Befund 2026-11-19: Ein 3,78-MB-PNG als Data-URL sind ≈ 5,04 Mio. Zeichen; das
+// Vercel-Body-Limit liegt bei 4,5 MB ⇒ HTTP 413, bevor der Renderer läuft.
+// Deshalb trägt der Render-Aufruf nur noch eine REFERENZ (`imageId` des
+// gespeicherten Originals) — der Server lädt die Bytes selbst.
+// Die Schwelle ist gemessen (4,4 Mio. Zeichen kamen durch, 4,6 Mio. nicht):
+// alles darüber wird VOR dem Request abgelehnt, mit Klartext statt 413.
+export const PIN_RENDER_BODY_LIMIT_BYTES = 4_400_000;
+
+/** Größe des Render-Requests in Bytes (Bild-Bytes zählen voll, wenn sie drin sind). */
+export function estimatePinRenderBodyBytes(input: unknown): number {
+  try {
+    return new TextEncoder().encode(JSON.stringify(input ?? null)).length;
+  } catch {
+    return Number.POSITIVE_INFINITY;
+  }
+}
+
 export interface RenderedPin {
   id: string;
   layout: PinLayoutId;
@@ -103,7 +123,7 @@ export function pinBrandFrom(input: PinBrandInput | null | undefined): {
 }
 
 export class PinServerError extends Error {
-  code: 'unauthorized' | 'invalid_input' | 'render_failed';
+  code: 'unauthorized' | 'invalid_input' | 'render_failed' | 'image_unavailable' | 'body_too_large';
   constructor(code: PinServerError['code'], message: string) {
     super(message);
     this.name = 'PinServerError';
@@ -112,8 +132,16 @@ export class PinServerError extends Error {
 }
 
 export interface RenderPinsInput {
-  /** Foto des Nutzers als Data-URL (JPEG/PNG/WebP). */
-  photoDataUrl: string;
+  /**
+   * 2026-11-22: Referenz auf das GESPEICHERTE Original (`generated_images.id`).
+   * Ist sie da, schickt der Client KEINE Bild-Bytes — der Server lädt selbst.
+   */
+  imageId?: string | null;
+  /**
+   * Nur noch Rückfall (Bild nicht dauerhaft gespeichert) bzw. eigenes Foto:
+   * Foto als Data-URL (JPEG/PNG/WebP). Fällt unter das Body-Limit.
+   */
+  photoDataUrl?: string | null;
   brand?: PinBrandInput | null;
   /** 1 … 5 Entwürfe; jeder wird einzeln gerendert. */
   pins: PinDraft[];
@@ -180,6 +208,70 @@ export const checkPinTextServer = createServerFn({ method: 'POST' })
   });
 
 /**
+ * Klartext-Grund, wenn das referenzierte Bild nicht ladbar ist — nie wieder
+ * „Aus diesem Bild konnte kein Pin werden", wenn in Wahrheit die Ablage fehlt.
+ */
+function imageRefMessage(status: number, reason?: string): string {
+  if (status === 404) return 'Das gespeicherte Bild ist nicht mehr vorhanden — bitte das Bild erneut erzeugen.';
+  if (status === 410) return 'Das gespeicherte Bild ist abgelaufen und wurde entfernt — bitte das Bild erneut erzeugen.';
+  if (status === 403) return 'Das gespeicherte Bild gehört zu einem anderen Konto.';
+  if (status === 401) return 'Für dieses Bild fehlt die Anmeldung — bitte neu anmelden.';
+  return `Das gespeicherte Bild konnte nicht geladen werden (${status}${reason ? `, ${reason}` : ''}).`;
+}
+
+/**
+ * Foto-Bytes für den Renderer besorgen.
+ *
+ * 2026-11-22: Vorrang hat die REFERENZ (`imageId`) — dann liegen keine Bild-Bytes
+ * im Request-Body und die 4,5-MB-Grenze von Vercel fällt weg. Nur wenn das Bild
+ * nicht dauerhaft gespeichert wurde, kommt der Data-URL-Rückfall (Größe vorher
+ * geprüft, siehe `PIN_RENDER_BODY_LIMIT_BYTES`).
+ */
+async function loadPinPhotoBytes(
+  data: RenderPinsInput | undefined,
+  clerkId: string,
+): Promise<Uint8Array> {
+  const imageId = typeof data?.imageId === 'string' ? data.imageId.trim() : '';
+  if (imageId) {
+    const { tryResolveUserId } = await import('~/lib/generated-images-save');
+    const ownerUserId = await tryResolveUserId(clerkId);
+    if (!ownerUserId) {
+      throw new PinServerError(
+        'image_unavailable',
+        'Zu diesem Konto liegt kein gespeichertes Bild — bitte das Bild erneut erzeugen.',
+      );
+    }
+    const { fetchOwnImage } = await import('~/lib/generated-images-service');
+    let outcome: Awaited<ReturnType<typeof fetchOwnImage>>;
+    try {
+      outcome = await fetchOwnImage({ requesterUserId: ownerUserId, imageId });
+    } catch {
+      throw new PinServerError(
+        'image_unavailable',
+        'Das gespeicherte Bild konnte nicht geladen werden — bitte das Bild erneut erzeugen.',
+      );
+    }
+    if (outcome.status !== 200) {
+      throw new PinServerError(
+        'image_unavailable',
+        imageRefMessage(outcome.status, 'reason' in outcome ? outcome.reason : undefined),
+      );
+    }
+    if (!outcome.bytes || outcome.bytes.byteLength === 0) {
+      throw new PinServerError(
+        'image_unavailable',
+        'Das gespeicherte Bild ist leer — bitte das Bild erneut erzeugen.',
+      );
+    }
+    return outcome.bytes;
+  }
+
+  const photo = parseImageDataUrl(data?.photoDataUrl);
+  if (!photo) throw new PinServerError('invalid_input', 'Kein lesbares Foto.');
+  return new Uint8Array(Buffer.from(photo.base64, 'base64'));
+}
+
+/**
  * Rendert die übergebenen Pin-Entwürfe. Fail-closed: ohne lesbares Foto oder
  * ohne Text gibt es kein Bild (kein leeres Pin, kein Platzhalter).
  */
@@ -188,16 +280,24 @@ export const renderPinsServer = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<RenderPinsResult> => {
     // Nur mit gültiger Session — die Strecke ist CPU-Arbeit, kein offener Dienst.
     const { requireUserIdFromServerFn } = await import('~/lib/usage-guard');
-    await requireUserIdFromServerFn();
+    const clerkId = await requireUserIdFromServerFn();
 
-    const photo = parseImageDataUrl(data?.photoDataUrl);
-    if (!photo) throw new PinServerError('invalid_input', 'Kein lesbares Foto.');
+    // Kein stiller 413: ein Body über der gemessenen Grenze wird hier mit Grund
+    // abgelehnt (der Referenz-Pfad liegt weit darunter und trifft das nie).
+    const hasRef = typeof data?.imageId === 'string' && data.imageId.trim().length > 0;
+    if (!hasRef && estimatePinRenderBodyBytes(data) > PIN_RENDER_BODY_LIMIT_BYTES) {
+      throw new PinServerError(
+        'body_too_large',
+        'Der Render-Aufruf war zu groß, weil das Bild als Data-URL mitgeschickt wurde — bitte das Bild erneut erzeugen.',
+      );
+    }
+
+    const photoBytes = await loadPinPhotoBytes(data, clerkId);
     if (!Array.isArray(data.pins) || data.pins.length === 0) {
       throw new PinServerError('invalid_input', 'Keine Pin-Entwürfe übergeben.');
     }
 
     const drafts = sanitizePinDrafts(data.pins.slice(0, 5));
-    const photoBytes = new Uint8Array(Buffer.from(photo.base64, 'base64'));
     const { brand, brandLine } = pinBrandFrom(data.brand);
 
     // Brand Kit 2026-11-16: Logo nur, wenn das Markenprofil aktiv ist. Ein
