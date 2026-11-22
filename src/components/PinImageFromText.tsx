@@ -70,6 +70,19 @@ const LAYOUT_LABELS: Record<PinLayoutId, string> = {
   'minimal-frame': '5',
 };
 
+/**
+ * Wählbare Textfarben der Überschrift (2026-11-22): zwei helle und zwei dunkle
+ * Töne — mehr braucht es nicht, weil die Textfläche automatisch zur Farbe
+ * gewählt wird. Jede Wahl rendert nur neu (`renderPinPng`), kostet also KEINE
+ * Einheit und ruft kein KI-Modell auf.
+ */
+const PIN_TEXT_COLORS: { id: string; hex: string; labelKey: 'pinimg_color_white' | 'pinimg_color_cream' | 'pinimg_color_anthracite' | 'pinimg_color_black' }[] = [
+  { id: 'white', hex: '#ffffff', labelKey: 'pinimg_color_white' },
+  { id: 'cream', hex: '#f8fafc', labelKey: 'pinimg_color_cream' },
+  { id: 'anthracite', hex: '#111827', labelKey: 'pinimg_color_anthracite' },
+  { id: 'black', hex: '#000000', labelKey: 'pinimg_color_black' },
+];
+
 /** Markenprofil zum Klickzeitpunkt lesen — was es nicht hergibt, wird nicht erfunden. */
 function brandInput(): PinBrandInput {
   const profile = getBrandProfile();
@@ -105,6 +118,8 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
   const { t } = useTranslation();
   const [headline, setHeadline] = useState(() => clip(title, PIN_HEADLINE_MAX));
   const [layout, setLayout] = useState<PinLayoutId>('bottom-left');
+  /** Textfarbe der Überschrift (2026-11-22) — jeder Wechsel rendert nur neu. */
+  const [textColor, setTextColor] = useState<string>('#ffffff');
   const [photo, setPhoto] = useState<string | null>(null);
   /**
    * 2026-11-22: Das erzeugte Bild wird nur noch REFERENZIERT, nicht mehr durch
@@ -118,6 +133,8 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
   const [partial, setPartial] = useState<string | null>(null);
   const [png, setPng] = useState<string | null>(null);
   const [renderedHeadline, setRenderedHeadline] = useState('');
+  /** Sichtbarer Hinweis, wenn der Kontrast automatisch gerettet wurde. */
+  const [contrastNotice, setContrastNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<'check' | 'image' | 'render' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fit, setFit] = useState<FitState>({ status: 'checking' });
@@ -130,13 +147,13 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
       layout,
       headline: clip(headline, PIN_HEADLINE_MAX),
       subline: '',
-      textColor: '#ffffff',
+      textColor,
       align: 'left',
       offsetY: 0,
       title: clip(title, PIN_TITLE_MAX),
       description: clip(description, PIN_DESCRIPTION_MAX),
     }),
-    [headline, layout, title, description],
+    [headline, layout, textColor, title, description],
   );
 
   /**
@@ -214,6 +231,8 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
         if (!first) throw new Error('render_failed');
         setPng(first.dataUrl);
         setRenderedHeadline(next.headline);
+        // Sichtbarer Hinweis, wenn der Kontrast automatisch gerettet wurde.
+        setContrastNotice(first.contrastNotice ?? null);
         return true;
       } catch (err) {
         // Ehrlich: das Bild ist erzeugt (und gebucht), der Text passt aber nicht
@@ -274,6 +293,7 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
     setError(null);
     setPng(null);
     setPartial(null);
+    setContrastNotice(null);
     setBusy('image');
     try {
       const done = await runImageStream({
@@ -314,6 +334,20 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
       setSuggestionHidden(false);
       if (!photo) return;
       void renderPin({ ...draft, layout: id });
+    },
+    [photo, draft, renderPin],
+  );
+
+  /**
+   * Textfarbe wechseln (2026-11-22): rendert das VORHANDENE Bild neu — kein
+   * KI-Aufruf, keine Einheit, beliebig oft. Reicht der Kontrast nicht, rettet
+   * der Renderer die Farbe selbst und der Hinweis erscheint unter dem Bild.
+   */
+  const chooseTextColor = useCallback(
+    (hex: string) => {
+      setTextColor(hex);
+      if (!photo) return;
+      void renderPin({ ...draft, textColor: hex });
     },
     [photo, draft, renderPin],
   );
@@ -441,6 +475,35 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
             ))}
           </div>
         </div>
+
+        {/* Textfarbe der Überschrift (2026-11-22): angewandt auf das vorhandene
+            Bild, ohne KI-Aufruf und ohne Einheit — beliebig oft änderbar. */}
+        <div>
+          <span className="mb-1 block text-xs font-semibold text-gray-700">
+            {t.pinimg_text_color}
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {PIN_TEXT_COLORS.map((color) => (
+              <button
+                key={color.id}
+                type="button"
+                data-testid={`pin-image-color-${color.id}`}
+                onClick={() => chooseTextColor(color.hex)}
+                disabled={busy !== null}
+                aria-pressed={textColor === color.hex}
+                aria-label={t[color.labelKey]}
+                title={t[color.labelKey]}
+                className={`h-8 w-8 rounded-full border-2 transition-all ${
+                  textColor === color.hex
+                    ? 'border-purple-600 ring-2 ring-purple-300'
+                    : 'border-gray-300 hover:border-gray-400'
+                } disabled:cursor-not-allowed disabled:opacity-60`}
+                style={{ backgroundColor: color.hex }}
+              />
+            ))}
+          </div>
+          <p className="mt-1 max-w-[220px] text-[11px] text-gray-500">{t.pinimg_color_hint}</p>
+        </div>
       </div>
 
       {(partial || png || photo) && (
@@ -459,6 +522,16 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
             </div>
 
             <div className="min-w-[220px] flex-1 space-y-3">
+              {/* Kontrast-Rettung sichtbar machen (2026-11-22): der Pin entsteht
+                  trotzdem, hier steht, was angepasst wurde. */}
+              {contrastNotice && (
+                <p
+                  data-testid="pin-image-contrast-notice"
+                  className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+                >
+                  {contrastNotice}
+                </p>
+              )}
               <div className="flex flex-wrap items-center gap-3">
                 {dirty && (
                   <button

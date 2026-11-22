@@ -2444,6 +2444,15 @@ export const en: EnShape = {
   pinimg_hint:
     'The image is built from this finished pin text — nothing to type again. One image = one unit.',
   pinimg_layout: 'Layout',
+  // Headline text colour (2026-11-22): applied to the existing image,
+  // no AI call, no unit.
+  pinimg_text_color: 'Text colour',
+  pinimg_color_white: 'White',
+  pinimg_color_cream: 'Light grey',
+  pinimg_color_anthracite: 'Anthracite',
+  pinimg_color_black: 'Black',
+  pinimg_color_hint:
+    'Changing the colour costs no unit — the image stays, only the text is set again.',
   pinimg_apply: 'Apply & re-render',
   pinimg_preview_alt: 'Preview of the pin image',
   pinimg_error_image: 'The image could not be created. Nothing was changed.',

@@ -77,6 +77,15 @@ export interface RenderedPin {
   dataUrl: string;
   bytes: number;
   textPixels: number;
+  /** Tatsächlich gesetzte Textfarbe (Hex) — nach der Kontrast-Rettung. */
+  textColor: string;
+  /** Gewählte Textfarbe (Hex) — was der Nutzer angeklickt hat. */
+  requestedTextColor: string;
+  /**
+   * Klartext, wenn die Textfarbe automatisch lesbarer gesetzt wurde
+   * (2026-11-22: „Kontrast angepasst, damit der Text lesbar bleibt"), sonst null.
+   */
+  contrastNotice: string | null;
 }
 
 /**
@@ -354,6 +363,9 @@ export const renderPinsServer = createServerFn({ method: 'POST' })
         dataUrl: `data:image/png;base64,${result.png.toString('base64')}`,
         bytes: result.bytes,
         textPixels: result.textPixels,
+        textColor: result.textColor,
+        requestedTextColor: result.requestedTextColor,
+        contrastNotice: result.contrastNotice,
       });
     }
 

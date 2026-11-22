@@ -19,7 +19,9 @@
 //      Sicherheitsabstand vollständig und praktisch DECKEND enthält.
 //   3. Hintergrund (Foto + Fläche) und Text zusammensetzen, dann den
 //      tatsächlichen WCAG-Kontrast an jedem Kern-Textpixel messen.
-//      Fällt er unter 4,5 : 1, gibt es KEIN Bild (`contrast_too_low`).
+//      Reicht er nicht (4,5 : 1), wird GERETTET statt abgelehnt (2026-11-22):
+//      der Renderer setzt die besser lesbare Textfarbe mit passender Textfläche
+//      und meldet die Anpassung (`contrastNotice`). Gekürzt wird dabei nie.
 // Damit kann Schrift nicht mehr mit Bildinhalt kollidieren — auch nicht auf
 // einem dunklen, unruhigen Foto.
 //
@@ -37,7 +39,8 @@
 //     das wird hier gemessen und als `font_missing` abgebrochen.
 //   • Text darf den sicheren Rand nicht überschreiten (`text_overflow`).
 //   • Kein Wort darf verloren gehen (`text_truncated`).
-//   • Text muss den Mindestkontrast erreichen (`contrast_too_low`).
+//   • Text muss den Mindestkontrast erreichen — sonst wird die Textfarbe
+//     automatisch lesbarer gesetzt und die Anpassung gemeldet (2026-11-22).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { loadSharp, type SharpFactory } from './sharp-loader';
@@ -792,6 +795,34 @@ function pickPanelColor(brandPrimary: string, textColor: string): string {
   return best;
 }
 
+/**
+ * Ersatz-Textfarben für den Rettungsfall (2026-11-22): hell und dunkel, damit
+ * zu jedem Hintergrund eine lesbare Variante existiert. Sortiert wird nach der
+ * Lesbarkeit, die diese Farbe MIT ihrer passenden Textfläche erreicht — die
+ * erste Variante ist also die beste, nicht eine willkürliche.
+ */
+const RESCUE_TEXT_COLORS = ['#ffffff', '#111827', '#f8fafc', '#000000'];
+
+function readableTextColors(requested: string, brandPrimary: string): string[] {
+  const wanted = requested.toLowerCase();
+  return RESCUE_TEXT_COLORS.filter((candidate) => candidate !== wanted)
+    .map((candidate) => ({
+      candidate,
+      ratio: contrastRatio(
+        hexLuminance(pickPanelColor(brandPrimary, candidate)),
+        hexLuminance(candidate),
+      ),
+    }))
+    .sort((a, b) => b.ratio - a.ratio)
+    .map((entry) => entry.candidate);
+}
+
+/** Kontrastwert für Klartext: deutsches Komma, höchstens zwei Nachkommastellen. */
+function contrastText(value: number): string {
+  const rounded = Math.round(value * 100) / 100;
+  return String(rounded).replace('.', ',');
+}
+
 interface Rect {
   x: number;
   y: number;
@@ -959,6 +990,18 @@ export interface PinRenderResult {
   textPixels: number;
   /** Gemessener Mindestkontrast Text ↔ Hintergrund (WCAG). */
   minContrast: number;
+  /** Tatsächlich gesetzte Textfarbe (kann von der gewählten abweichen). */
+  textColor: string;
+  /** Gewählte Textfarbe — unverändert durchgereicht. */
+  requestedTextColor: string;
+  /** Mindestkontrast der GEWÄHLTEN Farbe, vor der Rettung. */
+  requestedContrast: number;
+  /** Deckende Textfläche, die tatsächlich gesetzt wurde. */
+  panelColor: string;
+  /** true = die Textfarbe wurde automatisch lesbarer gemacht. */
+  contrastAdjusted: boolean;
+  /** Klartext für die Oberfläche (null = nichts angepasst). */
+  contrastNotice: string | null;
   /** Verwendete Schriftstufe (1 = volle Größe). */
   fontScale: number;
   /** Gesetzte Zeilen — Beleg, dass der Text vollständig untergebracht ist. */
@@ -1134,16 +1177,11 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
   }
 
   // 3) Fläche aus der gemessenen Textbox — deckend, mit Sicherheitsabstand.
-  const textColor = safeHexColor(input.overlay?.textColor, '#ffffff');
-  const panelColor = pickPanelColor(safeHexColor(input.brand?.primary, PANEL_DARK), textColor);
+  const requestedTextColor = safeHexColor(input.overlay?.textColor, '#ffffff');
+  const brandPrimary = safeHexColor(input.brand?.primary, PANEL_DARK);
   const padX = Math.round(28 + geometryUsed.titleSize * 0.18);
   const padY = Math.round(26 + geometryUsed.titleSize * 0.12);
   const panel = panelRect(textLayer.box, padX, padY);
-  const scrimPng = await sharp(
-    Buffer.from(scrimLayerSvg(input, geometryUsed, panel, brandLayer?.box ?? null, panelColor)),
-  )
-    .png()
-    .toBuffer();
 
   // 4) Foto auf das Pin-Format bringen (EXIF-Rotation beachten) — mit dem
   //    Zuschnitt DIESES Layouts (2026-11-17). Vorher lag für alle fünf Pins
@@ -1152,31 +1190,77 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
   const crop = normalizeCrop(input.crop, layoutCrop(layout));
   const base = await cropToPinFrame(sharp, input.photo, crop);
 
-  // 5) Hintergrund = Foto + Fläche. Darauf wird der Kontrast GEMESSEN.
-  const bgPng = await sharp(base)
-    .composite([{ input: scrimPng, top: 0, left: 0 }])
-    .png()
-    .toBuffer();
-  const { data: bgRaw, info: bgInfo } = await sharp(bgPng)
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-
-  const contrast = measureContrast(
-    { raw: bgRaw, channels: bgInfo.channels },
-    brandLayer ? [textLayer, brandLayer] : [textLayer],
-  );
-  if (contrast.min < MIN_TEXT_CONTRAST) {
-    throw new PinRenderError(
-      'contrast_too_low',
-      `Text ist nicht sicher lesbar (Kontrast ${contrast.min}:1, nötig ${MIN_TEXT_CONTRAST}:1) — bitte eine hellere oder dunklere Textfarbe wählen.`,
+  /**
+   * 5) Text + Fläche für EINE Textfarbe zusammensetzen und den Kontrast am
+   *    FERTIGEN Hintergrund messen (Foto + Fläche). Aufgerufen wird das für die
+   *    gewählte Farbe und — nur wenn ihr Kontrast nicht reicht — für die
+   *    besser lesbaren Varianten.
+   */
+  const composeWith = async (color: string) => {
+    const layer =
+      color === requestedTextColor
+        ? textLayer
+        : await measureInk(
+            sharp,
+            Buffer.from(
+              textLayerSvg(
+                { ...input, overlay: { ...(input.overlay ?? {}), textColor: color } },
+                geometryUsed,
+              ),
+            ),
+          );
+    const panelColor = pickPanelColor(brandPrimary, color);
+    const scrimPng = await sharp(
+      Buffer.from(scrimLayerSvg(input, geometryUsed, panel, brandLayer?.box ?? null, panelColor)),
+    )
+      .png()
+      .toBuffer();
+    const bgPng = await sharp(base)
+      .composite([{ input: scrimPng, top: 0, left: 0 }])
+      .png()
+      .toBuffer();
+    const { data, info } = await sharp(bgPng)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const contrast = measureContrast(
+      { raw: data, channels: info.channels },
+      brandLayer ? [layer, brandLayer] : [layer],
     );
+    return { color, layer, panelColor, scrimPng, contrast };
+  };
+
+  // 5) Kontrast: RETTEN statt ablehnen (2026-11-22, Owner-Regel „Bild einmal
+  //    berechnet, Bearbeiten frei"). Reicht die gewählte Textfarbe nicht, gibt
+  //    es KEINEN Abbruch und kein verlorenes Bild: der Renderer setzt die
+  //    besser lesbare Variante (nächstbessere Textfarbe + passende Textfläche)
+  //    und meldet das sichtbar. Die Überschrift wird dabei NIE gekürzt — sie
+  //    ist zu diesem Zeitpunkt bereits vollständig gesetzt und geprüft.
+  let chosen = await composeWith(requestedTextColor);
+  const requestedContrast = chosen.contrast.min;
+  if (chosen.contrast.min < MIN_TEXT_CONTRAST) {
+    for (const candidate of readableTextColors(requestedTextColor, brandPrimary)) {
+      const next = await composeWith(candidate);
+      if (next.contrast.min > chosen.contrast.min) chosen = next;
+      if (chosen.contrast.min >= MIN_TEXT_CONTRAST) break;
+    }
   }
+  const textColor = chosen.color;
+  const panelColor = chosen.panelColor;
+  const scrimPng = chosen.scrimPng;
+  const contrast = chosen.contrast;
+  const textLayerUsed = chosen.layer;
+  const contrastAdjusted = textColor.toLowerCase() !== requestedTextColor.toLowerCase();
+  const contrastNotice = contrastAdjusted
+    ? contrast.min >= MIN_TEXT_CONTRAST
+      ? `Kontrast angepasst, damit der Text lesbar bleibt: die gewählte Textfarbe ${requestedTextColor.toUpperCase()} erreichte ${contrastText(requestedContrast)}:1 (nötig ${contrastText(MIN_TEXT_CONTRAST)}:1), gesetzt wurde ${textColor.toUpperCase()} mit ${contrastText(contrast.min)}:1.`
+      : `Kontrast angepasst, damit der Text lesbar bleibt: auch die besser lesbare Textfarbe ${textColor.toUpperCase()} erreicht nur ${contrastText(contrast.min)}:1 (nötig ${contrastText(MIN_TEXT_CONTRAST)}:1). Bitte ein anderes Layout oder einen anderen Bildausschnitt wählen.`
+    : null;
 
   // 6) Endbild zusammensetzen.
   const layers: { input: Buffer; top: number; left: number }[] = [
     { input: scrimPng, top: 0, left: 0 },
-    { input: textLayer.png, top: 0, left: 0 },
+    { input: textLayerUsed.png, top: 0, left: 0 },
   ];
   if (brandLayer) layers.push({ input: brandLayer.png, top: 0, left: 0 });
 
@@ -1215,8 +1299,14 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
     width: PIN_WIDTH,
     height: PIN_HEIGHT,
     bytes: png.length,
-    textPixels: textLayer.pixels,
+    textPixels: textLayerUsed.pixels,
     minContrast: contrast.min,
+    textColor,
+    requestedTextColor,
+    requestedContrast,
+    panelColor,
+    contrastAdjusted,
+    contrastNotice,
     fontScale,
     titleLineCount: geometryUsed.titleLines.length,
     subtitleLineCount: geometryUsed.subtitleLines.length,

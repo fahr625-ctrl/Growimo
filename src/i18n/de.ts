@@ -2460,6 +2460,15 @@ export const de = {
   pinimg_hint:
     'Das Bild entsteht aus diesem fertigen Pin-Text — du musst nichts neu eingeben. Ein Bild = eine Einheit.',
   pinimg_layout: 'Layout',
+  // Textfarbe der Überschrift (2026-11-22): angewandt auf das vorhandene Bild,
+  // ohne KI-Aufruf und ohne Einheit.
+  pinimg_text_color: 'Textfarbe',
+  pinimg_color_white: 'Weiß',
+  pinimg_color_cream: 'Hellgrau',
+  pinimg_color_anthracite: 'Anthrazit',
+  pinimg_color_black: 'Schwarz',
+  pinimg_color_hint:
+    'Farbe ändern kostet keine Einheit — das Bild bleibt, es wird nur neu gesetzt.',
   pinimg_apply: 'Übernehmen & neu rendern',
   pinimg_preview_alt: 'Vorschau des Pin-Bildes',
   pinimg_error_image: 'Das Bild konnte nicht erzeugt werden. Es wurde nichts geändert.',

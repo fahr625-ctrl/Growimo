@@ -37,8 +37,16 @@
 
 /** Deutsche öffnende Anführungszeichen (U+201E). */
 const DE_OPEN = '„';
-/** Mögliche schließende Zeichen: „deutsch" (U+201C), „englisch" (U+201D), gerade (U+0022). */
+/** Deutsches schließendes Anführungszeichen (U+201C) — das Paar zu „. */
+const DE_CLOSE = '\u201C';
+/** Mögliche schließende Zeichen: deutsch (U+201C), englisch (U+201D), gerade (U+0022). */
 const CLOSERS = /["“”]/g;
+/**
+ * Schlusszeichen, die NICHT deutsch sind: gerade und englisches
+ * Anführungszeichen. Sie werden zum deutschen Schlusszeichen, sobald die Zeile
+ * mit „ öffnet (Befund 2026-11-22: „…" sah im fertigen Pin inkonsistent aus).
+ */
+const FOREIGN_CLOSERS = /["”]/g;
 /**
  * Gliederungszeichen: das Schlusszeichen steht DAVOR („Text", …). Nach einem
  * Satzpunkt steht es DAHINTER („Text.") — deshalb wird sonst einfach angehängt.
@@ -90,21 +98,33 @@ export function resolveEscapes(text: string | null | undefined): string | null {
 }
 
 /**
- * Ein offenes deutsches Anführungszeichen je Zeile sauber schließen.
- * Fehlt das Schlusszeichen, wird es ans Zeilenende gesetzt — nach einem
- * Satzpunkt („Text."), vor einem Komma/Strichpunkt/Doppelpunkt („Text", …).
- * Gibt es mehr Schluss- als Öffnungszeichen, bleibt die Zeile unangetastet
- * (nichts wird erfunden).
+ * Deutsche Anführungszeichen einer Zeile sauber schließen (2026-11-22).
+ *
+ * Zwei Schritte, in dieser Reihenfolge:
+ *   1. Öffnet die Zeile mit „ (U+201E), wird jedes gerade `"` und jedes
+ *      englische `"` (U+201D) zum deutschen Schlusszeichen `"` (U+201C). Der
+ *      Wortlaut bleibt Zeichen für Zeichen gleich — es ändert sich nur die
+ *      Form des Schlusszeichens, und es entsteht KEIN Backslash (kein
+ *      Escape-Rest).
+ *   2. Fehlt danach ein Schlusszeichen, wird es ans Zeilenende gesetzt — nach
+ *      einem Satzpunkt („Text."), vor einem Komma/Strichpunkt/Doppelpunkt
+ *      („Text", …).
+ * Gibt es mehr Schluss- als Öffnungszeichen, wird nichts angehängt (nichts
+ * wird erfunden).
  */
 function closeGermanQuotes(line: string): string {
   const opens = line.split(DE_OPEN).length - 1;
-  const closes = (line.match(CLOSERS) ?? []).length;
-  if (opens <= closes) return line;
-  let out = line.replace(/\s+$/, '');
+  if (opens === 0) return line;
+  const out = line.replace(FOREIGN_CLOSERS, DE_CLOSE);
+  const closes = (out.match(CLOSERS) ?? []).length;
+  if (opens <= closes) return out;
+  let closed = out.replace(/\s+$/, '');
   for (let i = opens - closes; i > 0; i--) {
-    out = CLAUSE_END.test(out) ? out.replace(CLAUSE_END, '"$&') : `${out}"`;
+    closed = CLAUSE_END.test(closed)
+      ? closed.replace(CLAUSE_END, `${DE_CLOSE}$&`)
+      : `${closed}${DE_CLOSE}`;
   }
-  return out;
+  return closed;
 }
 
 /**
