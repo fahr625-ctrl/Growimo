@@ -50,6 +50,7 @@ import {
   runImageStream,
 } from '~/lib/image-studio-stream';
 import { refreshUsage } from '~/lib/usage-client';
+import { loadPinState, pinFingerprint, savePinState } from '~/lib/pin-image-state';
 import { getBrandProfile } from '~/store/brand';
 
 export interface PinImageFromTextProps {
@@ -140,6 +141,13 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
   const [fit, setFit] = useState<FitState>({ status: 'checking' });
   const [suggestionHidden, setSuggestionHidden] = useState(false);
   const headlineRef = useRef<HTMLInputElement | null>(null);
+  /**
+   * 2026-11-23: Der Zustand überlebt das Neuladen. Gespeichert wird die
+   * Bild-Referenz (`generated_images.id`) plus Überschrift, Textfarbe und
+   * Layout — der Fingerabdruck ordnet ihn genau diesem Pin zu.
+   */
+  const fingerprint = useMemo(() => pinFingerprint(title, description), [title, description]);
+  const restoreRanRef = useRef(false);
 
   const draft = useMemo<PinDraft>(
     () => ({
@@ -255,6 +263,71 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
     },
     [t, checkText],
   );
+
+  /**
+   * Wiedergewinnung nach dem Neuladen (2026-11-23). Quelle ist das GESPEICHERTE
+   * Bild: `GET /api/images/<id>` liefert die Pixel aus dem Bildspeicher, der
+   * Renderer nimmt dieselbe Referenz. Kein KI-Aufruf, keine Einheit — das Bild
+   * ist bereits bezahlt. Danach setzt der Renderer den Pin kostenlos neu, damit
+   * Vorschau und Regler denselben Stand zeigen.
+   */
+  useEffect(() => {
+    if (restoreRanRef.current) return;
+    restoreRanRef.current = true;
+    const stored = loadPinState();
+    // Gehört der Eintrag zu einem anderen Pin-Text: nicht anfassen.
+    if (!stored || stored.key !== fingerprint) return;
+
+    const nextHeadline = clip(stored.headline, PIN_HEADLINE_MAX);
+    const nextColor = PIN_TEXT_COLORS.some((c) => c.hex === stored.textColor)
+      ? stored.textColor
+      : '#ffffff';
+    const nextLayout = (PIN_LAYOUT_IDS as readonly string[]).includes(stored.layout)
+      ? stored.layout
+      : 'bottom-left';
+    const url = `/api/images/${stored.imageId}`;
+
+    setHeadline(nextHeadline);
+    setTextColor(nextColor);
+    setLayout(nextLayout);
+    photoSourceRef.current = { dataUrl: url, imageId: stored.imageId };
+    setPhoto(url);
+    setPhotoId(stored.imageId);
+
+    // Fehlt das Bild im Speicher, sagt der Baustein das im Klartext — statt
+    // still ein leeres Feld zu zeigen.
+    const probe = new Image();
+    probe.onerror = () => setError(t.pinimg_restore_missing);
+    probe.src = url;
+
+    void renderPin({
+      id: 'pin-bild',
+      layout: nextLayout,
+      headline: nextHeadline,
+      subline: '',
+      textColor: nextColor,
+      align: 'left',
+      offsetY: 0,
+      title: clip(title, PIN_TITLE_MAX),
+      description: clip(description, PIN_DESCRIPTION_MAX),
+    });
+    // Nur beim ersten Rendern des Bausteins — danach ist der Nutzer am Zug.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Jede Änderung mitschreiben, sobald ein Bild da ist — der nächste Reload
+  // findet genau diesen Stand (Bild-Referenz, Überschrift, Textfarbe, Layout).
+  useEffect(() => {
+    if (!photoId) return;
+    savePinState({
+      key: fingerprint,
+      imageId: photoId,
+      headline,
+      textColor,
+      layout,
+      savedAt: Date.now(),
+    });
+  }, [photoId, fingerprint, headline, textColor, layout]);
 
   const create = useCallback(async () => {
     // Doppelklick-Riegel: ein bezahlter Lauf für ein Bild.

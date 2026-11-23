@@ -19,6 +19,7 @@ import { useTranslation } from '~/i18n';
 import { saveProject, updateChannel } from '~/store/projects';
 import { getBrandContext } from '~/store/brand';
 import { resolveInitialIdea } from '~/lib/idea-priority';
+import { PIN_RESULT_KEY, loadPinState, pinFingerprint } from '~/lib/pin-image-state';
 // K3 (Owner-Entscheid 2026-10-18): Auto-Save nach erfolgreicher Einzel-Generierung.
 import {
   quickProjectTitle,
@@ -252,6 +253,38 @@ function QuickGeneratorContent({
       // ignore storage errors
     }
   }, [productIdea, tone, brief, draftKey]);
+
+  // ── Letztes Pinterest-Ergebnis wiederherstellen (2026-11-23) ───────────────
+  // Der Pin-Baustein hängt am fertigen Pin-Text. Ohne ihn wäre nach einem Reload
+  // auch das bezahlte Pin-Bild nicht mehr erreichbar — obwohl es gespeichert ist
+  // („Bild einmal berechnet, Bearbeiten frei"). Zurückgeholt wird NUR ein
+  // Ergebnis, zu dem ein gespeicherter Pin-Zustand gehört — nie ein fremder Alt-Text.
+  useEffect(() => {
+    if (contentType !== 'pinterest_pin') return;
+    const stored = loadPinState();
+    if (!stored) return;
+    try {
+      const raw = localStorage.getItem(PIN_RESULT_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as ContentResult;
+      if (parsed?.contentType !== 'pinterest_pin') return;
+      if (stored.key !== pinFingerprint(parsed.title, parsed.body)) return;
+      setResult(parsed);
+    } catch {
+      // unlesbarer Eintrag: überspringen, nie löschen
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Ergebnis mitschreiben, damit der Pin-Baustein den Reload übersteht.
+  useEffect(() => {
+    if (contentType !== 'pinterest_pin' || !result) return;
+    try {
+      localStorage.setItem(PIN_RESULT_KEY, JSON.stringify(result));
+    } catch {
+      // Speicher voll/gesperrt — die Sitzung funktioniert weiter, nur ohne Gedächtnis.
+    }
+  }, [contentType, result]);
 
   // ── Cycle loading messages ─────────────────────────────────────────────────
   useEffect(() => {
