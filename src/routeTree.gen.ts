@@ -13,7 +13,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AgbRouteImport } from './routes/agb'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as DatenschutzRouteImport } from './routes/datenschutz'
+import { Route as DesignsRouteImport } from './routes/designs'
 import { Route as ImpressumRouteImport } from './routes/impressum'
+import { Route as MusterRouteImport } from './routes/muster'
 import { Route as WiderrufRouteImport } from './routes/widerruf'
 import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppAdminAnalyticsRouteImport } from './routes/app/admin-analytics'
@@ -64,9 +66,19 @@ const DatenschutzRoute = DatenschutzRouteImport.update({
   path: '/datenschutz',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DesignsRoute = DesignsRouteImport.update({
+  id: '/designs',
+  path: '/designs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ImpressumRoute = ImpressumRouteImport.update({
   id: '/impressum',
   path: '/impressum',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MusterRoute = MusterRouteImport.update({
+  id: '/muster',
+  path: '/muster',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WiderrufRoute = WiderrufRouteImport.update({
@@ -220,7 +232,9 @@ export interface FileRoutesByFullPath {
   '/agb': typeof AgbRoute
   '/app': typeof AppRouteWithChildren
   '/datenschutz': typeof DatenschutzRoute
+  '/designs': typeof DesignsRoute
   '/impressum': typeof ImpressumRoute
+  '/muster': typeof MusterRoute
   '/widerruf': typeof WiderrufRoute
   '/app/admin-analytics': typeof AppAdminAnalyticsRoute
   '/app/admin-tracking': typeof AppAdminTrackingRoute
@@ -255,7 +269,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/agb': typeof AgbRoute
   '/datenschutz': typeof DatenschutzRoute
+  '/designs': typeof DesignsRoute
   '/impressum': typeof ImpressumRoute
+  '/muster': typeof MusterRoute
   '/widerruf': typeof WiderrufRoute
   '/app/admin-analytics': typeof AppAdminAnalyticsRoute
   '/app/admin-tracking': typeof AppAdminTrackingRoute
@@ -292,7 +308,9 @@ export interface FileRoutesById {
   '/agb': typeof AgbRoute
   '/app': typeof AppRouteWithChildren
   '/datenschutz': typeof DatenschutzRoute
+  '/designs': typeof DesignsRoute
   '/impressum': typeof ImpressumRoute
+  '/muster': typeof MusterRoute
   '/widerruf': typeof WiderrufRoute
   '/app/admin-analytics': typeof AppAdminAnalyticsRoute
   '/app/admin-tracking': typeof AppAdminTrackingRoute
@@ -330,7 +348,9 @@ export interface FileRouteTypes {
     | '/agb'
     | '/app'
     | '/datenschutz'
+    | '/designs'
     | '/impressum'
+    | '/muster'
     | '/widerruf'
     | '/app/admin-analytics'
     | '/app/admin-tracking'
@@ -365,7 +385,9 @@ export interface FileRouteTypes {
     | '/'
     | '/agb'
     | '/datenschutz'
+    | '/designs'
     | '/impressum'
+    | '/muster'
     | '/widerruf'
     | '/app/admin-analytics'
     | '/app/admin-tracking'
@@ -401,7 +423,9 @@ export interface FileRouteTypes {
     | '/agb'
     | '/app'
     | '/datenschutz'
+    | '/designs'
     | '/impressum'
+    | '/muster'
     | '/widerruf'
     | '/app/admin-analytics'
     | '/app/admin-tracking'
@@ -438,7 +462,9 @@ export interface RootRouteChildren {
   AgbRoute: typeof AgbRoute
   AppRoute: typeof AppRouteWithChildren
   DatenschutzRoute: typeof DatenschutzRoute
+  DesignsRoute: typeof DesignsRoute
   ImpressumRoute: typeof ImpressumRoute
+  MusterRoute: typeof MusterRoute
   WiderrufRoute: typeof WiderrufRoute
 }
 
@@ -472,11 +498,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DatenschutzRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/designs': {
+      id: '/designs'
+      path: '/designs'
+      fullPath: '/designs'
+      preLoaderRoute: typeof DesignsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/impressum': {
       id: '/impressum'
       path: '/impressum'
       fullPath: '/impressum'
       preLoaderRoute: typeof ImpressumRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/muster': {
+      id: '/muster'
+      path: '/muster'
+      fullPath: '/muster'
+      preLoaderRoute: typeof MusterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/widerruf': {
@@ -754,7 +794,9 @@ const rootRouteChildren: RootRouteChildren = {
   AgbRoute: AgbRoute,
   AppRoute: AppRouteWithChildren,
   DatenschutzRoute: DatenschutzRoute,
+  DesignsRoute: DesignsRoute,
   ImpressumRoute: ImpressumRoute,
+  MusterRoute: MusterRoute,
   WiderrufRoute: WiderrufRoute,
 }
 export const routeTree = rootRouteImport
