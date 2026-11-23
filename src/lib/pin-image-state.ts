@@ -27,6 +27,12 @@ export interface StoredPinState {
   headline: string;
   textColor: string;
   layout: PinLayoutId;
+  /** Schriftwahl des Nutzers (2026-11-23): leer = Schriftpaar des Designs. */
+  fontId?: string | null;
+  /** Flächenfarbe (Hex) — leer = Farbe des Designs. */
+  panelColor?: string | null;
+  /** Akzentfarbe (Hex) — leer = Farbe des Designs. */
+  accentColor?: string | null;
   savedAt: number;
 }
 
@@ -52,6 +58,9 @@ export function loadPinState(): StoredPinState | null {
       headline: parsed.headline,
       textColor: typeof parsed.textColor === 'string' ? parsed.textColor : '#ffffff',
       layout: (parsed.layout ?? 'bottom-left') as PinLayoutId,
+      fontId: typeof parsed.fontId === 'string' ? parsed.fontId : null,
+      panelColor: typeof parsed.panelColor === 'string' ? parsed.panelColor : null,
+      accentColor: typeof parsed.accentColor === 'string' ? parsed.accentColor : null,
       savedAt: typeof parsed.savedAt === 'number' ? parsed.savedAt : 0,
     };
   } catch {

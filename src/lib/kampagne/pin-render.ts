@@ -44,7 +44,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { loadSharp, type SharpFactory } from './sharp-loader';
-import { PIN_FONT_FAMILY_NAMES, PIN_FONT_STACKS, type PinFontId } from './pin-fonts';
+import { chooseProductCrop, type ProductCropReport } from './pin-crop-attention';
+import { PIN_FONT_FAMILY_NAMES, PIN_FONT_STACKS, isPinFontId, type PinFontId } from './pin-fonts';
 import { PIN_FONT_COVERAGE, missingGlyphs, pinFontIdFromFamily } from './pin-font-coverage';
 import { findResidualEscape, resolveEscapes } from '~/lib/text-normalize';
 
@@ -89,9 +90,21 @@ export type PinLayoutId =
   | 'top-band'
   | 'center-card'
   | 'side-stripe'
-  | 'minimal-frame';
+  | 'minimal-frame'
+  // Zwei Muster (2026-11-23): echte Layout-IDs im Renderer. Sie stehen NICHT
+  // in `PIN_LAYOUT_IDS`, damit der laufende Kampagnen-Ablauf weiter genau fünf
+  // Entwürfe erzeugt — die drei (bzw. fünf) alten Layouts bleiben unverändert.
+  | 'editorial-serif'
+  | 'bold-block'
+  // Fünf eigenständige Designs (2026-11-23): drei ruhige in der Familie von
+  // „editorial-serif", zwei auffällige ohne große Farbflächen. `bold-block` ist
+  // dabei ZURÜCKGEBAUT (der Block ist auf Balken + Leiste geschrumpft), nicht
+  // verworfen.
+  | 'galerie-plaque'
+  | 'atelier-nord'
+  | 'kontrast-ribbon';
 
-export type PinAlign = 'left' | 'center';
+export type PinAlign = 'left' | 'center' | 'right';
 
 /** Reihenfolge = Reihenfolge der fünf Entwürfe in der Oberfläche. */
 export const PIN_LAYOUT_IDS: PinLayoutId[] = [
@@ -102,7 +115,63 @@ export const PIN_LAYOUT_IDS: PinLayoutId[] = [
   'minimal-frame',
 ];
 
-type ScrimKind = 'bottom-band' | 'top-band' | 'center-card' | 'bottom-corner' | 'bottom-band-soft';
+/** Die beiden Muster-Layouts (2026-11-23) — eigene Liste, eigener Einstieg. */
+export const PIN_MUSTER_LAYOUT_IDS: PinLayoutId[] = ['editorial-serif', 'bold-block'];
+
+/**
+ * Die fünf fertigen Pin-Designs (2026-11-23) — Reihenfolge = Reihenfolge in der
+ * Galerie und in der Layout-Auswahl. Drei ruhige (Editorial, Galerie, Atelier),
+ * zwei auffällige (Signal, Kontrast).
+ */
+export const PIN_DESIGN_IDS: PinLayoutId[] = [
+  'editorial-serif',
+  'galerie-plaque',
+  'atelier-nord',
+  'bold-block',
+  'kontrast-ribbon',
+];
+
+/** Name je Design — statt „1"–„5" (Owner-Vorgabe 2026-11-23). */
+export const PIN_DESIGN_NAMES: Record<string, string> = {
+  'editorial-serif': 'Editorial',
+  'galerie-plaque': 'Galerie',
+  'atelier-nord': 'Atelier',
+  'bold-block': 'Signal',
+  'kontrast-ribbon': 'Kontrast',
+  'bottom-left': 'Klassisch',
+  'top-band': 'Kopfband',
+  'center-card': 'Karte',
+  'side-stripe': 'Seitenstreifen',
+  'minimal-frame': 'Reduziert',
+};
+
+/** Die fünf alten Layouts (bleiben als Auswahl erhalten, „ausblenden statt löschen"). */
+export const PIN_LEGACY_LAYOUT_IDS: PinLayoutId[] = [
+  'bottom-left',
+  'top-band',
+  'center-card',
+  'side-stripe',
+  'minimal-frame',
+];
+
+type ScrimKind =
+  | 'bottom-band'
+  | 'top-band'
+  | 'center-card'
+  | 'bottom-corner'
+  | 'bottom-band-soft'
+  /** Muster A: schmale Creme-Fläche im unteren Drittel + Haarlinie. */
+  | 'editorial-slip'
+  /** Muster B: kräftiger Farbblock mit schräger Kante ins Bild. */
+  | 'bold-block'
+  /** Design „Galerie": schwebende helle Karte mit Haarlinien-Rahmen. */
+  | 'galerie-plaque'
+  /** Design „Atelier": Papierband mit schräger Oberkante, Unterzeile als Eyebrow. */
+  | 'atelier-band'
+  /** Design „Signal": schwebende dunkle Leiste + schmaler Akzentbalken. */
+  | 'signal-bar'
+  /** Design „Kontrast": Verlauf von rechts + schmales Akzentband an der Kante. */
+  | 'kontrast-ribbon';
 type FrameKind = 'inset' | 'rule' | 'none';
 type Anchor = 'top' | 'center' | 'bottom';
 
@@ -117,6 +186,39 @@ interface LayoutSpec {
   scrim: ScrimKind;
   frame: FrameKind;
   frameWidth: number;
+  /**
+   * Schrift des Layouts, wenn das Markenprofil keine wählt (2026-11-23).
+   * Ohne Angabe bleibt es bei der bisherigen Sans-Kette — die alten Layouts
+   * ändern sich dadurch nicht.
+   */
+  fontId?: PinFontId;
+  /**
+   * Eigene Schrift für die UNTERZEILE (2026-11-23). Jedes Design bringt ein
+   * eigenes Schriftpaar mit — ohne Angabe gilt die Schrift der Überschrift.
+   */
+  subtitleFontId?: PinFontId;
+  /** Akzentfarbe des Layouts (Haarlinie, Balken, Chip) — Marke schlägt Layout. */
+  accentColor?: string;
+  /** Akzentbalken über der Textfläche (Design „Signal"). */
+  bar?: { width: number; height: number; gap: number; chip: number };
+  /** Schmales Akzentband an der Bildkante (Design „Kontrast"). */
+  ribbon?: { width: number };
+  /** Textfarbe des Layouts, wenn das Overlay keine wählt. */
+  textColor?: string;
+  /** Flächenfarbe des Layouts, wenn das Markenprofil keine primäre hat. */
+  panelColor?: string;
+  /** Überschrift in Großbuchstaben setzen (Muster B). */
+  uppercase?: boolean;
+  /** Unterzeile ÜBER der Überschrift setzen (Eyebrow, Design „Atelier"). */
+  subtitleFirst?: boolean;
+  /** Sperrung in px je Zeichen (Muster B). */
+  letterSpacing?: number;
+  /** Haarlinie über der Textfläche (Muster A). */
+  hairline?: { width: number; height: number; gap: number };
+  /** Schräge der Blockkante in px (Muster B, „Kante ragt ins Bild"). */
+  slant?: number;
+  /** Zuschnitt am Produkt statt aus `PIN_LAYOUT_CROPS` (2026-11-23). */
+  productCrop?: boolean;
   /**
    * Motivschutz (2026-11-15): Die Textfläche darf erst UNTERHALB dieser Höhe
    * beginnen (Anteil der Pin-Höhe). Damit bleibt die Bildmitte — dort sitzt in
@@ -212,6 +314,137 @@ const LAYOUTS: Record<PinLayoutId, LayoutSpec> = {
     frame: 'inset',
     frameWidth: 3,
   },
+  // ── Design 1 — „Editorial" (ruhig, Familie von Muster A) ──────────────────
+  // Serif-Überschrift + Sans-Unterzeile, helle Fläche im unteren Drittel, die
+  // bis zur Unterkante durchgezogen ist, als einziger Akzent eine Haarlinie.
+  // Kein Badge, keine Großbuchstaben, kein Rahmen — die Ruhe ist das Mittel.
+  'editorial-serif': {
+    align: 'left',
+    anchor: 'bottom',
+    titleSize: 62,
+    subtitleSize: 30,
+    titleChars: 20,
+    subtitleChars: 30,
+    marginX: 90,
+    scrim: 'editorial-slip',
+    frame: 'none',
+    frameWidth: 0,
+    fontId: 'serif',
+    subtitleFontId: 'sans',
+    textColor: '#1E1C19',
+    panelColor: '#F7F4EF',
+    accentColor: '#2E3338',
+    hairline: { width: 220, height: 3, gap: 34 },
+    bandTopFrac: 0.6,
+    // Owner-Befund an den Mustern: unter der Unterzeile blieb ein großer toter
+    // Creme-Bereich. Die Fläche endet jetzt mit normalem Fußabstand.
+    bottomInset: 96,
+    productCrop: true,
+  },
+  // ── Design 2 — „Galerie" (ruhig) ──────────────────────────────────────────
+  // Sans-Überschrift + Serif-Unterzeile, Text ZENTRIERT auf einer schwebenden
+  // weißen Karte mit feinem Rahmen. Die Karte berührt keine Kante — sie liegt
+  // wie ein Passepartout auf dem Foto (eigene Flächenform, eigene Aufteilung).
+  'galerie-plaque': {
+    align: 'center',
+    anchor: 'bottom',
+    titleSize: 56,
+    subtitleSize: 32,
+    titleChars: 24,
+    subtitleChars: 34,
+    marginX: 120,
+    scrim: 'galerie-plaque',
+    frame: 'none',
+    frameWidth: 0,
+    fontId: 'sans',
+    subtitleFontId: 'serif',
+    textColor: '#14181C',
+    panelColor: '#FFFFFF',
+    accentColor: '#A9B2B8',
+    bandTopFrac: 0.58,
+    bottomInset: 150,
+    productCrop: true,
+  },
+  // ── Design 3 — „Atelier" (ruhig) ──────────────────────────────────────────
+  // Serif-Überschrift + Mono-Eyebrow: die Unterzeile steht ÜBER der Überschrift
+  // (eigene Textbehandlung), auf einem Papierband mit schräger Oberkante.
+  // Die Unterzeile ist zugleich der einzige Akzent — kein Badge, kein Rahmen.
+  'atelier-nord': {
+    align: 'left',
+    anchor: 'bottom',
+    titleSize: 56,
+    subtitleSize: 24,
+    titleChars: 19,
+    subtitleChars: 30,
+    marginX: 88,
+    scrim: 'atelier-band',
+    frame: 'none',
+    frameWidth: 0,
+    fontId: 'serif',
+    subtitleFontId: 'mono',
+    subtitleFirst: true,
+    textColor: '#1B2126',
+    panelColor: '#EEF1F2',
+    accentColor: '#6B7780',
+    bandTopFrac: 0.6,
+    bottomInset: 104,
+    productCrop: true,
+  },
+  // ── Design 4 — „Signal" (auffällig, ZURÜCKGEBAUTER bold-block) ─────────────
+  // Der große Farbblock ist weg. Geblieben ist ein ELEMENT: eine schwebende
+  // dunkle Leiste (randabständig, nicht randlos) mit einem schmalen Akzentbalken
+  // und einem kleinen Quadrat darüber. Fette Sans in Großbuchstaben mit
+  // Sperrung, Mono-Unterzeile — werblich, ohne dem Produkt die Fläche zu nehmen.
+  'bold-block': {
+    align: 'left',
+    anchor: 'bottom',
+    titleSize: 64,
+    subtitleSize: 28,
+    titleChars: 17,
+    subtitleChars: 30,
+    marginX: 84,
+    scrim: 'signal-bar',
+    frame: 'none',
+    frameWidth: 0,
+    fontId: 'sans',
+    subtitleFontId: 'mono',
+    textColor: '#FFFFFF',
+    panelColor: '#0E1114',
+    accentColor: '#E23D28',
+    uppercase: true,
+    letterSpacing: 3,
+    bar: { width: 120, height: 10, gap: 40, chip: 20 },
+    bandTopFrac: 0.55,
+    bottomInset: 140,
+    productCrop: true,
+  },
+  // ── Design 5 — „Kontrast" (auffällig) ─────────────────────────────────────
+  // Mono-Überschrift in Großbuchstaben, rechtsbündig unten rechts, auf einem
+  // Verlauf von der rechten Kante; dort ein schmales Akzentband als einziges
+  // Farb-Element. Sans-Unterzeile. Plakativer Kontrast ohne Farbfläche.
+  'kontrast-ribbon': {
+    align: 'right',
+    anchor: 'bottom',
+    titleSize: 56,
+    subtitleSize: 30,
+    titleChars: 19,
+    subtitleChars: 30,
+    marginX: 88,
+    scrim: 'kontrast-ribbon',
+    frame: 'none',
+    frameWidth: 0,
+    fontId: 'mono',
+    subtitleFontId: 'sans',
+    textColor: '#FFFFFF',
+    panelColor: '#12161A',
+    accentColor: '#1F6FEB',
+    uppercase: true,
+    letterSpacing: 1,
+    ribbon: { width: 16 },
+    bandTopFrac: 0.55,
+    bottomInset: 120,
+    productCrop: true,
+  },
 };
 
 export function isPinLayoutId(v: unknown): v is PinLayoutId {
@@ -282,6 +515,14 @@ export const PIN_LAYOUT_CROPS: Record<PinLayoutId, PinCrop> = {
   'center-card': { zoom: 1.15, focus: 'top' },
   'side-stripe': { zoom: 1.6, focus: 'right' },
   'minimal-frame': { zoom: 1.25, focus: 'bottom-left' },
+  // Muster A/B (2026-11-23) stehen hier nur als Rückfall: beide schneiden
+  // standardmäßig am PRODUKT zu (`productCrop`, pin-crop-attention.ts). Der
+  // Eintrag greift, wenn ein Aufrufer den Zuschnitt ausdrücklich abschaltet.
+  'editorial-serif': { zoom: 1, focus: 'centre' },
+  'bold-block': { zoom: 1, focus: 'centre' },
+  'galerie-plaque': { zoom: 1, focus: 'centre' },
+  'atelier-nord': { zoom: 1, focus: 'centre' },
+  'kontrast-ribbon': { zoom: 1, focus: 'centre' },
 };
 
 /** Zuschnitt eines Layouts (unveränderlich kopiert, damit niemand die Tabelle ändert). */
@@ -415,7 +656,7 @@ export interface PinBrand {
   fontFamily?: string | null;
 }
 
-/** Bearbeitbares Overlay je Pin (Text, Position, Farbe). */
+/** Bearbeitbares Overlay je Pin (Text, Position, Farbe, Schrift). */
 export interface PinOverlay {
   /** Textfarbe des Overlays (Hex); default #ffffff. */
   textColor?: string | null;
@@ -423,6 +664,19 @@ export interface PinOverlay {
   align?: PinAlign | null;
   /** Verschiebung des Textblocks in Anteilen der Pin-Höhe (−0.35 … 0.35). */
   offsetY?: number | null;
+  /**
+   * Schriftwahl (2026-11-23): Sans/Serif/Mono aus dem Brand Kit. Gilt für
+   * Überschrift UND Unterzeile. Leer ⇒ Schriftpaar des Designs.
+   */
+  fontId?: PinFontId | null;
+  /**
+   * Flächenfarbe (2026-11-23) — die deckende Fläche hinter dem Text. Leer ⇒
+   * Markenfarbe, sonst die Farbe des Designs. Wird der Mindestkontrast nicht
+   * erreicht, rettet der Renderer wie bisher statt abzubrechen.
+   */
+  panelColor?: string | null;
+  /** Akzentfarbe (Haarlinie/Balken/Band) — Marke und Layout sind der Rückfall. */
+  accentColor?: string | null;
 }
 
 export interface PinRenderInput {
@@ -464,6 +718,7 @@ export class PinRenderError extends Error {
     | 'text_overflow'
     | 'text_truncated'
     | 'contrast_too_low'
+    | 'crop_rejected'
     | 'wrong_dimensions'
     | 'render_failed';
   constructor(code: PinRenderError['code'], message: string) {
@@ -684,9 +939,10 @@ interface TextGeometry {
 /** Position/Größe des Textblocks für Layout + Overlay + Schriftstufe berechnen. */
 function geometry(input: PinRenderInput, scale = 1): TextGeometry {
   const spec = LAYOUTS[input.layout && isPinLayoutId(input.layout) ? input.layout : 'bottom-left'];
-  const align: PinAlign = input.overlay?.align === 'center' || input.overlay?.align === 'left'
-    ? input.overlay.align
-    : spec.align;
+  const align: PinAlign =
+    input.overlay?.align === 'center' || input.overlay?.align === 'left' || input.overlay?.align === 'right'
+      ? input.overlay.align
+      : spec.align;
 
   const titleSize = Math.round(spec.titleSize * scale);
   const subtitleSize = Math.round(spec.subtitleSize * scale);
@@ -729,36 +985,79 @@ function geometry(input: PinRenderInput, scale = 1): TextGeometry {
     blockTop,
     blockHeight,
     ruleY: blockTop + titleLines.length * (titleSize + lineGap) + 8,
-    x: align === 'center' ? Math.round(PIN_WIDTH / 2) : spec.marginX,
+    x:
+      align === 'center'
+        ? Math.round(PIN_WIDTH / 2)
+        : align === 'right'
+          ? PIN_WIDTH - spec.marginX
+          : spec.marginX,
   };
+}
+
+/**
+ * Schrift für Überschrift und Unterzeile. Reihenfolge: Schriftwahl des Nutzers
+ * (2026-11-23, gilt für beide Zeilen) → Markenprofil → Schriftpaar des Designs.
+ */
+function effectiveFontFamily(brand: PinBrand | null | undefined, spec: LayoutSpec): string {
+  return brand?.fontFamily?.trim() || PIN_FONT_STACKS[spec.fontId ?? 'sans'];
+}
+
+function effectiveSubtitleFontFamily(
+  input: PinRenderInput,
+  spec: LayoutSpec,
+): string {
+  if (isPinFontId(input.overlay?.fontId)) return PIN_FONT_STACKS[input.overlay.fontId];
+  if (input.brand?.fontFamily?.trim()) return input.brand.fontFamily.trim();
+  return PIN_FONT_STACKS[spec.subtitleFontId ?? spec.fontId ?? 'sans'];
 }
 
 /** Nur die Text-Ebene (transparent) — separat renderbar für die Messung. */
 function textLayerSvg(input: PinRenderInput, g: TextGeometry): string {
   const brand = input.brand ?? null;
-  const fontFamily = brand?.fontFamily?.trim() || PIN_FONT_STACK;
-  const color = safeHexColor(input.overlay?.textColor, '#ffffff');
-  const anchor = g.align === 'center' ? 'middle' : 'start';
+  const fontFamily = isPinFontId(input.overlay?.fontId)
+    ? PIN_FONT_STACKS[input.overlay.fontId]
+    : effectiveFontFamily(brand, g.spec);
+  const subtitleFamily = effectiveSubtitleFontFamily(input, g.spec);
+  const color = safeHexColor(input.overlay?.textColor, g.spec.textColor ?? '#ffffff');
+  const anchor = g.align === 'center' ? 'middle' : g.align === 'right' ? 'end' : 'start';
   const gap = g.titleSize + g.lineGap;
+  // Muster B (2026-11-23): Großbuchstaben + Sperrung. Beides ändert nur die
+  // ZEICHNUNG; die geprüfte Wortfolge bleibt die Eingabe (kein Wortverlust).
+  const letterspacing = g.spec.letterSpacing
+    ? ` letter-spacing="${Math.round(g.spec.letterSpacing * (g.titleSize / g.spec.titleSize))}"`
+    : '';
+  const shape = (line: string) => (g.spec.uppercase ? line.toLocaleUpperCase('de-DE') : line);
+
+  // 2026-11-23: Bei „Eyebrow"-Designs (Atelier) steht die Unterzeile ÜBER der
+  // Überschrift. Die Höhe des Blocks bleibt dieselbe — nur die Reihenfolge der
+  // Zeilen dreht sich. Kein Wort wird dabei anders gesetzt.
+  const subGap = g.subtitleSize + g.lineGap;
+  const ruleGapScaled = Math.round(34 * (g.titleSize / g.spec.titleSize));
+  const eyebrow = g.spec.subtitleFirst === true;
+  const titleStartY = eyebrow
+    ? g.blockTop + g.subtitleLines.length * subGap + ruleGapScaled + g.titleSize
+    : g.blockTop + g.titleSize;
+  const subtitleStartY = eyebrow
+    ? g.blockTop + g.subtitleSize
+    : g.blockTop + g.titleLines.length * gap + ruleGapScaled + g.subtitleSize;
 
   const titleTspans = g.titleLines
     .map(
       (line, i) =>
-        `<tspan x="${g.x}" y="${g.blockTop + g.titleSize + i * gap}">${esc(line)}</tspan>`,
+        `<tspan x="${g.x}" y="${titleStartY + i * gap}">${esc(shape(line))}</tspan>`,
     )
     .join('');
 
-  const subtitleStartY = g.blockTop + g.titleLines.length * gap + Math.round(34 * (g.titleSize / g.spec.titleSize)) + g.subtitleSize;
   const subtitleTspans = g.subtitleLines
     .map(
       (line, i) =>
-        `<tspan x="${g.x}" y="${subtitleStartY + i * (g.subtitleSize + g.lineGap)}">${esc(line)}</tspan>`,
+        `<tspan x="${g.x}" y="${subtitleStartY + i * subGap}">${esc(line)}</tspan>`,
     )
     .join('');
 
   return `<svg width="${PIN_WIDTH}" height="${PIN_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
-  <text font-family='${esc(fontFamily)}' font-size="${g.titleSize}" font-weight="700" fill="${color}" text-anchor="${anchor}">${titleTspans}</text>
-  ${subtitleTspans ? `<text font-family='${esc(fontFamily)}' font-size="${g.subtitleSize}" font-weight="400" fill="${color}" fill-opacity="0.94" text-anchor="${anchor}">${subtitleTspans}</text>` : ''}
+  <text font-family='${esc(fontFamily)}' font-size="${g.titleSize}" font-weight="700" fill="${color}" text-anchor="${anchor}"${letterspacing}>${titleTspans}</text>
+  ${subtitleTspans ? `<text font-family='${esc(subtitleFamily)}' font-size="${g.subtitleSize}" font-weight="400" fill="${color}" fill-opacity="0.94" text-anchor="${anchor}">${subtitleTspans}</text>` : ''}
 </svg>`;
 }
 
@@ -780,9 +1079,9 @@ function brandLineSvg(input: PinRenderInput, g: TextGeometry, fontSize = 30): st
  * ist — sonst die dunkle bzw. helle neutrale Fläche. So bleibt der Text IMMER
  * lesbar, ohne dass eine unlesbare Markenfarbe das Pin blockiert.
  */
-function pickPanelColor(brandPrimary: string, textColor: string): string {
+function pickPanelColor(brandPrimary: string, textColor: string, layoutDefault: string = PANEL_DARK): string {
   const textLum = hexLuminance(textColor);
-  const candidates = [brandPrimary, PANEL_DARK, PANEL_LIGHT];
+  const candidates = [brandPrimary, layoutDefault, PANEL_DARK, PANEL_LIGHT];
   let best = candidates[0];
   let bestRatio = 0;
   for (const candidate of candidates) {
@@ -803,13 +1102,13 @@ function pickPanelColor(brandPrimary: string, textColor: string): string {
  */
 const RESCUE_TEXT_COLORS = ['#ffffff', '#111827', '#f8fafc', '#000000'];
 
-function readableTextColors(requested: string, brandPrimary: string): string[] {
+function readableTextColors(requested: string, brandPrimary: string, layoutDefault: string = PANEL_DARK): string[] {
   const wanted = requested.toLowerCase();
   return RESCUE_TEXT_COLORS.filter((candidate) => candidate !== wanted)
     .map((candidate) => ({
       candidate,
       ratio: contrastRatio(
-        hexLuminance(pickPanelColor(brandPrimary, candidate)),
+        hexLuminance(pickPanelColor(brandPrimary, candidate, layoutDefault)),
         hexLuminance(candidate),
       ),
     }))
@@ -854,7 +1153,10 @@ function scrimLayerSvg(
   brandBox: InkBox | null,
   panelColor: string,
 ): string {
-  const accent = safeHexColor(input.brand?.accent, '#ffffff');
+  const accent = safeHexColor(
+    input.overlay?.accentColor ?? input.brand?.accent,
+    g.spec.accentColor ?? '#ffffff',
+  );
   const frame = g.spec.frame;
   const fill = `fill="${panelColor}"`;
 
@@ -897,6 +1199,79 @@ function scrimLayerSvg(
     );
     body =
       `<rect x="${Math.round(card.x)}" y="${Math.round(card.y)}" width="${Math.round(card.width)}" height="${Math.round(card.height)}" rx="36" ${fill} fill-opacity="${PANEL_OPACITY}" />`;
+  } else if (g.spec.scrim === 'editorial-slip') {
+    // Muster A (2026-11-23): schmales Creme-Band im unteren Drittel, darüber
+    // ein sanfter Verlauf (kein harter Schnitt), und als einziger Akzent eine
+    // feine Haarlinie. Kein Rahmen, kein Badge, keine Großbuchstaben — die
+    // Ruhe ist das Gestaltungsmittel, die Fläche deckt den unteren Rand
+    // vollständig ab (keine leere Ecke).
+    const hairline = g.spec.hairline ?? { width: 220, height: 3, gap: 34 };
+    const slipTop = Math.max(0, Math.round(panel.y));
+    const fadeFrom = Math.max(0, slipTop - 170);
+    const lineY = Math.max(SAFE_MARGIN, slipTop - hairline.gap);
+    const lineColor = safeHexColor(g.spec.textColor, '#22201C');
+    body =
+      (slipTop > fadeFrom ? fade('gEdFade', 0, 0, 0, 1, fadeFrom) : '') +
+      `<rect x="0" y="${slipTop}" width="${PIN_WIDTH}" height="${PIN_HEIGHT - slipTop}" ${fill} fill-opacity="${PANEL_OPACITY}" />` +
+      `<rect x="${g.spec.marginX}" y="${lineY}" width="${hairline.width}" height="${hairline.height}" fill="${lineColor}" />`;
+  } else if (g.spec.scrim === 'galerie-plaque') {
+    // Design „Galerie" (2026-11-23): schwebende helle Karte, die KEINE Kante
+    // berührt — ein Passepartout auf dem Foto, mit einer feinen zweiten Linie
+    // innen. Eigene Flächenform: kein Band, kein Streifen, keine Ecke.
+    const cardX = 64;
+    const cardW = PIN_WIDTH - 2 * cardX;
+    const cardTop = Math.max(SAFE_MARGIN, Math.round(panel.y) - 34);
+    const cardBottom = Math.min(
+      PIN_HEIGHT - 64,
+      Math.round(panel.y + panel.height) + 34,
+    );
+    body =
+      `<rect x="${cardX}" y="${cardTop}" width="${cardW}" height="${cardBottom - cardTop}" ${fill} fill-opacity="${PANEL_OPACITY}" />` +
+      `<rect x="${cardX + 12}" y="${cardTop + 12}" width="${cardW - 24}" height="${Math.max(2, cardBottom - cardTop - 24)}" fill="none" stroke="${accent}" stroke-width="2" stroke-opacity="0.85" />`;
+  } else if (g.spec.scrim === 'atelier-band') {
+    // Design „Atelier" (2026-11-23): Papierband mit SCHRÄGER Oberkante — eine
+    // eigene Flächenform zwischen Band (Editorial) und Leiste (Signal). Darüber
+    // ein kurzer Akzentstrich, der die Eyebrow-Zeile einleitet.
+    const slant = 90;
+    const bandTopLeft = Math.max(slant + SAFE_MARGIN, Math.round(panel.y) - 26);
+    const accentY = Math.max(SAFE_MARGIN, bandTopLeft - 46);
+    body =
+      `<polygon points="0,${bandTopLeft} ${PIN_WIDTH},${bandTopLeft - slant} ${PIN_WIDTH},${PIN_HEIGHT} 0,${PIN_HEIGHT}" ${fill} fill-opacity="${PANEL_OPACITY}" />` +
+      `<rect x="${g.spec.marginX}" y="${accentY}" width="64" height="5" fill="${accent}" />`;
+  } else if (g.spec.scrim === 'signal-bar') {
+    // Design „Signal" (2026-11-23, zurückgebauter bold-block): KEIN großer
+    // Farbblock mehr. Eine randabständige, schwebende dunkle Leiste trägt den
+    // Text; das einzige Farbelement ist ein schmaler Balken mit Quadrat.
+    const bar = g.spec.bar ?? { width: 120, height: 10, gap: 40, chip: 20 };
+    const inset = 40;
+    const stripTop = Math.max(SAFE_MARGIN, Math.round(panel.y) - 58);
+    // Die Leiste umschließt den Text mit normalem Abstand und schwebt über dem
+    // unteren Rand — kein toter Bereich unter der Unterzeile, keine Fläche, die
+    // dem Produkt die Aufmerksamkeit nimmt.
+    const stripBottom = Math.min(
+      PIN_HEIGHT - inset,
+      Math.round(panel.y + panel.height) + 48,
+    );
+    const barY = Math.max(SAFE_MARGIN, stripTop + 32);
+    body =
+      `<rect x="${inset}" y="${stripTop}" width="${PIN_WIDTH - 2 * inset}" height="${Math.max(80, stripBottom - stripTop)}" ${fill} fill-opacity="${PANEL_OPACITY}" />` +
+      `<rect x="${inset + 44}" y="${barY}" width="${bar.width}" height="${bar.height}" fill="${accent}" />` +
+      `<rect x="${inset + 44 + bar.width + 20}" y="${barY - Math.round((bar.chip - bar.height) / 2)}" width="${bar.chip}" height="${bar.chip}" fill="${accent}" />`;
+  } else if (g.spec.scrim === 'kontrast-ribbon') {
+    // Design „Kontrast" (2026-11-23): weicher dunkler Verlauf in der unteren
+    // rechten Ecke (kein harter Rand) + ein schmales Akzentband an der rechten
+    // Bildkante im Bereich des Textes. Farbe nur als Kante, nicht als Fläche.
+    const ribbon = g.spec.ribbon ?? { width: 16 };
+    const gx1 = Math.max(0, Math.round(panel.x) - 260);
+    const gy1 = Math.max(0, Math.round(panel.y) - 260);
+    body =
+      `<defs><linearGradient id="gKr" gradientUnits="userSpaceOnUse" x1="${gx1}" y1="${gy1}" x2="${PIN_WIDTH - 40}" y2="${PIN_HEIGHT - 40}">
+        <stop offset="0%" stop-color="${panelColor}" stop-opacity="0" />
+        <stop offset="62%" stop-color="${panelColor}" stop-opacity="${PANEL_OPACITY}" />
+        <stop offset="100%" stop-color="${panelColor}" stop-opacity="${PANEL_OPACITY}" />
+      </linearGradient></defs>` +
+      `<rect x="0" y="0" width="${PIN_WIDTH}" height="${PIN_HEIGHT}" fill="url(#gKr)" />` +
+      `<rect x="${PIN_WIDTH - ribbon.width}" y="0" width="${ribbon.width}" height="${PIN_HEIGHT}" fill="${accent}" />`;
   } else {
     // Seitenstreifen im unteren Bildviertel: FESTE Breite, Höhe ab der
     // gemessenen Textbox bis zur Unterkante. Der senkrechte Akzentbalken links
@@ -1016,6 +1391,11 @@ export interface PinRenderResult {
   layout: PinLayoutId;
   /** Der tatsächlich verwendete Bildausschnitt — Beleg, dass er nicht für alle gleich ist. */
   crop: PinCrop;
+  /**
+   * Zuschnitt am Produkt (2026-11-23): erkannter Motivbereich, beide Regeln und
+   * jeder geprüfte Kandidat. null = dieses Layout schneidet aus der Tabelle zu.
+   */
+  productCrop: ProductCropReport | null;
   /** Deckende Textfläche (Foto-Koordinaten) — Beleg für den Motivschutz. */
   panel: Rect;
   /** Logoplatzierung im Pin (null = kein Logo) — Beleg für die SPEC-Grenzen. */
@@ -1127,17 +1507,24 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
   }
   const sharp = await getSharp();
   const versions = (sharp as unknown as { versions?: Record<string, string> }).versions ?? {};
+  const layout: PinLayoutId = input.layout && isPinLayoutId(input.layout) ? input.layout : 'bottom-left';
+  const layoutSpec = LAYOUTS[layout];
   // 0) Erst prüfen, dass die Schrift überhaupt Zeichen zeichnet — und zwar
   //    GEGEN DIE GEWÄHLTE FAMILIE (Brand Kit 2026-11-16). Ohne diesen Nachweis
   //    entstünde ein Pin voller leerer Kästchen (Tofu) — ein Bild, das wie ein
   //    Ergebnis aussieht und keines ist. Geprüft wird der ECHTE Text: fehlt
   //    auch nur ein Zeichen in der Familie, gibt es kein Bild.
-  assertGlyphsRenderable(input.brand?.fontFamily, [
-    input.title,
-    input.subtitle,
-    input.brandLine,
-  ]);
-  const layout: PinLayoutId = input.layout && isPinLayoutId(input.layout) ? input.layout : 'bottom-left';
+  //    Seit 2026-11-23 zählt die Schrift, die das LAYOUT setzt (Muster A:
+  //    Serif), wenn das Markenprofil keine wählt — sonst würde die falsche
+  //    Familie geprüft.
+  const effectiveFamily = isPinFontId(input.overlay?.fontId)
+    ? PIN_FONT_STACKS[input.overlay.fontId]
+    : effectiveFontFamily(input.brand, layoutSpec);
+  // 2026-11-23: Jedes Design hat ein eigenes Schriftpaar. Geprüft wird jede
+  // Familie gegen GENAU den Text, den sie setzt — sonst ginge ein fehlendes
+  // Zeichen der Unterzeile durch, weil die Überschrift es hat.
+  assertGlyphsRenderable(effectiveFamily, [input.title, input.brandLine]);
+  assertGlyphsRenderable(effectiveSubtitleFontFamily(input, layoutSpec), [input.subtitle]);
 
   // 1) Text-Ebene rendern, messen und — falls nötig — verkleinern, bis sie in
   //    den sicheren Rand UND (bei breitengebundenen Layouts) in die Textfläche
@@ -1177,8 +1564,36 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
   }
 
   // 3) Fläche aus der gemessenen Textbox — deckend, mit Sicherheitsabstand.
-  const requestedTextColor = safeHexColor(input.overlay?.textColor, '#ffffff');
-  const brandPrimary = safeHexColor(input.brand?.primary, PANEL_DARK);
+  //    Textfarbe und Flächenfarbe kommen seit 2026-11-23 aus dem Layout, wenn
+  //    weder Overlay noch Markenprofil eine wählen (Muster A: Anthrazit auf
+  //    Creme, Muster B: Weiß auf kräftigem Rot).
+  const requestedTextColor = safeHexColor(
+    input.overlay?.textColor,
+    layoutSpec.textColor ?? '#ffffff',
+  );
+  const layoutPanel = safeHexColor(layoutSpec.panelColor, PANEL_DARK);
+  const brandPrimary = safeHexColor(input.brand?.primary, layoutPanel);
+  /**
+   * Flächenfarbe bestimmen (2026-11-23). Reihenfolge:
+   *   1. die vom Nutzer gewählte Flächenfarbe (`overlay.panelColor`),
+   *   2. die Markenfarbe aus dem Brand Kit (`brand.primary`),
+   *   3. die Farbe des Designs,
+   * jeweils nur, wenn sie den Mindestkontrast zur Textfarbe erreicht. Sonst —
+   * und wie bisher bei den alten Layouts ohne eigene Farbe — gewinnt die Farbe
+   * mit dem höchsten Kontrast (dunkel/hell als Rettung). Nichts wird geraten.
+   */
+  const panelColorFor = (textColor: string): string => {
+    const textLum = hexLuminance(textColor);
+    const readable = (candidate: string | null | undefined) =>
+      !!candidate && contrastRatio(hexLuminance(candidate), textLum) >= MIN_TEXT_CONTRAST;
+    const chosenPanel = safeHexColor(input.overlay?.panelColor, '');
+    if (readable(chosenPanel)) return chosenPanel;
+    if (readable(brandPrimary)) return brandPrimary;
+    const own = layoutSpec.panelColor ? layoutPanel : null;
+    if (readable(own)) return own as string;
+    return pickPanelColor(brandPrimary, textColor, layoutPanel);
+  };
+
   const padX = Math.round(28 + geometryUsed.titleSize * 0.18);
   const padY = Math.round(26 + geometryUsed.titleSize * 0.12);
   const panel = panelRect(textLayer.box, padX, padY);
@@ -1187,7 +1602,20 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
   //    Zuschnitt DIESES Layouts (2026-11-17). Vorher lag für alle fünf Pins
   //    derselbe Ausschnitt (`position: 'centre'`) hier, deshalb sahen die fünf
   //    Pins wie ein Bild mit fünf Texten aus.
-  const crop = normalizeCrop(input.crop, layoutCrop(layout));
+  //    Seit 2026-11-23 schneiden die Muster A/B am PRODUKT zu: `productCrop`
+  //    misst Aufmerksamkeit + Leerfläche und prüft beide Regeln; erfüllt kein
+  //    Kandidat beide, gibt es kein Bild (fail-closed).
+  let productCropReport: ProductCropReport | null = null;
+  let crop: PinCrop;
+  if (!input.crop && layoutSpec.productCrop) {
+    productCropReport = await chooseProductCrop(sharp, input.photo, { panel });
+    if (!productCropReport.ok) {
+      throw new PinRenderError('crop_rejected', productCropReport.note);
+    }
+    crop = normalizeCrop(productCropReport.crop, layoutCrop(layout));
+  } else {
+    crop = normalizeCrop(input.crop, layoutCrop(layout));
+  }
   const base = await cropToPinFrame(sharp, input.photo, crop);
 
   /**
@@ -1209,7 +1637,7 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
               ),
             ),
           );
-    const panelColor = pickPanelColor(brandPrimary, color);
+    const panelColor = panelColorFor(color);
     const scrimPng = await sharp(
       Buffer.from(scrimLayerSvg(input, geometryUsed, panel, brandLayer?.box ?? null, panelColor)),
     )
@@ -1239,7 +1667,7 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
   let chosen = await composeWith(requestedTextColor);
   const requestedContrast = chosen.contrast.min;
   if (chosen.contrast.min < MIN_TEXT_CONTRAST) {
-    for (const candidate of readableTextColors(requestedTextColor, brandPrimary)) {
+    for (const candidate of readableTextColors(requestedTextColor, brandPrimary, layoutPanel)) {
       const next = await composeWith(candidate);
       if (next.contrast.min > chosen.contrast.min) chosen = next;
       if (chosen.contrast.min >= MIN_TEXT_CONTRAST) break;
@@ -1317,6 +1745,7 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
     libvips: String(versions.vips ?? 'unbekannt'),
     layout,
     crop,
+    productCrop: productCropReport,
     panel,
     logo: logoPlacement,
   };
@@ -1352,6 +1781,8 @@ export interface PinTextFitInput {
   layout: PinLayoutId;
   brand?: PinBrand | null;
   brandLine?: string | null;
+  /** Schriftwahl des Nutzers (2026-11-23) — sie ändert die Messung. */
+  fontId?: PinFontId | null;
 }
 
 export interface PinTextFitResult {
@@ -1468,7 +1899,14 @@ export async function checkPinTextFit(input: PinTextFitInput): Promise<PinTextFi
   const subtitle = resolveEscapes(input.subtitle);
   const brandLine = resolveEscapes(input.brandLine);
   const brand = input.brand ?? null;
-  const base: PinTextInput = { title, subtitle, brandLine, brand, layout };
+  const base: PinTextInput = {
+    title,
+    subtitle,
+    brandLine,
+    brand,
+    layout,
+    overlay: { fontId: input.fontId ?? null },
+  };
 
   const blocked = (
     code: PinTextFitCode,
@@ -1501,8 +1939,15 @@ export async function checkPinTextFit(input: PinTextFitInput): Promise<PinTextFi
   const sharp = await getSharp();
 
   // Schrift-Coverage: fehlt ein Zeichen, entstünden leere Kästchen.
+  // Geprüft wird jede Familie gegen den Text, den sie setzt (2026-11-23:
+  // eigene Schriftpaare je Design, Schriftwahl des Nutzers gilt für beide).
   try {
-    assertGlyphsRenderable(brand?.fontFamily, [title, subtitle, brandLine]);
+    const spec = LAYOUTS[layout];
+    const titleFamily = isPinFontId(input.fontId)
+      ? PIN_FONT_STACKS[input.fontId]
+      : effectiveFontFamily(brand, spec);
+    assertGlyphsRenderable(titleFamily, [title, brandLine]);
+    assertGlyphsRenderable(effectiveSubtitleFontFamily(base as PinRenderInput, spec), [subtitle]);
   } catch (err) {
     return blocked('font_missing', (err as Error).message);
   }

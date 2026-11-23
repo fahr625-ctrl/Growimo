@@ -176,6 +176,8 @@ export interface PinTextCheckInput {
   /** Gewähltes Layout — die Passung hängt am Layout. */
   layout: string;
   brand?: PinBrandInput | null;
+  /** Schriftwahl des Nutzers (2026-11-23) — sie ändert die Passung. */
+  fontId?: string | null;
 }
 
 export interface PinTextCheckResult {
@@ -205,7 +207,14 @@ export const checkPinTextServer = createServerFn({ method: 'POST' })
     const { ensurePinFonts } = await import('./pin-font');
     await ensurePinFonts();
 
-    const fit = await checkPinTextFit({ title, subtitle: null, layout, brand, brandLine });
+    const fit = await checkPinTextFit({
+      title,
+      subtitle: null,
+      layout,
+      brand,
+      brandLine,
+      fontId: isPinFontId(data?.fontId) ? data.fontId : null,
+    });
     return {
       fits: fit.fits,
       code: fit.code,
@@ -346,7 +355,16 @@ export const renderPinsServer = createServerFn({ method: 'POST' })
           layout: draft.layout,
           // 2026-11-17: eigener Ausschnitt je Pin (null ⇒ Zuschnitt des Layouts).
           crop: draft.crop ?? null,
-          overlay: { textColor: draft.textColor, align: draft.align, offsetY: draft.offsetY },
+          overlay: {
+            textColor: draft.textColor,
+            align: draft.align,
+            offsetY: draft.offsetY,
+            // Schriftwahl und Flächen-/Akzentfarbe (2026-11-23): rendert nur neu,
+            // kostet keine Einheit und ruft kein Modell auf.
+            fontId: draft.fontId ?? null,
+            panelColor: draft.panelColor ?? null,
+            accentColor: draft.accentColor ?? null,
+          },
           brandLine,
           brand,
           logo: logoBytes,

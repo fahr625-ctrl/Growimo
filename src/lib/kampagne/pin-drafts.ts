@@ -20,6 +20,7 @@ import {
   type PinCrop,
   type PinLayoutId,
 } from './pin-render';
+import { isPinFontId, type PinFontId } from './pin-fonts';
 
 /** Pinterest-Grenzen (belegt 2026-11-11): Titel 100, Beschreibung 800. */
 export const PIN_TITLE_MAX = 100;
@@ -41,6 +42,15 @@ export interface PinDraft {
   align: PinAlign;
   /** Vertikale Verschiebung (−0.35 … 0.35 der Pin-Höhe). */
   offsetY: number;
+  /**
+   * Schriftwahl des Nutzers (2026-11-23): `''`/fehlt = Schriftpaar des Designs.
+   * Ändert nur die Zeichnung — kein KI-Aufruf, keine Einheit.
+   */
+  fontId?: PinFontId | null;
+  /** Flächenfarbe (Hex) — leer = Markenfarbe, sonst Farbe des Designs. */
+  panelColor?: string | null;
+  /** Akzentfarbe (Hex) — leer = Markenfarbe, sonst Farbe des Designs. */
+  accentColor?: string | null;
   /** Pinterest-Titel (≤ 100 Zeichen). */
   title: string;
   /** Pinterest-Beschreibung (≤ 800 Zeichen). */
@@ -291,7 +301,14 @@ export function sanitizePinDrafts(input: unknown, source?: PinSource): PinDraft[
     const layout: PinLayoutId = isPinLayoutId(raw.layout)
       ? raw.layout
       : (base?.layout ?? 'bottom-left');
-    const align: PinAlign = raw.align === 'center' ? 'center' : raw.align === 'left' ? 'left' : (base?.align ?? 'left');
+    const align: PinAlign =
+      raw.align === 'center'
+        ? 'center'
+        : raw.align === 'right'
+          ? 'right'
+          : raw.align === 'left'
+            ? 'left'
+            : (base?.align ?? 'left');
     out.push({
       id: typeof raw.id === 'string' && raw.id ? raw.id.slice(0, 24) : `pin-${i + 1}`,
       layout,
@@ -300,6 +317,11 @@ export function sanitizePinDrafts(input: unknown, source?: PinSource): PinDraft[
       textColor: safeHexColor(typeof raw.textColor === 'string' ? raw.textColor : null, '#ffffff'),
       align,
       offsetY: clampOffset(raw.offsetY),
+      // Schriftwahl und Farben (2026-11-23): nur geprüfte Werte, nichts geraten.
+      // Unbekannte Schrift ⇒ keine Wahl ⇒ das Schriftpaar des Designs gilt.
+      fontId: isPinFontId(raw.fontId) ? raw.fontId : null,
+      panelColor: safeHexColor(typeof raw.panelColor === 'string' ? raw.panelColor : null, '') || null,
+      accentColor: safeHexColor(typeof raw.accentColor === 'string' ? raw.accentColor : null, '') || null,
       title: clip(typeof raw.title === 'string' ? raw.title : (base?.title ?? ''), PIN_TITLE_MAX),
       description: clip(
         typeof raw.description === 'string' ? raw.description : (base?.description ?? ''),
