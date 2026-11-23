@@ -192,6 +192,34 @@ export async function handleImageStreamApi(
       { status: 429 },
     );
   }
+  // Owner-Regel 2026-11-23 („Kostenpflichtiges ist vorher sichtbar"): Ein
+  // aufgebrauchtes Kontingent wird VOR dem Öffnen des SSE-Streams gemeldet —
+  // mit echtem Fehlerstatus (402) und maschinenlesbarem Code statt HTTP 200 mit
+  // Limit-Meldung im Stream (das sah aus wie ein startender Lauf). Die reine
+  // Prüfung verbraucht NICHTS; die harte, atomare Sperre bleibt unverändert
+  // `withGenerationGuard` weiter unten (Parallel-/Race-Fall).
+  try {
+    const { assertCanGenerate } = await import("../lib/usage-guard");
+    await assertCanGenerate(subject, "de");
+  } catch (err) {
+    const limitErr = err as { code?: string; message?: string; remaining?: number; limit?: number; planTier?: string };
+    if (limitErr?.code === "USAGE_LIMIT") {
+      return Response.json(
+        {
+          error: limitErr.message ?? "Kontingent aufgebraucht.",
+          code: "USAGE_LIMIT",
+          remaining: limitErr.remaining ?? 0,
+          limit: limitErr.limit ?? 0,
+          planTier: limitErr.planTier ?? "free",
+        },
+        { status: 402 },
+      );
+    }
+    // Alles andere (DB nicht erreichbar o. Ä.): fail-open — der Guard im Stream
+    // entscheidet weiterhin, und ein Infrastrukturfehler darf keinen Lauf
+    // verhindern, der bezahlt werden würde.
+  }
+
   activeStreams.add(subject);
 
   // K4-B: Identität für die Speicherung einmal auflösen (clerk_id → users.id UUID).

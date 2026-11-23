@@ -2439,6 +2439,20 @@ export const en: EnShape = {
   kampagne_pin_title: 'Pinterest title',
   kampagne_pin_description: 'Description',
   kampagne_export_png: 'Download PNG',
+  pinimg_font: 'Font',
+  pinimg_font_sans: 'Sans',
+  pinimg_font_serif: 'Serif',
+  pinimg_font_mono: 'Mono',
+  pinimg_font_hint: 'Applies to headline and subline - re-rendering costs no credit.',
+  pinimg_palette: 'Accent and surface colour',
+  pinimg_palette_hint: 'Changes surface and accent of the design - re-rendering costs no credit.',
+  pinimg_palette_cream: 'Cream',
+  pinimg_palette_white: 'White',
+  pinimg_palette_paper: 'Paper',
+  pinimg_palette_ink: 'Ink',
+  pinimg_palette_navy: 'Navy',
+  pinimg_palette_signal: 'Signal',
+  pinimg_layout_more: 'Previous layouts',
   pinimg_create: 'Create pin image',
   pinimg_working: 'Creating pin image …',
   pinimg_hint:
@@ -2523,5 +2537,14 @@ export const en: EnShape = {
   kampagne_crop_focus_top_right: 'top right',
   kampagne_crop_focus_bottom_left: 'bottom left',
   kampagne_crop_focus_bottom_right: 'bottom right',
+
+  // ── Cost hint on paid buttons (owner rule 2026-11-23) ───────────────────────
+  cost_hint_unit_singular: 'costs 1 credit',
+  cost_hint_unit_plural: 'costs %d credits',
+  cost_hint_remaining: '%d of %d left',
+  cost_hint_blocked: 'Quota used up — action locked',
+  cost_hint_free: 'costs no credit —',
+  cost_hint_free_reuse: 'the existing image is reused',
+  cost_hint_free_edit: 'editing only re-renders the image',
 
 }

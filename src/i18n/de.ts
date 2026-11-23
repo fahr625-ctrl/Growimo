@@ -2455,6 +2455,20 @@ export const de = {
   kampagne_export_png: 'PNG herunterladen',
   // Pin-Bild aus dem fertigen Pin-Text (2026-11-17): EIN KI-Bild als
   // Hintergrund, Text + Layout aus dem deterministischen Renderer.
+  pinimg_font: 'Schrift',
+  pinimg_font_sans: 'Sans',
+  pinimg_font_serif: 'Serif',
+  pinimg_font_mono: 'Mono',
+  pinimg_font_hint: 'Gilt für Überschrift und Unterzeile — neu rendern kostet keine Einheit.',
+  pinimg_palette: 'Akzent- & Flächenfarbe',
+  pinimg_palette_hint: 'Ändert Fläche und Akzent des Designs — neu rendern kostet keine Einheit.',
+  pinimg_palette_cream: 'Creme',
+  pinimg_palette_white: 'Weiß',
+  pinimg_palette_paper: 'Papier',
+  pinimg_palette_ink: 'Tinte',
+  pinimg_palette_navy: 'Marine',
+  pinimg_palette_signal: 'Signal',
+  pinimg_layout_more: 'Bisherige Layouts',
   pinimg_create: 'Pin-Bild erstellen',
   pinimg_working: 'Pin-Bild wird erzeugt …',
   pinimg_hint:
@@ -2543,5 +2557,16 @@ export const de = {
   kampagne_crop_focus_top_right: 'oben rechts',
   kampagne_crop_focus_bottom_left: 'unten links',
   kampagne_crop_focus_bottom_right: 'unten rechts',
+
+  // ── Kostenhinweis an bezahlten Knöpfen (Owner-Regel 2026-11-23) ─────────────
+  // EINE Anzeige für alle bezahlten Aktionen: Preis vor dem Klick, aufgebrauchtes
+  // Kontingent sperrt vor dem Lauf, Wiederverwenden/Bearbeiten kostet nichts.
+  cost_hint_unit_singular: 'kostet 1 Einheit',
+  cost_hint_unit_plural: 'kostet %d Einheiten',
+  cost_hint_remaining: '%d von %d übrig',
+  cost_hint_blocked: 'Kontingent aufgebraucht — Aktion gesperrt',
+  cost_hint_free: 'kostet keine Einheit —',
+  cost_hint_free_reuse: 'das vorhandene Bild wird wiederverwendet',
+  cost_hint_free_edit: 'Bearbeiten setzt das Bild nur neu',
 
 } as const;

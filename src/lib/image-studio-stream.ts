@@ -80,6 +80,31 @@ export class ImageStreamBusyError extends Error {
 }
 
 /**
+ * Owner-Regel 2026-11-23: Der Server hat den Lauf VOR dem Stream abgelehnt,
+ * weil das Kontingent aufgebraucht ist (HTTP 402, `code: 'USAGE_LIMIT'`).
+ * Bewusst eine eigene Klasse (kein `Unavailable`, kein `Busy`): es ist kein
+ * technischer Fehler und kein laufender Auftrag — es wurde nichts gestartet und
+ * nichts gebucht. Die UI zeigt die Server-Meldung und sperrt die Aktion.
+ */
+export class ImageStreamQuotaError extends Error {
+  readonly status = 402;
+  readonly code = 'USAGE_LIMIT';
+  readonly remaining: number | null;
+  readonly limit: number | null;
+  readonly planTier: 'free' | 'pro' | null;
+  constructor(
+    message: string,
+    info: { remaining?: number | null; limit?: number | null; planTier?: 'free' | 'pro' | null } = {},
+  ) {
+    super(message);
+    this.name = 'ImageStreamQuotaError';
+    this.remaining = typeof info.remaining === 'number' ? info.remaining : null;
+    this.limit = typeof info.limit === 'number' ? info.limit : null;
+    this.planTier = info.planTier ?? null;
+  }
+}
+
+/**
  * Ein SSE-Block → Event. Kommentarzeilen (`: heartbeat`) und alles, was kein
  * bekanntes Event ist, ergeben `null` (wird übersprungen) — fail-closed, damit
  * ein unbekanntes Event nie als Teilbild interpretiert wird.
@@ -169,6 +194,29 @@ export async function runImageStream(args: RunImageStreamArgs): Promise<ImageStr
     try {
       const text = await response.text();
       if (text && text.length < 300) detail = text;
+      // 402 (Owner-Regel 2026-11-23): Kontingent aufgebraucht — der Server hat
+      // den Stream GAR NICHT geöffnet. Kein Rückfall, kein zweiter Auftrag:
+      // die Server-Meldung wird als eigener Fehler durchgereicht.
+      if (response.status === 402) {
+        let message = '';
+        let info: { remaining?: number; limit?: number; planTier?: 'free' | 'pro' } = {};
+        try {
+          const parsed = JSON.parse(text) as {
+            error?: unknown;
+            code?: unknown;
+            remaining?: unknown;
+            limit?: unknown;
+            planTier?: unknown;
+          };
+          if (typeof parsed?.error === 'string' && parsed.error) message = parsed.error;
+          if (typeof parsed?.remaining === 'number') info.remaining = parsed.remaining;
+          if (typeof parsed?.limit === 'number') info.limit = parsed.limit;
+          if (parsed?.planTier === 'free' || parsed?.planTier === 'pro') info.planTier = parsed.planTier;
+        } catch {
+          /* kein JSON — die generische Meldung unten bleibt */
+        }
+        throw new ImageStreamQuotaError(message || 'Kontingent aufgebraucht — Aktion gesperrt.', info);
+      }
       // 429 (Fix 2026-11-17): Der Server hat den Lauf abgelehnt, weil schon
       // einer läuft (`Stream already running`) oder die Drossel greift. Das ist
       // KEIN „Route nicht verfügbar" — ein Rückfall würde einen zweiten Auftrag
@@ -189,6 +237,7 @@ export async function runImageStream(args: RunImageStreamArgs): Promise<ImageStr
       }
     } catch (err) {
       if (err instanceof ImageStreamBusyError) throw err;
+      if (err instanceof ImageStreamQuotaError) throw err;
       /* Body nicht lesbar — Status genügt */
     }
     throw new ImageStreamUnavailableError(detail, response.status);

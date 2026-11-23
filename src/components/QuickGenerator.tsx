@@ -29,6 +29,9 @@ import {
 import { contentTypeLabel } from '~/lib/content-types';
 import BrandProfileToggle from '~/components/BrandProfileToggle';
 import { canGenerate, getGenerationLimit, recordGeneration } from '~/store/subscriptions';
+// Owner-Regel 2026-11-23: Kostenanzeige an jedem bezahlten Knopf (gilt für
+// Pinterest UND Etsy — beide laufen über diese Seite).
+import { CostHintView, useCostState } from '~/components/CostHint';
 import { trackEvent } from '~/store/analytics';
 import { analyticsChannelForContentType } from '~/lib/analytics';
 import { trackAnalytics } from '~/lib/analytics-client';
@@ -186,6 +189,8 @@ function QuickGeneratorContent({
 }: QuickGeneratorProps) {
   const { user } = useUser();
   const { t, locale } = useTranslation();
+  // Server-Wert des Kontingents: Preis vor dem Klick, Sperre bei 0.
+  const costState = useCostState(user?.id);
   const navigate = useNavigate();
 
   const draftKey = `growimo_quick_${contentType}_draft`;
@@ -730,15 +735,16 @@ function QuickGeneratorContent({
           />
         </div>
 
-        <div className="mt-6 flex justify-center">
+        <div className="mt-6 flex flex-col items-center gap-2">
           <button
             type="button"
             onClick={handleGenerate}
-            disabled={!canGenerateNow}
+            disabled={!canGenerateNow || costState.blocked}
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-3.5 text-base font-semibold text-white shadow-lg shadow-blue-200 transition-all hover:from-blue-700 hover:to-purple-700 hover:shadow-xl hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
           >
             ✨ {t[ctaKey]}
           </button>
+          <CostHintView state={costState} units={1} testId="quick-generate-cost-hint" />
         </div>
       </div>
 
@@ -775,7 +781,7 @@ function QuickGeneratorContent({
             onClick={() => {
               void handleGenerate();
             }}
-            disabled={!canGenerateNow}
+            disabled={!canGenerateNow || costState.blocked}
             className="mt-3 text-sm font-medium text-red-700 underline hover:text-red-900 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {t.common_retry}

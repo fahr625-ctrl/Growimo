@@ -27,8 +27,19 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useUser } from '@clerk/clerk-react';
 import { useTranslation } from '~/i18n';
-import { PIN_LAYOUT_IDS, type PinLayoutId } from '~/lib/kampagne/pin-render';
+// Owner-Regel 2026-11-23: Kostenanzeige am bezahlten Knopf, sichtbar auch
+// wenn schon ein Bild existiert; Wiederverwenden/Bearbeiten = kostenlos.
+import { CostHintView, useCostState } from '~/components/CostHint';
+import {
+  PIN_DESIGN_IDS,
+  PIN_DESIGN_NAMES,
+  PIN_LEGACY_LAYOUT_IDS,
+  isPinLayoutId,
+  type PinLayoutId,
+} from '~/lib/kampagne/pin-render';
+import { PIN_FONT_IDS, isPinFontId, type PinFontId } from '~/lib/kampagne/pin-fonts';
 import {
   PIN_DESCRIPTION_MAX,
   PIN_HEADLINE_MAX,
@@ -45,6 +56,7 @@ import {
 } from '~/lib/kampagne/pin-server';
 import { buildPinImagePrompt } from '~/lib/kampagne/pin-image-prompt';
 import {
+  ImageStreamQuotaError,
   ImageStreamServerError,
   ImageStreamUnavailableError,
   runImageStream,
@@ -62,14 +74,32 @@ export interface PinImageFromTextProps {
   productIdea: string;
 }
 
-/** Layout-Kennungen → kurze Beschriftung (Reihenfolge = fünf Entwürfe). */
-const LAYOUT_LABELS: Record<PinLayoutId, string> = {
-  'bottom-left': '1',
-  'top-band': '2',
-  'center-card': '3',
-  'side-stripe': '4',
-  'minimal-frame': '5',
-};
+/**
+ * Akzent-/Flächenfarb-Paare (2026-11-23). Ein Klick setzt BEIDE Farben des
+ * gewählten Designs — Fläche und Akzent — und rendert nur neu: kein KI-Aufruf,
+ * keine Einheit. Die Werte sind feste, geprüfte Paare (kein Farbrad, damit der
+ * Kontrast nicht am Nutzer hängt; der Renderer rettet im Zweifel wie bisher).
+ */
+const PIN_PALETTES: {
+  id: string;
+  labelKey:
+    | 'pinimg_palette_cream'
+    | 'pinimg_palette_white'
+    | 'pinimg_palette_paper'
+    | 'pinimg_palette_ink'
+    | 'pinimg_palette_navy'
+    | 'pinimg_palette_signal';
+  panelColor: string;
+  accentColor: string;
+  swatch: string;
+}[] = [
+  { id: 'cream', labelKey: 'pinimg_palette_cream', panelColor: '#F7F4EF', accentColor: '#2E3338', swatch: '#F7F4EF' },
+  { id: 'white', labelKey: 'pinimg_palette_white', panelColor: '#FFFFFF', accentColor: '#14181C', swatch: '#FFFFFF' },
+  { id: 'paper', labelKey: 'pinimg_palette_paper', panelColor: '#EEF1F2', accentColor: '#6B7780', swatch: '#EEF1F2' },
+  { id: 'ink', labelKey: 'pinimg_palette_ink', panelColor: '#0E1114', accentColor: '#E23D28', swatch: '#0E1114' },
+  { id: 'navy', labelKey: 'pinimg_palette_navy', panelColor: '#12161A', accentColor: '#1F6FEB', swatch: '#12161A' },
+  { id: 'signal', labelKey: 'pinimg_palette_signal', panelColor: '#24292E', accentColor: '#B7BEC4', swatch: '#24292E' },
+];
 
 /**
  * Wählbare Textfarben der Überschrift (2026-11-22): zwei helle und zwei dunkle
@@ -117,10 +147,17 @@ type FitState =
 
 export function PinImageFromText({ title, description, productIdea }: PinImageFromTextProps) {
   const { t } = useTranslation();
+  // Server-Wert des Kontingents — sperrt den Knopf VOR dem Klick, wenn leer.
+  const { user } = useUser();
+  const costState = useCostState(user?.id);
   const [headline, setHeadline] = useState(() => clip(title, PIN_HEADLINE_MAX));
   const [layout, setLayout] = useState<PinLayoutId>('bottom-left');
   /** Textfarbe der Überschrift (2026-11-22) — jeder Wechsel rendert nur neu. */
   const [textColor, setTextColor] = useState<string>('#ffffff');
+  /** Schriftwahl (2026-11-23): leer = Schriftpaar des Designs. */
+  const [fontId, setFontId] = useState<PinFontId | null>(null);
+  /** Akzent-/Flächenfarbe (2026-11-23): leer = Farbwelt des Designs. */
+  const [paletteId, setPaletteId] = useState<string | null>(null);
   const [photo, setPhoto] = useState<string | null>(null);
   /**
    * 2026-11-22: Das erzeugte Bild wird nur noch REFERENZIERT, nicht mehr durch
@@ -148,6 +185,11 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
    */
   const fingerprint = useMemo(() => pinFingerprint(title, description), [title, description]);
   const restoreRanRef = useRef(false);
+  /** Die gewählte Palette (null = Farbwelt des Designs). */
+  const palette = useMemo(
+    () => PIN_PALETTES.find((p) => p.id === paletteId) ?? null,
+    [paletteId],
+  );
 
   const draft = useMemo<PinDraft>(
     () => ({
@@ -158,10 +200,13 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
       textColor,
       align: 'left',
       offsetY: 0,
+      fontId,
+      panelColor: palette?.panelColor ?? null,
+      accentColor: palette?.accentColor ?? null,
       title: clip(title, PIN_TITLE_MAX),
       description: clip(description, PIN_DESCRIPTION_MAX),
     }),
-    [headline, layout, textColor, title, description],
+    [headline, layout, textColor, fontId, palette, title, description],
   );
 
   /**
@@ -173,7 +218,7 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
     async (text: string, layoutId: PinLayoutId): Promise<FitState> => {
       try {
         const res = await checkPinTextServer({
-          data: { title: text, layout: layoutId, brand: brandInput() },
+          data: { title: text, layout: layoutId, brand: brandInput(), fontId },
         });
         if (res.fits) return { status: 'ok', text, layout: layoutId };
         return {
@@ -187,7 +232,7 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
         return { status: 'unknown' };
       }
     },
-    [],
+    [fontId],
   );
 
   // Bei jeder Text-/Layout-Änderung prüfen (kurz entprellt: Tippen soll nicht
@@ -205,7 +250,7 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [headline, layout, checkText]);
+  }, [headline, layout, fontId, checkText]);
 
   /**
    * Deterministischer Renderer — kostet nichts, daher bei jeder Änderung erlaubt.
@@ -282,14 +327,18 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
     const nextColor = PIN_TEXT_COLORS.some((c) => c.hex === stored.textColor)
       ? stored.textColor
       : '#ffffff';
-    const nextLayout = (PIN_LAYOUT_IDS as readonly string[]).includes(stored.layout)
-      ? stored.layout
-      : 'bottom-left';
+    const nextLayout: PinLayoutId = isPinLayoutId(stored.layout) ? stored.layout : 'bottom-left';
+    const nextFont = isPinFontId(stored.fontId) ? stored.fontId : null;
+    const nextPalette =
+      PIN_PALETTES.find((p) => p.panelColor === stored.panelColor && p.accentColor === stored.accentColor)
+        ?.id ?? null;
     const url = `/api/images/${stored.imageId}`;
 
     setHeadline(nextHeadline);
     setTextColor(nextColor);
     setLayout(nextLayout);
+    setFontId(nextFont);
+    setPaletteId(nextPalette);
     photoSourceRef.current = { dataUrl: url, imageId: stored.imageId };
     setPhoto(url);
     setPhotoId(stored.imageId);
@@ -308,6 +357,9 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
       textColor: nextColor,
       align: 'left',
       offsetY: 0,
+      fontId: nextFont,
+      panelColor: PIN_PALETTES.find((p) => p.id === nextPalette)?.panelColor ?? null,
+      accentColor: PIN_PALETTES.find((p) => p.id === nextPalette)?.accentColor ?? null,
       title: clip(title, PIN_TITLE_MAX),
       description: clip(description, PIN_DESCRIPTION_MAX),
     });
@@ -325,9 +377,12 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
       headline,
       textColor,
       layout,
+      fontId,
+      panelColor: palette?.panelColor ?? null,
+      accentColor: palette?.accentColor ?? null,
       savedAt: Date.now(),
     });
-  }, [photoId, fingerprint, headline, textColor, layout]);
+  }, [photoId, fingerprint, headline, textColor, layout, fontId, palette]);
 
   const create = useCallback(async () => {
     // Doppelklick-Riegel: ein bezahlter Lauf für ein Bild.
@@ -383,7 +438,11 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
       setPhotoId(done.imageId ?? null);
       await renderPin(draft);
     } catch (err) {
-      if (err instanceof ImageStreamUnavailableError) {
+      if (err instanceof ImageStreamQuotaError) {
+        // 402 vor dem Stream: Server-Meldung zeigen, Zähler nachziehen.
+        setError(err.message);
+        refreshUsage();
+      } else if (err instanceof ImageStreamUnavailableError) {
         setError(t.pinimg_error_unavailable);
       } else if (err instanceof ImageStreamServerError) {
         setError(`${t.pinimg_error_image} ${err.message}`.trim());
@@ -425,6 +484,37 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
     [photo, draft, renderPin],
   );
 
+  /**
+   * Schrift wechseln (2026-11-23): rendert das VORHANDENE Bild neu — kein
+   * KI-Aufruf, keine Einheit, beliebig oft.
+   */
+  const chooseFont = useCallback(
+    (id: PinFontId) => {
+      setFontId(id);
+      if (!photo) return;
+      void renderPin({ ...draft, fontId: id });
+    },
+    [photo, draft, renderPin],
+  );
+
+  /**
+   * Akzent-/Flächenfarbe wechseln (2026-11-23): setzt beide Farben der Palette
+   * und rendert nur neu — kein KI-Aufruf, keine Einheit.
+   */
+  const choosePalette = useCallback(
+    (id: string) => {
+      setPaletteId(id);
+      const next = PIN_PALETTES.find((p) => p.id === id);
+      if (!photo || !next) return;
+      void renderPin({
+        ...draft,
+        panelColor: next.panelColor,
+        accentColor: next.accentColor,
+      });
+    },
+    [photo, draft, renderPin],
+  );
+
   /** Kürzungsvorschlag übernehmen — danach prüft die Vorabprüfung erneut. */
   const acceptSuggestion = useCallback(() => {
     if (fit.status !== 'blocked' || !fit.suggestion) return;
@@ -449,13 +539,17 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
           type="button"
           data-testid="pin-image-create"
           onClick={() => void create()}
-          disabled={busy !== null || checking || blocked}
+          disabled={busy !== null || checking || blocked || costState.blocked}
           className="inline-flex items-center gap-2 rounded-xl border border-purple-300 bg-white px-5 py-2.5 text-sm font-semibold text-purple-700 shadow-sm transition-all hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           🖼️ {busy === 'image' ? t.pinimg_working : t.pinimg_create}
         </button>
-        {png === null && busy === null && (
-          <span className="text-xs text-gray-500">{t.pinimg_hint}</span>
+        {busy === null && (
+          photo || png ? (
+            <CostHintView state={costState} freeKind="reuse" testId="pin-image-cost-hint" />
+          ) : (
+            <CostHintView state={costState} units={1} testId="pin-image-cost-hint" />
+          )
         )}
       </div>
 
@@ -530,20 +624,39 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
         <div>
           <span className="mb-1 block text-xs font-semibold text-gray-700">{t.pinimg_layout}</span>
           <div className="flex flex-wrap gap-2">
-            {PIN_LAYOUT_IDS.map((id) => (
+            {PIN_DESIGN_IDS.map((id) => (
+              <button
+                key={id}
+                type="button"
+                data-testid={`pin-design-${id}`}
+                onClick={() => chooseLayout(id)}
+                disabled={busy !== null}
+                aria-pressed={layout === id}
+                className={`h-8 rounded-lg px-2.5 text-xs font-semibold transition-all ${
+                  layout === id
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                } disabled:cursor-not-allowed disabled:opacity-60`}
+              >
+                {PIN_DESIGN_NAMES[id] ?? id}
+              </button>
+            ))}
+          </div>
+          {/* Bisherige Layouts bleiben erreichbar (ausblenden statt löschen). */}
+          <div className="mt-1 flex flex-wrap items-center gap-1">
+            <span className="text-[10px] text-gray-400">{t.pinimg_layout_more}:</span>
+            {PIN_LEGACY_LAYOUT_IDS.map((id) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => chooseLayout(id)}
                 disabled={busy !== null}
                 aria-pressed={layout === id}
-                className={`h-8 w-8 rounded-lg text-xs font-semibold transition-all ${
-                  layout === id
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                  layout === id ? 'bg-gray-700 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-200'
                 } disabled:cursor-not-allowed disabled:opacity-60`}
               >
-                {LAYOUT_LABELS[id]}
+                {PIN_DESIGN_NAMES[id] ?? id}
               </button>
             ))}
           </div>
@@ -576,6 +689,60 @@ export function PinImageFromText({ title, description, productIdea }: PinImageFr
             ))}
           </div>
           <p className="mt-1 max-w-[220px] text-[11px] text-gray-500">{t.pinimg_color_hint}</p>
+        </div>
+
+        {/* Schriftwahl (2026-11-23): Sans/Serif/Mono aus dem Brand Kit. */}
+        <div>
+          <span className="mb-1 block text-xs font-semibold text-gray-700">{t.pinimg_font}</span>
+          <div className="flex flex-wrap gap-2">
+            {PIN_FONT_IDS.map((id) => (
+              <button
+                key={id}
+                type="button"
+                data-testid={`pin-image-font-${id}`}
+                onClick={() => chooseFont(id)}
+                disabled={busy !== null}
+                aria-pressed={fontId === id}
+                className={`h-8 rounded-lg px-2.5 text-xs font-semibold transition-all ${
+                  fontId === id
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                } disabled:cursor-not-allowed disabled:opacity-60`}
+              >
+                {id === 'sans' ? t.pinimg_font_sans : id === 'serif' ? t.pinimg_font_serif : t.pinimg_font_mono}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 max-w-[240px] text-[11px] text-gray-500">{t.pinimg_font_hint}</p>
+        </div>
+
+        {/* Akzent-/Flächenfarbe (2026-11-23): ein Paar je Knopf. */}
+        <div>
+          <span className="mb-1 block text-xs font-semibold text-gray-700">{t.pinimg_palette}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            {PIN_PALETTES.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                data-testid={`pin-image-palette-${p.id}`}
+                onClick={() => choosePalette(p.id)}
+                disabled={busy !== null}
+                aria-pressed={paletteId === p.id}
+                aria-label={t[p.labelKey]}
+                title={t[p.labelKey]}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg border-2 transition-all ${
+                  paletteId === p.id ? 'border-purple-600 ring-2 ring-purple-300' : 'border-gray-300'
+                } disabled:cursor-not-allowed disabled:opacity-60`}
+                style={{ backgroundColor: p.swatch }}
+              >
+                <span
+                  className="block h-2 w-2 rounded-sm"
+                  style={{ backgroundColor: p.accentColor }}
+                />
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 max-w-[240px] text-[11px] text-gray-500">{t.pinimg_palette_hint}</p>
         </div>
       </div>
 

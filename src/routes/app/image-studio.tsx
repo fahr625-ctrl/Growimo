@@ -46,7 +46,10 @@ import { persistGallery, readGallery } from '~/lib/image-gallery';
 import { imageDownloadFilename } from '~/lib/image-download';
 // Option 1 (Bild-Latenz, Owner-Freigabe 2026-10-07) — SSE-Client: echte
 // Zwischenbilder der Route /api/image/stream (Partial Images von gpt-image-2).
-import { ImageStreamBusyError, runStudioImage } from '~/lib/image-studio-stream';
+import { ImageStreamBusyError, ImageStreamQuotaError, runStudioImage } from '~/lib/image-studio-stream';
+// Owner-Regel 2026-11-23: EINE Kostenanzeige an jedem bezahlten Knopf — Preis
+// vor dem Klick, aufgebrauchtes Kontingent sperrt vor dem Lauf.
+import { CostHintView, useCostState } from '~/components/CostHint';
 // Fix 2026-11-17 (3): Die Kontingent-Anzeige (Sidebar) liest denselben
 // Server-Wert wie Banner und Vorab-Prüfungen — nach einem erfolgreichen Lauf
 // muss sie neu geladen werden, sonst zeigt sie bis zur Navigation den alten
@@ -242,6 +245,9 @@ function ImageStudioContent() {
   const [fromTikTok, setFromTikTok] = useState(false);
   // Phase 8.2 — konkrete Serverseiten-Meldung (z. B. Limit erreicht) im Banner.
   const [usageError, setUsageError] = useState<string | null>(null);
+  // Kostenanzeige: derselbe Server-Wert wie Rest-Anzeige/Banner. `blocked`
+  // deaktiviert den Knopf, BEVOR ein Lauf startet (Owner-Regel 2026-11-23).
+  const costState = useCostState(user?.id);
   // Option 1 — letztes Zwischenbild des laufenden Streaming-Laufs. null = noch
   // keins angekommen → normales Warten (Skeleton), kein Streaming-Hinweis. Das
   // ist die ehrliche Variante: der Hinweis erscheint nur, wenn wirklich ein
@@ -442,12 +448,16 @@ function ImageStudioContent() {
       setUsageError(
         reason
           ? null
-          : e instanceof ImageStreamBusyError
+          : e instanceof ImageStreamQuotaError
+            // 402 vor dem Stream: es wurde NICHTS gestartet und nichts gebucht.
+            ? e.message
+            : e instanceof ImageStreamBusyError
             ? (e.reason === 'busy'
               ? t.image_studio_error_stream_busy
               : (friendlyServerError(e) ?? t.image_studio_error_stream_busy_generic))
             : friendlyServerError(e),
       );
+      if (e instanceof ImageStreamQuotaError) refreshUsage();
       setError(true);
       try { const cls = classifyGenerationError(e, reason); trackAnalytics('generation_finished', { channel: 'image', status: 'error', durationMs: Date.now() - imageStart, errorCategory: cls.category, errorCode: cls.code }); } catch { /* never block */ }
     } finally { runGuardRef.current = null; runLockRef.current = false; setLoading(false); setStreamPreview(null); }
@@ -516,12 +526,15 @@ function ImageStudioContent() {
       setUsageError(
         reason
           ? null
-          : e instanceof ImageStreamBusyError
+          : e instanceof ImageStreamQuotaError
+            ? e.message
+            : e instanceof ImageStreamBusyError
             ? (e.reason === 'busy'
               ? t.image_studio_error_stream_busy
               : (friendlyServerError(e) ?? t.image_studio_error_stream_busy_generic))
             : friendlyServerError(e),
       );
+      if (e instanceof ImageStreamQuotaError) refreshUsage();
       setCardError({
         id: image.id,
         message: reason === 'timeout'
@@ -677,7 +690,7 @@ function ImageStudioContent() {
       {strategyPrefill?.source === 'package' && <Link to="/app/package" className="text-sm text-blue-600 hover:underline" data-testid="studio-back-package">{t.image_studio_back_to_package}</Link>}
       {strategyPrefill?.projectId && <Link to="/app/projects/$projectId" params={{ projectId: strategyPrefill.projectId }} className="text-sm text-blue-600 hover:underline" data-testid="studio-back-project">{t.image_studio_back_to_project}</Link>}</div><h1 className="text-3xl font-bold text-gray-900">{t.image_studio_page_title}</h1><p className="mt-2 text-gray-500">{t.image_studio_page_subtitle}</p></header>
     {strategyPrefill && <StrategyStamp t={t} prefill={strategyPrefill} />}
-    <section className="rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white shadow-lg"><label className="mb-2 block text-sm font-semibold">{t.image_studio_prompt_label}</label><div className="flex flex-col gap-3 sm:flex-row"><input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={t.image_studio_prompt_placeholder} className="min-w-0 flex-1 rounded-xl border-0 px-4 py-3 text-gray-900 outline-none ring-2 ring-transparent focus:ring-white" /><button onClick={() => void generate(prompt, ratio, strategyReference)} disabled={loading || !prompt.trim()} className="rounded-xl bg-white px-6 py-3 font-bold text-blue-700 transition hover:bg-blue-50 disabled:opacity-60">{loading ? <span className="inline-block animate-spin">◌</span> : '✨'} {loading ? t.image_studio_generating : t.image_studio_generate_btn}</button>{loading && <button type="button" onClick={() => runGuardRef.current?.abort('user')} className="rounded-xl border border-white/70 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/20">{t.image_studio_abort}</button>}</div><p className="mt-5 text-xs font-semibold uppercase tracking-wide text-blue-100">{t.image_studio_templates_label}</p><div className="mt-2 flex flex-wrap gap-2">{templates.map(([r, key, baseKey]) => <button key={r} onClick={() => { setRatio(r); setPrompt(`${t[baseKey]} ${prompt || t.image_studio_prompt_fallback_product}${t.image_studio_prompt_suffix}`); }} className="rounded-full bg-white/15 px-3 py-2 text-xs font-semibold transition hover:bg-white/30">{t[key]} </button>)}</div></section>
+    <section className="rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white shadow-lg"><label className="mb-2 block text-sm font-semibold">{t.image_studio_prompt_label}</label><div className="flex flex-col gap-3 sm:flex-row"><input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={t.image_studio_prompt_placeholder} className="min-w-0 flex-1 rounded-xl border-0 px-4 py-3 text-gray-900 outline-none ring-2 ring-transparent focus:ring-white" /><button onClick={() => void generate(prompt, ratio, strategyReference)} disabled={loading || !prompt.trim() || costState.blocked} className="rounded-xl bg-white px-6 py-3 font-bold text-blue-700 transition hover:bg-blue-50 disabled:opacity-60">{loading ? <span className="inline-block animate-spin">◌</span> : '✨'} {loading ? t.image_studio_generating : t.image_studio_generate_btn}</button>{loading && <button type="button" onClick={() => runGuardRef.current?.abort('user')} className="rounded-xl border border-white/70 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/20">{t.image_studio_abort}</button>}</div><CostHintView state={costState} units={1} testId="image-studio-cost-hint" className="mt-3 text-blue-100" /><p className="mt-5 text-xs font-semibold uppercase tracking-wide text-blue-100">{t.image_studio_templates_label}</p><div className="mt-2 flex flex-wrap gap-2">{templates.map(([r, key, baseKey]) => <button key={r} onClick={() => { setRatio(r); setPrompt(`${t[baseKey]} ${prompt || t.image_studio_prompt_fallback_product}${t.image_studio_prompt_suffix}`); }} className="rounded-full bg-white/15 px-3 py-2 text-xs font-semibold transition hover:bg-white/30">{t[key]} </button>)}</div></section>
     <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"><h2 className="text-lg font-bold text-gray-900">{t.image_studio_from_strategy}</h2><select value={selectedProject} onChange={(e) => setSelectedProject(e.target.value)} className="mt-3 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"><option value="">{t.image_studio_select_project}</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}</select>{strategyPrompts.length > 0 && <><p className="mt-4 text-sm font-semibold text-gray-700">{t.image_studio_prompts_generated}</p><div className="mt-2 flex flex-wrap gap-2">{strategyPrompts.map((p) => <button key={p} onClick={() => setPrompt(p)} className="rounded-full bg-blue-50 px-3 py-2 text-left text-xs text-blue-700 transition hover:bg-blue-100">{p}</button>)}</div></>}</section>
     {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{usageError ?? errorText} <button onClick={() => void generate(prompt, ratio, strategyReference)} className="ml-3 font-bold underline">{t.analysis_retry}</button></div>}
     {(strategyReference || lastRunMode === 'edit') && <p data-testid="image-studio-reference-hint" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs text-emerald-800">{t.image_studio_reference_sent_hint}</p>}

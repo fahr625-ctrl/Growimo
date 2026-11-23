@@ -54,6 +54,7 @@ import {
 } from '~/lib/kampagne/pin-export';
 import {
   PIN_LAYOUT_IDS,
+  PIN_DESIGN_NAMES,
   PIN_CROP_MAX_ZOOM,
   layoutCrop,
   type PinCrop,
@@ -776,6 +777,14 @@ function KampagneContent() {
       'center-card': t.kampagne_layout_center_card,
       'side-stripe': t.kampagne_layout_side_stripe,
       'minimal-frame': t.kampagne_layout_minimal_frame,
+      // Muster/Designs (2026-11-23): im Kampagnen-Ablauf nicht wählbar, nur für
+      // Typen. EIN Name je Design — zentral aus PIN_DESIGN_NAMES (Owner-Regel
+      // 2026-11-23: „Plakativ-werblich" heißt auch hier „Signal").
+      'editorial-serif': PIN_DESIGN_NAMES['editorial-serif'] ?? 'Editorial',
+      'bold-block': PIN_DESIGN_NAMES['bold-block'] ?? 'Signal',
+      'galerie-plaque': PIN_DESIGN_NAMES['galerie-plaque'] ?? 'Galerie',
+      'atelier-nord': PIN_DESIGN_NAMES['atelier-nord'] ?? 'Atelier',
+      'kontrast-ribbon': PIN_DESIGN_NAMES['kontrast-ribbon'] ?? 'Kontrast',
     };
     return map[layout] ?? layout;
   };

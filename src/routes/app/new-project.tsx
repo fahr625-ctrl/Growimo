@@ -47,6 +47,9 @@ import { getBrandContext, getBrandProfile } from '~/store/brand';
 import { formatStrategyBrandContext } from '~/lib/studio-deeplink';
 import { canGenerate, recordGeneration } from '~/store/subscriptions';
 import { useServerUsage } from '~/lib/usage-client';
+// Owner-Regel 2026-11-23: Kostenanzeige am Strategie-Knopf — Preis vor dem
+// Klick, aufgebrauchtes Kontingent sperrt vor dem Lauf.
+import { CostHintView, useCostState } from '~/components/CostHint';
 import { trackEvent } from '~/store/analytics';
 import { analyticsChannelForContentType } from '~/lib/analytics';
 
@@ -981,6 +984,9 @@ function Step1Strategy({
 }) {
   const { t } = useTranslation();
   const canGen = productIdea.trim().length > 0 && selectedTypes.length > 0;
+  // Owner-Regel 2026-11-23: derselbe Server-Wert wie Rest-Anzeige/Banner.
+  const { user: costUser } = useUser();
+  const costState = useCostState(costUser?.id);
   // Kachel-Zähler: „Kacheln ausgewählt" (0–6, sichtbare Auswahl) und
   // „Ergebnisse" (= Generierungen = Usage-Einheiten) werden getrennt angezeigt
   // — sonst wäre „2 von 6 · 2 Ergebnisse" bei der Content-Kachel nicht
@@ -1257,7 +1263,7 @@ function Step1Strategy({
           <button
             type="button"
             onClick={onGenerate}
-            disabled={!canGen}
+            disabled={!canGen || costState.blocked}
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-4 text-base font-semibold text-white shadow-lg shadow-blue-200 transition-all hover:from-blue-700 hover:to-purple-700 hover:shadow-xl hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
           >
             {/* Phase 1: eigener Button-Text je Bereich (Pinterest/Etsy). */}
@@ -1267,6 +1273,11 @@ function Step1Strategy({
                 ? t.strategy_create_btn_etsy
                 : t.strategy_create_btn}
           </button>
+          <CostHintView
+            state={costState}
+            units={Math.max(1, resultCount)}
+            testId="strategy-cost-hint"
+          />
           {resultCount > 0 && (
             <p className="text-xs font-medium text-gray-500">
               {resultCount === 1
