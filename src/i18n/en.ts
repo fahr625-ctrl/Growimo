@@ -2654,4 +2654,43 @@ export const en: EnShape = {
   mockups_free:
     'No AI call, no credit, €0. Nothing published — this page shows the preview build.',
 
+  mockups_flow_title: 'Etsy mockup in three steps',
+  mockups_flow_intro:
+    'Pick a design, pick a template, done. The design is placed into the product area measured from the template photo and blended with the photo — in perspective, with a soft edge. The area is read off frame, mount, mug silhouette and base line for each template, not estimated.',
+  mockups_step_design: 'Choose a design',
+  mockups_step_vorlage: 'Choose a template',
+  mockups_step_result: 'Result',
+  mockups_source_existing: 'Existing design',
+  mockups_source_upload: 'Own file',
+  mockups_upload_cta: 'Choose a file',
+  mockups_upload_none: 'No file chosen yet',
+  mockups_upload_hint: 'PNG, JPG or WebP up to 4.4 MB. Larger images are scaled down in the browser.',
+  mockups_design_kerze: 'Candle',
+  mockups_design_poster: 'Poster',
+  mockups_vorlage_passepartout: 'Mount',
+  mockups_vorlage_eiche: 'Oak frame',
+  mockups_vorlage_tasse_hell: 'Mug light',
+  mockups_vorlage_tasse_dunkel: 'Mug dark',
+  mockups_create: 'Create mockup',
+  mockups_creating: 'Composing …',
+  mockups_download: 'Download PNG',
+  mockups_result_hint: 'The PNG is the mockup itself — at full resolution.',
+  mockups_need_choice: 'Choose a design and a template.',
+  mockups_error_generic: 'The mockup could not be created. No image.',
+  mockups_error_design_load: 'The design could not be loaded. No image.',
+  mockups_error_too_large: 'The file is too large (%s MB). 4.4 MB allowed. No image.',
+  mockups_error_no_canvas:
+    'The browser could not scale the image down. Please choose a smaller file.',
+  mockups_hinweise_title: 'Notes by product type',
+  mockups_hinweis_handgefertigt_titel: 'Handmade',
+  mockups_hinweis_handgefertigt:
+    'The mockup complements your product photo — it does not replace it. Also show a real photo of the finished piece in your shop.',
+  mockups_hinweis_pod_titel: 'Print on demand',
+  mockups_hinweis_pod:
+    'Follow your provider’s guidelines and only show image rights you actually hold.',
+  mockups_hinweis_digital_titel: 'Digital downloads',
+  mockups_hinweis_digital:
+    'The mockup shows how the design looks. For the shop preview you also need the true-to-original file.',
+  mockups_gallery_toggle: 'View the previous examples',
+
 }

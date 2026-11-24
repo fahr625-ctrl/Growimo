@@ -2679,4 +2679,44 @@ export const de = {
   mockups_free:
     'Kein KI-Aufruf, keine Einheit, 0 €. Nichts veröffentlicht — die Seite zeigt die Vorschau-Fassung.',
 
+  // ── Etsy-Mockup-Ablauf (2026-11-24, nur Vorschau) ───────────────────────────
+  mockups_flow_title: 'Etsy-Mockup in drei Schritten',
+  mockups_flow_intro:
+    'Design wählen, Vorlage wählen, fertig. Das Design wird in die aus dem Vorlagenfoto gemessene Produktfläche gelegt und mit dem Foto verrechnet — perspektivisch, mit weicher Kante. Die Fläche wird je Vorlage an Rahmen, Passepartout, Tassen-Silhouette und Standlinie abgelesen, nicht geschätzt.',
+  mockups_step_design: 'Design wählen',
+  mockups_step_vorlage: 'Vorlage wählen',
+  mockups_step_result: 'Ergebnis',
+  mockups_source_existing: 'Vorhandenes Design',
+  mockups_source_upload: 'Eigene Datei',
+  mockups_upload_cta: 'Datei auswählen',
+  mockups_upload_none: 'Noch keine Datei gewählt',
+  mockups_upload_hint: 'PNG, JPG oder WebP bis 4,4 MB. Größere Bilder werden im Browser verkleinert.',
+  mockups_design_kerze: 'Kerze',
+  mockups_design_poster: 'Poster',
+  mockups_vorlage_passepartout: 'Passepartout',
+  mockups_vorlage_eiche: 'Eichenrahmen',
+  mockups_vorlage_tasse_hell: 'Tasse hell',
+  mockups_vorlage_tasse_dunkel: 'Tasse dunkel',
+  mockups_create: 'Mockup erstellen',
+  mockups_creating: 'Wird komponiert …',
+  mockups_download: 'PNG herunterladen',
+  mockups_result_hint: 'Das PNG ist das Mockup selbst — voll aufgelöst.',
+  mockups_need_choice: 'Wähle ein Design und eine Vorlage.',
+  mockups_error_generic: 'Das Mockup konnte nicht erstellt werden. Kein Bild.',
+  mockups_error_design_load: 'Das Design konnte nicht geladen werden. Kein Bild.',
+  mockups_error_too_large: 'Die Datei ist zu groß (%s MB). Erlaubt sind 4,4 MB. Kein Bild.',
+  mockups_error_no_canvas:
+    'Der Browser konnte das Bild nicht verkleinern. Bitte eine kleinere Datei wählen.',
+  mockups_hinweise_title: 'Hinweise nach Produktart',
+  mockups_hinweis_handgefertigt_titel: 'Handgefertigtes',
+  mockups_hinweis_handgefertigt:
+    'Das Mockup ergänzt dein Produktfoto — es ersetzt es nicht. Zeig im Shop zusätzlich ein echtes Foto des gefertigten Stücks.',
+  mockups_hinweis_pod_titel: 'Print-on-Demand',
+  mockups_hinweis_pod:
+    'Halte die Richtlinien deines Dienstleisters ein und zeig nur Bildrechte, die du wirklich hast.',
+  mockups_hinweis_digital_titel: 'Digitale Downloads',
+  mockups_hinweis_digital:
+    'Das Mockup zeigt, wie das Design wirkt. Für die Shop-Vorschau brauchst du zusätzlich die originalgetreue Datei.',
+  mockups_gallery_toggle: 'Bisherige Beispiele ansehen',
+
 } as const;

@@ -18,6 +18,7 @@ import { Route as ImpressumRouteImport } from './routes/impressum'
 import { Route as MockupsRouteImport } from './routes/mockups'
 import { Route as MusterRouteImport } from './routes/muster'
 import { Route as WiderrufRouteImport } from './routes/widerruf'
+import { Route as ApiMockupRouteImport } from './routes/api/mockup'
 import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppAdminAnalyticsRouteImport } from './routes/app/admin-analytics'
 import { Route as AppAdminTrackingRouteImport } from './routes/app/admin-tracking'
@@ -90,6 +91,11 @@ const MusterRoute = MusterRouteImport.update({
 const WiderrufRoute = WiderrufRouteImport.update({
   id: '/widerruf',
   path: '/widerruf',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMockupRoute = ApiMockupRouteImport.update({
+  id: '/api/mockup',
+  path: '/api/mockup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -243,6 +249,7 @@ export interface FileRoutesByFullPath {
   '/mockups': typeof MockupsRoute
   '/muster': typeof MusterRoute
   '/widerruf': typeof WiderrufRoute
+  '/api/mockup': typeof ApiMockupRoute
   '/app/admin-analytics': typeof AppAdminAnalyticsRoute
   '/app/admin-tracking': typeof AppAdminTrackingRoute
   '/app/analytics': typeof AppAnalyticsRoute
@@ -281,6 +288,7 @@ export interface FileRoutesByTo {
   '/mockups': typeof MockupsRoute
   '/muster': typeof MusterRoute
   '/widerruf': typeof WiderrufRoute
+  '/api/mockup': typeof ApiMockupRoute
   '/app/admin-analytics': typeof AppAdminAnalyticsRoute
   '/app/admin-tracking': typeof AppAdminTrackingRoute
   '/app/analytics': typeof AppAnalyticsRoute
@@ -321,6 +329,7 @@ export interface FileRoutesById {
   '/mockups': typeof MockupsRoute
   '/muster': typeof MusterRoute
   '/widerruf': typeof WiderrufRoute
+  '/api/mockup': typeof ApiMockupRoute
   '/app/admin-analytics': typeof AppAdminAnalyticsRoute
   '/app/admin-tracking': typeof AppAdminTrackingRoute
   '/app/analytics': typeof AppAnalyticsRoute
@@ -362,6 +371,7 @@ export interface FileRouteTypes {
     | '/mockups'
     | '/muster'
     | '/widerruf'
+    | '/api/mockup'
     | '/app/admin-analytics'
     | '/app/admin-tracking'
     | '/app/analytics'
@@ -400,6 +410,7 @@ export interface FileRouteTypes {
     | '/mockups'
     | '/muster'
     | '/widerruf'
+    | '/api/mockup'
     | '/app/admin-analytics'
     | '/app/admin-tracking'
     | '/app/analytics'
@@ -439,6 +450,7 @@ export interface FileRouteTypes {
     | '/mockups'
     | '/muster'
     | '/widerruf'
+    | '/api/mockup'
     | '/app/admin-analytics'
     | '/app/admin-tracking'
     | '/app/analytics'
@@ -479,6 +491,7 @@ export interface RootRouteChildren {
   MockupsRoute: typeof MockupsRoute
   MusterRoute: typeof MusterRoute
   WiderrufRoute: typeof WiderrufRoute
+  ApiMockupRoute: typeof ApiMockupRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -544,6 +557,13 @@ declare module '@tanstack/react-router' {
       path: '/widerruf'
       fullPath: '/widerruf'
       preLoaderRoute: typeof WiderrufRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mockup': {
+      id: '/api/mockup'
+      path: '/api/mockup'
+      fullPath: '/api/mockup'
+      preLoaderRoute: typeof ApiMockupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/': {
@@ -819,6 +839,7 @@ const rootRouteChildren: RootRouteChildren = {
   MockupsRoute: MockupsRoute,
   MusterRoute: MusterRoute,
   WiderrufRoute: WiderrufRoute,
+  ApiMockupRoute: ApiMockupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
