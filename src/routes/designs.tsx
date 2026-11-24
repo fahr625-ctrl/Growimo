@@ -45,7 +45,6 @@ interface Design {
 
 const KERZE = { label: 'Kerze', datei: 'kerze' };
 const POSTER = { label: 'Poster im Rahmen', datei: 'poster' };
-const TASSE = { label: 'Tasse', datei: 'tasse' };
 
 const DESIGNS: Design[] = [
   {

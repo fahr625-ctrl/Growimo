@@ -78,10 +78,9 @@ function NavBar() {
   const { t } = useTranslation();
 
   const navLinks = [
-    { label: t.lp_nav_features, href: "#funktionen" },
-    { label: t.lp_nav_examples, href: "#beispiele" },
-    { label: t.lp_nav_how, href: "#so-gehts" },
-    { label: t.lp_nav_faq, href: "#fragen" },
+    { label: t.home_nav_gallery, href: "#beispiele" },
+    { label: t.home_nav_tools, href: "#werkzeuge" },
+    { label: t.home_nav_status, href: "#status" },
   ];
 
   return (
@@ -637,10 +636,9 @@ function Footer() {
   const { t } = useTranslation();
 
   const featureLinks = [
-    { label: t.lp_nav_features, href: "#funktionen" },
-    { label: t.lp_nav_examples, href: "#beispiele" },
-    { label: t.lp_nav_how, href: "#so-gehts" },
-    { label: t.lp_nav_faq, href: "#fragen" },
+    { label: t.home_nav_gallery, href: "#beispiele" },
+    { label: t.home_nav_tools, href: "#werkzeuge" },
+    { label: t.home_nav_status, href: "#status" },
   ];
 
   const legalLinks = [
@@ -698,20 +696,331 @@ function Footer() {
   );
 }
 
+// ── STARTSEITE NEU (Owner 2026-11-24) ──────────────────────────────────────────
+// Sechs echte Beispiel-Pins (Editorial · Atelier · Galerie × Kerze/Poster) aus
+// public/design-bilder-neu/ — echte Renderer-Läufe, kein KI-Aufruf, 0 €.
+// Drei Werkzeuge in der Sprache des Produkts und die Pflichtzeile zum ehrlichen
+// Status. Kein Preisversprechen, keine Zahlen, keine Kundenstimmen, keine Sterne.
+// Die frühere Fassung (Hero, Features, Beispiele als Text, Kampagne,
+// So funktioniert's, In Entwicklung, FAQ) bleibt vollständig im Code und steht
+// hinter einem Schalter — ausblenden statt löschen.
+
+interface BeispielPin {
+  src: string;
+  design: "home_design_editorial" | "home_design_atelier" | "home_design_galerie";
+  produkt: "home_product_kerze" | "home_product_poster";
+}
+
+const BEISPIEL_PINS: BeispielPin[] = [
+  {
+    src: "/design-bilder-neu/editorial-kerze-1000x1500.png",
+    design: "home_design_editorial",
+    produkt: "home_product_kerze",
+  },
+  {
+    src: "/design-bilder-neu/editorial-poster-1000x1500.png",
+    design: "home_design_editorial",
+    produkt: "home_product_poster",
+  },
+  {
+    src: "/design-bilder-neu/atelier-kerze-1000x1500.png",
+    design: "home_design_atelier",
+    produkt: "home_product_kerze",
+  },
+  {
+    src: "/design-bilder-neu/atelier-poster-1000x1500.png",
+    design: "home_design_atelier",
+    produkt: "home_product_poster",
+  },
+  {
+    src: "/design-bilder-neu/galerie-kerze-1000x1500.png",
+    design: "home_design_galerie",
+    produkt: "home_product_kerze",
+  },
+  {
+    src: "/design-bilder-neu/galerie-poster-1000x1500.png",
+    design: "home_design_galerie",
+    produkt: "home_product_poster",
+  },
+];
+
+function HomeHero() {
+  const { t } = useTranslation();
+
+  return (
+    <section id="start" className="relative overflow-hidden pt-24 pb-14 sm:pt-32 sm:pb-20">
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute top-0 left-1/2 h-[600px] w-[820px] -translate-x-1/2 rounded-full bg-gradient-to-b from-blue-50 via-purple-50/40 to-transparent opacity-60 blur-3xl" />
+      </div>
+
+      <SectionContainer>
+        <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
+          <div className="min-w-0">
+            <div className="inline-flex items-center rounded-full border border-blue-200/60 bg-white/80 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-blue-600 backdrop-blur-sm">
+              {t.lp_hero_badge}
+            </div>
+
+            <h1 className="mt-6 text-[2rem] font-bold leading-[1.15] tracking-tight text-gray-900 sm:text-5xl sm:leading-[1.08]">
+              {t.home_hero_headline}
+            </h1>
+
+            <p className="mt-5 text-base leading-relaxed text-gray-500 sm:text-lg">{t.home_hero_sub}</p>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <a
+                href="/app/sign-up"
+                className="inline-flex min-h-[52px] items-center justify-center rounded-xl bg-gray-900 px-7 py-4 text-base font-semibold text-white shadow-lg shadow-gray-900/10 transition-all hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
+              >
+                {t.home_hero_cta_primary}
+              </a>
+              <a
+                href="#beispiele"
+                className="inline-flex min-h-[52px] items-center justify-center rounded-xl border border-gray-200 bg-white px-7 py-4 text-base font-semibold text-gray-700 shadow-sm transition-all hover:border-gray-300 hover:bg-gray-50"
+              >
+                {t.home_hero_cta_secondary}
+              </a>
+            </div>
+
+            <p className="mt-5 text-sm text-gray-400">{t.home_hero_note}</p>
+          </div>
+
+          {/* Ein echter Pin als Blickfang — Beispiel-Ergebnis, keine Attrappe */}
+          <figure className="mx-auto w-full max-w-[240px] sm:max-w-[280px] lg:max-w-[330px]">
+            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl shadow-gray-900/5">
+              <img
+                src="/design-bilder-neu/editorial-kerze-1000x1500.png"
+                alt={t.home_hero_pin_alt}
+                width={1000}
+                height={1500}
+                className="block h-auto w-full"
+              />
+            </div>
+            <figcaption className="mt-3 text-center text-xs text-gray-400">
+              {t.home_hero_pin_caption}
+            </figcaption>
+          </figure>
+        </div>
+      </SectionContainer>
+    </section>
+  );
+}
+
+function GallerySection() {
+  const { t } = useTranslation();
+
+  return (
+    <section id="beispiele" className="bg-gray-50 py-16 sm:py-24">
+      <SectionContainer>
+        <div className="mx-auto max-w-2xl text-center">
+          <SectionHeading>{t.home_gallery_headline}</SectionHeading>
+          <p className="mt-4 text-base text-gray-500 sm:text-lg">{t.home_gallery_sub}</p>
+        </div>
+
+        <div className="mt-8 grid grid-cols-2 gap-3 sm:mt-12 sm:gap-5 lg:grid-cols-3">
+          {BEISPIEL_PINS.map((pin) => (
+            <figure
+              key={pin.src}
+              className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm sm:rounded-2xl"
+            >
+              <img
+                src={pin.src}
+                alt={`${t[pin.design]} · ${t[pin.produkt]}`}
+                width={1000}
+                height={1500}
+                loading="lazy"
+                className="block aspect-[2/3] w-full shrink-0 object-cover"
+              />
+              <figcaption className="flex flex-1 flex-wrap items-center justify-between gap-x-2 gap-y-1 px-2.5 py-2 sm:px-3.5 sm:py-3">
+                <span className="text-xs font-bold text-gray-900 sm:text-sm">
+                  {t[pin.design]}
+                  <span className="font-normal text-gray-400"> · {t[pin.produkt]}</span>
+                </span>
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                  {t.home_gallery_badge}
+                </span>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+
+        <p className="mx-auto mt-6 max-w-xl text-center text-xs leading-relaxed text-gray-400">
+          {t.home_gallery_note}
+        </p>
+      </SectionContainer>
+    </section>
+  );
+}
+
+function ToolsSection() {
+  const { t } = useTranslation();
+
+  const tools = [
+    {
+      icon: "📌",
+      tile: "from-rose-500 to-red-500",
+      title: t.home_tool_pinterest_title,
+      desc: t.home_tool_pinterest_desc,
+      items: [t.home_tool_pinterest_item1, t.home_tool_pinterest_item2, t.home_tool_pinterest_item3],
+      status: t.home_tool_pinterest_status,
+      tone: "partial" as const,
+    },
+    {
+      icon: "🛍️",
+      tile: "from-amber-500 to-orange-500",
+      title: t.home_tool_etsy_title,
+      desc: t.home_tool_etsy_desc,
+      items: [t.home_tool_etsy_item1, t.home_tool_etsy_item2, t.home_tool_etsy_item3],
+      status: t.home_tool_etsy_status,
+      tone: "partial" as const,
+    },
+    {
+      icon: "🎬",
+      tile: "from-emerald-500 to-teal-500",
+      title: t.home_tool_tiktok_title,
+      desc: t.home_tool_tiktok_desc,
+      items: [t.home_tool_tiktok_item1, t.home_tool_tiktok_item2, t.home_tool_tiktok_item3],
+      status: t.home_tool_tiktok_status,
+      tone: "ready" as const,
+    },
+  ];
+
+  return (
+    <section id="werkzeuge" className="py-16 sm:py-24">
+      <SectionContainer>
+        <div className="mx-auto max-w-2xl text-center">
+          <SectionHeading>{t.home_tools_headline}</SectionHeading>
+          <p className="mt-4 text-base text-gray-500 sm:text-lg">{t.home_tools_sub}</p>
+        </div>
+
+        <div className="mt-10 grid gap-5 sm:mt-12 sm:grid-cols-2 lg:grid-cols-3">
+          {tools.map((tool) => (
+            <div
+              key={tool.title}
+              className="flex min-w-0 flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-blue-200 hover:shadow-md sm:p-6"
+            >
+              <div
+                className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br text-2xl shadow-sm ${tool.tile}`}
+              >
+                {tool.icon}
+              </div>
+              <h3 className="mt-4 text-lg font-bold text-gray-900">{tool.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-gray-500">{tool.desc}</p>
+              <ul className="mt-4 flex-1 space-y-2">
+                {tool.items.map((item) => (
+                  <li key={item} className="flex items-start gap-2 text-sm leading-relaxed text-gray-700">
+                    <CheckIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
+                    <span className="min-w-0">{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-5">
+                <StatusBadge tone={tool.tone}>{tool.status}</StatusBadge>
+              </div>
+            </div>
+          ))}
+        </div>
+      </SectionContainer>
+    </section>
+  );
+}
+
+function HonestStatusSection() {
+  const { t } = useTranslation();
+
+  return (
+    <section id="status" className="bg-gray-50 py-16 sm:py-24">
+      <SectionContainer>
+        <div className="mx-auto max-w-3xl rounded-2xl border border-amber-200 bg-amber-50/70 p-5 sm:rounded-3xl sm:p-10">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+              <ClockIcon className="h-5 w-5" />
+            </span>
+            <h2 className="text-xl font-extrabold leading-snug text-gray-900 sm:text-2xl">
+              {t.home_status_headline}
+            </h2>
+          </div>
+
+          {/* Pflichtzeile — nicht als Werbeversprechen umformulieren */}
+          <p className="mt-5 rounded-xl border border-amber-200/70 bg-white px-4 py-3 text-sm font-semibold leading-relaxed text-gray-900 sm:text-base">
+            {t.home_status_required}
+          </p>
+
+          <dl className="mt-5 space-y-4">
+            <div>
+              <dt className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                {t.home_status_live_title}
+              </dt>
+              <dd className="mt-1 text-sm leading-relaxed text-gray-700">{t.home_status_live_text}</dd>
+            </div>
+            <div>
+              <dt className="text-[11px] font-bold uppercase tracking-wider text-amber-700">
+                {t.home_status_dev_title}
+              </dt>
+              <dd className="mt-1 text-sm leading-relaxed text-gray-700">{t.home_status_dev_text}</dd>
+            </div>
+          </dl>
+        </div>
+      </SectionContainer>
+    </section>
+  );
+}
+
+// Frühere Abschnitte: nicht gelöscht, sondern hinter einem Schalter.
+function PreviousVersionSection() {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <section className="border-t border-gray-100 py-10">
+        <SectionContainer>
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => setOpen(!open)}
+              aria-expanded={open}
+              aria-controls="fruehere-fassung"
+              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-500 shadow-sm transition-colors hover:border-gray-300 hover:text-gray-700"
+            >
+              {open ? t.home_old_toggle_hide : t.home_old_toggle_show}
+              <ChevronDownIcon className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
+            </button>
+            {open && (
+              <p className="mx-auto mt-3 max-w-xl text-xs leading-relaxed text-gray-400">
+                {t.home_old_toggle_note}
+              </p>
+            )}
+          </div>
+        </SectionContainer>
+      </section>
+
+      {open && (
+        <div id="fruehere-fassung">
+          <HeroSection />
+          <FeaturesSection />
+          <ExamplesSection />
+          <KampagneSection />
+          <HowItWorksSection />
+          <SoonSection />
+          <FaqSection />
+        </div>
+      )}
+    </>
+  );
+}
+
 // ── LANDING PAGE ────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {
   return (
-    <div className="min-h-dvh bg-white bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-[length:24px_24px]">
+    <div className="min-h-dvh overflow-x-hidden bg-white bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] bg-[length:24px_24px]">
       <NavBar />
-      <HeroSection />
-      <FeaturesSection />
-      <ExamplesSection />
-      <KampagneSection />
-      <HowItWorksSection />
-      <SoonSection />
-      <FaqSection />
+      <HomeHero />
+      <GallerySection />
+      <ToolsSection />
+      <HonestStatusSection />
       <FinalCtaSection />
+      <PreviousVersionSection />
       <Footer />
     </div>
   );

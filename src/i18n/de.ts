@@ -2357,6 +2357,74 @@ export const de = {
   lp_footer_disclaimer:
     'KI-generierte Texte können Fehler enthalten. Prüfe sie vor der Veröffentlichung.',
 
+  // ── Startseite neu (Owner 2026-11-24) ────────────────────────────────────────
+  // Sechs echte Beispiel-Pins (Editorial · Atelier · Galerie × Kerze/Poster),
+  // drei Werkzeuge in der Sprache des Produkts, Pflichtzeile zum ehrlichen
+  // Status. Kein Preisversprechen, keine Zahlen, keine Kundenstimmen, keine
+  // Sterne. Die lp_*-Keys der früheren Fassung bleiben erhalten (ausblenden
+  // statt löschen) — die früheren Abschnitte stehen hinter einem Schalter.
+  home_nav_gallery: 'Beispiele',
+  home_nav_tools: 'Werkzeuge',
+  home_nav_status: 'Status',
+
+  home_hero_headline: 'Deine Idee. Dein fertiger Content. In wenigen Klicks.',
+  home_hero_sub:
+    'Fertige Inhalte statt Ratschläge — Pin-Bild mit SEO-Text, Etsy-Listing und TikTok-Skript.',
+  home_hero_cta_primary: 'Kostenlos starten',
+  home_hero_cta_secondary: 'Beispiele ansehen',
+  home_hero_note: 'Kostenlose Registrierung, keine Kreditkarte nötig.',
+  home_hero_pin_caption: 'Beispiel-Ergebnis · Design Editorial · Kerze',
+  home_hero_pin_alt: 'Beispiel-Pin im Design Editorial: Kerze im Glas',
+
+  home_gallery_headline: 'Sechs echte Beispiel-Pins',
+  home_gallery_sub:
+    'Drei Designs, zwei Produktarten: Kerze und Poster im Rahmen. Echte Läufe aus einem Demo-Konto.',
+  home_gallery_badge: 'Beispiel-Ergebnis',
+  home_gallery_note:
+    'Alle sechs Bilder sind Beispiel-Ergebnisse aus echten Läufen (Demo-Konto). Deine Pins entstehen aus deinem eigenen Produktfoto.',
+  home_design_editorial: 'Editorial',
+  home_design_atelier: 'Atelier',
+  home_design_galerie: 'Galerie',
+  home_product_kerze: 'Kerze',
+  home_product_poster: 'Poster im Rahmen',
+
+  home_tools_headline: 'Drei Werkzeuge. Drei fertige Ergebnisse.',
+  home_tools_sub:
+    'Jedes Werkzeug liefert ein Ergebnis zum direkten Verwenden — Text zum Kopieren, Bild zum Herunterladen.',
+  home_tool_pinterest_title: 'Pinterest',
+  home_tool_pinterest_desc: 'Pin-Bild in 1000 × 1500 px, dazu SEO-Titel, Beschreibung und Keywords.',
+  home_tool_pinterest_item1: 'Pin-Bild als PNG, 1000 × 1500 px',
+  home_tool_pinterest_item2: 'SEO-Titel und Beschreibung zum Kopieren',
+  home_tool_pinterest_item3: 'Keywords, mit denen der Pin gefunden wird',
+  home_tool_pinterest_status: 'Pin-Bild in Entwicklung',
+  home_tool_etsy_title: 'Etsy',
+  home_tool_etsy_desc: 'Titel, verkaufsorientierte Beschreibung und bis zu 13 gültige Tags.',
+  home_tool_etsy_item1: 'Listing-Titel und Beschreibung zum Kopieren',
+  home_tool_etsy_item2: 'Bis zu 13 gültige Tags, keine Satzfragmente',
+  home_tool_etsy_item3: 'Format und Lieferumfang nur, wenn du sie nennst',
+  home_tool_etsy_status: 'Mockup in Entwicklung',
+  home_tool_tiktok_title: 'TikTok',
+  home_tool_tiktok_desc: 'Umsetzbares Skript mit Hook, Szenen und Sprechtext.',
+  home_tool_tiktok_item1: 'Hook und Szenen mit Zeitangaben',
+  home_tool_tiktok_item2: 'Sprechtext, Titel und Beschreibung',
+  home_tool_tiktok_item3: 'Genau 5 Hashtags und ein CTA',
+  home_tool_tiktok_status: 'Skript, kein Video',
+
+  home_status_headline: 'Was schon geht — und was nicht',
+  home_status_required:
+    'Pin-Bild, Kampagne ohne Foto und Mockups sind in Entwicklung und noch nicht live.',
+  home_status_live_title: 'Live',
+  home_status_live_text:
+    'Pinterest-Texte, Etsy-Texte, TikTok-Skripte und Pin-Bilder aus deinem eigenen Foto (Kampagne).',
+  home_status_dev_title: 'In Entwicklung',
+  home_status_dev_text:
+    'Pin-Bild direkt aus dem Text, Kampagne ohne eigenes Foto und Etsy-Mockups. Diese Zeile bleibt stehen, bis es so weit ist.',
+
+  home_old_toggle_show: 'Frühere Fassung der Startseite anzeigen',
+  home_old_toggle_hide: 'Frühere Fassung ausblenden',
+  home_old_toggle_note:
+    'Diese Abschnitte werden auf der Startseite nicht mehr gebraucht. Sie bleiben erhalten und sind hier weiterhin lesbar.',
+
 
   // ── Phase 2: Kampagne (Gerüst, 2026-11-15) ─────────────────────────────────
   sidebar_kampagne: '🗂️ Kampagne',

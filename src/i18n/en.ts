@@ -2344,6 +2344,73 @@ export const en: EnShape = {
   lp_footer_disclaimer:
     'AI-generated copy can contain mistakes. Check it before you publish.',
 
+  // ── New landing page (owner 2026-11-24) ─────────────────────────────────────
+  // Six real example pins (Editorial · Atelier · Galerie × candle/poster), three
+  // tools in the language of the product, the honest status line. No pricing
+  // promises, no numbers, no testimonials, no stars. The lp_* keys of the
+  // earlier version stay in place (hide instead of delete).
+  home_nav_gallery: 'Examples',
+  home_nav_tools: 'Tools',
+  home_nav_status: 'Status',
+
+  home_hero_headline: 'Your idea. Your finished content. In a few clicks.',
+  home_hero_sub:
+    'Finished content instead of advice — pin image with SEO copy, Etsy listing and TikTok script.',
+  home_hero_cta_primary: 'Start for free',
+  home_hero_cta_secondary: 'See examples',
+  home_hero_note: 'Free sign-up, no credit card required.',
+  home_hero_pin_caption: 'Example result · Editorial design · candle',
+  home_hero_pin_alt: 'Example pin in the Editorial design: candle in a jar',
+
+  home_gallery_headline: 'Six real example pins',
+  home_gallery_sub:
+    'Three designs, two product types: candle and framed poster. Real runs from a demo account.',
+  home_gallery_badge: 'Example result',
+  home_gallery_note:
+    'All six images are example results from real runs (demo account). Your pins are built from your own product photo.',
+  home_design_editorial: 'Editorial',
+  home_design_atelier: 'Atelier',
+  home_design_galerie: 'Galerie',
+  home_product_kerze: 'Candle',
+  home_product_poster: 'Framed poster',
+
+  home_tools_headline: 'Three tools. Three finished results.',
+  home_tools_sub:
+    'Each tool hands you a result you can use right away — copy to paste, image to download.',
+  home_tool_pinterest_title: 'Pinterest',
+  home_tool_pinterest_desc: 'Pin image at 1000 × 1500 px, plus SEO title, description and keywords.',
+  home_tool_pinterest_item1: 'Pin image as PNG, 1000 × 1500 px',
+  home_tool_pinterest_item2: 'SEO title and description to copy',
+  home_tool_pinterest_item3: 'Keywords that help the pin get found',
+  home_tool_pinterest_status: 'Pin image in development',
+  home_tool_etsy_title: 'Etsy',
+  home_tool_etsy_desc: 'Title, sales-focused description and up to 13 valid tags.',
+  home_tool_etsy_item1: 'Listing title and description to copy',
+  home_tool_etsy_item2: 'Up to 13 valid tags, no sentence fragments',
+  home_tool_etsy_item3: 'Format and contents only if you name them',
+  home_tool_etsy_status: 'Mockup in development',
+  home_tool_tiktok_title: 'TikTok',
+  home_tool_tiktok_desc: 'A script you can shoot, with hook, scenes and spoken lines.',
+  home_tool_tiktok_item1: 'Hook and scenes with timings',
+  home_tool_tiktok_item2: 'Spoken lines, title and description',
+  home_tool_tiktok_item3: 'Exactly 5 hashtags and a call to action',
+  home_tool_tiktok_status: 'Script, no video',
+
+  home_status_headline: 'What already works — and what does not',
+  home_status_required:
+    'Pin image, campaign without a photo and mockups are in development and not live yet.',
+  home_status_live_title: 'Live',
+  home_status_live_text:
+    'Pinterest copy, Etsy copy, TikTok scripts and pin images from your own photo (campaign).',
+  home_status_dev_title: 'In development',
+  home_status_dev_text:
+    'Pin image straight from the text, campaign without your own photo and Etsy mockups. This line stays until they are ready.',
+
+  home_old_toggle_show: 'Show the earlier version of this page',
+  home_old_toggle_hide: 'Hide the earlier version',
+  home_old_toggle_note:
+    'These sections are no longer used on the landing page. They are kept and stay readable here.',
+
 
   // ── Phase 2: campaign scaffold (2026-11-15) ────────────────────────────────
   sidebar_kampagne: '🗂️ Campaign',
