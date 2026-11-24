@@ -806,7 +806,29 @@ export function wrapText(text: string, maxCharsPerLine: number): string[] {
     }
   }
   if (current) lines.push(current);
-  return lines;
+  return ohneWaise(lines, limit);
+}
+
+/**
+ * Keine Waise (2026-11-24): stünde am Ende eine Zeile mit nur EINEM Wort
+ * („… zum eigenen" / „Pin."), wandert das letzte Wort der vorigen Zeile mit
+ * hinüber. Die Wortfolge bleibt vollständig und unverändert — nur die
+ * Verteilung auf die Zeilen wird gleichmäßiger. Passt das verschobene Wort
+ * nicht in die Grenze, bleibt der Umbruch wie er war (kein Zeichensalat).
+ */
+function ohneWaise(lines: string[], limit: number): string[] {
+  if (lines.length < 2) return lines;
+  const out = [...lines];
+  const letzte = out[out.length - 1];
+  if (letzte.includes(' ')) return out;
+  const vorige = out[out.length - 2].split(' ');
+  if (vorige.length < 2) return out;
+  const wort = vorige[vorige.length - 1];
+  const zusammen = `${wort} ${letzte}`;
+  if (zusammen.length > limit) return out;
+  out[out.length - 2] = vorige.slice(0, -1).join(' ');
+  out[out.length - 1] = zusammen;
+  return out;
 }
 
 /** Vergleichsform: Zeilenumbrüche (auch nach Bindestrich) zählen nicht. */
@@ -1306,20 +1328,36 @@ function scrimLayerSvg(
     const fade = 60;
     const boxLeft = Math.max(0, Math.round(panel.x) - 18);
     const boxTop = Math.max(SAFE_MARGIN, Math.round(panel.y) - 18);
+    // Weiches Auslaufen (2026-11-24): Die beiden Auslaufkanten waren zwei
+    // Rechtecke mit harten Rändern — an der Ecke, wo beide enden, blieb eine
+    // sichtbare Rechteckstufe stehen. Jetzt liefern zwei Masken-Verläufe (oben,
+    // links) über eine verschachtelte Maske das PRODUKT beider Verläufe: die
+    // Deckkraft ist oben × links, damit läuft auch die Ecke weich aus. Alles,
+    // was den Text berührt, bleibt voll deckend.
+    const fadeLeft = Math.max(0, boxLeft - fade);
+    const fadeTop = Math.max(0, boxTop - fade);
+    const fadeW = PIN_WIDTH - fadeLeft;
+    const fadeH = PIN_HEIGHT - fadeTop;
     body =
       `<defs>` +
-      `<linearGradient id="gKrOben" x1="0" y1="0" x2="0" y2="1">` +
-      `<stop offset="0%" stop-color="${panelColor}" stop-opacity="0" />` +
-      `<stop offset="100%" stop-color="${panelColor}" stop-opacity="${opacity}" />` +
+      `<linearGradient id="gKrOben" gradientUnits="userSpaceOnUse" x1="0" y1="${fadeTop}" x2="0" y2="${boxTop}">` +
+      `<stop offset="0%" stop-color="#000000" />` +
+      `<stop offset="100%" stop-color="#ffffff" />` +
       `</linearGradient>` +
-      `<linearGradient id="gKrLinks" x1="0" y1="0" x2="1" y2="0">` +
-      `<stop offset="0%" stop-color="${panelColor}" stop-opacity="0" />` +
-      `<stop offset="100%" stop-color="${panelColor}" stop-opacity="${opacity}" />` +
+      `<linearGradient id="gKrLinks" gradientUnits="userSpaceOnUse" x1="${fadeLeft}" y1="0" x2="${boxLeft}" y2="0">` +
+      `<stop offset="0%" stop-color="#000000" />` +
+      `<stop offset="100%" stop-color="#ffffff" />` +
       `</linearGradient>` +
+      `<mask id="mKrLinks" maskUnits="userSpaceOnUse" x="${fadeLeft}" y="${fadeTop}" width="${fadeW}" height="${fadeH}">` +
+      `<rect x="${fadeLeft}" y="${fadeTop}" width="${fadeW}" height="${fadeH}" fill="url(#gKrLinks)" />` +
+      `</mask>` +
+      `<mask id="mKrFlaeche" maskUnits="userSpaceOnUse" x="${fadeLeft}" y="${fadeTop}" width="${fadeW}" height="${fadeH}">` +
+      `<g mask="url(#mKrLinks)">` +
+      `<rect x="${fadeLeft}" y="${fadeTop}" width="${fadeW}" height="${fadeH}" fill="url(#gKrOben)" />` +
+      `</g>` +
+      `</mask>` +
       `</defs>` +
-      `<rect x="${boxLeft}" y="${Math.max(0, boxTop - fade)}" width="${PIN_WIDTH - boxLeft}" height="${fade}" fill="url(#gKrOben)" />` +
-      `<rect x="${Math.max(0, boxLeft - fade)}" y="${boxTop}" width="${fade}" height="${PIN_HEIGHT - boxTop}" fill="url(#gKrLinks)" />` +
-      `<rect x="${boxLeft}" y="${boxTop}" width="${PIN_WIDTH - boxLeft}" height="${PIN_HEIGHT - boxTop}" ${fill} fill-opacity="${opacity}" />` +
+      `<rect x="${fadeLeft}" y="${fadeTop}" width="${fadeW}" height="${fadeH}" ${fill} fill-opacity="${opacity}" mask="url(#mKrFlaeche)" />` +
       `<rect x="${PIN_WIDTH - ribbon.width}" y="0" width="${ribbon.width}" height="${PIN_HEIGHT}" fill="${accent}" />`;
   } else {
     // Seitenstreifen im unteren Bildviertel: FESTE Breite, Höhe ab der
