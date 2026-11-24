@@ -15,6 +15,7 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as DatenschutzRouteImport } from './routes/datenschutz'
 import { Route as DesignsRouteImport } from './routes/designs'
 import { Route as ImpressumRouteImport } from './routes/impressum'
+import { Route as MockupsRouteImport } from './routes/mockups'
 import { Route as MusterRouteImport } from './routes/muster'
 import { Route as WiderrufRouteImport } from './routes/widerruf'
 import { Route as AppIndexRouteImport } from './routes/app/index'
@@ -74,6 +75,11 @@ const DesignsRoute = DesignsRouteImport.update({
 const ImpressumRoute = ImpressumRouteImport.update({
   id: '/impressum',
   path: '/impressum',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MockupsRoute = MockupsRouteImport.update({
+  id: '/mockups',
+  path: '/mockups',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MusterRoute = MusterRouteImport.update({
@@ -234,6 +240,7 @@ export interface FileRoutesByFullPath {
   '/datenschutz': typeof DatenschutzRoute
   '/designs': typeof DesignsRoute
   '/impressum': typeof ImpressumRoute
+  '/mockups': typeof MockupsRoute
   '/muster': typeof MusterRoute
   '/widerruf': typeof WiderrufRoute
   '/app/admin-analytics': typeof AppAdminAnalyticsRoute
@@ -271,6 +278,7 @@ export interface FileRoutesByTo {
   '/datenschutz': typeof DatenschutzRoute
   '/designs': typeof DesignsRoute
   '/impressum': typeof ImpressumRoute
+  '/mockups': typeof MockupsRoute
   '/muster': typeof MusterRoute
   '/widerruf': typeof WiderrufRoute
   '/app/admin-analytics': typeof AppAdminAnalyticsRoute
@@ -310,6 +318,7 @@ export interface FileRoutesById {
   '/datenschutz': typeof DatenschutzRoute
   '/designs': typeof DesignsRoute
   '/impressum': typeof ImpressumRoute
+  '/mockups': typeof MockupsRoute
   '/muster': typeof MusterRoute
   '/widerruf': typeof WiderrufRoute
   '/app/admin-analytics': typeof AppAdminAnalyticsRoute
@@ -350,6 +359,7 @@ export interface FileRouteTypes {
     | '/datenschutz'
     | '/designs'
     | '/impressum'
+    | '/mockups'
     | '/muster'
     | '/widerruf'
     | '/app/admin-analytics'
@@ -387,6 +397,7 @@ export interface FileRouteTypes {
     | '/datenschutz'
     | '/designs'
     | '/impressum'
+    | '/mockups'
     | '/muster'
     | '/widerruf'
     | '/app/admin-analytics'
@@ -425,6 +436,7 @@ export interface FileRouteTypes {
     | '/datenschutz'
     | '/designs'
     | '/impressum'
+    | '/mockups'
     | '/muster'
     | '/widerruf'
     | '/app/admin-analytics'
@@ -464,6 +476,7 @@ export interface RootRouteChildren {
   DatenschutzRoute: typeof DatenschutzRoute
   DesignsRoute: typeof DesignsRoute
   ImpressumRoute: typeof ImpressumRoute
+  MockupsRoute: typeof MockupsRoute
   MusterRoute: typeof MusterRoute
   WiderrufRoute: typeof WiderrufRoute
 }
@@ -510,6 +523,13 @@ declare module '@tanstack/react-router' {
       path: '/impressum'
       fullPath: '/impressum'
       preLoaderRoute: typeof ImpressumRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mockups': {
+      id: '/mockups'
+      path: '/mockups'
+      fullPath: '/mockups'
+      preLoaderRoute: typeof MockupsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/muster': {
@@ -796,6 +816,7 @@ const rootRouteChildren: RootRouteChildren = {
   DatenschutzRoute: DatenschutzRoute,
   DesignsRoute: DesignsRoute,
   ImpressumRoute: ImpressumRoute,
+  MockupsRoute: MockupsRoute,
   MusterRoute: MusterRoute,
   WiderrufRoute: WiderrufRoute,
 }

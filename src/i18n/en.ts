@@ -2547,4 +2547,27 @@ export const en: EnShape = {
   cost_hint_free_reuse: 'the existing image is reused',
   cost_hint_free_edit: 'editing only re-renders the image',
 
+  // ── Etsy mockups: template + composition (2026-11-24, preview only) ─────────
+  mockups_title: 'Etsy mockups: template and result',
+  mockups_intro:
+    'Four of our own templates, one design each. The design is placed into the product area measured from the template photo and blended with it — in perspective, with a soft edge. The area is read off the frame, the mount, the mug silhouette and the base line for each template, not guessed.',
+  mockups_note_composition:
+    'This is a composition from our own templates — not a generated product photo. What you see on the mockup is the design itself.',
+  mockups_failclosed:
+    'Fail-closed: if a template is missing, the design is unreadable, or it does not fill the area sufficiently, no image is produced — and no credit is charged.',
+  mockups_label_template: 'Template (empty)',
+  mockups_label_result: 'Result (composed)',
+  mockups_measured: 'Measured product area',
+  mockups_coverage: 'Area covered by the design',
+  mockups_design: 'Design',
+  mockups_fullsize: 'View at full size',
+  mockups_produkt_poster: 'Poster / print',
+  mockups_produkt_tasse: 'Mug',
+  mockups_t1_name: 'Poster in a black frame with mount',
+  mockups_t2_name: 'Poster in an oak frame',
+  mockups_t3_name: 'Mug, handle on the right',
+  mockups_t4_name: 'Mug, handle on the left',
+  mockups_free:
+    'No AI call, no credit, €0. Nothing published — this page shows the preview build.',
+
 }

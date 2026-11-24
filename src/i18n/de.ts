@@ -2569,4 +2569,27 @@ export const de = {
   cost_hint_free_reuse: 'das vorhandene Bild wird wiederverwendet',
   cost_hint_free_edit: 'Bearbeiten setzt das Bild nur neu',
 
+  // ── Etsy-Mockups: Vorlage + Komposition (2026-11-24, nur Vorschau) ──────────
+  mockups_title: 'Etsy-Mockups: Vorlage und Ergebnis',
+  mockups_intro:
+    'Vier eigene Vorlagen, je ein Design. Das Design wird in die aus dem Vorlagenbild gemessene Produktfläche gelegt und mit dem Foto verrechnet — perspektivisch, mit weicher Kante. Die Fläche wird je Vorlage an Rahmen, Passepartout, Tassen-Silhouette und Standlinie abgelesen, nicht geschätzt.',
+  mockups_note_composition:
+    'Das ist eine Komposition aus eigenen Vorlagen — keine generierte Produktaufnahme. Was im Mockup zu sehen ist, ist das Design selbst.',
+  mockups_failclosed:
+    'Fail-closed: fehlt eine Vorlage, ist das Design unlesbar oder füllt es die Fläche nicht ausreichend, entsteht kein Bild — und es wird keine Einheit gebucht.',
+  mockups_label_template: 'Vorlage (leer)',
+  mockups_label_result: 'Ergebnis (komponiert)',
+  mockups_measured: 'Gemessene Produktfläche',
+  mockups_coverage: 'Abdeckung durch das Design',
+  mockups_design: 'Design',
+  mockups_fullsize: 'In voller Größe ansehen',
+  mockups_produkt_poster: 'Poster / Druck',
+  mockups_produkt_tasse: 'Tasse',
+  mockups_t1_name: 'Poster im schwarzen Rahmen mit Passepartout',
+  mockups_t2_name: 'Poster im Eichenrahmen',
+  mockups_t3_name: 'Tasse, Griff rechts',
+  mockups_t4_name: 'Tasse, Griff links',
+  mockups_free:
+    'Kein KI-Aufruf, keine Einheit, 0 €. Nichts veröffentlicht — die Seite zeigt die Vorschau-Fassung.',
+
 } as const;
