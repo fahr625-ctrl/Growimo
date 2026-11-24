@@ -12,86 +12,145 @@ export const Route = createFileRoute('/designs')({
 });
 
 /**
- * Fünf eigenständige Pin-Designs (2026-11-23).
+ * Fünf Pin-Designs, Runde 2 (2026-11-24).
  *
  * Alle Bilder sind echte Renderer-Ausgaben (`renderPinPng`, sharp,
- * deterministisch): kein KI-Aufruf, keine Einheit, 0 €, nichts live. Je Design
- * steht das Bild in seiner eigenen Farbwelt UND dieselbe Gestaltung in einer
- * neutralen Farbwelt (Anthrazit/Weiß) daneben — der Nachweis, dass die
- * Gestaltung nicht an einer warmen Kerzen-Palette hängt.
+ * deterministisch): kein KI-Aufruf, keine Einheit, 0 €, nichts live.
+ * Jedes Design steht auf denselben drei vorhandenen Produktbildern (Kerze,
+ * Poster im Rahmen, Tasse). Die Tasse ergibt für ALLE fünf Designs kein Bild:
+ * der Zuschnitt verletzt die Regel „leere Fläche ≤ 30 %" (34,5 % gemessen) —
+ * fail-closed, dokumentiert statt gelockert.
  */
-interface Design {
+interface Variante {
+  label: string;
   datei: string;
+}
+
+interface Design {
+  id: string;
   name: string;
   art: 'ruhig' | 'auffällig';
   beschreibung: string;
-  produktarten: string;
   schrift: string;
   farbwelt: string;
   position: string;
   flaeche: string;
+  produktarten: string;
+  /** Kerze, Poster, Tasse — in dieser Reihenfolge. */
+  bilder: (Variante | null)[];
+  /** Vorher/Nachher nur für Signal und Kontrast. */
+  vorher?: { titel: string; werte: string[] };
+  zusatz?: Variante;
 }
+
+const KERZE = { label: 'Kerze', datei: 'kerze' };
+const POSTER = { label: 'Poster im Rahmen', datei: 'poster' };
+const TASSE = { label: 'Tasse', datei: 'tasse' };
 
 const DESIGNS: Design[] = [
   {
-    datei: 'editorial',
+    id: 'editorial',
     name: 'Editorial',
     art: 'ruhig',
     beschreibung:
       'Serif-Überschrift mit Sans-Unterzeile auf einer hellen Fläche im unteren Drittel; einziger Akzent ist eine feine Haarlinie. Kein Rahmen, keine Großbuchstaben.',
-    produktarten: 'Schmuck, Keramik, Kosmetik, Prints, digitale Downloads',
     schrift: 'Serif + Sans',
     farbwelt: 'helle Fläche, dunkler Text, Akzent Graphit',
     position: 'unten links, Fläche bis zur Unterkante',
     flaeche: 'randloses Band mit weichem Verlauf oben + Haarlinie',
+    produktarten: 'Schmuck, Keramik, Kosmetik, Prints, digitale Downloads',
+    bilder: [
+      { ...KERZE, datei: 'editorial-kerze-1000x1500.png' },
+      { ...POSTER, datei: 'editorial-poster-1000x1500.png' },
+      null,
+    ],
   },
   {
-    datei: 'galerie',
+    id: 'galerie',
     name: 'Galerie',
     art: 'ruhig',
     beschreibung:
       'Sans-Überschrift mit Serif-Unterzeile, zentriert auf einer schwebenden weißen Karte mit feiner Innenlinie — wie ein Passepartout auf dem Foto.',
-    produktarten: 'Prints, Fotokunst, digitale Downloads, Schmuck, Keramik',
     schrift: 'Sans + Serif',
     farbwelt: 'weiße Karte, dunkler Text, Akzent Kühlgrau',
     position: 'unten mittig, Karte berührt keine Kante',
     flaeche: 'schwebende Karte mit Haarlinien-Rahmen',
+    produktarten: 'Prints, Fotokunst, digitale Downloads, Schmuck, Keramik',
+    bilder: [
+      { ...KERZE, datei: 'galerie-kerze-1000x1500.png' },
+      { ...POSTER, datei: 'galerie-poster-1000x1500.png' },
+      null,
+    ],
   },
   {
-    datei: 'atelier',
+    id: 'atelier',
     name: 'Atelier',
     art: 'ruhig',
     beschreibung:
       'Serif-Überschrift mit Mono-Eyebrow: die Unterzeile steht über der Überschrift, auf einem Papierband mit schräger Oberkante. Ein kurzer Akzentstrich leitet die Zeile ein.',
-    produktarten: 'Keramik, Möbel, Taschen, Werkstatt- und Manufaktur-Produkte',
     schrift: 'Serif + Mono (Unterzeile als Eyebrow)',
     farbwelt: 'kühles Papier, dunkler Text, Akzent Blaugrau',
     position: 'unten links, Unterzeile ÜBER der Überschrift',
     flaeche: 'Papierband mit schräger Oberkante + Akzentstrich',
+    produktarten: 'Keramik, Möbel, Taschen, Werkstatt- und Manufaktur-Produkte',
+    bilder: [
+      { ...KERZE, datei: 'atelier-kerze-1000x1500.png' },
+      { ...POSTER, datei: 'atelier-poster-1000x1500.png' },
+      null,
+    ],
   },
   {
-    datei: 'signal',
+    id: 'signal',
     name: 'Signal',
     art: 'auffällig',
     beschreibung:
-      'Fette Sans in Großbuchstaben mit Sperrung und Mono-Unterzeile auf einer schwebenden dunklen Leiste. Das einzige Farbelement ist ein schmaler Akzentbalken mit Quadrat — der frühere große Farbblock ist weg.',
-    produktarten: 'Kleidung, Kosmetik, Socken, Deko mit klarer Botschaft',
+      'Fette Sans in Großbuchstaben mit Sperrung und Mono-Unterzeile auf einer schwebenden dunklen Leiste, die nur noch so breit ist wie der Text. Das einzige Farbelement ist ein dünner Akzentbalken mit Quadrat.',
     schrift: 'Sans in Großbuchstaben + Mono',
     farbwelt: 'dunkle Leiste, weiße Schrift, Akzent Signalrot',
-    position: 'unten links, Leiste randabständig und schwebend',
-    flaeche: 'schwebende Leiste + Balken und Quadrat (kein Block)',
+    position: 'unten links, Leiste folgt dem Text statt der Bildbreite',
+    flaeche: 'schwebende Leiste in Textbreite, ohne Kante + dünner Balken',
+    produktarten: 'Kleidung, Kosmetik, Socken, Deko mit klarer Botschaft',
+    bilder: [
+      { ...KERZE, datei: 'signal-kerze-1000x1500.png' },
+      { ...POSTER, datei: 'signal-poster-1000x1500.png' },
+      null,
+    ],
+    vorher: {
+      titel: 'Runde 2: Kasten kleiner, Schrift führt',
+      werte: [
+        'Kastenfläche: 31,1 % der Pin-Fläche (920 × 507 px, volle Breite) → 15,6 % (538 × 436 px, Textbreite)',
+        'Innenabstand 24/20 px, Abstand zum Bildrand 56 px — der Rand ist größer als der Kastenrand',
+        'Kontrast Text/Kasten unverändert 11,74 : 1 (vorher wie nachher, Schwelle 4,5 : 1)',
+        'Akzentbalken 120 × 10 px → 96 × 7 px, Quadrat 20 → 14 px',
+      ],
+    },
+    zusatz: { label: 'Andere Farbwelt (Beleg der Anpassbarkeit)', datei: 'signal-kerze-palette-1000x1500.png' },
   },
   {
-    datei: 'kontrast',
+    id: 'kontrast',
     name: 'Kontrast',
     art: 'auffällig',
     beschreibung:
-      'Mono-Überschrift in Großbuchstaben, rechtsbündig unten rechts auf einem weichen dunklen Verlauf in der Ecke; an der rechten Bildkante ein schmales Akzentband. Plakativ, ohne Farbfläche.',
-    produktarten: 'Prints, Poster, digitale Downloads, Streetwear, Gadgets',
+      'Mono-Überschrift in Großbuchstaben, rechtsbündig unten rechts auf einer dunklen Fläche, die nur an Ober- und linkem Rand kurz ausläuft; an der rechten Bildkante ein schmales Akzentband. Die Bildmitte bleibt frei.',
     schrift: 'Mono in Großbuchstaben + Sans',
-    farbwelt: 'dunkler Eckverlauf, weiße Schrift, Akzent Blau',
+    farbwelt: 'dunkle Fläche (88 % Deckkraft), weiße Schrift, Akzent Blau',
     position: 'unten rechts, rechtsbündig',
-    flaeche: 'weicher Eckverlauf ohne harte Kante + Band an der Bildkante',
+    flaeche: 'kurze Auslaufkante oben/links statt Ganzbild-Verlauf + Band',
+    produktarten: 'Prints, Poster, digitale Downloads, Streetwear, Gadgets',
+    bilder: [
+      { ...KERZE, datei: 'kontrast-kerze-1000x1500.png' },
+      { ...POSTER, datei: 'kontrast-poster-1000x1500.png' },
+      null,
+    ],
+    vorher: {
+      titel: 'Runde 2: Verlauf zurückgenommen, Produkt bleibt hell',
+      werte: [
+        'Helligkeit im Produktbereich: vorher −27,5 % gegenüber dem Quellbild → nachher 0,1 % (Grenze −12 %)',
+        'Fläche: 51,9 % der Pin-Fläche (Verlauf über das ganze Bild) → 20,3 %',
+        'Kontrast Text/Fläche: 5,29 : 1 → 9,71 : 1 (Deckkraft 88 %, Schwelle 4,5 : 1)',
+      ],
+    },
+    zusatz: { label: 'Andere Farbwelt (Beleg der Anpassbarkeit)', datei: 'kontrast-kerze-palette-1000x1500.png' },
   },
 ];
 
@@ -104,20 +163,19 @@ function DesignsPage() {
         <h1 className="text-2xl font-bold sm:text-3xl">Fünf Pin-Designs</h1>
         <p className="mt-3 max-w-3xl text-sm leading-relaxed text-neutral-700">
           Alle Bilder sind echte Ausgaben des Pin-Renderers (1000 × 1500 px): kein KI-Aufruf, keine
-          Einheit, nichts veröffentlicht. Derselbe Text bei allen fünf, damit der Unterschied an der
-          Gestaltung liegt: „Handgefertigte Unikate aus der Werkstatt" mit „Jedes Stück ein
-          Einzelstück."
+          Einheit, nichts veröffentlicht. Derselbe Text bei allen Bildern, damit der Unterschied an
+          der Gestaltung liegt: „Deine Idee, fertig für Pinterest" mit „In wenigen Klicks zum
+          eigenen Pin." — bewusst ohne Material-, Herstellungs- oder Mengenangaben.
         </p>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-neutral-700">
-          Je Design steht rechts die <strong>neutrale Farbwelt-Probe</strong> (Anthrazit/Weiß, ohne
-          jeden warmen Ton) — sie zeigt, dass die Gestaltung nicht an einer Kerzen-Palette hängt.
-          Zuschnitt: Das Produkt bleibt vollständig im Bild, keine leere Fläche über 30 Prozent;
-          verletzt ein Ausschnitt eine Regel, wird er verworfen.
+          Jedes Design steht auf drei <strong>vorhandenen</strong> Produktbildern: Kerze, Poster im
+          Rahmen, Tasse. Der Zuschnitt wird am Produkt gemessen; verletzt ein Ausschnitt eine Regel
+          (Produkt nicht vollständig oder mehr als 30 Prozent leere Fläche), entsteht kein Bild.
         </p>
 
         <div className="mt-8 space-y-10">
           {DESIGNS.map((d) => (
-            <section key={d.datei} className="rounded-2xl bg-white p-4 shadow-sm">
+            <section key={d.id} className="rounded-2xl bg-white p-4 shadow-sm">
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <h2 className="text-lg font-bold">{d.name}</h2>
                 <span
@@ -128,35 +186,70 @@ function DesignsPage() {
                   {d.art}
                 </span>
               </div>
-              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-neutral-700">
-                {d.beschreibung}
-              </p>
-              <div className="mt-3 grid gap-4 sm:grid-cols-2">
-                {(['farbwelt', 'neutral'] as const).map((variante) => {
-                  const datei = `${d.datei}-${variante}-1000x1500.png`;
-                  return (
-                    <figure key={datei}>
+              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-neutral-700">{d.beschreibung}</p>
+
+              <div className="mt-3 grid gap-4 sm:grid-cols-3">
+                {d.bilder.map((variante, i) => (
+                  <figure key={variante?.datei ?? `leer-${i}`}>
+                    {variante ? (
                       <button
                         type="button"
-                        onClick={() => setGross(datei)}
+                        onClick={() => setGross(variante.datei)}
                         className="block w-full cursor-zoom-in"
                         title="Groß ansehen"
                       >
                         <img
-                          src={`/design-bilder/${datei}`}
-                          alt={`${d.name} (${variante === 'neutral' ? 'neutrale Farbwelt' : 'eigene Farbwelt'})`}
+                          src={`/design-bilder-neu/${variante.datei}`}
+                          alt={`${d.name} auf ${variante.label}`}
                           width={1000}
                           height={1500}
                           className="h-auto w-full rounded-lg"
                         />
                       </button>
-                      <figcaption className="mt-1 text-[11px] text-neutral-500">
-                        {variante === 'neutral' ? 'Neutrale Farbwelt-Probe (Anthrazit/Weiß)' : 'Eigene Farbwelt des Designs'}
-                      </figcaption>
-                    </figure>
-                  );
-                })}
+                    ) : (
+                      <div className="flex aspect-[2/3] items-center justify-center rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4 text-center text-[12px] leading-relaxed text-neutral-600">
+                        Tasse: kein Bild. Der Zuschnitt hält das Produkt nicht vollständig im Bild,
+                        ohne mehr als 30 % leere Fläche zu lassen (gemessen 34,5 %) — fail-closed.
+                      </div>
+                    )}
+                    <figcaption className="mt-1 text-[11px] text-neutral-500">
+                      {variante ? variante.label : 'Tasse — verworfen'}
+                    </figcaption>
+                  </figure>
+                ))}
               </div>
+
+              {d.vorher ? (
+                <div className="mt-4 rounded-xl bg-neutral-50 p-3">
+                  <p className="text-[13px] font-semibold text-neutral-900">{d.vorher.titel}</p>
+                  <ul className="mt-1 list-disc pl-5 text-[13px] leading-relaxed text-neutral-700">
+                    {d.vorher.werte.map((w) => (
+                      <li key={w}>{w}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {d.zusatz ? (
+                <figure className="mt-4 max-w-[220px]">
+                  <button
+                    type="button"
+                    onClick={() => setGross(d.zusatz!.datei)}
+                    className="block w-full cursor-zoom-in"
+                    title="Groß ansehen"
+                  >
+                    <img
+                      src={`/design-bilder-neu/${d.zusatz.datei}`}
+                      alt={`${d.name} in anderer Farbwelt`}
+                      width={1000}
+                      height={1500}
+                      className="h-auto w-full rounded-lg"
+                    />
+                  </button>
+                  <figcaption className="mt-1 text-[11px] text-neutral-500">{d.zusatz.label}</figcaption>
+                </figure>
+              ) : null}
+
               <dl className="mt-3 grid gap-1 text-[13px] text-neutral-700 sm:grid-cols-2">
                 <div>
                   <dt className="inline font-semibold">Schriftpaar: </dt>
@@ -191,7 +284,7 @@ function DesignsPage() {
           className="fixed inset-0 z-50 flex cursor-zoom-out items-center justify-center bg-black/85 p-4"
         >
           <img
-            src={`/design-bilder/${gross}`}
+            src={`/design-bilder-neu/${gross}`}
             alt="Pin-Design in voller Größe"
             className="max-h-full max-w-full rounded-lg"
           />

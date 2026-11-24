@@ -16,13 +16,13 @@ import { MOCKUP_VORLAGEN, type MockupVorlageId } from '../src/lib/mockup/vorlage
 
 const BELEG_DIR = '/home/team/shared/mockups-2026-11-24';
 const VORSCHAU_DIR = path.join(process.cwd(), 'public', 'mockup-vorschau');
-const DESIGN_DIR = path.join(process.cwd(), 'public', 'design-bilder');
+const DESIGN_DIR = path.join(process.cwd(), 'public', 'design-bilder-neu');
 
 const ZUORDNUNG: { vorlage: MockupVorlageId; design: string }[] = [
-  { vorlage: 'poster-schwarz-passepartout', design: 'editorial-farbwelt-1000x1500.png' },
-  { vorlage: 'poster-eiche', design: 'galerie-farbwelt-1000x1500.png' },
-  { vorlage: 'tasse-griff-rechts', design: 'signal-farbwelt-1000x1500.png' },
-  { vorlage: 'tasse-griff-links', design: 'kontrast-farbwelt-1000x1500.png' },
+  { vorlage: 'poster-schwarz-passepartout', design: 'editorial-kerze-1000x1500.png' },
+  { vorlage: 'poster-eiche', design: 'galerie-kerze-1000x1500.png' },
+  { vorlage: 'tasse-griff-rechts', design: 'signal-kerze-1000x1500.png' },
+  { vorlage: 'tasse-griff-links', design: 'kontrast-kerze-1000x1500.png' },
 ];
 
 await mkdir(BELEG_DIR, { recursive: true });

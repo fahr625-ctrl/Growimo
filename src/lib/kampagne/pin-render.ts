@@ -237,6 +237,18 @@ interface LayoutSpec {
   widthBound?: boolean;
   /** Feste Breite der Textfläche (px) — nur bei `bottom-corner`. */
   stripe?: { solid: number; fade: number };
+  /**
+   * Eigener Innenabstand der Textfläche (2026-11-24, Owner-Befund „Kasten zu
+   * wuchtig" bei Signal). Ohne Angabe gilt die allgemeine Formel
+   * `28 + 0,18 × Schriftgröße` / `26 + 0,12 × Schriftgröße`.
+   */
+  pad?: { x: number; y: number };
+  /**
+   * Deckkraft der Fläche, wenn sie ein VERLAUF ist (2026-11-24, Kontrast).
+   * Ohne Angabe gilt `PANEL_OPACITY` (deckend). Der Verlauf bei Kontrast darf
+   * zurückgenommen werden, weil er ohnehin nur noch unter dem Text liegt.
+   */
+  scrimOpacity?: number;
 }
 
 const LAYOUTS: Record<PinLayoutId, LayoutSpec> = {
@@ -413,9 +425,13 @@ const LAYOUTS: Record<PinLayoutId, LayoutSpec> = {
     accentColor: '#E23D28',
     uppercase: true,
     letterSpacing: 3,
-    bar: { width: 120, height: 10, gap: 40, chip: 20 },
+    // 2026-11-24 (Owner: „Kasten zu wuchtig, Schrift soll führen"): Der Balken
+    // ist dünner, der Innenabstand kleiner als der Abstand zum Bildrand, und die
+    // Leiste ist nur noch so breit wie der Text (siehe `scrimLayerSvg`).
+    bar: { width: 96, height: 7, gap: 30, chip: 14 },
+    pad: { x: 24, y: 20 },
     bandTopFrac: 0.55,
-    bottomInset: 140,
+    bottomInset: 132,
     productCrop: true,
   },
   // ── Design 5 — „Kontrast" (auffällig) ─────────────────────────────────────
@@ -441,8 +457,13 @@ const LAYOUTS: Record<PinLayoutId, LayoutSpec> = {
     uppercase: true,
     letterSpacing: 1,
     ribbon: { width: 16 },
+    // 2026-11-24 (Owner: „Verlauf legt sich zu stark über das Produkt"): Der
+    // Verlauf ist kein Ganzbild-Verlauf mehr, sondern eine kurze Kante direkt
+    // über und links vom Text; das Produkt in der Bildmitte bleibt unberührt.
+    // Die Deckkraft darf zurück, weil unter dem Text weiterhin volle Fläche liegt.
+    scrimOpacity: 0.88,
     bandTopFrac: 0.55,
-    bottomInset: 120,
+    bottomInset: 70,
     productCrop: true,
   },
 };
@@ -1239,38 +1260,66 @@ function scrimLayerSvg(
       `<polygon points="0,${bandTopLeft} ${PIN_WIDTH},${bandTopLeft - slant} ${PIN_WIDTH},${PIN_HEIGHT} 0,${PIN_HEIGHT}" ${fill} fill-opacity="${PANEL_OPACITY}" />` +
       `<rect x="${g.spec.marginX}" y="${accentY}" width="64" height="5" fill="${accent}" />`;
   } else if (g.spec.scrim === 'signal-bar') {
-    // Design „Signal" (2026-11-23, zurückgebauter bold-block): KEIN großer
-    // Farbblock mehr. Eine randabständige, schwebende dunkle Leiste trägt den
-    // Text; das einzige Farbelement ist ein schmaler Balken mit Quadrat.
-    const bar = g.spec.bar ?? { width: 120, height: 10, gap: 40, chip: 20 };
-    const inset = 40;
-    const stripTop = Math.max(SAFE_MARGIN, Math.round(panel.y) - 58);
-    // Die Leiste umschließt den Text mit normalem Abstand und schwebt über dem
-    // unteren Rand — kein toter Bereich unter der Unterzeile, keine Fläche, die
-    // dem Produkt die Aufmerksamkeit nimmt.
+    // Design „Signal" (2026-11-23, zurückgebauter bold-block; 2026-11-24
+    // verkleinert): KEIN großer Farbblock. Eine schwebende dunkle Leiste trägt
+    // den Text; das einzige Farbelement ist ein dünner Balken mit Quadrat.
+    //
+    // Owner-Befund 24.11. „Kasten zu wuchtig, die Schrift soll führen":
+    //   • die Leiste ist nur noch so breit wie der TEXT (nicht mehr die volle
+    //     Bildbreite) — links und rechts bleibt der gemessene Innenrand,
+    //   • der Innenrand ist kleiner als der Abstand zum Bildrand (Ruhe statt
+    //     Block: 24 px innen, mindestens 56 px außen),
+    //   • keine Kante, keine Transparenz — die Fläche bleibt deckend, damit der
+    //     Kontrast unabhängig vom Foto über 4,5 : 1 bleibt.
+    // Die Leiste folgt weiterhin Textposition (`align`), Textfarbe, Flächenfarbe
+    // und Schrift des Nutzers: sie wird aus der GEMESSENEN Textbox abgeleitet.
+    const bar = g.spec.bar ?? { width: 96, height: 7, gap: 30, chip: 14 };
+    const padX = g.spec.pad?.x ?? 24;
+    const outer = 56;
+    const textLeft = Math.round(panel.x + padX);
+    const textRight = Math.round(panel.x + panel.width - padX);
+    const stripLeft = Math.max(outer, textLeft - 28);
+    const stripRight = Math.min(PIN_WIDTH - outer, Math.max(textLeft + 300, textRight + 28));
+    const stripTop = Math.max(SAFE_MARGIN, Math.round(panel.y) - (bar.height + bar.gap));
     const stripBottom = Math.min(
-      PIN_HEIGHT - inset,
-      Math.round(panel.y + panel.height) + 48,
+      PIN_HEIGHT - SAFE_MARGIN,
+      Math.round(panel.y + panel.height) + 26,
     );
-    const barY = Math.max(SAFE_MARGIN, stripTop + 32);
+    const barX = Math.max(stripLeft + 10, Math.round(panel.x));
+    const barY = stripTop + 12;
     body =
-      `<rect x="${inset}" y="${stripTop}" width="${PIN_WIDTH - 2 * inset}" height="${Math.max(80, stripBottom - stripTop)}" ${fill} fill-opacity="${PANEL_OPACITY}" />` +
-      `<rect x="${inset + 44}" y="${barY}" width="${bar.width}" height="${bar.height}" fill="${accent}" />` +
-      `<rect x="${inset + 44 + bar.width + 20}" y="${barY - Math.round((bar.chip - bar.height) / 2)}" width="${bar.chip}" height="${bar.chip}" fill="${accent}" />`;
+      `<rect x="${stripLeft}" y="${stripTop}" width="${stripRight - stripLeft}" height="${Math.max(80, stripBottom - stripTop)}" ${fill} fill-opacity="${PANEL_OPACITY}" />` +
+      `<rect x="${barX}" y="${barY}" width="${bar.width}" height="${bar.height}" fill="${accent}" />` +
+      `<rect x="${barX + bar.width + 16}" y="${barY - Math.round((bar.chip - bar.height) / 2)}" width="${bar.chip}" height="${bar.chip}" fill="${accent}" />`;
   } else if (g.spec.scrim === 'kontrast-ribbon') {
-    // Design „Kontrast" (2026-11-23): weicher dunkler Verlauf in der unteren
-    // rechten Ecke (kein harter Rand) + ein schmales Akzentband an der rechten
-    // Bildkante im Bereich des Textes. Farbe nur als Kante, nicht als Fläche.
+    // Design „Kontrast" (2026-11-23; Verlauf 2026-11-24 zurückgenommen).
+    //
+    // VORHER lag ein Verlauf über dem GANZEN Bild (0 → 100 % Deckkraft entlang
+    // der Diagonale): er dunkelte auch die Bildmitte ab, also das Produkt.
+    // JETZT liegt unter dem Text eine deckende Fläche, die nur noch an ihrer
+    // OBERKANTE und LINKEN KANTE kurz ausläuft (je 96 px, über der Wand statt
+    // über dem Produkt). Alles, was den Text berührt, ist voll deckend — der
+    // Text erreicht damit weiter ≥ 4,5 : 1, ohne dass das Produkt abgedunkelt
+    // wird. Das schmale Akzentband an der rechten Bildkante bleibt.
     const ribbon = g.spec.ribbon ?? { width: 16 };
-    const gx1 = Math.max(0, Math.round(panel.x) - 260);
-    const gy1 = Math.max(0, Math.round(panel.y) - 260);
+    const opacity = Math.min(1, Math.max(0.2, g.spec.scrimOpacity ?? PANEL_OPACITY));
+    const fade = 60;
+    const boxLeft = Math.max(0, Math.round(panel.x) - 18);
+    const boxTop = Math.max(SAFE_MARGIN, Math.round(panel.y) - 18);
     body =
-      `<defs><linearGradient id="gKr" gradientUnits="userSpaceOnUse" x1="${gx1}" y1="${gy1}" x2="${PIN_WIDTH - 40}" y2="${PIN_HEIGHT - 40}">
-        <stop offset="0%" stop-color="${panelColor}" stop-opacity="0" />
-        <stop offset="62%" stop-color="${panelColor}" stop-opacity="${PANEL_OPACITY}" />
-        <stop offset="100%" stop-color="${panelColor}" stop-opacity="${PANEL_OPACITY}" />
-      </linearGradient></defs>` +
-      `<rect x="0" y="0" width="${PIN_WIDTH}" height="${PIN_HEIGHT}" fill="url(#gKr)" />` +
+      `<defs>` +
+      `<linearGradient id="gKrOben" x1="0" y1="0" x2="0" y2="1">` +
+      `<stop offset="0%" stop-color="${panelColor}" stop-opacity="0" />` +
+      `<stop offset="100%" stop-color="${panelColor}" stop-opacity="${opacity}" />` +
+      `</linearGradient>` +
+      `<linearGradient id="gKrLinks" x1="0" y1="0" x2="1" y2="0">` +
+      `<stop offset="0%" stop-color="${panelColor}" stop-opacity="0" />` +
+      `<stop offset="100%" stop-color="${panelColor}" stop-opacity="${opacity}" />` +
+      `</linearGradient>` +
+      `</defs>` +
+      `<rect x="${boxLeft}" y="${Math.max(0, boxTop - fade)}" width="${PIN_WIDTH - boxLeft}" height="${fade}" fill="url(#gKrOben)" />` +
+      `<rect x="${Math.max(0, boxLeft - fade)}" y="${boxTop}" width="${fade}" height="${PIN_HEIGHT - boxTop}" fill="url(#gKrLinks)" />` +
+      `<rect x="${boxLeft}" y="${boxTop}" width="${PIN_WIDTH - boxLeft}" height="${PIN_HEIGHT - boxTop}" ${fill} fill-opacity="${opacity}" />` +
       `<rect x="${PIN_WIDTH - ribbon.width}" y="0" width="${ribbon.width}" height="${PIN_HEIGHT}" fill="${accent}" />`;
   } else {
     // Seitenstreifen im unteren Bildviertel: FESTE Breite, Höhe ab der
@@ -1356,6 +1405,43 @@ function measureContrast(
   };
 }
 
+/**
+ * Gezeichnete Textfläche messen (2026-11-24): Hüllrechteck aller Pixel mit
+ * Deckkraft > 0 und die deckkraft-gewichtete Fläche in Prozent der Pin-Fläche.
+ */
+async function measureScrimArea(
+  sharp: SharpFactory,
+  scrimPng: Buffer,
+): Promise<{ box: Rect | null; share: number }> {
+  const { data, info } = await sharp(scrimPng)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const channels = info.channels;
+  let left = info.width;
+  let top = info.height;
+  let right = -1;
+  let bottom = -1;
+  let sum = 0;
+  for (let y = 0; y < info.height; y++) {
+    for (let x = 0; x < info.width; x++) {
+      const a = data[(y * info.width + x) * channels + 3];
+      if (a === 0) continue;
+      sum += a / 255;
+      if (x < left) left = x;
+      if (x > right) right = x;
+      if (y < top) top = y;
+      if (y > bottom) bottom = y;
+    }
+  }
+  const share = Math.round((sum / (info.width * info.height)) * 10000) / 100;
+  if (right < 0) return { box: null, share: 0 };
+  return {
+    box: { x: left, y: top, width: right - left + 1, height: bottom - top + 1 },
+    share,
+  };
+}
+
 export interface PinRenderResult {
   png: Buffer;
   width: number;
@@ -1398,6 +1484,13 @@ export interface PinRenderResult {
   productCrop: ProductCropReport | null;
   /** Deckende Textfläche (Foto-Koordinaten) — Beleg für den Motivschutz. */
   panel: Rect;
+  /**
+   * Tatsächlich gezeichnete Textfläche (2026-11-24): Hüllrechteck aller Pixel
+   * mit Deckkraft > 0 und die deckkraft-gewichtete Fläche in Prozent der
+   * Pin-Fläche. Nur so ist „der Kasten ist kleiner geworden" messbar — die
+   * Textbox allein sagt nichts über die gezeichnete Fläche.
+   */
+  scrim: { box: Rect | null; share: number };
   /** Logoplatzierung im Pin (null = kein Logo) — Beleg für die SPEC-Grenzen. */
   logo: { top: number; left: number; width: number; height: number } | null;
 }
@@ -1594,8 +1687,8 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
     return pickPanelColor(brandPrimary, textColor, layoutPanel);
   };
 
-  const padX = Math.round(28 + geometryUsed.titleSize * 0.18);
-  const padY = Math.round(26 + geometryUsed.titleSize * 0.12);
+  const padX = layoutSpec.pad?.x ?? Math.round(28 + geometryUsed.titleSize * 0.18);
+  const padY = layoutSpec.pad?.y ?? Math.round(26 + geometryUsed.titleSize * 0.12);
   const panel = panelRect(textLayer.box, padX, padY);
 
   // 4) Foto auf das Pin-Format bringen (EXIF-Rotation beachten) — mit dem
@@ -1676,6 +1769,9 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
   const textColor = chosen.color;
   const panelColor = chosen.panelColor;
   const scrimPng = chosen.scrimPng;
+  // 5b) Gezeichnete Fläche messen (2026-11-24) — Beleg für „der Kasten ist
+  //     kleiner geworden", unabhängig von der Textbox.
+  const scrim = await measureScrimArea(sharp, scrimPng);
   const contrast = chosen.contrast;
   const textLayerUsed = chosen.layer;
   const contrastAdjusted = textColor.toLowerCase() !== requestedTextColor.toLowerCase();
@@ -1747,6 +1843,7 @@ export async function renderPinPng(input: PinRenderInput): Promise<PinRenderResu
     crop,
     productCrop: productCropReport,
     panel,
+    scrim,
     logo: logoPlacement,
   };
 }
