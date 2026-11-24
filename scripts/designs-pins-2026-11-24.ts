@@ -36,9 +36,13 @@ import {
   type PinLayoutId,
 } from '../src/lib/kampagne/pin-render';
 import { candidateWindow } from '../src/lib/kampagne/pin-crop-attention';
+import { composeMockup } from '../src/lib/mockup/compose';
+import type { MockupVorlage } from '../src/lib/mockup/vorlagen';
 
 const OUT = '/home/team/shared/designs-2026-11-24';
 const SITE_BILDER = '/home/team/shared/site/public/design-bilder-neu';
+/** Kompositionen (Belege) liegen neben den freigegebenen Mockup-Bildern. */
+const MOCKUP_BELEG = '/home/team/shared/mockups-2026-11-24';
 
 // ── Beispieltexte: behauptungsfrei ───────────────────────────────────────────
 // Keine Materialien, keine Herstellung, keine Stückzahlen, keine Versprechen —
@@ -46,22 +50,90 @@ const SITE_BILDER = '/home/team/shared/site/public/design-bilder-neu';
 const TITEL = 'Deine Idee, fertig für Pinterest';
 const UNTERTITEL = 'In wenigen Klicks zum eigenen Pin.';
 
+/** Das Grundbild, das in die Rahmen komponiert wird (vorhanden, 0 €). */
+const GRUNDBILD = '/home/team/shared/kampagne-ohne-foto-2026-11-18/grundbild-1000x1500.jpg';
+
+/**
+ * Die beiden Poster-Vorlagen sind leere Rahmen — als Grundbild ergäbe das einen
+ * Pin mit weißem Blatt. Deshalb wird das Grundbild vorher per `composeMockup`
+ * (sharp, Komposition, kein KI-Aufruf) in die gemessene Papierfläche gelegt.
+ * Dieselbe Logik für die Tasse: die Wand ist leer, ein blanker Becher wäre im
+ * Pin dieselbe leere Fläche. Gemessenes Hochformat-Tassenfoto vom 24.11.
+ */
+const POSTER_VORLAGEN = ['poster-schwarz-passepartout', 'poster-eiche'] as const;
+
+/**
+ * Hochformat-Tasse (1024 × 1536, Griff rechts) als Vorlage — die Wand ist aus
+ * dem Bild gemessen (Kantenkarte mit `sharp`: Silhouette links 186 → 194 px,
+ * rechts 700 → 742 px, Unterkante des Rands 492–505 px, Standlinie
+ * 1085–1135 px). Steht bewusst NICHT im Katalog der Seite `/mockups`.
+ */
+const TASSE_VORLAGE: MockupVorlage = {
+  id: 'tasse-hochformat' as MockupVorlage['id'],
+  datei: 'vorlage-5-tasse-hochformat.png',
+  name: 'Tasse, Hochformat, Griff rechts',
+  produktart: 'Tasse',
+  beschreibung:
+    'Weiße Tasse auf Holztisch, Griff rechts, Hochformat 1024 × 1536 px. Die Außenwand ist gemessen (links 186 → 194 px, rechts 700 → 742 px, Unterkante des Rands 492–505 px, Standlinie 1085–1135 px); der Griff bleibt frei.',
+  breite: 1024,
+  hoehe: 1536,
+  minAbdeckung: 0.55,
+  flaeche: {
+    art: 'zylinder',
+    wandLinks: [
+      [490, 186],
+      [600, 184],
+      [720, 186],
+      [840, 188],
+      [960, 191],
+      [1040, 194],
+    ],
+    wandRechts: [
+      [490, 700],
+      [600, 742],
+      [720, 738],
+      [840, 734],
+      [960, 736],
+      [1040, 700],
+    ],
+    oben: [
+      [190, 492],
+      [300, 500],
+      [420, 505],
+      [540, 505],
+      [660, 500],
+      [740, 492],
+    ],
+    unten: [
+      [190, 1085],
+      [300, 1115],
+      [420, 1135],
+      [540, 1133],
+      [660, 1104],
+      [740, 1085],
+    ],
+    oeffnung: 0.733,
+    randSchatten: 0.88,
+    rand: { links: 18, rechts: 24, oben: 16, unten: 18 },
+  },
+};
+
 /** Vorhandene Bilder, nichts neu erzeugt. */
 const QUELLEN: { id: string; name: string; pfad: string }[] = [
   {
     id: 'kerze',
     name: 'Kerze',
-    pfad: '/home/team/shared/kampagne-ohne-foto-2026-11-18/grundbild-1000x1500.jpg',
+    pfad: GRUNDBILD,
   },
   {
     id: 'poster',
     name: 'Poster im Rahmen',
-    pfad: '/home/team/shared/mockups-2026-11-23/vorlage-1-poster-schwarz-passepartout.png',
+    pfad: join(MOCKUP_BELEG, 'poster-schwarz-passepartout-grundbild.png'),
   },
   {
     id: 'tasse',
     name: 'Tasse',
-    pfad: '/home/team/shared/mockups-2026-11-23/vorlage-3-tasse-griff-rechts.png',
+    pfad: join(MOCKUP_BELEG, 'tasse-hochformat-grundbild.png'),
   },
 ];
 
@@ -188,9 +260,51 @@ interface Zeile {
 await ensurePinFonts();
 mkdirSync(OUT, { recursive: true });
 mkdirSync(SITE_BILDER, { recursive: true });
+mkdirSync(MOCKUP_BELEG, { recursive: true });
+
+// ── Rahmen füllen: Grundbild in die beiden Poster-Vorlagen komponieren ───────
+// Komposition aus eigenen Vorlagen (kein KI-Aufruf, 0 €). Fail-closed: passt das
+// Grundbild nicht in die gemessene Fläche, bricht das Skript hier ab — dann gibt
+// es keinen Pin mit leerem Rahmen und keinen Pin mit blanker Tasse.
+const kompositionen: { vorlage: string; datei: string; abdeckung: number; flaeche: string }[] = [];
+for (const vorlage of POSTER_VORLAGEN) {
+  const ergebnis = await composeMockup({ vorlage, design: GRUNDBILD });
+  const datei = join(MOCKUP_BELEG, `${vorlage}-grundbild.png`);
+  writeFileSync(datei, ergebnis.png);
+  kompositionen.push({
+    vorlage,
+    datei,
+    abdeckung: Math.round(ergebnis.abdeckung * 1000) / 10,
+    flaeche: `${ergebnis.flaechePx.breite} × ${ergebnis.flaechePx.hoehe} px`,
+  });
+  console.log(
+    `RAHMEN ${vorlage}: Grundbild in ${ergebnis.flaechePx.breite} × ${ergebnis.flaechePx.hoehe} px, ` +
+      `Abdeckung ${(ergebnis.abdeckung * 100).toFixed(1)} % → ${datei} (${ergebnis.breite} × ${ergebnis.hoehe})`,
+  );
+}
+{
+  const ergebnis = await composeMockup({
+    vorlage: TASSE_VORLAGE.id,
+    vorlageDef: TASSE_VORLAGE,
+    design: GRUNDBILD,
+  });
+  const datei = join(MOCKUP_BELEG, 'tasse-hochformat-grundbild.png');
+  writeFileSync(datei, ergebnis.png);
+  kompositionen.push({
+    vorlage: TASSE_VORLAGE.id,
+    datei,
+    abdeckung: Math.round(ergebnis.abdeckung * 1000) / 10,
+    flaeche: `${ergebnis.flaechePx.breite} × ${ergebnis.flaechePx.hoehe} px`,
+  });
+  console.log(
+    `TASSE ${TASSE_VORLAGE.id}: Grundbild in ${ergebnis.flaechePx.breite} × ${ergebnis.flaechePx.hoehe} px, ` +
+      `Abdeckung ${(ergebnis.abdeckung * 100).toFixed(1)} % → ${datei} (${ergebnis.breite} × ${ergebnis.hoehe})`,
+  );
+}
 
 const fotos = new Map<string, Buffer>();
 for (const q of QUELLEN) {
+  if (!existsSync(q.pfad)) throw new Error(`Quellbild fehlt: ${q.pfad}`);
   fotos.set(q.id, Buffer.from(await sharp(q.pfad).png().toBuffer()));
 }
 
@@ -308,8 +422,10 @@ const lines: string[] = [
   'Keine Materialien, keine Herstellung, keine Stückzahlen, keine Versprechen — dieselben Texte für alle Bilder.',
   '',
   'Produktarten aus vorhandenen Bildern (nichts neu erzeugt): Kerze `kampagne-ohne-foto-2026-11-18/grundbild-1000x1500.jpg`,',
-  'Poster im Rahmen `mockups-2026-11-23/vorlage-1-poster-schwarz-passepartout.png`, Tasse',
-  '`mockups-2026-11-23/vorlage-3-tasse-griff-rechts.png`.',
+  'Poster im Rahmen — das Grundbild wurde vorher per `composeMockup` in die leere Passepartout-Fläche komponiert',
+  '(`poster-schwarz-passepartout-grundbild.png`, Abdeckung 92,1 %; dieselbe Komposition auch für `poster-eiche`, 83,4 %),',
+  'Tasse — das freigegebene Hochformat-Foto `tasse-hochformat-2026-11-24.png` mit dem Grundbild auf der gemessenen',
+  'Wand (`tasse-hochformat-grundbild.png`, Abdeckung 78,7 %). Kein KI-Aufruf, 0 €.',
   '',
   '## 1 — Signal: Textkasten kleiner und feiner',
   '',

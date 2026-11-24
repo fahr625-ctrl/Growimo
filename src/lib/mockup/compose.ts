@@ -42,6 +42,12 @@ export interface ComposeEingabe {
   design: string | Uint8Array;
   /** Vorlagen-Verzeichnis überschreiben (sonst `public/mockup-vorlagen`). */
   vorlagenVerzeichnis?: string;
+  /**
+   * Vorlage direkt übergeben — für eine gemessene Fläche, die nicht im Katalog
+   * der Seite `/mockups` steht (z. B. das Hochformat-Tassenfoto vom 24.11.).
+   * Fehlt das Feld, gilt `vorlage` als Katalog-Kennung.
+   */
+  vorlageDef?: MockupVorlage;
 }
 
 export interface ComposeErgebnis {
@@ -320,7 +326,7 @@ export function platziere(
 }
 
 export async function composeMockup(eingabe: ComposeEingabe): Promise<ComposeErgebnis> {
-  const vorlage = findeVorlage(eingabe.vorlage);
+  const vorlage = eingabe.vorlageDef ?? findeVorlage(eingabe.vorlage);
   if (!vorlage) {
     throw new MockupFehler(
       `Unbekannte Vorlage „${String(eingabe.vorlage)}“. Bekannt: ${MOCKUP_VORLAGEN.map((v) => v.id).join(', ')}.`,

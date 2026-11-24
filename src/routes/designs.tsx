@@ -17,9 +17,12 @@ export const Route = createFileRoute('/designs')({
  * Alle Bilder sind echte Renderer-Ausgaben (`renderPinPng`, sharp,
  * deterministisch): kein KI-Aufruf, keine Einheit, 0 €, nichts live.
  * Jedes Design steht auf denselben drei vorhandenen Produktbildern (Kerze,
- * Poster im Rahmen, Tasse). Die Tasse ergibt für ALLE fünf Designs kein Bild:
- * der Zuschnitt verletzt die Regel „leere Fläche ≤ 30 %" (34,5 % gemessen) —
- * fail-closed, dokumentiert statt gelockert.
+ * Poster im Rahmen, Tasse). Poster und Tasse sind Kompositionen aus eigenen
+ * Vorlagen (`composeMockup`): das Grundbild liegt im Passepartout bzw. auf der
+ * gemessenen Tassenwand — kein KI-Aufruf, 0 €. Die Tasse ergibt für ALLE fünf
+ * Designs kein Bild: der Zuschnitt verletzt die Regel „leere Fläche ≤ 30 %"
+ * (bestes Fenster mit vollständiger Tasse: 33,5 % gemessen) — fail-closed,
+ * dokumentiert statt gelockert.
  */
 interface Variante {
   label: string;
@@ -207,8 +210,8 @@ function DesignsPage() {
                       </button>
                     ) : (
                       <div className="flex aspect-[2/3] items-center justify-center rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4 text-center text-[12px] leading-relaxed text-neutral-600">
-                        Tasse: kein Bild. Der Zuschnitt hält das Produkt nicht vollständig im Bild,
-                        ohne mehr als 30 % leere Fläche zu lassen (gemessen 34,5 %) — fail-closed.
+                        Tasse: kein Bild. Die Tasse ist vollständig im Bild, aber das beste Fenster lässt
+                        33,5 % leere Fläche (Grenze 30 %) — fail-closed.
                       </div>
                     )}
                     <figcaption className="mt-1 text-[11px] text-neutral-500">
