@@ -2229,14 +2229,14 @@ export const en: EnShape = {
   lp_feature_pinterest_title: 'Pinterest',
   lp_feature_pinterest_desc:
     'SEO title, description and keywords for one pin — fully written, ready to copy.',
-  lp_feature_pinterest_status: 'Copy ready · pin images in the campaign',
+  lp_feature_pinterest_status: 'Live · copy and pin images via the campaign',
   lp_feature_etsy_title: 'Etsy',
   lp_feature_etsy_desc: 'Listing title, sales-oriented description and exactly 13 valid tags.',
-  lp_feature_etsy_status: 'Copy ready · mockup in development',
+  lp_feature_etsy_status: 'Live · copy · mockup ready in preview',
   lp_feature_tiktok_title: 'TikTok',
   lp_feature_tiktok_desc:
     'Video script with hook, timed scenes, spoken lines, title, description and exactly 5 hashtags.',
-  lp_feature_tiktok_status: 'Fully available',
+  lp_feature_tiktok_status: 'Live · script, no video',
 
   lp_examples_headline: 'Three real example results',
   lp_examples_sub:
@@ -2263,7 +2263,7 @@ export const en: EnShape = {
   lp_ex_etsy_tags:
     'soy wax candle·candle in a jar·autumn scent·candle gift·handmade·scented candle·cinnamon candle·vanilla candle·fir candle·candle present·autumn decor·soy wax·candle',
   lp_ex_etsy_soon:
-    'Mockup coming — for handmade products Etsy requires a real photo anyway.',
+    'Mockup ready in preview — for handmade products Etsy requires a real photo anyway.',
 
   lp_ex_tt_label: 'TikTok · video script (15 s)',
   lp_ex_tt_title_label: 'Title',
@@ -2275,7 +2275,7 @@ export const en: EnShape = {
   lp_ex_tt_caption: 'Hand-poured soy wax candles in three scents. Which one moves in with you?',
   lp_ex_tt_hashtags_label: 'Exactly 5 hashtags',
   lp_ex_tt_hashtags: '#soywaxcandles·#scentedcandles·#handmade·#autumnnights·#candlelove',
-  lp_ex_tt_ready: 'Fully available — a script, not a video.',
+  lp_ex_tt_ready: 'Live — a script, not a video.',
 
   lp_how_headline: 'How it works',
   lp_how_step1_title: 'Describe',
@@ -2305,13 +2305,13 @@ export const en: EnShape = {
   lp_kar_note_text:
     'Growimo does not publish anything for you. You download the PNG files and post them on Pinterest yourself — title, description and keywords you copy from the draft.',
 
-  lp_soon_headline: 'What is still in development',
+  lp_soon_headline: 'What is not live yet',
   lp_soon_pinterest:
     'Publishing straight to Pinterest. Until then you download the pin PNGs and post them yourself.',
   lp_soon_etsy:
-    'The mockup for the Etsy listing. A mockup is not a real product photo and does not replace one.',
+    'The Etsy mockup: ready in preview, not live yet. A mockup is not a real product photo and does not replace one.',
   lp_soon_note:
-    'We promise nothing here that does not work yet. Once image and mockup are ready, it will say so here.',
+    'We promise nothing here that does not work yet. Once a feature is live, it appears under “Live” above.',
 
   lp_faq_headline: 'Frequent questions',
   lp_faq_q1: 'What exactly do I get from Growimo?',
@@ -2322,7 +2322,7 @@ export const en: EnShape = {
     'Yes, through the campaign: your own photo becomes five editable pin drafts as PNG at 1000 × 1500 px — single files or all five as a ZIP. Nothing is published automatically; you download the images and post them on Pinterest yourself.',
   lp_faq_q3: 'Is the Etsy mockup finished?',
   lp_faq_a3:
-    'Not yet, it is in development. For handmade products Etsy requires a real product photo — a mockup is an addition, not a replacement.',
+    'Not live yet: the mockup is ready in preview. For handmade products Etsy requires a real product photo — a mockup is an addition, not a replacement.',
   lp_faq_q4: 'Does Growimo create TikToks or videos?',
   lp_faq_a4:
     'No. You get a script you can act on, with timings, spoken lines, overlays and hashtags. You shoot the video yourself.',
@@ -2355,7 +2355,7 @@ export const en: EnShape = {
 
   home_hero_headline: 'Your idea. Your finished content. In a few clicks.',
   home_hero_sub:
-    'Finished content instead of advice — pin image with SEO copy, Etsy listing and TikTok script.',
+    'Finished content instead of advice — pin image from your own photo with SEO copy, Etsy listing and TikTok script.',
   home_hero_cta_primary: 'Start for free',
   home_hero_cta_secondary: 'See examples',
   home_hero_note: 'Free sign-up, no credit card required.',
@@ -2367,7 +2367,7 @@ export const en: EnShape = {
     'Three designs, two product types: candle and framed poster. Real runs from a demo account.',
   home_gallery_badge: 'Example result',
   home_gallery_note:
-    'All six images are example results from real runs (demo account). Your pins are built from your own product photo.',
+    'All six images are example results from real runs (demo account). Your pins are built from your own product photo. The designs shown are ready in preview, not live yet.',
   home_design_editorial: 'Editorial',
   home_design_atelier: 'Atelier',
   home_design_galerie: 'Galerie',
@@ -2382,35 +2382,52 @@ export const en: EnShape = {
   home_tool_pinterest_item1: 'Pin image as PNG, 1000 × 1500 px',
   home_tool_pinterest_item2: 'SEO title and description to copy',
   home_tool_pinterest_item3: 'Keywords that help the pin get found',
-  home_tool_pinterest_status: 'Pin image in development',
+  home_tool_pinterest_status: 'Live · pin images via the campaign',
   home_tool_etsy_title: 'Etsy',
   home_tool_etsy_desc: 'Title, sales-focused description and up to 13 valid tags.',
   home_tool_etsy_item1: 'Listing title and description to copy',
   home_tool_etsy_item2: 'Up to 13 valid tags, no sentence fragments',
   home_tool_etsy_item3: 'Format and contents only if you name them',
-  home_tool_etsy_status: 'Mockup in development',
+  home_tool_etsy_status: 'Live · copy, mockups ready in preview',
   home_tool_tiktok_title: 'TikTok',
   home_tool_tiktok_desc: 'A script you can shoot, with hook, scenes and spoken lines.',
   home_tool_tiktok_item1: 'Hook and scenes with timings',
   home_tool_tiktok_item2: 'Spoken lines, title and description',
   home_tool_tiktok_item3: 'Exactly 5 hashtags and a call to action',
-  home_tool_tiktok_status: 'Script, no video',
+  home_tool_tiktok_status: 'Live · script, no video',
 
-  home_status_headline: 'What already works — and what does not',
+  home_status_headline: 'The current state in three stages',
   home_status_required:
-    'Pin image, campaign without a photo and mockups are in development and not live yet.',
+    'Every feature sits in exactly one stage: live, ready in preview, or in development. Only what is marked “Live” here is publicly available.',
   home_status_live_title: 'Live',
   home_status_live_text:
-    'Pinterest copy, Etsy copy, TikTok scripts and pin images from your own photo (campaign).',
+    'Pinterest copy, Etsy copy, TikTok scripts, pin images from your own photo (campaign) and the image studio.',
   home_status_dev_title: 'In development',
   home_status_dev_text:
-    'Pin image straight from the text, campaign without your own photo and Etsy mockups. This line stays until they are ready.',
+    'Pinterest API (publishing and scheduling), TikTok lengths 10/15/30/60 s and video creation. This line stays until they are ready.',
 
   home_old_toggle_show: 'Show the earlier version of this page',
   home_old_toggle_hide: 'Hide the earlier version',
   home_old_toggle_note:
     'These sections are no longer used on the landing page. They are kept and stay readable here.',
 
+
+  // ── Feature status in three stages (owner 2026-11-24) ──────────────────────
+  home_stage_live: 'Live',
+  home_stage_preview: 'Ready in preview',
+  home_stage_dev: 'In development',
+
+  home_feat_pin_texts: 'Pinterest copy: SEO title, description, keywords',
+  home_feat_pin_campaign: 'Pin images via the campaign from your own photo',
+  home_feat_pin_image_text: 'Pin image straight from the text (“Pin-Bild erstellen”)',
+  home_feat_pin_designs: 'Five new pin designs: Editorial, Atelier, Galerie, Signal, Kontrast',
+  home_feat_pin_api: 'Pinterest API: publishing and scheduling',
+  home_feat_etsy_texts: 'Etsy copy: title, description, up to 13 valid tags',
+  home_feat_etsy_mockups: 'Etsy mockups: framed poster and mug',
+  home_feat_tiktok_script: 'TikTok script: hook, scenes, spoken lines, exactly 5 hashtags',
+  home_feat_tiktok_lengths: 'TikTok script in selectable lengths 10/15/30/60 s',
+  home_feat_tiktok_video: 'Video creation',
+  home_feat_bild_studio: 'Image studio: AI images from a description',
 
   // ── Phase 2: campaign scaffold (2026-11-15) ────────────────────────────────
   sidebar_kampagne: '🗂️ Campaign',

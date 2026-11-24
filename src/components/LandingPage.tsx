@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { useTranslation } from "~/i18n";
 import LanguageSwitcher from "~/components/LanguageSwitcher";
+import {
+  STAGES,
+  STAGE_LABEL_KEY,
+  featuresOfChannel,
+  featuresOfStage,
+  type FeatureChannel,
+  type FeatureStage,
+} from "~/lib/feature-status";
 // ── Teil B der Neuausrichtung (Owner-Vorgabe 2026-11-12) ───────────────────────
 // Die Startseite verspricht nur, was gebaut ist: Pinterest-Texte, Etsy-Texte und
 // TikTok-Skript sind fertig; Pin-Bild und Etsy-Mockup sind ausdrücklich als
@@ -67,6 +75,27 @@ function StatusBadge({ tone, children }: { tone: "ready" | "partial" | "soon"; c
     <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${styles}`}>
       {tone === "soon" && <ClockIcon className="h-3.5 w-3.5" />}
       {children}
+    </span>
+  );
+}
+
+// ── Statusmarke: genau eine der drei Stufen ─────────────────────────────────────
+// Wortlaut kommt aus den i18n-Keys home_stage_* — dieselbe Quelle wie der
+// Statusblock am Seitenende, damit sich nichts widersprechen kann.
+function StageBadge({ stage }: { stage: FeatureStage }) {
+  const { t } = useTranslation();
+  const styles =
+    stage === "live"
+      ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+      : stage === "preview"
+        ? "bg-blue-50 text-blue-700 ring-blue-200"
+        : "bg-gray-100 text-gray-600 ring-gray-200";
+  return (
+    <span
+      className={"inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset " + styles}
+    >
+      {stage === "dev" && <ClockIcon className="h-3 w-3" />}
+      {t[STAGE_LABEL_KEY[stage]]}
     </span>
   );
 }
@@ -263,7 +292,7 @@ function FeaturesSection() {
       title: t.lp_feature_pinterest_title,
       desc: t.lp_feature_pinterest_desc,
       status: t.lp_feature_pinterest_status,
-      tone: "partial" as const,
+      tone: "ready" as const,
       tile: "from-rose-500 to-red-500",
     },
     {
@@ -379,7 +408,7 @@ function ExamplesSection() {
 
         <div className="mt-8 grid gap-5 lg:grid-cols-3">
           {/* Pinterest */}
-          <ExampleCard label={t.lp_ex_pin_label} footer={t.lp_ex_pin_soon}>
+          <ExampleCard label={t.lp_ex_pin_label} footer={t.lp_ex_pin_soon} footerTone="ready">
             <Field label={t.lp_ex_pin_title_label} value={t.lp_ex_pin_title} />
             <Field label={t.lp_ex_pin_desc_label} value={t.lp_ex_pin_desc} />
             <div>
@@ -851,38 +880,36 @@ function GallerySection() {
   );
 }
 
+// Drei Werkzeug-Karten; jede Funktion darin trägt genau eine Statusmarke aus
+// der Datenliste (src/lib/feature-status.ts) — kein Fließtext, keine zweite
+// Wahrheit in den Übersetzungen.
+const TOOL_CARDS: { channel: FeatureChannel; icon: string; tile: string }[] = [
+  { channel: "pinterest", icon: "📌", tile: "from-rose-500 to-red-500" },
+  { channel: "etsy", icon: "🛍️", tile: "from-amber-500 to-orange-500" },
+  { channel: "tiktok", icon: "🎬", tile: "from-emerald-500 to-teal-500" },
+];
+
+const TOOL_TITLE_KEY = {
+  pinterest: "home_tool_pinterest_title",
+  etsy: "home_tool_etsy_title",
+  tiktok: "home_tool_tiktok_title",
+} as const;
+
+const TOOL_DESC_KEY = {
+  pinterest: "home_tool_pinterest_desc",
+  etsy: "home_tool_etsy_desc",
+  tiktok: "home_tool_tiktok_desc",
+} as const;
+
 function ToolsSection() {
   const { t } = useTranslation();
 
-  const tools = [
-    {
-      icon: "📌",
-      tile: "from-rose-500 to-red-500",
-      title: t.home_tool_pinterest_title,
-      desc: t.home_tool_pinterest_desc,
-      items: [t.home_tool_pinterest_item1, t.home_tool_pinterest_item2, t.home_tool_pinterest_item3],
-      status: t.home_tool_pinterest_status,
-      tone: "partial" as const,
-    },
-    {
-      icon: "🛍️",
-      tile: "from-amber-500 to-orange-500",
-      title: t.home_tool_etsy_title,
-      desc: t.home_tool_etsy_desc,
-      items: [t.home_tool_etsy_item1, t.home_tool_etsy_item2, t.home_tool_etsy_item3],
-      status: t.home_tool_etsy_status,
-      tone: "partial" as const,
-    },
-    {
-      icon: "🎬",
-      tile: "from-emerald-500 to-teal-500",
-      title: t.home_tool_tiktok_title,
-      desc: t.home_tool_tiktok_desc,
-      items: [t.home_tool_tiktok_item1, t.home_tool_tiktok_item2, t.home_tool_tiktok_item3],
-      status: t.home_tool_tiktok_status,
-      tone: "ready" as const,
-    },
-  ];
+  const tools = TOOL_CARDS.map((card) => ({
+    ...card,
+    title: t[TOOL_TITLE_KEY[card.channel]],
+    desc: t[TOOL_DESC_KEY[card.channel]],
+    features: featuresOfChannel(card.channel),
+  }));
 
   return (
     <section id="werkzeuge" className="py-16 sm:py-24">
@@ -906,16 +933,13 @@ function ToolsSection() {
               <h3 className="mt-4 text-lg font-bold text-gray-900">{tool.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-gray-500">{tool.desc}</p>
               <ul className="mt-4 flex-1 space-y-2">
-                {tool.items.map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-sm leading-relaxed text-gray-700">
-                    <CheckIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
-                    <span className="min-w-0">{item}</span>
+                {tool.features.map((feature) => (
+                  <li key={feature.id} className="flex flex-col gap-1.5 rounded-xl bg-gray-50 px-3 py-2.5">
+                    <span className="min-w-0 text-sm leading-snug text-gray-700">{t[feature.titleKey]}</span>
+                    <StageBadge stage={feature.stage} />
                   </li>
                 ))}
               </ul>
-              <div className="mt-5">
-                <StatusBadge tone={tool.tone}>{tool.status}</StatusBadge>
-              </div>
             </div>
           ))}
         </div>
@@ -924,41 +948,56 @@ function ToolsSection() {
   );
 }
 
+// Drei Spalten A/B/C — dieselbe Datenliste wie die Werkzeug-Karten.
+const STAGE_COLUMN_STYLE: Record<FeatureStage, { box: string; heading: string; dot: string }> = {
+  live: { box: "border-emerald-200 bg-emerald-50/60", heading: "text-emerald-800", dot: "bg-emerald-500" },
+  preview: { box: "border-blue-200 bg-blue-50/60", heading: "text-blue-800", dot: "bg-blue-500" },
+  dev: { box: "border-gray-200 bg-white", heading: "text-gray-600", dot: "bg-gray-400" },
+};
+
 function HonestStatusSection() {
   const { t } = useTranslation();
 
   return (
     <section id="status" className="bg-gray-50 py-16 sm:py-24">
       <SectionContainer>
-        <div className="mx-auto max-w-3xl rounded-2xl border border-amber-200 bg-amber-50/70 p-5 sm:rounded-3xl sm:p-10">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
-              <ClockIcon className="h-5 w-5" />
-            </span>
-            <h2 className="text-xl font-extrabold leading-snug text-gray-900 sm:text-2xl">
-              {t.home_status_headline}
-            </h2>
+        <div className="mx-auto max-w-5xl">
+          <div className="mx-auto max-w-2xl text-center">
+            <SectionHeading>{t.home_status_headline}</SectionHeading>
+            {/* Pflichtzeile — nicht als Werbeversprechen umformulieren */}
+            <p className="mt-4 text-sm font-semibold leading-relaxed text-gray-700 sm:text-base">
+              {t.home_status_required}
+            </p>
           </div>
 
-          {/* Pflichtzeile — nicht als Werbeversprechen umformulieren */}
-          <p className="mt-5 rounded-xl border border-amber-200/70 bg-white px-4 py-3 text-sm font-semibold leading-relaxed text-gray-900 sm:text-base">
-            {t.home_status_required}
-          </p>
-
-          <dl className="mt-5 space-y-4">
-            <div>
-              <dt className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-                {t.home_status_live_title}
-              </dt>
-              <dd className="mt-1 text-sm leading-relaxed text-gray-700">{t.home_status_live_text}</dd>
-            </div>
-            <div>
-              <dt className="text-[11px] font-bold uppercase tracking-wider text-amber-700">
-                {t.home_status_dev_title}
-              </dt>
-              <dd className="mt-1 text-sm leading-relaxed text-gray-700">{t.home_status_dev_text}</dd>
-            </div>
-          </dl>
+          <div className="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-3 sm:gap-5">
+            {STAGES.map((stage) => {
+              const style = STAGE_COLUMN_STYLE[stage];
+              const entries = featuresOfStage(stage);
+              return (
+                <div key={stage} className={"rounded-2xl border p-4 sm:p-5 " + style.box}>
+                  <div className="flex items-center gap-2">
+                    <span className={"h-2 w-2 flex-shrink-0 rounded-full " + style.dot} />
+                    <h3 className={"text-[11px] font-bold uppercase tracking-wider " + style.heading}>
+                      {t[STAGE_LABEL_KEY[stage]]}
+                    </h3>
+                  </div>
+                  <ul className="mt-4 space-y-3">
+                    {entries.map((feature) => (
+                      <li key={feature.id}>
+                        <p className="text-sm leading-snug text-gray-800">{t[feature.titleKey]}</p>
+                        {feature.channel && (
+                          <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                            {t[TOOL_TITLE_KEY[feature.channel]]}
+                          </p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </SectionContainer>
     </section>
