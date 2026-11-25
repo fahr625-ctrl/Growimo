@@ -241,6 +241,7 @@ function MockupsPage() {
             </div>
 
             {art === 'vorhanden' ? (
+              <>
               <ul className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
                 {DESIGNS.map((d) => {
                   const name = designName(d);
@@ -268,6 +269,10 @@ function MockupsPage() {
                   );
                 })}
               </ul>
+              <p className="mt-3 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs leading-relaxed text-neutral-600">
+                {t.mockups_design_pin_hinweis}
+              </p>
+              </>
             ) : (
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <input

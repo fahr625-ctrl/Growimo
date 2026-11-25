@@ -2667,6 +2667,8 @@ export const en: EnShape = {
   mockups_upload_hint: 'PNG, JPG or WebP up to 4.4 MB. Larger images are scaled down in the browser.',
   mockups_design_kerze: 'Candle',
   mockups_design_poster: 'Poster',
+  mockups_design_pin_hinweis:
+    'The 12 example designs are finished pins with a product photo. In the poster frame they therefore appear as a picture within a picture — the poster shows a candle or a poster inside a poster. For a poster mockup, a flat print file without a product photo is the right choice: choose your own file and upload the print motif.',
   mockups_vorlage_passepartout: 'Mount',
   mockups_vorlage_eiche: 'Oak frame',
   mockups_vorlage_tasse_hell: 'Mug light',

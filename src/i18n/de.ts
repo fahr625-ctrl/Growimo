@@ -2693,6 +2693,8 @@ export const de = {
   mockups_upload_hint: 'PNG, JPG oder WebP bis 4,4 MB. Größere Bilder werden im Browser verkleinert.',
   mockups_design_kerze: 'Kerze',
   mockups_design_poster: 'Poster',
+  mockups_design_pin_hinweis:
+    'Die 12 Beispiel-Designs sind fertige Pins mit Produktfoto. Im Poster-Rahmen erscheinen sie deshalb als Bild im Bild — das Poster zeigt dann eine Kerze bzw. ein Poster im Poster. Für ein Poster-Mockup ist eine flache Druckdatei ohne Produktfoto die richtige Wahl: eigene Datei wählen und das Druckmotiv hochladen.',
   mockups_vorlage_passepartout: 'Passepartout',
   mockups_vorlage_eiche: 'Eichenrahmen',
   mockups_vorlage_tasse_hell: 'Tasse hell',

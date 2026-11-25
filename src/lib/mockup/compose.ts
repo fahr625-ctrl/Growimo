@@ -6,8 +6,16 @@
  * Modell: was im Mockup zu sehen ist, ist das Design selbst.
  *
  * Ablauf: Vorlage lesen → Produktfläche prüfen → Design formatfüllend
- * („contain“, nie beschnitten) in die Fläche legen → per Rückprojektion auf die
- * Fläche abbilden → PNG.
+ * („contain“, nie beschnitten) mittig in die Fläche legen → den Rest der Fläche
+ * mit dem Papierton des Designs füllen → per Rückprojektion auf die Fläche
+ * abbilden → PNG.
+ *
+ * Warum der Rest gefüllt wird: die Passepartout-Öffnung ist 444 × 614 px
+ * (0,723), ein Pin-Design ist 2:3 (0,667). Formatfüllend bleibt rechts und
+ * links ein Streifen übrig, in dem sonst die Vorlagenkante durchscheint — eine
+ * sichtbare Naht neben dem Druck. Der Streifen bekommt deshalb die Randfarbe
+ * des Designs (Median der äußersten Spalte/Zeile), verrechnet wie das Design
+ * selbst. Nichts wird beschnitten.
  *
  * Fail-closed: fehlt die Vorlage, ist das Design unlesbar oder füllt es die
  * Fläche nicht ausreichend, gibt es **kein Bild** und einen klaren Fehler.
@@ -65,6 +73,8 @@ type Mat3 = readonly [
   number, number, number,
   number, number, number,
 ];
+
+type Rgb = readonly [number, number, number];
 
 // ── Vorlagen-Verzeichnis ─────────────────────────────────────────────────────
 
@@ -294,6 +304,50 @@ function baueFlaeche(vorlage: MockupVorlage): Flaeche {
     : zylinderFlaeche(vorlage.flaeche);
 }
 
+// ── Papierton ───────────────────────────────────────────────────────────────
+
+/**
+ * Randfarbe des Designs: Median der äußersten Spalte bzw. Zeile (1–3 px tief).
+ * Median statt Mittelwert, damit einzelne helle/dunkle Pixel die Farbe nicht
+ * verschieben. Je Seite getrennt, damit ein Design mit ungleichem Rand keinen
+ * falschen Ton in den Streifen zieht.
+ */
+function medianRand(
+  rgb: Uint8Array,
+  breite: number,
+  hoehe: number,
+  seite: 'links' | 'rechts' | 'oben' | 'unten',
+): Rgb {
+  const tiefe = Math.max(1, Math.min(3, Math.floor(Math.min(breite, hoehe) / 100)));
+  const werte: number[][] = [[], [], []];
+  if (seite === 'links' || seite === 'rechts') {
+    for (let t = 0; t < tiefe; t++) {
+      const x = seite === 'links' ? t : breite - 1 - t;
+      for (let y = 0; y < hoehe; y++) {
+        const i = (y * breite + x) * 3;
+        werte[0]!.push(rgb[i]!);
+        werte[1]!.push(rgb[i + 1]!);
+        werte[2]!.push(rgb[i + 2]!);
+      }
+    }
+  } else {
+    for (let t = 0; t < tiefe; t++) {
+      const y = seite === 'oben' ? t : hoehe - 1 - t;
+      for (let x = 0; x < breite; x++) {
+        const i = (y * breite + x) * 3;
+        werte[0]!.push(rgb[i]!);
+        werte[1]!.push(rgb[i + 1]!);
+        werte[2]!.push(rgb[i + 2]!);
+      }
+    }
+  }
+  const mitte = (v: number[]): number => {
+    const sortiert = [...v].sort((a, b) => a - b);
+    return sortiert[Math.floor(sortiert.length / 2)] ?? 0;
+  };
+  return [mitte(werte[0]!), mitte(werte[1]!), mitte(werte[2]!)];
+}
+
 // ── Komposition ─────────────────────────────────────────────────────────────
 
 /** Formatfüllende (nie beschneidende) Platzierung des Designs in der Fläche. */
@@ -378,6 +432,66 @@ export async function composeMockup(eingabe: ComposeEingabe): Promise<ComposeErg
   const yVon = Math.max(0, Math.floor(flaeche.yMin));
   const yBis = Math.min(hoehe - 1, Math.ceil(flaeche.yMax));
 
+  // Papierton des Designs je Seite — füllt den Rest der Produktfläche.
+  const papierton = {
+    links: medianRand(designRgb, designInfo.width, designInfo.height, 'links'),
+    rechts: medianRand(designRgb, designInfo.width, designInfo.height, 'rechts'),
+    oben: medianRand(designRgb, designInfo.width, designInfo.height, 'oben'),
+    unten: medianRand(designRgb, designInfo.width, designInfo.height, 'unten'),
+  };
+
+  /**
+   * Papierton an der Stelle (flX, flY) der Fläche: gewichtet nach Abstand zur
+   * jeweiligen Designkante. Im Streifen links zieht also die linke Randfarbe,
+   * im Streifen rechts die rechte; unter dem Design entsteht ein weicher
+   * Übergang, der die weiche Designkante nahtlos fortsetzt.
+   */
+  function papierTon(flX: number, flY: number): Rgb {
+    const gl = 1 / (1 + Math.abs(flX - platz.offX)) ** 2;
+    const gr = 1 / (1 + Math.abs(platz.offX + platz.breite - flX)) ** 2;
+    const go = 1 / (1 + Math.abs(flY - platz.offY)) ** 2;
+    const gu = 1 / (1 + Math.abs(platz.offY + platz.hoehe - flY)) ** 2;
+    const summe = gl + gr + go + gu;
+    if (summe <= 0) return papierton.links;
+    return [
+      (papierton.links[0] * gl + papierton.rechts[0] * gr + papierton.oben[0] * go + papierton.unten[0] * gu) / summe,
+      (papierton.links[1] * gl + papierton.rechts[1] * gr + papierton.oben[1] * go + papierton.unten[1] * gu) / summe,
+      (papierton.links[2] * gl + papierton.rechts[2] * gr + papierton.oben[2] * go + papierton.unten[2] * gu) / summe,
+    ];
+  }
+
+  // ── 1 · Papier: die ganze Produktfläche mit dem Papierton des Designs ──────
+  // Ohne diesen Schritt bliebe neben einem 2:3-Design in einer 0,723-Öffnung
+  // ein Streifen Vorlagenkante stehen (sichtbare Naht an der Rahmenseite).
+  for (let y = yVon; y <= yBis; y++) {
+    for (let x = xVon; x <= xBis; x++) {
+      const mitte = flaeche.nachUV(x + 0.5, y + 0.5);
+      if (!mitte) continue;
+      let deckung = 0;
+      for (let sy = 0; sy < stichproben; sy++) {
+        for (let sx = 0; sx < stichproben; sx++) {
+          if (flaeche.nachUV(x + (sx + 0.5) / stichproben, y + (sy + 0.5) / stichproben)) {
+            deckung += 1 / (stichproben * stichproben);
+          }
+        }
+      }
+      if (deckung === 0) continue;
+
+      const flX = mitte.u * flaechenBreite;
+      const flY = mitte.v * flaechenHoehe;
+      const ton = papierTon(flX, flY);
+      const ziel = (y * breite + x) * 3;
+      for (let c = 0; c < 3; c++) {
+        const basis = rgb[ziel + c]!;
+        const multipliziert = (basis * ton[c]!) / 255;
+        const gemischt = basis * (1 - k) + multipliziert * k;
+        const mitSchatten = Math.max(0, Math.min(255, gemischt * mitte.schatten));
+        ausgabe[ziel + c] = Math.round(basis + (mitSchatten - basis) * deckung);
+      }
+    }
+  }
+
+  // ── 2 · Design in der Platzierung (mittig, formatfüllend, nie beschnitten) ─
   for (let y = yVon; y <= yBis; y++) {
     for (let x = xVon; x <= xBis; x++) {
       let deckung = 0;
@@ -393,7 +507,7 @@ export async function composeMockup(eingabe: ComposeEingabe): Promise<ComposeErg
       }
       if (deckung === 0 || treffer.length === 0) continue;
 
-      const mitte = treffer[Math.floor(treffer.length / 2)];
+      const mitte = treffer[Math.floor(treffer.length / 2)]!;
       // Fläche → Design: (u,v) der Fläche auf die platzierte Designfläche legen.
       const flX = mitte.u * flaechenBreite;
       const flY = mitte.v * flaechenHoehe;
@@ -428,14 +542,17 @@ export async function composeMockup(eingabe: ComposeEingabe): Promise<ComposeErg
       const ziel = (y * breite + x) * 3;
       const schatten = mitte.schatten;
       for (let c = 0; c < 3; c++) {
-        const obenMisch = designRgb[i00 + c] * (1 - fx) + designRgb[i10 + c] * fx;
-        const untenMisch = designRgb[i01 + c] * (1 - fx) + designRgb[i11 + c] * fx;
+        const obenMisch = designRgb[i00 + c]! * (1 - fx) + designRgb[i10 + c]! * fx;
+        const untenMisch = designRgb[i01 + c]! * (1 - fx) + designRgb[i11 + c]! * fx;
         const designWert = obenMisch * (1 - fy) + untenMisch * fy;
-        const basis = rgb[ziel + c];
+        const basis = rgb[ziel + c]!;
         const multipliziert = (basis * designWert) / 255;
         const gemischt = basis * (1 - k) + multipliziert * k;
         const mitSchatten = Math.max(0, Math.min(255, gemischt * schatten));
-        ausgabe[ziel + c] = Math.round(basis + (mitSchatten - basis) * deckungMitRand);
+        // Aus dem Papierton (Schritt 1) ins Design überblenden — nicht aus der
+        // Vorlage, sonst bliebe an der weichen Kante eine Zeile Vorlagenfarbe.
+        const untergrund = ausgabe[ziel + c]!;
+        ausgabe[ziel + c] = Math.round(untergrund + (mitSchatten - untergrund) * deckungMitRand);
       }
     }
   }
